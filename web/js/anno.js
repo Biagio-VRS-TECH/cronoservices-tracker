@@ -1,0 +1,474 @@
+/* anno.js - la cronostriscia: clienti x 12 mesi, celle a quattro segmenti.
+   Disegno via stringhe HTML (fino a ~6600 celle) + delega degli eventi.
+
+   Attributi della cella:
+     data-cella="idService-mese"       chiave
+     data-s / data-c / data-k / data-r 0|1 -> pilotano i quattro segmenti dal CSS
+   Le classi temporali (previsto / visita / stima / da-rinnovare / non-tracciato /
+   prima-contratto / non-previsto) vengono da stato.classeMese:
+   vedi #ANCHOR: anno-modello in stato.js.
+
+   Una RIGA si legge cosi': in tutto l'anno UNA sola capsula piena, nel mese in
+   cui la mappatura di quel SITO scade (il primo mese di manutenzione dentro il
+   contratto); tutte le altre capsule hanno il solo contorno, sono visite - la
+   mappatura si puo' fare la', ma non e' un secondo impegno (#ANCHOR:
+   mappatura-anno). Quando i quattro passi ci sono la capsula si accende di
+   verde: quel sito e' a posto per l'anno. I totali per mese contano i SITI la
+   cui mappatura *scade* in quel mese, non le celle; la riga cliente somma i
+   suoi impianti.
+   #ANCHOR: vista-anno */
+import { esc, ICO, FRECCE, fuoco, frecceEntrano } from './ui.js';
+import {
+  st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
+  mappaturaSito, meseScadenza, scadEffettiva, CAMPI, SIGLA, PASSI, CLASSE_ET,
+} from './stato.js';
+import { apriPop, chiudiPop, popAperto } from './spunte.js';
+import { apriCassetto } from './cassetto.js';
+
+let radice = null, contenitore = null;
+
+const puntoTipo = t => t === 'GAS MEDICALE' ? 'med' : t === 'GAS TECNICI' ? 'tec' : 'alt';
+const segAttr = c => `data-s="${c.s}" data-c="${c.c}" data-k="${c.k}" data-r="${c.r}"`;
+const SEG = '<i class="seg s"></i><i class="seg c"></i><i class="seg k"></i>' +
+  '<i class="seg r"></i>';
+const oggiCl = m => (m === st.meseOggi && st.anno === st.annoOggi) ? ' mese-oggi' : '';
+
+/* classe temporale -> classe CSS aggiuntiva della cella */
+const CSS_CLASSE = {
+  'previsto': '', 'visita': 'visita', 'non-tracciato': 'nontracciato',
+  'stima': 'stima', 'da-rinnovare': 'darinnovare',
+};
+
+function htmlCella(s, m) {
+  const e = statoCella(s.id, m);
+  let tip = CLASSE_ET[e.classe] || '';
+  if (e.classe === 'stima' || e.classe === 'da-rinnovare') {
+    /* Per il rinnovo automatico la data utile e' la fine del termine IN CORSO,
+       non quella scritta in Access: oltre quella comincia la proiezione. */
+    const sc = scadEffettiva(s);
+    tip += sc ? ` (scadenza contratto ${sc.split('-').reverse().join('/')})` : '';
+  }
+  if (e.classe === 'visita') {
+    const sc = meseScadenza(s);
+    if (sc) tip += ` (${st.mesi[sc - 1]})`;
+  }
+
+  if (e.classe === 'non-previsto' || e.classe === 'prima-contratto') {
+    // spunte su un mese non previsto: si mostrano comunque, marcate orfane
+    if (e.n > 0) {
+      return `<div class="q${oggiCl(m)}"><button class="cella orfana" data-cella="${s.id}-${m}"
+        tabindex="-1" ${segAttr(e.c)}
+        title="Mese non previsto, ma con spunte registrate">${SEG}</button></div>`;
+    }
+    const cl = e.classe === 'prima-contratto' ? 'q fuori-contratto' : 'q non-previsto';
+    return `<div class="${cl}${oggiCl(m)}" title="${esc(tip)}"></div>`;
+  }
+
+  const cl = ['cella', CSS_CLASSE[e.classe], e.completa && 'completa',
+    e.ritardo && 'ritardo', e.c.nota && 'con-nota'].filter(Boolean).join(' ');
+  return `<div class="q${oggiCl(m)}"><button class="${cl}" data-cella="${s.id}-${m}"
+    tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}"
+    title="${esc(tip)}" ${segAttr(e.c)}>${SEG}</button></div>`;
+}
+
+function htmlRigaSrv(s, rit) {
+  const p = progresso(s);
+  const chiuso = s.stato !== 'APERTO';
+  let mesi = '';
+  for (let m = 1; m <= 12; m++) mesi += htmlCella(s, m);
+  return `<div class="riga riga-srv${chiuso ? ' chiuso' : ''} entra-riga" data-srv="${s.id}"
+      style="--rit:${rit}ms">
+    <div class="col-nome">
+      <span class="punto-tipo ${puntoTipo(s.tipo)}" title="${esc(s.tipo)}"></span>
+      <span class="srv-id">#${s.id}</span>
+      <span class="srv-dest" title="${esc(s.dest)}">${esc(s.dest || '(senza destinazione)')}</span>
+      <span class="srv-loc">${esc(s.loc || '')}</span>
+      ${chiuso ? '<span class="tag">chiuso</span>' : ''}
+    </div>
+    <div class="mesi">${mesi}</div>
+    <div class="col-tot${p.tot && p.fatti === p.tot ? ' pieno' : ''}">
+      ${p.tot ? `<b>${p.fatti}</b>/${p.tot}` : '&mdash;'}
+    </div>
+  </div>`;
+}
+
+/* Passi fatti / previsti nel mese sulla riga del cliente: la somma dei suoi
+   SITI la cui mappatura scade in quel mese (un cliente con nove impianti puo'
+   averne tre in scadenza a marzo). I passi restano appesi al mese di scadenza
+   anche se il lavoro e' stato fatto alla visita di un altro mese: e' quello
+   l'impegno. Le scadenze pre-tracciamento non ci sono: non sono un impegno
+   preso qui. */
+function quotaMese(g, m) {
+  let f = 0, t = 0;
+  for (const s of g.srvs) {
+    if (s.stato !== 'APERTO') continue;
+    const ma = mappaturaSito(s);
+    if (!ma.prevista || ma.scad !== m) continue;
+    f += ma.n; t += PASSI;
+  }
+  return [f, t];
+}
+
+function barreCliente(g) {
+  let out = '';
+  for (let m = 1; m <= 12; m++) {
+    const [f, t] = quotaMese(g, m);
+    out += `<div class="q${oggiCl(m)}">${t
+      ? `<span class="qb${f === t ? ' pieno' : ''}" title="${f}/${t} passi · ${t / PASSI} mappature in scadenza"><i style="width:${Math.round(f / t * 100)}%"></i></span>`
+      : ''}</div>`;
+  }
+  return out;
+}
+
+function htmlGruppo(g, rit) {
+  const pg = progressoGruppo(g);
+  const piegato = st.chiusiCli.has(g.cli.id);
+  const righe = piegato ? ''
+    : g.srvs.map((s, i) => htmlRigaSrv(s, Math.min(rit + i * 6, 260))).join('');
+  return `<section class="blocco" data-cli="${g.cli.id}">
+    <div class="riga riga-cli entra-riga" role="button" tabindex="0"
+         aria-expanded="${!piegato}" style="--rit:${rit}ms">
+      <div class="col-nome">
+        <span class="cuneo">${ICO.cuneo}</span>
+        <span class="cli-nome" title="${esc(g.cli.rs)}">${esc(g.cli.rs)}</span>
+        <span class="cli-id">${g.cli.id}</span>
+        ${pg.aperti ? `<span class="tag aperti">${pg.aperti} apert${pg.aperti === 1 ? 'o' : 'i'}</span>` : ''}
+        ${pg.chiusi ? `<span class="tag">${pg.chiusi} chius${pg.chiusi === 1 ? 'o' : 'i'}</span>` : ''}
+      </div>
+      <div class="mesi">${barreCliente(g)}</div>
+      <div class="col-tot${pg.tot && pg.fatti === pg.tot ? ' pieno' : ''}"
+           title="${pg.dovute ? `${pg.complete} mappature complete su ${pg.dovute} dovute` : 'nessuna mappatura dovuta quest\'anno'}">
+        ${pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;'}
+      </div>
+    </div>
+    ${righe}
+  </section>`;
+}
+
+/* Mappature complete / in scadenza in un mese, su tutto il set filtrato: una
+   per SITO. */
+function totaliMese(gruppi, m) {
+  let fatte = 0, tot = 0;
+  for (const g of gruppi) {
+    for (const s of g.srvs) {
+      if (s.stato !== 'APERTO') continue;
+      const ma = mappaturaSito(s);
+      if (!ma.prevista || ma.scad !== m) continue;
+      tot++;
+      if (ma.completa) fatte++;
+    }
+  }
+  return [fatte, tot];
+}
+
+/** Riga dei totali per mese: e' quello che si guarda per capire dove intervenire
+ *  senza contare le celle a occhio. */
+function htmlTotaliMese(gruppi) {
+  let celle = '';
+  for (let m = 1; m <= 12; m++) {
+    const [fatte, tot] = totaliMese(gruppi, m);
+    celle += `<div class="q${oggiCl(m)}">${tot
+      ? `<span class="tm${fatte === tot ? ' pieno' : ''}"
+           title="${fatte} chiuse su ${tot} mappature (una per sito) che scadono in questo mese">${fatte}/${tot}</span>`
+      : ''}</div>`;
+  }
+  return `<div class="riga riga-totali">
+    <div class="col-nome">Mappature in scadenza</div>
+    <div class="mesi">${celle}</div>
+    <div class="col-tot"></div>
+  </div>`;
+}
+
+/** Tutti i clienti a schermo sono piegati? Serve al bottone della testa, che
+ *  fa una cosa sola e la dice: chiudi tutto / riapri tutto. */
+const tuttiPiegati = gruppi =>
+  gruppi.length > 0 && gruppi.every(g => st.chiusiCli.has(g.cli.id));
+
+/** Piega o spiega TUTTI i clienti del set filtrato. Con 222 clienti aperti la
+ *  griglia e' lunghissima: senza questo bottone si richiudevano a mano uno a
+ *  uno. Agisce sui filtri attivi, come tutto il resto. */
+function piegaTutti(chiudi) {
+  const gruppi = gruppiFiltrati();
+  for (const g of gruppi) {
+    chiudi ? st.chiusiCli.add(g.cli.id) : st.chiusiCli.delete(g.cli.id);
+  }
+  chiudiPop();
+  disegna(contenitore);
+}
+
+export function disegna(area) {
+  const gruppi = gruppiFiltrati();
+  const chiuse = tuttiPiegati(gruppi);
+  const testa = `<div class="riga crono-testa">
+    <div class="col-nome">
+      <button class="piega-tutti" data-piega="${chiuse ? 0 : 1}"
+              title="${chiuse ? 'Riapri gli impianti di tutti i clienti' : 'Richiudi le tendine di tutti i clienti'}">
+        ${chiuse ? ICO.espandi : ICO.comprimi}
+        <span>${chiuse ? 'Apri tutti' : 'Chiudi tutti'}</span>
+      </button>
+      <span>Cliente &middot; sito</span>
+    </div>
+    <div class="mesi">${st.mesi.map((m, i) =>
+    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}</div>`).join('')}</div>
+    <div class="col-tot">Anno</div>
+  </div>`;
+  area.innerHTML = `<div class="crono">${testa}${gruppi.length
+    ? htmlTotaliMese(gruppi) + gruppi.map((g, i) => htmlGruppo(g, Math.min(i * 14, 240))).join('')
+    : `<div class="vuoto"><b>Nessun service con questi filtri</b>
+         Togli un filtro o svuota la ricerca.</div>`}</div>`;
+  contenitore = area;
+  radice = area.querySelector('.crono');
+  collega(radice);
+  radice.querySelector('.cella')?.setAttribute('tabindex', '0');
+}
+
+/* --- movimento con le frecce ------------------------------------------------
+   La griglia e' bucata: i mesi senza manutenzione prevista non sono celle
+   attive (sono dei <div class="q"> vuoti). Muoversi sull'elenco delle .cella
+   non bastava: nella maggior parte delle righe ce n'e' una sola e le frecce
+   sembravano morte. Si ragiona quindi per colonna (0..11) e si cerca la prima
+   cella attiva nella direzione richiesta, saltando i buchi e le righe vuote. */
+
+const colonna = cel => [...cel.closest('.mesi').children].indexOf(cel.closest('.q'));
+
+/* Colonna "desiderata" durante un movimento verticale: senza memoria, salendo e
+   scendendo fra righe con mesi diversi il fuoco derivava di mese in mese. */
+let colMemo = null;
+
+/** Prima cella attiva della riga a partire da `col` (esclusa), verso `dir`. */
+function scorriRiga(riga, col, dir) {
+  const q = [...riga.querySelector('.mesi').children];
+  for (let i = col + dir; i >= 0 && i < q.length; i += dir) {
+    const c = q[i].querySelector('.cella');
+    if (c) return c;
+  }
+  return null;
+}
+
+/** Cella della riga nella colonna `col`; se il mese non e' previsto, la piu'
+ *  vicina a destra o a sinistra. Null se la riga non ha celle attive. */
+function vicinaInRiga(riga, col) {
+  const q = [...riga.querySelector('.mesi').children];
+  const dritto = q[col]?.querySelector('.cella');
+  if (dritto) return dritto;
+  for (let d = 1; d < q.length; d++) {
+    const c = q[col + d]?.querySelector('.cella') || q[col - d]?.querySelector('.cella');
+    if (c) return c;
+  }
+  return null;
+}
+
+function vai(alt) {
+  if (!fuoco(alt)) return;
+  // se il popover era aperto, segue la cella col fuoco
+  if (popAperto()) apriPop(alt, ...alt.dataset.cella.split('-').map(Number));
+}
+
+/* il primo colpo di freccia entra nella griglia: vedi ui.frecceEntrano */
+frecceEntrano(
+  () => st.vista === 'anno' && !!radice?.isConnected,
+  () => [...radice.querySelectorAll('.cella')],
+  '.cella');
+
+function collega(r) {
+  if (r.__collegato) return;
+  r.__collegato = true;
+
+  r.addEventListener('click', e => {
+    colMemo = null;                     // il mouse ridefinisce la colonna
+    const cel = e.target?.closest?.('.cella');
+    if (cel) return apriPop(cel, ...cel.dataset.cella.split('-').map(Number));
+    const pt = e.target?.closest?.('[data-piega]');
+    if (pt) return piegaTutti(pt.dataset.piega === '1');
+    const cli = e.target?.closest?.('.riga-cli');
+    if (cli) return piega(cli);
+    const nome = e.target?.closest?.('.riga-srv .col-nome');
+    if (nome) apriCassetto(Number(nome.closest('.riga-srv').dataset.srv));
+  });
+
+  r.addEventListener('keydown', e => {
+    const cli = e.target?.closest?.('.riga-cli');
+    if (cli && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return piega(cli); }
+    const cel = e.target?.closest?.('.cella');
+    if (!cel) return;
+    const [id, m] = cel.dataset.cella.split('-').map(Number);
+    const i = '1234'.indexOf(e.key);
+    if (i >= 0) {
+      e.preventDefault();
+      return spunta(id, m, CAMPI[i], !cella(id, m)[SIGLA[CAMPI[i]]]);
+    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return apriPop(cel, id, m); }
+    const dx = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && FRECCE[e.key];
+    const dy = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && FRECCE[e.key];
+    const bordo = { Home: 1, End: -1 }[e.key];
+    if (!dx && !dy && !bordo) return;
+    e.preventDefault();
+    const riga = cel.closest('.riga-srv');
+    const col = colonna(cel);
+    let alt = null;
+    if (dx || bordo) {
+      alt = dx ? scorriRiga(riga, col, dx) : scorriRiga(riga, bordo > 0 ? -1 : 12, bordo);
+      if (alt) colMemo = colonna(alt);
+    } else {
+      const meta = colMemo ?? col;
+      colMemo = meta;
+      const righe = [...r.querySelectorAll('.riga-srv')];
+      for (let i = righe.indexOf(riga) + dy; i >= 0 && i < righe.length && !alt; i += dy) {
+        alt = vicinaInRiga(righe[i], meta);
+      }
+    }
+    vai(alt);
+  });
+
+  // roving tabindex: una sola cella nell'ordine di tabulazione
+  r.addEventListener('focusin', e => {
+    if (!e.target.classList?.contains('cella')) return;
+    r.querySelectorAll('.cella[tabindex="0"]').forEach(n => { n.tabIndex = -1; });
+    e.target.tabIndex = 0;
+  });
+}
+
+function piega(riga) {
+  const sez = riga.closest('.blocco');
+  const id = Number(sez.dataset.cli);
+  st.chiusiCli.has(id) ? st.chiusiCli.delete(id) : st.chiusiCli.add(id);
+  chiudiPop();
+  const g = gruppiFiltrati().find(x => x.cli.id === id);
+  if (g) sez.outerHTML = htmlGruppo(g, 0);
+}
+
+/** Aggiorna in posto una cella. Chiamata dalle spunte locali e dagli eventi SSE. */
+export function aggiornaCella(id, mese, remoto) {
+  if (!radice) return;
+  const n = radice.querySelector(`.cella[data-cella="${id}-${mese}"]`);
+  if (!n) {
+    // La cella non esiste ancora: succede quando arriva una spunta su un mese
+    // non previsto (orfana). Ridisegno la riga del service, poi i totali.
+    const riga = radice.querySelector(`.riga-srv[data-srv="${id}"]`);
+    const s = st.perServ.get(id);
+    if (riga && s) riga.outerHTML = htmlRigaSrv(s, 0);
+    aggiornaTotali(id);
+    return;
+  }
+  const e = statoCella(id, mese);
+  n.setAttribute('data-s', e.c.s);
+  n.setAttribute('data-c', e.c.c);
+  n.setAttribute('data-k', e.c.k);
+  n.setAttribute('data-r', e.c.r);
+  n.classList.toggle('completa', e.completa);
+  n.classList.toggle('ritardo', e.ritardo);
+  n.classList.toggle('con-nota', !!e.c.nota);
+  n.classList.toggle('sospesa', CAMPI.some(x => st.sospese.has(`${id}-${mese}-${x}`)));
+  n.setAttribute('aria-label',
+    `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}`);
+  if (remoto) eco(n, remoto);
+  aggiornaTotali(id);
+}
+
+/* La modifica di un collega si annuncia una volta: anello + nome. */
+function eco(n, chi) {
+  n.classList.remove('remota');
+  void n.offsetWidth;
+  n.classList.add('remota');
+  n.parentElement.querySelector('.eco-nome')?.remove();
+  const et = document.createElement('span');
+  et.className = 'eco-nome';
+  et.textContent = chi;
+  n.parentElement.append(et);
+  setTimeout(() => et.remove(), 1700);
+}
+
+/** Numero nella colonna "Anno" di una riga service. */
+function rinfrescaRiga(id) {
+  const s = st.perServ.get(id);
+  const riga = radice?.querySelector(`.riga-srv[data-srv="${id}"]`);
+  if (!s || !riga) return;
+  const p = progresso(s);
+  const t = riga.querySelector('.col-tot');
+  t.innerHTML = p.tot ? `<b>${p.fatti}</b>/${p.tot}` : '&mdash;';
+  t.classList.toggle('pieno', p.tot > 0 && p.fatti === p.tot);
+}
+
+function aggiornaTotali(id) {
+  const s = st.perServ.get(id);
+  if (!s || !radice) return;
+  /* La mappatura e' del sito: chiuderla alla visita di novembre toglie il
+     ritardo alla sua cella di scadenza, che sta sulla stessa riga ma in un
+     altro mese. Va ridipinta anche lei. */
+  const ma = mappaturaSito(s);
+  if (ma.scad) {
+    const cs = radice.querySelector(`.cella[data-cella="${id}-${ma.scad}"]`);
+    if (cs) cs.classList.toggle('ritardo', statoCella(id, ma.scad).ritardo);
+  }
+  rinfrescaRiga(id);
+  const sez = radice.querySelector(`.blocco[data-cli="${s.cli}"]`);
+  const g = st.gruppi.find(x => x.cli.id === s.cli);
+  if (!sez || !g) return;
+  const pg = progressoGruppo(g);
+  const t2 = sez.querySelector('.riga-cli .col-tot');
+  t2.innerHTML = pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;';
+  t2.classList.toggle('pieno', pg.tot > 0 && pg.fatti === pg.tot);
+  const caselle = sez.querySelectorAll('.riga-cli .mesi > .q');
+  for (let m = 1; m <= 12; m++) {
+    const b = caselle[m - 1]?.querySelector('.qb');
+    if (!b) continue;
+    const [f, t] = quotaMese(g, m);
+    b.title = `${f}/${t} passi · ${t / PASSI} mappature in scadenza`;
+    b.classList.toggle('pieno', t > 0 && f === t);
+    b.firstElementChild.style.width = t ? Math.round(f / t * 100) + '%' : '0%';
+  }
+  aggiornaRigaTotali();
+}
+
+/* Tiene al passo la riga dei totali per mese durante le spunte in serie. */
+function aggiornaRigaTotali() {
+  const riga = radice?.querySelector('.riga-totali');
+  if (!riga) return;
+  const gruppi = gruppiFiltrati();
+  const caselle = riga.querySelectorAll('.mesi > .q');
+  for (let m = 1; m <= 12; m++) {
+    const tm = caselle[m - 1]?.querySelector('.tm');
+    if (!tm) continue;
+    const [fatte, tot] = totaliMese(gruppi, m);
+    tm.textContent = `${fatte}/${tot}`;
+    tm.title = `${fatte} chiuse su ${tot} mappature che scadono in questo mese`;
+    tm.classList.toggle('pieno', tot > 0 && fatte === tot);
+  }
+}
+
+/** Passi ancora da spuntare nel set filtrato: alimenta "Completa tutto".
+ *  `soloReali` limita ai mesi dentro contratto e dentro il tracciamento. */
+export function passiMancanti(soloReali = true) {
+  const voci = [];
+  for (const g of gruppiFiltrati()) {
+    for (const s of g.srvs) {
+      if (s.stato !== 'APERTO') continue;
+      for (let m = 1; m <= 12; m++) {
+        const e = statoCella(s.id, m);
+        if (soloReali ? !e.reale : !e.spuntabile) continue;
+        for (const campo of CAMPI) {
+          if (!e.c[SIGLA[campo]]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
+        }
+      }
+    }
+  }
+  return voci;
+}
+
+/** Passi da togliere nel set filtrato: per "Azzera". */
+export function passiPresenti() {
+  const voci = [];
+  for (const g of gruppiFiltrati()) {
+    for (const s of g.srvs) {
+      if (s.stato !== 'APERTO') continue;
+      for (let m = 1; m <= 12; m++) {
+        const e = statoCella(s.id, m);
+        if (!e.spuntabile) continue;
+        for (const campo of CAMPI) {
+          if (e.c[SIGLA[campo]]) voci.push({ id: s.id, mese: m, campo, valore: 0 });
+        }
+      }
+    }
+  }
+  return voci;
+}

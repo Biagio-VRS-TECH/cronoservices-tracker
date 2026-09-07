@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="it" data-tema="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#00AEEF">
+<title>Crono Mappature · VRS</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/assets/icona.svg">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/griglia.css">
+<link rel="stylesheet" href="/css/stat.css">
+<link rel="stylesheet" href="/css/stampa.css">
+</head>
+<body>
+<div class="guscio">
+
+  <div class="banner" id="banner" hidden></div>
+
+  <header class="testa">
+    <div class="marca">
+      <img src="/assets/logo.webp" alt="VRS Group"
+           onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'segno-logo'}))">
+      <span class="marca-testo">
+        <b>Crono Mappature</b>
+        <span>Checklist service</span>
+      </span>
+    </div>
+
+    <div class="anno-scelta">
+      <button class="frecc" id="anno-giu" title="Anno precedente" aria-label="Anno precedente"></button>
+      <span class="anno dato" id="anno" aria-live="polite">····</span>
+      <button class="frecc" id="anno-su" title="Anno successivo" aria-label="Anno successivo"></button>
+      <button class="pill mini" id="oggi" title="Torna all'anno e al mese correnti">Oggi</button>
+    </div>
+
+    <span class="testa-spazio"></span>
+
+    <div class="cerca">
+      <span class="cerca-ico" id="cerca-ico" aria-hidden="true"></span>
+      <input id="q" type="search" placeholder="Cerca cliente, destinazione, #id" aria-label="Cerca">
+      <button class="cerca-x" id="cerca-x" title="Svuota la ricerca" hidden>&times;</button>
+    </div>
+
+    <button class="stato-coll" id="collegamento"
+            title="Chi è collegato, indirizzo per i colleghi, stato degli invii">
+      <span class="spia" id="spia"></span>
+      <span class="presenze" id="presenze"></span>
+      <span id="collegamento-et">collegato</span>
+    </button>
+
+    <button class="io" id="io" title="Cambia operatore"></button>
+    <button class="frecc" id="tema" title="Tema chiaro / scuro" aria-label="Tema chiaro o scuro"></button>
+  </header>
+
+  <nav class="strumenti" aria-label="Viste, filtri e azioni">
+    <div class="gruppo" id="viste">
+      <button data-vista="anno" aria-pressed="true">Anno</button>
+      <button data-vista="mese" aria-pressed="false">Mese</button>
+      <button data-vista="stat" aria-pressed="false">Statistiche</button>
+    </div>
+
+    <span class="sep"></span>
+
+    <select class="pill" id="f-tipo" aria-label="Filtra per tipo"></select>
+    <select class="pill" id="f-prov" aria-label="Filtra per provincia"></select>
+    <button class="pill" id="f-inc" aria-pressed="false"
+            title="Nella vista Mese: solo le mappature incomplete di QUEL mese. Nella vista Anno: i siti con la mappatura dell'anno da finire">Solo incomplete</button>
+    <button class="pill" id="f-rit" aria-pressed="false">Solo in ritardo</button>
+    <button class="pill debole" id="f-chiusi" aria-pressed="false">Mostra chiusi</button>
+
+    <span class="sep"></span>
+
+    <button class="pill" id="azioni" aria-expanded="false">Azioni</button>
+    <button class="pill" id="aiuto" title="Come si legge (?)">?</button>
+
+    <div class="riepilogo" id="riepilogo"></div>
+
+    <!-- La linea di stato: saldata sotto la barra, e' l'avanzamento delle
+         mappature dell'anno filtrato. Si vede in ogni vista, sempre. -->
+    <div class="filo" id="filo" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+         aria-label="Mappature complete dell'anno"><i></i></div>
+  </nav>
+
+  <main class="area" id="area" tabindex="-1">
+    <div class="vuoto"><b>Caricamento…</b>Lettura di clienti, service e spunte.</div>
+  </main>
+</div>
+
+<style>
+/* Il logo e' trasparente e la parola GROUP e' grigio scuro: su fondo scuro
+   serve una piastrina chiara, altrimenti si perde. */
+.marca img { height: 30px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="chiaro"]) .marca img {
+    background: #fff; padding: 3px 5px; border-radius: 6px;
+  }
+}
+:root[data-tema="scuro"] .marca img {
+  background: #fff; padding: 3px 5px; border-radius: 6px;
+}
+/* segnaposto se il file del logo manca */
+.segno-logo { width: 26px; height: 26px; border-radius: 7px; display: block;
+  background: linear-gradient(90deg,
+    var(--st-stampata) 0 23%, transparent 23% 25%,
+    var(--marchio) 25% 48%, transparent 48% 50%,
+    var(--accento) 50% 73%, transparent 73% 75%,
+    var(--st-ricambi) 75% 100%); }
+</style>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Le credenziali del cloud: la chiave service_role salta ogni controllo.
+# Vive solo sul PC dell'ufficio, mai in un repository, mai su Netlify.
+app/cloud.json
+
+# I dati veri: archivio delle spunte, backup, tracce delle esecuzioni.
+data/
+
+# Il backend Access e la copia di lavoro: pesano 8 MB l'uno e non sono codice.
+*.accdb
+*.laccdb
+
+# Generato in pubblicazione da cloud/netlify-build.sh. In locale deve restare
+# vuoto (= modalita' locale), quindi la versione del repo e' quella buona:
+# questa riga NON lo ignora, e' solo un promemoria di non metterci le chiavi.
+
+__pycache__/
+*.pyc

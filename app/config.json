@@ -1,0 +1,11 @@
+{
+  "accdb_backend": "../CronoServices_be.accdb",
+  "sqlite_path": "../data/cronoservice.db",
+  "backup_dir": "../data/backup",
+  "web_dir": "../web",
+  "host": "0.0.0.0",
+  "port": 8770,
+  "anno_default": null,
+  "sync_all_avvio": true,
+  "backup_da_tenere": 20
+}

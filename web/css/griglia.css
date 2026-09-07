@@ -1,0 +1,401 @@
+/* griglia.css - la cronostriscia (vista Anno), la cella a 3 segmenti,
+   la vista Mese e i pannelli di controllo.  #ANCHOR: css-griglia */
+
+/* ==========================================================  VISTA ANNO == */
+/* La colonna dei nomi prende tutto lo spazio che avanza: le destinazioni sono
+   lunghe e la griglia dei mesi ha larghezza fissa. Sotto il minimo si scorre. */
+.crono {
+  min-width: calc(var(--col-min) + 12 * var(--passo-mese) + var(--col-tot));
+  padding-bottom: 40vh;
+}
+
+.riga {
+  display: grid;
+  grid-template-columns: minmax(var(--col-min), 1fr)
+                         calc(12 * var(--passo-mese)) var(--col-tot);
+  align-items: center;
+}
+
+/* -- intestazione mesi, appiccicata sotto la barra strumenti -------------- */
+.crono-testa {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--bordo);
+  height: 32px;
+}
+.crono-testa .col-nome {
+  position: sticky; left: 0; z-index: 2; height: 100%;
+  display: flex; align-items: center; padding-left: 18px;
+  font-size: var(--t-micro); letter-spacing: .09em; text-transform: uppercase;
+  color: var(--tenue);
+  background: inherit;
+}
+.mesi { display: grid; grid-template-columns: repeat(12, var(--passo-mese)); height: 100%; }
+.crono-testa .m {
+  display: grid; place-items: center; gap: 2px;
+  font: 600 var(--t-micro)/1 var(--f-dato); letter-spacing: .04em; color: var(--tenue);
+  text-transform: uppercase;
+}
+.crono-testa .m.oggi { color: var(--marchio); }
+.crono-testa .m.oggi::after {
+  content: ""; width: 4px; height: 4px; border-radius: var(--r-tonda);
+  background: var(--marchio);
+  box-shadow: 0 0 7px 1px color-mix(in srgb, var(--marchio) 70%, transparent);
+}
+.crono-testa .col-tot {
+  text-align: right; padding-right: 18px;
+  font-size: var(--t-micro); letter-spacing: .09em; text-transform: uppercase; color: var(--tenue);
+}
+
+/* -- riga dei totali per mese -------------------------------------------- */
+.riga-totali {
+  height: 26px; border-bottom: 1px solid var(--bordo);
+  background: var(--superficie-2);
+  position: sticky; top: 32px; z-index: 18;
+}
+.riga-totali .col-nome {
+  position: sticky; left: 0; z-index: 2; height: 100%;
+  display: flex; align-items: center; padding-left: 18px;
+  font-size: var(--t-micro); color: var(--tenue); background: inherit;
+}
+.riga-totali .tm {
+  font: 600 9.5px/1 var(--f-dato); color: var(--tenue);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.riga-totali .tm.pieno { color: var(--accento); }
+
+/* -- blocco cliente: contiene la riga cliente e le sue righe service --
+   NB: NON chiamarlo .gruppo, in base.css .gruppo e' il segmented control. */
+/* -- riga cliente --------------------------------------------------------- */
+.riga-cli {
+  height: 42px; cursor: pointer;
+  border-top: 1px solid var(--bordo-forte); border-bottom: 1px solid var(--bordo);
+  background: var(--fondo); transition: background var(--rapido);
+}
+.blocco:first-of-type .riga-cli { border-top: 0; }
+.riga-cli:hover { background: var(--marchio-tenue); }
+.riga-cli .col-nome {
+  position: sticky; left: 0; z-index: 2; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 0 18px; min-width: 0; background: inherit; height: 100%;
+}
+.cuneo { flex: none; color: var(--tenue); transition: transform var(--rapido); }
+.riga-cli[aria-expanded="true"] .cuneo { transform: rotate(90deg); }
+.cli-nome { font-weight: 650; font-size: var(--t-med); letter-spacing: -.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cli-id { font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
+.tag {
+  flex: none; font: 500 var(--t-micro)/1 var(--f-ui); padding: 3px 7px;
+  border-radius: var(--r-tonda); background: var(--fondo); color: var(--tenue);
+  border: 1px solid var(--bordo);
+}
+.tag.aperti { color: var(--accento); border-color: color-mix(in srgb, var(--accento) 35%, transparent);
+  background: color-mix(in srgb, var(--accento) 8%, transparent); }
+
+/* barretta di avanzamento del cliente nel mese */
+.riga-cli .mesi .q { display: grid; place-items: center; }
+.riga-cli .qb { width: 18px; height: 5px; border-radius: var(--r-tonda); background: var(--st-vuoto); overflow: hidden; }
+.riga-cli .qb.pieno { box-shadow: 0 0 0 1px color-mix(in srgb, var(--completa) 45%, transparent); }
+.riga-cli .qb i { display: block; height: 100%; background: var(--completa); border-radius: inherit;
+  transition: width var(--medio); }
+
+/* Bottone "Chiudi tutti / Apri tutti" nell'angolo della testa: con 222 clienti
+   le tendine si richiudevano a mano una per una. */
+.piega-tutti {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  padding: 3px 8px 3px 6px; border-radius: var(--r-tonda);
+  border: 1px solid var(--bordo); background: var(--superficie);
+  color: var(--tenue); font-size: var(--t-micro); font-weight: 600;
+  text-transform: none; letter-spacing: 0; transition: var(--rapido);
+}
+.piega-tutti:hover { color: var(--inchiostro); border-color: var(--bordo-forte);
+  background: var(--fondo); }
+.piega-tutti svg { flex: none; }
+
+/* -- riga service --------------------------------------------------------- */
+.riga-srv {
+  height: var(--h-riga); border-bottom: 1px solid var(--bordo);
+  background: var(--superficie); transition: background var(--rapido);
+}
+.riga-srv:hover { background: var(--superficie-2); }
+.riga-srv.chiuso { background: repeating-linear-gradient(135deg,
+  var(--superficie) 0 6px, var(--superficie-2) 6px 12px); }
+.riga-srv.chiuso .srv-dest, .riga-srv.chiuso .srv-id { color: var(--tenue-2); }
+.riga-srv .col-nome {
+  position: sticky; left: 0; z-index: 2; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 0 40px; min-width: 0; background: inherit; height: var(--h-riga);
+}
+.srv-id { font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue);
+  flex: none; width: 40px; }
+.srv-dest { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-mini); }
+.srv-loc { color: var(--tenue); font-size: var(--t-micro); flex: none; }
+.punto-tipo { width: 6px; height: 6px; border-radius: var(--r-tonda); flex: none; }
+.punto-tipo.med { background: var(--marchio); }
+.punto-tipo.tec { background: var(--st-stampata); }
+.punto-tipo.alt { background: var(--orfana); }
+
+.col-tot { text-align: right; padding-right: 18px; font-family: var(--f-dato);
+  font-size: var(--t-mini); color: var(--tenue); font-variant-numeric: tabular-nums; }
+.col-tot b { color: var(--inchiostro); font-weight: 600; }
+.col-tot.pieno b { color: var(--accento); }
+
+/* -- LA CELLA: quattro segmenti che si riempiono da sinistra -------------- */
+.mesi > * { display: grid; place-items: center; height: 100%; position: relative; }
+/* La "testina di lettura": la colonna del mese corrente attraversa la griglia.
+   Al filo cyan si aggiunge un velo appena percettibile, cosi' la colonna si
+   segue anche scorrendo 274 righe senza guardare la testa. */
+.mese-oggi {
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--marchio) 45%, transparent);
+  background: color-mix(in srgb, var(--marchio) 4%, transparent);
+}
+
+.cella {
+  width: calc(var(--passo-mese) - 10px); height: 20px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5px;
+  padding: 2px; border-radius: 6px; background: var(--st-vuoto); position: relative;
+  transition: box-shadow var(--rapido), background var(--rapido), transform var(--rapido);
+}
+.cella:hover { transform: scale(1.12); box-shadow: var(--ombra-2); }
+.cella .seg {
+  border-radius: 2.5px; background: transparent;
+  transform: scaleX(.001); transform-origin: left center;
+  transition: transform 180ms var(--molla), background var(--rapido);
+}
+.cella[data-s="1"] .seg.s { background: var(--st-stampata);    transform: none; }
+.cella[data-c="1"] .seg.c { background: var(--st-controllata); transform: none; }
+.cella[data-k="1"] .seg.k { background: var(--st-corretta);    transform: none; }
+.cella[data-r="1"] .seg.r { background: var(--st-ricambi);     transform: none; }
+/* MAPPATURA COMPLETA: la capsula intera si accende di verde, non solo un alone.
+   E' il segnale piu' importante della griglia - "questo sito e' a posto per
+   l'anno" - e si deve leggere da lontano, scorrendo 274 righe. I quattro
+   segmenti restano visibili in chiaro sopra il verde: dicono che i passi ci
+   sono tutti, ma non hanno piu' bisogno di distinguersi fra loro.
+   Le regole dei segmenti stanno sopra e hanno la stessa specificita': queste
+   devono venire DOPO per vincere. */
+.cella.completa {
+  background: var(--completa);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--completa) 62%, transparent),
+              0 0 10px -2px color-mix(in srgb, var(--completa) 55%, transparent);
+}
+.cella.completa .seg.s, .cella.completa .seg.c,
+.cella.completa .seg.k, .cella.completa .seg.r {
+  background: color-mix(in srgb, #fff 62%, var(--completa)); transform: none;
+}
+.cella.completa:hover { box-shadow: 0 0 0 1.5px var(--completa), var(--ombra-2); }
+.cella.ritardo:not(.completa) {
+  background: var(--allerta-tenue);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--allerta) 45%, transparent);
+}
+.cella.orfana { box-shadow: inset 0 0 0 1.5px var(--orfana); }
+
+/* Classi temporali: il tratteggio vuol dire "non e' un dato certo".
+   Vedi #ANCHOR: anno-modello in js/stato.js. */
+.cella.stima:not(.completa) {
+  background: color-mix(in srgb, var(--marchio) 9%, var(--superficie));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--marchio) 45%, transparent),
+              inset 0 0 0 3px var(--superficie);
+}
+.cella.darinnovare:not(.completa) {
+  background: var(--scadenza-tenue);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--scadenza) 60%, transparent),
+              inset 0 0 0 3px var(--superficie);
+}
+/* Mese di manutenzione che NON e' la scadenza della mappatura: la visita c'e' e
+   si puo' spuntare, ma non e' un secondo impegno. Capsula vuota col solo
+   contorno: una riga si legge come "una mappatura piena + le visite".
+   Vedi #ANCHOR: mappatura-anno in js/stato.js. */
+.cella.visita:not(.completa) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--bordo-forte);
+}
+ /* Il pre-tracciamento e' la cosa MENO importante dell'anno: si vede che c'e'
+    e si puo' spuntare per il recupero storico, ma non deve rubare l'occhio. */
+.cella.nontracciato:not(.completa) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--bordo);
+  opacity: .8;
+}
+.cella.nontracciato:not(.completa):hover { opacity: 1; }
+/* Un mese fuori dalla finestra contrattuale: piu' tenue del non-previsto. */
+.fuori-contratto::before {
+  content: ""; width: 4px; height: 4px; border-radius: var(--r-tonda);
+  background: var(--bordo);
+}
+.cella.con-nota::after {                  /* c'e' una nota su questa cella */
+  content: ""; position: absolute; bottom: -3px; left: 50%; translate: -50% 0;
+  width: 6px; height: 2px; border-radius: 2px; background: var(--inchiostro-2);
+}
+.cella.sospesa { opacity: .45; }          /* in coda offline, non confermata */
+
+/* mese non di manutenzione: solo un accenno, la griglia deve respirare */
+.non-previsto::before {
+  content: ""; width: 8px; height: 1px; background: var(--bordo-forte); border-radius: 1px;
+}
+
+/* Modifica arrivata da un altro operatore: anello che pulsa una volta sola.
+   E' la concorrenza resa visibile, non una decorazione. */
+.cella.remota { animation: eco 1100ms var(--molla) both; }
+@keyframes eco {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--marchio) 70%, transparent); }
+  35%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--marchio) 0%, transparent); }
+  100% { box-shadow: none; }
+}
+.eco-nome {
+  position: absolute; bottom: 100%; left: 50%; translate: -50% -2px; z-index: 5;
+  font: 600 9px/1 var(--f-ui); color: #fff; background: var(--inchiostro);
+  padding: 3px 5px; border-radius: var(--r-tonda); white-space: nowrap;
+  animation: eco-via 1600ms both;
+}
+@keyframes eco-via { 0%,70% { opacity: 1; } 100% { opacity: 0; translate: -50% -8px; } }
+
+/* comparsa a scaglioni al primo disegno */
+.entra-riga { animation: fadein 300ms var(--molla) both; animation-delay: var(--rit, 0ms); }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } }
+
+/* ==========================================================  POPOVER ===== */
+.pop {
+  position: fixed; z-index: 70; width: 268px; padding: 12px;
+  background: var(--superficie); border: 1px solid var(--bordo);
+  border-radius: var(--r-3); box-shadow: var(--ombra-3);
+  animation: entra 180ms var(--molla) both;
+}
+.pop h3 { margin: 0; font-size: var(--t-mini); font-weight: 600; letter-spacing: -.01em; }
+.pop .pop-sotto { margin: 2px 0 10px; font-size: var(--t-micro); color: var(--tenue);
+  font-family: var(--f-dato); }
+.passi { display: flex; flex-direction: column; gap: 2px; }
+.passo {
+  display: flex; align-items: center; gap: 10px; padding: 8px 9px;
+  border-radius: var(--r-2); transition: var(--rapido); text-align: left; width: 100%;
+}
+.passo:hover { background: var(--fondo); }
+.passo .box {
+  flex: none; width: 19px; height: 19px; border-radius: 5px;
+  border: 1.5px solid var(--bordo-forte); display: grid; place-items: center;
+  transition: var(--rapido); color: #fff;
+}
+.passo .box svg { opacity: 0; transform: scale(.5); transition: var(--rapido); }
+.passo[aria-checked="true"] .box svg { opacity: 1; transform: none; }
+.passo[data-campo="stampata"][aria-checked="true"] .box    { background: var(--st-stampata);    border-color: var(--st-stampata); }
+.passo[data-campo="controllata"][aria-checked="true"] .box { background: var(--st-controllata); border-color: var(--st-controllata);
+  color: var(--su-marchio); }   /* la spunta bianca sul cyan puro non si legge */
+.passo[data-campo="corretta"][aria-checked="true"] .box    { background: var(--st-corretta);    border-color: var(--st-corretta); }
+.passo[data-campo="ricambi"][aria-checked="true"] .box     { background: var(--st-ricambi);     border-color: var(--st-ricambi); }
+.passo .et { flex: 1; font-size: var(--t-mini); font-weight: 500; }
+.passo .chi { font: var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); }
+.passo .n-passo { font: 600 var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); flex: none; }
+
+.pop-nota { margin-top: 10px; }
+.pop-nota textarea { width: 100%; min-height: 46px; resize: vertical; font-size: var(--t-mini);
+  padding: 7px 9px; border: 1px solid var(--bordo); border-radius: var(--r-2);
+  background: var(--fondo); }
+.pop-piede { display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--bordo); }
+.pop-piede button { font-size: var(--t-micro); color: var(--tenue); padding: 3px 6px;
+  border-radius: var(--r-1); }
+.pop-piede button:hover { background: var(--fondo); color: var(--inchiostro); }
+.pop-piede .primario { color: var(--marchio); font-weight: 600; }
+
+/* ==========================================================  VISTA MESE == */
+.mese-testa { padding: 22px 18px 14px; display: flex; align-items: flex-end; gap: 18px;
+  flex-wrap: wrap; }
+.mese-titolo { font-size: var(--t-titolo); font-weight: 700; letter-spacing: -.03em;
+  line-height: 1; margin: 0; }
+.mese-titolo span { color: var(--tenue-2); font-family: var(--f-dato); font-weight: 400; }
+.mese-nav { display: flex; gap: 3px; }
+.mese-nav button {
+  width: 30px; height: 30px; border-radius: var(--r-1); font: 600 var(--t-micro) var(--f-dato);
+  color: var(--tenue); text-transform: uppercase; transition: var(--rapido);
+}
+.mese-nav button:hover { background: var(--fondo); color: var(--inchiostro); }
+.mese-nav button[aria-pressed="true"] { background: var(--inchiostro); color: var(--fondo); }
+
+.lavoro { padding: 0 18px 40vh; }
+.lavoro .cli-sep {
+  position: sticky; top: 0; z-index: 10; padding: 14px 2px 6px;
+  background: linear-gradient(var(--fondo) 70%, transparent);
+  font-size: var(--t-mini); font-weight: 600; letter-spacing: -.01em;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.scheda {
+  position: relative;
+  display: flex; align-items: center; gap: 14px; padding: 11px 14px; margin-bottom: 6px;
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-2);
+  transition: var(--rapido);
+}
+.scheda:hover { border-color: var(--bordo-forte); box-shadow: var(--ombra-1); }
+.scheda.finita { border-color: color-mix(in srgb, var(--accento) 40%, transparent);
+  background: color-mix(in srgb, var(--accento) 5%, var(--superficie)); }
+.scheda.ritardo:not(.finita) { border-color: color-mix(in srgb, var(--allerta) 40%, transparent); }
+.scheda.previsione { border-style: dashed; }
+/* La scheda col fuoco e' l'unita' di lavoro dei tasti (su/giu' la scelgono,
+   1/2/3 spuntano): si evidenzia tutta, non solo con un contorno sottile, e
+   resta evidente anche col fuoco su uno dei passi (`:focus-within`).
+   Sta dopo .finita/.ritardo di proposito: deve vincere sul loro fondo. */
+.scheda:focus, .scheda:focus-within {
+  outline: 2px solid var(--marchio); outline-offset: 1px;
+  background: color-mix(in srgb, var(--marchio) 8%, var(--superficie));
+  border-color: var(--marchio); box-shadow: var(--ombra-2);
+}
+.scheda:focus::before, .scheda:focus-within::before {
+  content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--marchio);
+}
+.bollo {
+  flex: none; font: 700 8px/1 var(--f-dato); letter-spacing: .06em;
+  padding: 3px 5px; border-radius: 3px;
+}
+.bollo.stima { color: var(--marchio-scuro); background: var(--marchio-tenue); }
+.bollo.darinnovare { color: var(--scadenza); background: var(--scadenza-tenue); }
+.bollo.nontracciato { color: var(--tenue); background: var(--fondo);
+  border: 1px solid var(--bordo); }
+.scheda .info { flex: 1; min-width: 0; }
+.scheda .info b { display: block; font-size: var(--t-base); font-weight: 600; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scheda .info .meta { font-size: var(--t-micro); color: var(--tenue); display: flex; gap: 8px;
+  flex-wrap: wrap; margin-top: 2px; }
+.scheda .meta .dato { font-family: var(--f-dato); }
+.passi-riga { display: flex; gap: 5px; flex: none; flex-wrap: wrap;
+  justify-content: flex-end; }
+.passi-riga .passo { width: auto; padding: 7px 9px; border: 1px solid var(--bordo);
+  border-radius: var(--r-2); background: var(--superficie-2); gap: 7px; }
+.passi-riga .passo .et { font-size: var(--t-micro); }
+.passi-riga .passo[aria-checked="true"] { background: var(--superficie); border-color: var(--bordo-forte); }
+/* Nel cassetto la colonna e' stretta (520px meno i margini): i quattro passi
+   vanno a capo, altrimenti il nome del mese si riduce a "Ap...". */
+.cassetto .scheda { flex-wrap: wrap; }
+.cassetto .scheda .info { flex: 1 1 100%; }
+.cassetto .passi-riga { width: 100%; justify-content: flex-start; }
+
+.selez { flex: none; }
+.selez input { width: 16px; height: 16px; accent-color: var(--marchio); }
+
+.barra-massa {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 75;
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: var(--inchiostro); color: var(--fondo); border-radius: var(--r-tonda);
+  box-shadow: var(--ombra-3); font-size: var(--t-mini);
+  animation: sali var(--medio) both;
+}
+.barra-massa b { font-family: var(--f-dato); }
+.barra-massa button { color: inherit; padding: 5px 10px; border-radius: var(--r-tonda);
+  background: color-mix(in srgb, currentColor 16%, transparent); font-weight: 600; }
+.barra-massa button:hover { background: color-mix(in srgb, currentColor 28%, transparent); }
+
+/* Con poca larghezza il nome del cliente vince sui dettagli accessori:
+   senza questo si riduceva a una lettera piu' i puntini. */
+@media (max-width: 1080px) {
+  .riga-cli .cli-id { display: none; }
+}
+@media (max-width: 900px) {
+  :root { --col-min: 210px; }
+  .riga-cli .tag:not(.aperti) { display: none; }
+  .riga-srv .srv-loc { display: none; }
+  .riepilogo { display: none; }
+}
+@media (max-width: 760px) {
+  :root { --col-min: 180px; --passo-mese: 32px; --col-tot: 54px; }
+  .riga-cli .tag { display: none; }
+  .scheda { flex-wrap: wrap; }
+  .passi-riga { width: 100%; }
+  .passi-riga .passo { flex: 1; justify-content: center; }
+}

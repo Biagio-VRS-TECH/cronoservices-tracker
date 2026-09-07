@@ -1,0 +1,393 @@
+/* base.css - reset, guscio, intestazione, barra strumenti, componenti comuni.
+   #ANCHOR: css-base */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--fondo); color: var(--inchiostro);
+  /* Un soffio di cyan in alto a sinistra: e' quello che tiene insieme la testa
+     di vetro e il fondo, senza colorare niente. */
+  background-image: var(--velo);
+  background-repeat: no-repeat;
+  font: 400 var(--t-base)/1.45 var(--f-ui);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; border-radius: var(--r-1); }
+::selection { background: var(--marchio-tenue); color: var(--inchiostro); }
+.dato { font-family: var(--f-dato); font-variant-numeric: tabular-nums; }
+.solo-lettori { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+[hidden] { display: none !important; }
+
+/* --------------------------------------------------------------- guscio -- */
+.guscio { display: flex; flex-direction: column; height: 100%; }
+
+/* Fascia in cima: solo per cose che bloccano il lavoro (server non raggiungibile).
+   Deve essere impossibile non vederla. */
+.banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 18px; font-size: var(--t-mini); z-index: 45;
+  background: var(--allerta); color: #fff;
+}
+.banner b { font-weight: 650; }
+.banner span { opacity: .92; }
+.banner button {
+  margin-left: auto; color: inherit; font-weight: 600; padding: 4px 11px;
+  border-radius: var(--r-tonda);
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+.banner button:hover { background: color-mix(in srgb, currentColor 32%, transparent); }
+.banner.grave { background: #B3261E; }
+.banner a {
+  color: inherit; font-weight: 650; font-family: var(--f-dato);
+  padding: 3px 9px; border-radius: var(--r-tonda);
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+.banner a:hover { background: color-mix(in srgb, currentColor 34%, transparent); }
+
+/* ---------------------------------------------------------- intestazione -- */
+.testa {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 18px; min-height: 60px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--superficie) 92%, transparent),
+    color-mix(in srgb, var(--superficie) 74%, transparent));
+  backdrop-filter: saturate(1.7) blur(16px);
+  border-bottom: 1px solid var(--bordo);
+}
+.marca { display: flex; align-items: center; gap: 10px; min-width: 0; flex: none; }
+.marca img, .marca svg { height: 26px; width: auto; display: block; }
+.marca-testo { display: flex; flex-direction: column; line-height: 1.05; }
+.marca-testo b { font-size: var(--t-base); letter-spacing: -.01em; }
+.marca-testo span { font-size: var(--t-micro); color: var(--tenue); letter-spacing: .09em; text-transform: uppercase; }
+
+/* L'anno e' l'elemento display della pagina: grande, monospazio, compresso. */
+.anno-scelta { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+.anno-scelta .anno {
+  font-family: var(--f-dato); font-size: var(--t-titolo); font-weight: 700;
+  letter-spacing: -.04em; line-height: 1; padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+  transition: opacity var(--medio);
+}
+.anno-scelta .anno.caricando { opacity: .45; }
+.frecc {
+  width: 26px; height: 26px; border-radius: var(--r-1); color: var(--tenue);
+  display: grid; place-items: center; transition: var(--rapido);
+}
+.frecc:hover { background: var(--marchio-tenue); color: var(--marchio); }
+.frecc[disabled] { opacity: .25; cursor: default; }
+
+.testa-spazio { flex: 1; }
+
+/* ricerca: lente centrata a sinistra, croce di svuotamento a destra */
+.cerca { position: relative; display: flex; align-items: center; }
+.cerca-ico {
+  position: absolute; left: 10px; top: 50%; translate: 0 -50%;
+  display: flex; color: var(--tenue); pointer-events: none;
+}
+.cerca input {
+  width: clamp(160px, 24vw, 320px); padding: 7px 30px 7px 32px;
+  background: var(--fondo); border: 1px solid var(--bordo);
+  border-radius: var(--r-tonda); transition: var(--rapido);
+}
+.cerca input::-webkit-search-cancel-button { display: none; }
+.cerca input:focus { background: var(--superficie); border-color: var(--marchio); outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
+.cerca-x {
+  position: absolute; right: 5px; top: 50%; translate: 0 -50%;
+  width: 22px; height: 22px; border-radius: var(--r-tonda);
+  display: grid; place-items: center; font-size: 15px; line-height: 1;
+  color: var(--tenue); transition: var(--rapido);
+}
+.cerca-x:hover { background: var(--bordo); color: var(--inchiostro); }
+
+/* stato del collegamento: spia + chi c'e' + etichetta, tutto cliccabile */
+.stato-coll {
+  display: flex; align-items: center; gap: 8px; padding: 5px 11px;
+  border: 1px solid var(--bordo); border-radius: var(--r-tonda);
+  font-size: var(--t-mini); color: var(--inchiostro-2); transition: var(--rapido);
+  white-space: nowrap;
+}
+.stato-coll:hover { border-color: var(--bordo-forte); background: var(--superficie-2); }
+
+/* presenze operatori */
+.presenze { display: flex; align-items: center; }
+.presenze:empty { display: none; }
+.pallino.piccolo {
+  width: 20px; height: 20px; font-size: 9px; margin-left: -6px; border-width: 1.5px;
+}
+.pallino {
+  width: 26px; height: 26px; border-radius: var(--r-tonda);
+  display: grid; place-items: center; font: 600 var(--t-mini)/1 var(--f-ui);
+  color: #fff; margin-left: -7px; border: 2px solid var(--superficie);
+  box-shadow: var(--ombra-1);
+}
+.pallino:first-child { margin-left: 0; }
+.io { display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 4px;
+  border-radius: var(--r-tonda); transition: var(--rapido); }
+.io:hover { background: var(--fondo); }
+.io b { font-weight: 500; font-size: var(--t-mini); }
+
+/* ------------------------------------------------------- barra strumenti -- */
+.strumenti {
+  position: sticky; top: 60px; z-index: 35;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 18px; background: var(--superficie); border-bottom: 1px solid var(--bordo);
+}
+.gruppo { display: flex; background: var(--fondo); border-radius: var(--r-2); padding: 2px; gap: 2px; }
+.gruppo button {
+  padding: 5px 12px; border-radius: 7px; font-size: var(--t-mini); font-weight: 500;
+  color: var(--tenue); transition: var(--rapido); white-space: nowrap;
+}
+.gruppo button:hover { color: var(--inchiostro); }
+.gruppo button[aria-pressed="true"] {
+  background: var(--superficie); color: var(--inchiostro); box-shadow: var(--ombra-1);
+}
+/* La vista attiva porta un trattino cyan sotto l'etichetta: nel segmented
+   control il solo fondo bianco si perdeva sul fondo chiaro della barra. */
+.gruppo button[aria-pressed="true"]::after {
+  content: ''; display: block; height: 2px; margin: 4px auto -1px; width: 60%;
+  border-radius: var(--r-tonda); background: var(--filo);
+}
+.sep { width: 1px; height: 20px; background: var(--bordo); margin: 0 4px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: var(--r-tonda); border: 1px solid var(--bordo);
+  background: var(--superficie); font-size: var(--t-mini); font-weight: 500;
+  color: var(--inchiostro-2); transition: var(--rapido); white-space: nowrap;
+}
+.pill:hover { border-color: var(--bordo-forte); background: var(--superficie-2); }
+.pill[aria-pressed="true"] {
+  background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
+  color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
+}
+.pill.debole { border-style: dashed; color: var(--tenue); }
+.pill.mini { padding: 3px 9px; font-size: var(--t-micro); }
+select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
+
+.stato-sync { display: flex; align-items: center; gap: 7px; font-size: var(--t-mini); color: var(--tenue); }
+.spia { width: 7px; height: 7px; border-radius: var(--r-tonda); background: var(--accento); flex: none; }
+.spia.giu  { background: var(--allerta); }
+.spia.coda { background: var(--marchio); animation: pulsa 1.4s infinite; }
+@keyframes pulsa { 50% { opacity: .25; } }
+
+/* --------------------------------------------------------- linea di stato -- */
+/* Saldata sotto la barra strumenti, e' l'avanzamento delle mappature dell'anno
+   filtrato e si vede in tutte e tre le viste: l'unico numero che vale sempre.
+   Sta dentro `.strumenti` (che e' sticky, quindi posizionata) e copre il bordo
+   inferiore, cosi' non aggiunge una riga al layout. */
+.filo {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--bordo); overflow: hidden; z-index: 1;
+}
+.filo i {
+  display: block; height: 100%; width: var(--w, 0);
+  background: var(--filo); border-radius: 0 var(--r-tonda) var(--r-tonda) 0;
+  box-shadow: 0 0 10px -1px color-mix(in srgb, var(--completa) 70%, transparent);
+  transition: width 900ms var(--molla);
+  position: relative;
+}
+/* Un riflesso che passa lento sulla parte fatta: e' l'unico movimento
+   permanente dell'interfaccia, ed e' li' per dire "questo dato e' vivo". */
+.filo i::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  transform: translateX(-100%);
+  animation: riflesso 7s var(--molla) infinite;
+}
+@keyframes riflesso {
+  0%, 55% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ------------------------------------------------------------- riepilogo -- */
+.riepilogo { display: flex; gap: 20px; align-items: flex-start; margin-left: auto;
+  flex: none; }
+/* `flex-direction: column` con `align-items: flex-end` allineava a destra il
+   numero e l'etichetta, ma un'etichetta su due righe ("mappature complete")
+   spingeva la voce piu' in basso delle altre e la colonna sembrava sfalsata:
+   ora l'etichetta non va a capo e la riga dei numeri resta una. */
+.riepilogo .voce { display: flex; flex-direction: column; align-items: flex-end;
+  line-height: 1.15; white-space: nowrap; }
+.riepilogo .n { font-family: var(--f-dato); font-size: var(--t-med); font-weight: 700; letter-spacing: -.02em; }
+.riepilogo .et { font-size: var(--t-micro); color: var(--tenue); text-transform: uppercase; letter-spacing: .07em; }
+.riepilogo .contesto {
+  align-self: center; max-width: 260px; text-align: right;
+  font-size: var(--t-micro); color: var(--tenue); line-height: 1.35;
+  padding-left: 14px; border-left: 1px solid var(--bordo);
+}
+.riepilogo .contesto b { font-family: var(--f-dato); color: var(--inchiostro-2); font-weight: 600; }
+
+/* ------------------------------------------------------------------ area -- */
+.area { flex: 1; overflow: auto; scrollbar-gutter: stable; }
+.vuoto { padding: 60px 20px; text-align: center; color: var(--tenue); }
+.vuoto b { display: block; color: var(--inchiostro); font-size: var(--t-med); margin-bottom: 6px; }
+
+/* ------------------------------------------------------------- notifiche -- */
+.avvisi {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  z-index: 90; display: flex; flex-direction: column-reverse; gap: 8px; align-items: center;
+  pointer-events: none;
+}
+.avviso {
+  pointer-events: auto; display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px 9px 14px; border-radius: var(--r-tonda);
+  background: var(--inchiostro); color: var(--fondo);
+  box-shadow: var(--ombra-3); font-size: var(--t-mini); max-width: 92vw;
+  animation: sali var(--medio) both;
+}
+@keyframes sali { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+.avviso.esce { animation: scendi 160ms ease-in both; }
+@keyframes scendi { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+.avviso button {
+  color: inherit; font-weight: 600; padding: 3px 9px; border-radius: var(--r-tonda);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.avviso.allerta { background: var(--allerta); color: #fff; }
+.avviso.ok      { background: var(--accento-scuro); color: #fff; }
+
+/* ---------------------------------------------------------------- modale -- */
+.velo {
+  position: fixed; inset: 0; z-index: 80; background: rgba(15,20,26,.4);
+  backdrop-filter: blur(3px); display: grid; place-items: center; padding: 20px;
+  animation: sfuma var(--rapido) both;
+}
+@keyframes sfuma { from { opacity: 0; } }
+.foglio {
+  background: var(--superficie); border-radius: var(--r-3); box-shadow: var(--ombra-3);
+  width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 22px;
+  animation: entra var(--medio) both;
+}
+@keyframes entra { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+.foglio h2 { margin: 0 0 4px; font-size: var(--t-grande); letter-spacing: -.02em; }
+.foglio p.sotto { margin: 0 0 18px; color: var(--tenue); }
+.campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo);
+  border-radius: var(--r-2); background: var(--fondo); }
+.campo:focus { outline: none; border-color: var(--marchio); background: var(--superficie);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
+.bottone {
+  padding: 9px 16px; border-radius: var(--r-2);
+  background: var(--marchio); color: var(--su-marchio);
+  font-weight: 650; font-size: var(--t-mini); transition: var(--rapido);
+}
+.bottone:hover { background: color-mix(in srgb, var(--marchio) 82%, var(--su-marchio)); }
+.bottone.piatto { background: none; color: var(--tenue); }
+.bottone.piatto:hover { background: var(--fondo); color: var(--inchiostro); }
+.righe-scelta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+
+/* --------------------------------------------------------------- tendina -- */
+.tendina {
+  position: fixed; z-index: 78; min-width: 250px; padding: 5px;
+  background: var(--superficie); border: 1px solid var(--bordo);
+  border-radius: var(--r-2); box-shadow: var(--ombra-3);
+  animation: entra 160ms var(--molla) both;
+}
+.voce {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: var(--r-1); font-size: var(--t-mini);
+  transition: var(--rapido);
+}
+.voce:hover { background: var(--marchio-tenue); }
+.voce-ico { display: flex; width: 14px; color: var(--tenue); flex: none; }
+.voce-et { flex: 1; }
+.voce-nota { font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
+.voce.pericolo:hover { background: var(--allerta-tenue); color: var(--allerta); }
+.voce-sep { display: block; height: 1px; margin: 5px 8px; background: var(--bordo); }
+
+/* --------------------------------------------------------- testi minori -- */
+.tit-p { margin: 0 0 6px; font-size: var(--t-mini); font-weight: 600; }
+.nota-t { margin: 0; font-size: var(--t-micro); color: var(--tenue); }
+code.lan {
+  font: 600 var(--t-med) var(--f-dato); padding: 8px 12px; border-radius: var(--r-2);
+  background: var(--marchio-tenue); color: var(--marchio-scuro);
+  user-select: all; letter-spacing: -.01em;
+}
+.elenco-gente { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 6px; }
+.elenco-gente li { display: flex; align-items: center; gap: 9px; font-size: var(--t-mini); }
+.scelta-massa {
+  display: flex; gap: 9px; align-items: flex-start; font-size: var(--t-mini);
+  padding: 10px 12px; background: var(--fondo); border-radius: var(--r-2);
+  margin-bottom: 14px; cursor: pointer;
+}
+.scelta-massa input { margin-top: 2px; accent-color: var(--marchio); flex: none; }
+
+/* ---------------------------------------------------------------- diario -- */
+/* Era un pannello della vista Controlli; ora e' una voce del menu Azioni, e
+   vive in una modale. Righe fitte e monospazio sull'ora: si scorre cercando
+   "quando", non "cosa". */
+.diario { max-height: 56vh; overflow: auto; overscroll-behavior: contain; }
+.elenco-diario { list-style: none; margin: 0; padding: 0; }
+.elenco-diario li {
+  display: flex; gap: 12px; align-items: baseline;
+  padding: 7px 2px; border-top: 1px solid var(--bordo); font-size: var(--t-mini);
+}
+.elenco-diario li:first-child { border-top: 0; }
+.elenco-diario time {
+  flex: none; color: var(--tenue); font-size: var(--t-micro);
+}
+.elenco-diario .d-txt { display: flex; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
+.elenco-diario .d-txt b { font-weight: 600; }
+.elenco-diario .d-chi {
+  color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- cassetto -- */
+.cassetto {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 85;
+  width: min(520px, 100%); background: var(--superficie);
+  border-left: 1px solid var(--bordo); box-shadow: var(--ombra-3);
+  display: flex; flex-direction: column;
+  animation: scorri var(--medio) both;
+}
+@keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
+.cassetto header { padding: 18px 20px 14px; border-bottom: 1px solid var(--bordo); }
+.cassetto .corpo { flex: 1; overflow: auto; padding: 16px 20px 28px; }
+.chiudi { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px;
+  border-radius: var(--r-tonda); color: var(--tenue); display: grid; place-items: center; }
+.chiudi:hover { background: var(--fondo); color: var(--inchiostro); }
+
+.dettaglio { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: var(--t-mini); }
+.dettaglio dt { color: var(--tenue); }
+.dettaglio dd { margin: 0; }
+
+.storia { list-style: none; margin: 10px 0 0; padding: 0; }
+.storia li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--bordo);
+  font-size: var(--t-mini); align-items: baseline; }
+.storia time { font-family: var(--f-dato); color: var(--tenue); font-size: var(--t-micro); flex: none; }
+
+/* ----------------------------------------------------- finestra stretta -- */
+/* L'uso normale e' su PC, ma la testa non deve accavallarsi se si restringe. */
+@media (max-width: 1080px) {
+  .testa { gap: 12px; padding: 8px 12px; }
+  .marca-testo { display: none; }          /* il logo basta a identificare l'app */
+  .anno-scelta .anno { font-size: var(--t-grande); }
+}
+@media (max-width: 820px) {
+  .testa { flex-wrap: wrap; row-gap: 6px; }
+  .cerca { order: 5; flex: 1 1 100%; }
+  .cerca input { width: 100%; }
+  .strumenti { top: auto; position: relative; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}
+
+/* --------------------------------------------------------------- accesso -- */
+/* Solo online: in locale la maschera non compare mai. Riusa .velo/.foglio della
+   modale, cambia solo cio' che una maschera d'accesso ha in piu': le etichette
+   sopra i campi e la riga d'errore. */
+.accesso .foglio { display: grid; gap: 6px; width: min(400px, 100%); }
+.accesso h2 { margin-bottom: 2px; }
+.acc-et { font-size: var(--t-micro); color: var(--tenue); margin-top: 8px; }
+.acc-errore {
+  margin: 10px 0 0; padding: 9px 11px; border-radius: var(--r-2);
+  background: var(--allerta-tenue); color: var(--allerta);
+  font-size: var(--t-mini);
+}
+.acc-invia { margin-top: 16px; justify-self: stretch; }
+.acc-invia[disabled] { opacity: .6; }

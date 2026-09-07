@@ -1,0 +1,166 @@
+# Crono Mappature online — Netlify + Supabase
+
+Da qui l'applicazione si mette in rete senza perdere niente di quella locale:
+`avvia.bat` continua a funzionare esattamente come prima, offline e con doppio
+clic. Sono la stessa applicazione con due trasporti diversi.
+
+```
+   LOCALE                              ONLINE
+   browser                             browser (ovunque)
+      |                                   |  login @vrs-tech.it
+   server.py  ---> SQLite              Supabase (Postgres + Realtime)
+      |                                   ^
+   .accdb (lettura)                       |  una volta al giorno, alle 06:00
+                                    push_cloud.py sul PC dell'ufficio
+                                          |
+                                    .accdb (lettura)
+```
+
+**Il vincolo che decide tutto**: `CronoServices_be.accdb` sta sul PC
+dell'ufficio e si legge solo da Windows con ADODB. Netlify e Supabase non
+possono andare a prenderlo, quindi la sincronia non si tira dal cloud: la spinge
+quel PC. È l'unica cosa che resta installata là.
+
+**Va in una direzione sola.** Clienti e service scendono da Access; le spunte
+nascono e vivono solo su Supabase e non tornano mai indietro. Non c'è nessun
+conflitto fra due padroni da risolvere, perché il padrone delle spunte è uno.
+
+---
+
+## 1. Il progetto Supabase
+
+1. [supabase.com](https://supabase.com) → **New project**. Regione **West EU
+   (Ireland)** o **Central EU (Frankfurt)**: sono le più vicine. Segna la
+   password del database, serve solo in emergenza.
+2. **SQL Editor** → esegui i cinque file **in quest'ordine**, uno alla volta:
+
+   | file | cosa mette |
+   |---|---|
+   | `01-tabelle.sql` | le stesse tabelle di `app/db.py` |
+   | `02-funzioni.sql` | spunte, merge per campo, conflitti — il gemello di `app/api.py` |
+   | `03-letture.sql` | bootstrap, diario, controlli, presenze, CSV |
+   | `04-sicurezza.sql` | chi vede cosa, chi scrive cosa, il canale in diretta |
+   | `05-sync.sql` | la porta d'ingresso della copia di Access |
+
+   Se uno si ferma con un errore, fermati lì: i successivi danno per buono il
+   precedente.
+3. **Project Settings → API**: copia da parte tre cose.
+   - `Project URL` → `https://xxxxxxxx.supabase.co`
+   - `anon public` → è **pubblica per disegno**, finisce nel browser di
+     chiunque. Non protegge niente da sola: a proteggere sono il login e le
+     regole di `04-sicurezza.sql`.
+   - `service_role` → **questa è segreta**. Salta ogni controllo. Va solo sul PC
+     dell'ufficio, mai su Netlify, mai in un file del progetto che gira nel
+     browser.
+
+## 2. Chi può entrare
+
+**Authentication → Providers → Email**: togli **Allow new users to sign up**.
+Da fuori nessuno si registra: gli account li crei tu.
+
+**Authentication → Users → Add user**: uno per persona, con la casella
+aziendale e una password iniziale. Spunta *Auto Confirm User*, altrimenti resta
+in attesa di una mail di conferma.
+
+Il controllo del dominio è doppio apposta: anche se le registrazioni venissero
+riaperte per sbaglio, `autorizzato()` in `02-funzioni.sql` non fa vedere niente
+a chi non ha un indirizzo `@vrs-tech.it`.
+
+> Il nome che firma le spunte non è più scritto a mano: è la casella con cui si
+> entra (`mario.rossi@vrs-tech.it` → *Mario Rossi*). Si può cambiare come si
+> scrive, non chi si è.
+
+## 3. Il primo travaso dell'anagrafica
+
+Sul PC dell'ufficio, crea `app/cloud.json`:
+
+```json
+{
+  "supabase_url": "https://xxxxxxxx.supabase.co",
+  "service_key": "eyJ...la chiave service_role..."
+}
+```
+
+Poi, sempre da lì:
+
+```bash
+python app/push_cloud.py
+```
+
+Deve rispondere qualcosa come
+`ok  545 service, 319 clienti, 545 nuovi, 0 chiusi, ...`.
+Ogni esecuzione lascia una riga in `data/push_cloud.log`.
+
+Per vedere cosa manderebbe senza mandare niente: `python app/push_cloud.py --prova`.
+
+## 4. Che giri da solo, ogni giorno
+
+Sul PC dell'ufficio, doppio clic su **`cloud/installa-sync-cloud.cmd`**.
+
+Crea un'operazione pianificata di Windows che ogni mattina alle **06:00** legge
+il `.accdb` e manda clienti e service a Supabase. Non serve essere
+amministratore e non serve salvare nessuna password: gira come l'utente
+collegato. Se alle 06:00 il PC era spento, parte appena si accende invece di
+saltare il giorno.
+
+Lo stesso file, rilanciato, propone di **togliere** la sincronia.
+
+Per forzare un aggiornamento a mano in qualsiasi momento: `cloud/sync-cloud.cmd`.
+
+## 5. Netlify
+
+1. Metti la cartella su un repository (GitHub/GitLab) — **senza**
+   `app/cloud.json`, senza i due `.accdb` e senza `data/`.
+2. Netlify → **Add new site → Import an existing project**. Non toccare le
+   impostazioni di build: le legge da `netlify.toml` (pubblica `web/`, nessun
+   npm, nessun bundler).
+3. **Site settings → Environment variables**, due voci:
+   - `SUPABASE_URL` = il Project URL
+   - `SUPABASE_ANON_KEY` = la chiave **anon public**
+4. **Deploy**. In pubblicazione, `cloud/netlify-build.sh` scrive
+   `web/js/nuvola-config.js` con quei due valori: è l'unico interruttore fra
+   modalità locale e modalità online.
+
+Se cambi le variabili, rilancia il deploy: il file viene riscritto solo allora.
+
+---
+
+## Cosa cambia, usandola online
+
+| | locale | online |
+|---|---|---|
+| chi firma la spunta | un nome scritto a mano | la casella del login |
+| modifiche degli altri | SSE dal server | Realtime, con ripiego a interrogazione ogni 15 s se il WebSocket non passa |
+| voce **Sync** in Azioni | legge il `.accdb` subito | dice che il `.accdb` non è raggiungibile e lo legge il PC dell'ufficio una volta al giorno |
+| CSV | download dal server | composto nel browser, stesso file |
+| coda offline, conflitti, presenza | identici | identici |
+
+Una differenza voluta: nel conteggio delle **spunte orfane** (spunte su mesi che
+in Access non sono più di manutenzione) qui entra anche il quarto passo
+`ricambi`, che `sync.py` non guardava. È il conteggio giusto — quindi il numero
+in `sync_log` può essere leggermente più alto di quello locale.
+
+## Se qualcosa non va
+
+**La pagina resta sulla maschera di accesso e dice "casella non abilitata".**
+L'utente esiste ma il suo indirizzo non finisce in `@vrs-tech.it`. Nessuna
+eccezione: è la regola di `autorizzato()`.
+
+**Entro, ma la griglia è vuota.** L'anagrafica non è mai arrivata: fai il punto
+3 dal PC dell'ufficio.
+
+**Le spunte degli altri non compaiono da sole.** Il WebSocket non passa
+(succede dietro certi proxy d'ufficio). L'applicazione se ne accorge da sola
+dopo quattro tentativi e passa a chiedere le celle cambiate ogni 15 secondi: si
+continua a lavorare, con qualche secondo di ritardo.
+
+**L'anagrafica online è ferma a ieri l'altro.** Guarda `data/push_cloud.log` sul
+PC dell'ufficio: c'è una riga per esecuzione, `ok ...` o `ERRORE ...`.
+
+**Dopo un'esecuzione del SQL le chiamate rispondono "function not found".**
+PostgREST tiene in memoria l'elenco delle funzioni. In SQL Editor:
+`notify pgrst, 'reload schema';`
+
+**Il progetto Supabase si è messo in pausa.** Il piano gratuito sospende i
+progetti fermi da una settimana. Il travaso giornaliero basta a tenerlo sveglio:
+se è successo, vuol dire che la sincronia non sta girando.

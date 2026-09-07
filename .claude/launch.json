@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crono",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py",
+        "--no-sync",
+        "--verbose"
+      ],
+      "cwd": "app",
+      "port": 8770,
+      "url": "http://localhost:8770",
+      "autoPort": false
+    }
+  ]
+}

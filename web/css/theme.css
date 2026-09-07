@@ -1,0 +1,200 @@
+/* ============================================================================
+   theme.css - UNICO posto dove vivono colori, font e misure.
+   Per applicare i colori aziendali: cambiare i 4 valori nel blocco MARCHIO.
+   Tutto il resto (grigi, stati, ombre) si adatta da soli.
+   #ANCHOR: tema
+   ========================================================================= */
+
+:root {
+  /* ---- MARCHIO VRS GROUP -------------------------------------------------
+     Estratti dal logo (web/assets/logo.webp): cyan #00AEEF, grigio scuro
+     #58595B, grigio chiaro #A7A9AC. I grigi del logo sono anche la scala
+     neutra di tutta l'app, cosi' l'insieme e' riconoscibilmente VRS.       */
+  --marchio:        #00AEEF;   /* cyan del logo: riempimenti, focus, "controllata" */
+  --marchio-scuro:  #00719B;   /* testo e hover: il cyan puro non ha contrasto su bianco */
+  --marchio-tenue:  #E1F6FE;   /* riempimenti leggeri, righe selezionate   */
+  --su-marchio:     #00323F;   /* cio' che sta SOPRA il cyan pieno: il bianco
+                                  su #00AEEF fa 2,5:1, questo cyan profondo 4,8:1 */
+  --accento:        #00A37A;   /* completato: verde che sta bene accanto al cyan */
+  --accento-scuro:  #007A5C;   /* dove serve testo bianco sul verde (avvisi)    */
+  /* ---------------------------------------------------------------------- */
+
+  /* Fondi e inchiostri - famiglia dei grigi del logo */
+  --fondo:      #F5F6F7;
+  --superficie: #FFFFFF;
+  --superficie-2:#FAFBFB;
+  --bordo:      #E4E5E7;
+  --bordo-forte:#C9CACC;
+  --inchiostro: #1C1D1F;
+  --inchiostro-2:#58595B;      /* grigio scuro del logo */
+  --tenue:      #6E7175;       /* 4,9:1 su bianco: passa AA sul testo piccolo */
+  --tenue-2:    #83868A;       /* famiglia del grigio chiaro del logo, alzato per leggibilita' */
+
+  /* Stati della catena mappatura, nell'ordine dei quattro passi:
+     stampata -> controllata -> completa rapportino -> ricambi e scadenze.
+     Verificati col validatore della skill dataviz su superficie #FFFFFF: tutti
+     in banda L, coppie adiacenti separate anche in protanopia/deuteranopia
+     (peggior coppia 13,5 su una soglia di 8). Il grigio del primo passo e' un
+     neutro voluto: "solo stampata" non deve chiamare l'occhio. */
+  --st-stampata:   #8B8D91;
+  --st-controllata:var(--marchio);
+  --st-corretta:   #A0307E;   /* magenta: L .50 C .17 contrasto 6,5:1 su bianco.
+                                 Era var(--accento), cioe' lo STESSO verde con cui
+                                 tutta l'app dice "mappatura completa": nei grafici
+                                 il verde sembrava allora il terzo passo invece del
+                                 completamento intero. Il verde ha adesso un solo
+                                 significato, questo passo ha il suo. */
+  --st-ricambi:    #5B67D6;   /* indaco: L .56 C .17 contrasto 4,8:1 su bianco */
+  --st-vuoto:      #E4E5E8;
+
+  /* MAPPATURA COMPLETA = una spunta sola (tutti e quattro i passi fatti), ed e'
+     una grandezza, non un'identita': una tinta sola, il verde del marchio.
+     `--pr-*` e' la rampa sequenziale "a che punto siamo" dello stesso verde, da
+     0 spunte a completa: un tono solo a cinque chiari, cosi' non insegna un
+     secondo alfabeto di colori accanto ai quattro passi. */
+  --completa: var(--accento);
+  --pr-0: var(--st-vuoto);
+  --pr-1: color-mix(in srgb, var(--completa) 26%, var(--st-vuoto));
+  --pr-2: color-mix(in srgb, var(--completa) 50%, var(--st-vuoto));
+  --pr-3: color-mix(in srgb, var(--completa) 74%, var(--st-vuoto));
+  --pr-4: var(--completa);
+  /* ANZIANITA' DELL'ARRETRATO (grafico "Da quanto sono scadute"): i bin sono
+     ORDINATI (1 mese -> oltre 6), quindi la rampa e' sequenziale di un tono
+     solo, l'ambra dell'arretrato. Validata col gemello Python: chiarezza
+     monotona, gradi vicini separati in CVD (peggiore 6,9 chiaro / 9,3 scuro).
+     Il grado piu' chiaro ha poco contrasto sulla superficie: in cambio il
+     grafico ha legenda, numeri scritti e tabella, come chiede la skill. */
+  --ar-1: color-mix(in srgb, var(--allerta) 30%, var(--st-vuoto));
+  --ar-2: color-mix(in srgb, var(--allerta) 53%, var(--st-vuoto));
+  --ar-3: color-mix(in srgb, var(--allerta) 76%, var(--st-vuoto));
+  --ar-4: var(--allerta);
+  /* Classi temporali dell'anno nei grafici (vista Statistiche). Set validato
+     col validatore dataviz: tutte le coppie adiacenti restano separate anche in
+     protanopia/deuteranopia (peggior coppia 13,6). "previsto" e "stima" sono la
+     stessa tinta a due chiari, perche' sono la stessa cosa a due gradi di
+     certezza; "da rinnovare" prende il rosso della scadenza contratto (NON
+     l'ambra dell'arretrato: sono due cose diverse); il pre-tracciamento e' il
+     neutro, come nella griglia. */
+  --cl-previsto: var(--marchio);
+  --cl-stima:    #0E7FA8;
+  --cl-rinnovo:  var(--scadenza);
+  --cl-pretrac:  var(--st-stampata);
+
+  --allerta:       #C2600B;   /* AMBRA = lavoro nostro in ritardo (mese passato
+                                 e mappatura non completa). Solo questo. */
+  --allerta-tenue: #FDF3E6;
+  /* ROSSO = il contratto. Non e' lavoro in ritardo, e' una scadenza
+     commerciale: prima si divideva l'ambra con "in ritardo" e a schermo le due
+     cose sembravano la stessa. Contrasto su bianco 5,4:1 (testo compreso). */
+  --scadenza:       #C0392B;
+  --scadenza-tenue: #FCEDEB;
+  --orfana:        #8B5CF6;   /* spunta su mese non piu' previsto in Access */
+
+  /* SEGNALI - il rilievo dell'interfaccia. Non introducono colori: sono
+     color-mix di token che esistono gia'. L'alone e' cio' che fa leggere una
+     cosa come "accesa" senza aggiungere un bordo in piu'. */
+  --alone-marchio: 0 0 0 1px color-mix(in srgb, var(--marchio) 32%, transparent),
+                   0 8px 24px -10px color-mix(in srgb, var(--marchio) 55%, transparent);
+  --alone-completa: 0 0 0 1px color-mix(in srgb, var(--completa) 38%, transparent),
+                    0 6px 18px -8px color-mix(in srgb, var(--completa) 50%, transparent);
+  /* Ambiente: un soffio di cyan in alto a sinistra, appena percettibile. E'
+     quello che tiene insieme testa di vetro e fondo. */
+  --velo: radial-gradient(1100px 380px at 8% -10%,
+            color-mix(in srgb, var(--marchio) 7%, transparent), transparent 68%);
+  --filo: linear-gradient(90deg, var(--marchio), var(--completa));
+
+  /* Tipografia: sistema per la prosa, monospazio per ogni dato.
+     Nessun webfont: l'app deve funzionare senza rete. */
+  --f-ui:  "Segoe UI Variable Text", "Segoe UI", -apple-system,
+           BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --f-dato:"Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono",
+           Consolas, "Liberation Mono", monospace;
+
+  --t-micro: 10.5px;
+  --t-mini:  11.5px;
+  --t-base:  13px;
+  --t-med:   15px;
+  --t-grande:20px;
+  --t-titolo:32px;
+
+  /* Misure della griglia: il passo del mese e' il modulo di tutto il layout */
+  --passo-mese: 44px;   /* modulo del layout: la capsula ci sta con 4 segmenti */
+  --h-riga:     34px;
+  --col-min:    280px;   /* larghezza minima della colonna nome; oltre cresce lei */
+  --col-tot:    78px;
+
+  --r-1: 5px;
+  --r-2: 9px;
+  --r-3: 14px;
+  --r-tonda: 999px;
+
+  --ombra-1: 0 1px 2px rgba(15,20,26,.06), 0 1px 1px rgba(15,20,26,.04);
+  --ombra-2: 0 4px 14px rgba(15,20,26,.10), 0 1px 3px rgba(15,20,26,.06);
+  --ombra-3: 0 18px 48px rgba(15,20,26,.18), 0 2px 8px rgba(15,20,26,.08);
+
+  --molla: cubic-bezier(.2,.9,.28,1);
+  --rapido: 140ms var(--molla);
+  --medio:  240ms var(--molla);
+}
+
+/* Tema scuro: automatico da sistema, forzabile con data-tema sul <html> */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="chiaro"]) {
+    --fondo:      #0D0E10;
+    --superficie: #16181B;
+    --superficie-2:#1B1E21;
+    --bordo:      #292B2F;
+    --bordo-forte:#3C3F44;
+    --inchiostro: #EDEEF0;
+    --inchiostro-2:#C6C8CB;
+    --tenue:      #92959A;
+    --tenue-2:    #64676B;
+    --marchio:       #35C4FF;
+    --marchio-scuro: #8FDCFF;
+    --marchio-tenue: #0B2C3B;
+    --accento:       #22C39A;
+    --st-stampata:   #6E7175;
+    --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
+    --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
+    --cl-stima:    #1D89B4;
+    --st-vuoto:      #24262A;
+    --allerta:       #E0913C;
+    --allerta-tenue: #2A1F12;
+    --scadenza:      #F2705F;
+    --scadenza-tenue:#2C1614;
+    --velo: radial-gradient(1100px 380px at 8% -10%,
+              color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
+    --ombra-1: 0 1px 2px rgba(0,0,0,.5);
+    --ombra-2: 0 4px 16px rgba(0,0,0,.55);
+    --ombra-3: 0 18px 48px rgba(0,0,0,.65);
+  }
+}
+:root[data-tema="scuro"] {
+  --fondo:      #0D0E10;
+  --superficie: #16181B;
+  --superficie-2:#1B1E21;
+  --bordo:      #292B2F;
+  --bordo-forte:#3C3F44;
+  --inchiostro: #EDEEF0;
+  --inchiostro-2:#C6C8CB;
+  --tenue:      #92959A;
+  --tenue-2:    #64676B;
+  --marchio:       #35C4FF;
+  --marchio-scuro: #8FDCFF;
+  --marchio-tenue: #0B2C3B;
+  --accento:       #22C39A;
+  --st-stampata:   #6E7175;
+  --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
+  --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
+  --cl-stima:    #1D89B4;
+  --st-vuoto:      #24262A;
+  --allerta:       #E0913C;
+  --allerta-tenue: #2A1F12;
+  --scadenza:      #F2705F;
+  --scadenza-tenue:#2C1614;
+  --velo: radial-gradient(1100px 380px at 8% -10%,
+            color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
+  --ombra-1: 0 1px 2px rgba(0,0,0,.5);
+  --ombra-2: 0 4px 16px rgba(0,0,0,.55);
+  --ombra-3: 0 18px 48px rgba(0,0,0,.65);
+}

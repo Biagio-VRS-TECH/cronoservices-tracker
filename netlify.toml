@@ -1,0 +1,41 @@
+# netlify.toml - pubblicazione del guscio statico.
+#
+# Non c'e' un passo di build vero: `web/` va online com'e'. L'unico compito del
+# comando qui sotto e' scrivere web/js/nuvola-config.js con l'indirizzo del
+# database, preso dalle variabili d'ambiente del sito (Site settings ->
+# Environment variables). Cosi' le chiavi non stanno nei file del progetto e
+# `avvia.bat` continua a partire in locale con la configurazione vuota.
+#
+# Variabili richieste:
+#   SUPABASE_URL       https://xxxxxxxx.supabase.co
+#   SUPABASE_ANON_KEY  la chiave "anon / public" del progetto (NON service_role)
+
+[build]
+  publish = "web"
+  command = "sh cloud/netlify-build.sh"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+    Permissions-Policy = "geolocation=(), camera=(), microphone=()"
+
+# Il service worker non va mai servito dalla cache del browser: e' lui a
+# decidere quando il resto va aggiornato.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/js/nuvola-config.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Applicazione a pagina unica: qualunque indirizzo apre index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
