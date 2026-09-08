@@ -3,6 +3,53 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-08 (11a sessione) - prima prova vera del giro online
+
+Il committente ha collegato Netlify a GitHub e provato il sito pubblicato
+(`cronoservices-tracker.netlify.app`): rimaneva bloccato sulla scritta statica
+"Caricamento..." per sempre, senza nessun errore visibile.
+
+**Trovato un difetto reale**: `bootstrap()` in [api.js](../../web/js/api.js)
+non lanciava piu' quando la RPC Postgres rispondeva con un errore applicativo
+(login fallito o `autorizzato()` = falso): l'app provava a leggere campi
+mancanti e andava in crash silenzioso in `applica()` (stato.js), lasciando lo
+schermo fermo sulla marca statica senza spiegazione. **Sistemato**: ora
+`bootstrap()` lancia con il messaggio vero e `avvia()` (app.js) lo mostra
+invece del generico "Database non raggiungibile". Verificato che il modo
+locale non e' cambiato (avvio pulito, nessun errore in console).
+
+**Dalla console del committente**, due chiamate a Supabase rispondevano 400:
+il login (`auth/v1/token?grant_type=password`) e la RPC `app_bootstrap`. Il
+codice online non e' mai stato provato prima d'ora (vedi 10a sessione), quindi
+e' la prima verifica reale prevista in
+[#da-verificare-alla-prima-sessione-con-un-progetto-supabase-vero](#da-verificare-alla-prima-sessione-con-un-progetto-supabase-vero).
+
+Con l'errore ora visibile (invece di uno schermo bloccato), il committente ha
+mandato lo screenshot vero: `column reference "anno" is ambiguous` dalla RPC
+`app_bootstrap`. **Trovato e sistemato un secondo difetto, questa volta in
+SQL**: `app_bootstrap` e `app_incongruenze` in
+[03-letture.sql](../../cloud/03-letture.sql) dichiaravano una variabile locale
+chiamata `anno`, con lo stesso nome della colonna `mappature.anno` — in
+`where m.anno = anno` Postgres non sa piu' quale dei due intendevi. Rinominata
+in `v_anno` in entrambe (`app_export_csv`, nello stesso file, gia' lo faceva
+bene: e' li' che ho preso il pattern).
+
+## Bloccato in attesa del committente (nuovo)
+
+**Il file `cloud/03-letture.sql` nel repo e' gia' corretto, ma la funzione
+che gira davvero sta dentro il suo progetto Supabase e resta quella vecchia
+finche' non viene rieseguita.** Serve che il committente, in **SQL Editor**
+del suo progetto Supabase, rilanci le due funzioni corrette (si puo' incollare
+tutto il file `03-letture.sql` aggiornato, e' idempotente: `create or replace
+function`). Poi ricaricare la pagina — e se restasse un'altra cache vecchia,
+`localStorage.removeItem('cs.bootstrap.v1')` nella console e ricaricare.
+
+Se dopo questo comparisse un ALTRO errore (es. "casella non abilitata",
+"sessione scaduta"), sono i punti rimasti del giro di verifica mai fatto prima
+(vedi 10a sessione): utente Supabase esistente/confermato, casella
+`@vrs-tech.it`, le altre 4 funzioni SQL eseguite, variabili d'ambiente Netlify
+che puntano a questo stesso progetto.
+
 ## Fatto il 2026-09-07 (10a sessione)
 
 Richiesta: *"vorrei mettere online su netlify e magari supabase (o altro se hai

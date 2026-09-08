@@ -12,16 +12,16 @@ create or replace function public.app_bootstrap(p_anno int default null)
 returns jsonb
 language plpgsql stable security definer set search_path = public as $fn$
 declare
-  anno int := coalesce(p_anno, extract(year from (now() at time zone 'Europe/Rome'))::int);
+  v_anno int := coalesce(p_anno, extract(year from (now() at time zone 'Europe/Rome'))::int);
   ris jsonb;
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
   select jsonb_build_object(
-    'anno', anno,
+    'anno', v_anno,
     'anni', (select coalesce(jsonb_agg(x.a order by x.a), '[]'::jsonb)
-             from (select anno - 1 as a union select anno union select anno + 1
+             from (select v_anno - 1 as a union select v_anno union select v_anno + 1
                    union select m.anno from public.mappature m) x
              where x.a > 2000 and x.a < 2100),
     'oggi', to_char(now() at time zone 'Europe/Rome', 'YYYY-MM-DD'),
@@ -43,7 +43,7 @@ begin
                  from public.services s),
     'celle', (select coalesce(jsonb_object_agg(m.id_service || '-' || m.mese,
                                                public._cella_out(m)), '{}'::jsonb)
-              from public.mappature m where m.anno = anno),
+              from public.mappature m where m.anno = v_anno),
     'operatori', (select coalesce(jsonb_agg(o.nome order by o.nome), '[]'::jsonb)
                   from public.operatori o),
     'ultimo_sync', (select v from public.meta where k = 'ultimo_sync'),
@@ -177,13 +177,13 @@ end $fn$;
 create or replace function public.app_incongruenze(p_anno int default null)
 returns jsonb
 language plpgsql stable security definer set search_path = public as $fn$
-declare anno int := coalesce(p_anno, extract(year from (now() at time zone 'Europe/Rome'))::int);
+declare v_anno int := coalesce(p_anno, extract(year from (now() at time zone 'Europe/Rome'))::int);
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
   return jsonb_build_object(
-    'http', 200, 'anno', anno,
+    'http', 200, 'anno', v_anno,
     'senza_mesi', (
       select coalesce(jsonb_agg(jsonb_build_object(
         'id', s.id_service, 'rs', c.rag_soc, 'dest', s.destinazione,
@@ -208,7 +208,7 @@ begin
       from public.mappature m
       join public.services s using (id_service)
       left join public.clienti c on c.id_cliente = s.id_cliente
-      where m.anno = anno and substr(s.mesi, m.mese, 1) <> '1'
+      where m.anno = v_anno and substr(s.mesi, m.mese, 1) <> '1'
         and (m.stampata + m.controllata + m.corretta + m.ricambi) > 0)
   );
 end $fn$;
