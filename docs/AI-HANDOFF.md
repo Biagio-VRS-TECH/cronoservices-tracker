@@ -61,23 +61,23 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 ### Frontend `web/`
 | file | righe | cosa contiene |
 |---|---|---|
-| `index.html` | 114 | struttura statica di testa e barra strumenti (gli `id` sono il contratto con `app.js`) |
-| `js/app.js` | 776 | guscio: avvio, viste, filtri, tema, tastiera, operatore, sync, diario |
-| `js/stato.js` | 633 | modello in memoria, `CAMPI`/`PASSI`, filtri, **unico varco per le scritture** (`spunta`) |
-| `js/api.js` | 200 | fetch, coda offline, flusso, presenza. Sceglie il trasporto |
-| `js/nuvola.js` | 330 | lato Supabase: login, rotte -> RPC, Realtime. #ANCHOR: nuvola |
+| `index.html` | 127 | struttura statica di testa e barra strumenti (gli `id` sono il contratto con `app.js`; `#f-stato` = filtro di stato) |
+| `js/app.js` | 842 | guscio: avvio, viste, filtri, tema, tastiera, operatore, sync, diario |
+| `js/stato.js` | 739 | modello in memoria, `CAMPI`/`PASSI`, filtri, **unico varco per le scritture** (`spunta`) |
+| `js/api.js` | 224 | fetch, coda offline, flusso, presenza. Sceglie il trasporto |
+| `js/nuvola.js` | 342 | lato Supabase: login, rotte -> RPC, Realtime. #ANCHOR: nuvola |
 | `js/nuvola-config.js` | 18 | indirizzo del database online. Vuoto = locale |
-| `js/anno.js` | 474 | griglia cliente x 12 mesi (vista principale) |
-| `js/mese.js` | 266 | foglio di lavoro del mese + azioni multiple |
-| `js/stat.js` | 778 | vista Statistiche: raccolta dei numeri + grafici (torte comprese) |
+| `js/anno.js` | 500 | griglia cliente x 12 mesi (vista principale) |
+| `js/mese.js` | 321 | foglio di lavoro del mese + azioni multiple |
+| `js/stat.js` | 1283 | vista Statistiche: raccolta dei numeri, quadrante dell'anno, ritmo, lista di lavoro, grafici (torte comprese) |
 | `js/cassetto.js` | 203 | pannello laterale di un service |
 | `js/spunte.js` | 127 | popover della cella |
-| `js/ui.js` | 208 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
-| `css/theme.css` | 200 | **solo token**: colori, font, misure, segnali. Il marchio si cambia qui |
-| `css/base.css` | 378 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
-| `css/griglia.css` | 401 | griglia, cella a 4 segmenti, vista mese |
-| `css/stat.css` | 428 | carte, quadranti, torte, misuratori, barre, colonne, tooltip |
-| `css/stampa.css` | 37 | foglio cartaceo |
+| `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
+| `css/theme.css` | 214 | **solo token**: colori, font, misure, segnali, vetro. Il marchio si cambia qui |
+| `css/base.css` | 428 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
+| `css/griglia.css` | 539 | carte cliente, cella a 4 segmenti, riga/carta "a posto", vista mese (pista dei mesi, capsula dei passi) |
+| `css/stat.css` | 748 | griglia a 12 colonne, carte di vetro, quadrante dell'anno, ritmo, agenda, torte, barre, colonne, tooltip |
+| `css/stampa.css` | 38 | foglio cartaceo |
 | `sw.js` | 45 | service worker (guscio offline) |
 
 `data/cronoservice.db` = dati applicativi. `data/backup/` = copie automatiche a
@@ -108,7 +108,7 @@ ogni sync (ne tiene 20).
    numero di riga. Ancore esistenti: `db`, `sync`, `api`, `merge`, `server`,
    `sse`, `api-client`, `stato`, `toggle`, `ui`, `popover`, `cassetto`,
    `vista-anno`, `vista-mese`, `vista-stat`, `app`, `sw`, `rinnovo`,
-   `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
+   `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
    `mappatura-anno`, `classe-mese`, `passi`, `massa`, `stato-collegamento`,
    `scoperta`, `nuvola`, `push-cloud`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
@@ -132,6 +132,183 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-08 (15a sessione)
+
+Tre richieste in una volta (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-08-15a-sessione),
+[ai/decisioni.md](ai/decisioni.md) 15h e 15i):
+
+*"aggiungi la possibilita' di vedere la vista annuale o mensile senza quelle
+gia complete o solo quele in ritardo o solo quele complete (forse con un unico
+tasto di quello di prima magari rendendo clicabili i numeri che ci sono tipo
+17/267 complete)"* - *"il filtro tutti i tipi toglili"* - *"il pallino
+all'inizio del sito mettilo in base allo stato della mappatura, in ritardo,
+completa, ecc"*.
+
+**Un filtro solo, a quattro posizioni** (#ANCHOR: filtro-stato in
+`web/js/stato.js`): Tutte / Da fare / In ritardo / Complete, al posto delle due
+pillole "Solo incomplete" e "Solo in ritardo" - due interruttori per tre
+risposte su quattro, e la quarta non era esprimibile. `st.filtri.stato`
+sostituisce `soloIncomplete`/`soloRitardo` (i valori vecchi in `localStorage`
+vengono convertiti) e `f.tipo` non esiste piu': il **filtro per tipo di gas e'
+stato tolto**, il tipo si cerca dalla barra di ricerca.
+
+**I numeri sono il filtro.** Ogni posizione porta il suo conteggio e i numeri
+della testa sono bottoni ("19/267 complete", "225 in ritardo" nell'Anno,
+"6/11 complete" nel Mese). La regola che tiene in piedi la cosa: **i conteggi
+ignorano il filtro di stato** (`gruppiFiltrati({ ignoraStato: true })`, che
+`riepilogoAnno` adesso passa). Se contassero la selezione, dopo un clic su
+"Complete" la testa direbbe "19/19" e il bottone per tornare indietro
+sparirebbe. Il numero dentro il filtro e' `statoPassa` contato riga per riga:
+non puo' dire 7 e mostrarne 18. Non coincide con quello della testa, che conta
+le mappature **dovute** - "Complete" comprende anche i siti chiusi in un anno
+pre-tracciamento.
+
+**Il pallino della riga dice lo stato**, non piu' il tipo di gas
+(`statoMappatura()`, `.punto-stato`): verde completa, ambra in ritardo, cyan
+iniziata, contorno da fare, contorno tenue pre-tracciamento, puntino non
+dovuta. Nessun colore nuovo, nessun nodo in piu': `rinfrescaRiga` cambia una
+classe. La legenda e' in "Come si legge".
+
+Verificato in browser sui dati reali copiati (222 clienti / 274 siti), chiaro e
+scuro, nelle tre viste, con `inizio_tracciamento` a 2026-09 (31 dovute) e a
+2026-01 (267 dovute, 225 in ritardo): i numeri del filtro sono sempre uguali
+alle righe che restano a schermo. **Le prove di spunta sono state fatte su una
+copia del `.db`** servita da un secondo server sulla 8773: l'archivio del
+committente non e' stato toccato. Solo `web/`: basta ricaricare. Il service
+worker passa a `crono-guscio-v6`.
+
+## Stato al 2026-09-08 (14a sessione)
+
+Una richiesta sola, sulle viste Anno e Mese: *"l'interfaccia grafica di anno e
+mese risulta un po' pesante e probabilmente vecchiotta [...] rimodernizzarla
+(senza stravolgerla completamente) [...] moderno futuristico dinamico
+interattivo semplice minimal elegante [...] se la mappatura e' completa per un
+sito, o per un intero cliente, evidenzialo bene non solo quel quadratino [...]
+non rendere lento il sito web"*. Dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-08-14a-sessione) e
+[ai/decisioni.md](ai/decisioni.md) 15g; il disegno e' descritto in
+[ai/frontend.md](ai/frontend.md#idea-visiva).
+
+**Il segnale "completa" sale di livello.** Non cambia il colore, cambia dove
+arriva: la cella verde c'era gia'; ora la **riga del sito** si accende
+(`.riga-srv.a-posto`: spina verde a sinistra, fondo tinto al 4%, segno di
+spunta nel totale, etichetta "a posto") e la **carta del cliente**
+(`.blocco.completo`: bordo e alone verdi, fascia in testa, etichetta) - anche
+da piegata. Le condizioni sono le stesse del `.pieno` sul totale, cosi' i due
+segnali non si contraddicono. Il verde ha un significato solo: l'etichetta
+"N aperti" e' diventata neutra.
+
+**La forma.** Nella vista Anno i clienti sono **carte** staccate da 6px d'aria
+con rientro `--rientro` (12px) ai lati, niente piu' bordo forte fra un cliente
+e l'altro; i mesi non previsti sono un **punto** di 3px invece di un trattino
+(la trama dei trattini copriva le capsule); i totali per mese stanno **dentro
+l'intestazione dei mesi** con un filo di 2px che si riempie (`--p`): la riga
+sticky dei totali e' sparita. Nella vista Mese i dodici mesi stanno in
+una **pista** con l'indicatore che scivola (`--i`, il cambio mese non ridisegna
+piu' la testa: `cambiaMese` in `mese.js`), e i quattro passi sono una
+**capsula segmentata**, la stessa forma della cella dell'Anno letta da vicino;
+a scheda finita la pista diventa verde.
+
+**Costo zero sul DOM.** Nessun nodo in piu' per cella: spine, spunte e
+etichette sono `::before` o elementi gia' nel markup mostrati dal CSS con una
+classe sola, quindi `aggiornaTotali`/`rinfrescaRiga` cambiano classi e basta.
+Misurato in browser: ridisegno completo Anno+Mese 29 ms sui dati reali (222
+clienti / 274 siti). Verificato chiaro e scuro (nuovo token
+`--completa-testo`: il verde scritto sul fondo scuro era illeggibile), 1440 e
+900 px, cassetto, stampa (`stampa.css` azzera la pista). Il service worker
+passa a `crono-guscio-v5`. Solo `web/`: basta ricaricare.
+
+**Seconda passata nella stessa sessione**, alla replica *"risulta ancora
+pesante, non lo riesci a migliorare graficamente?"*: righe dei siti senza
+linee (32px), capsula vuota al 55% con filo di contorno invece del blocco
+grigio pieno, carte senza contorno (solo `--ombra-1`), pillole dei filtri
+piatte in `base.css`, etichette "N aperti" solo testo, totali dei mesi nella
+testa (una fascia in meno). Dettaglio in [ai/frontend.md](ai/frontend.md#idea-visiva).
+
+## Stato al 2026-09-08 (13a sessione)
+
+Tre richieste sulla dashboard appena consegnata (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-08-13a-sessione),
+[ai/decisioni.md](ai/decisioni.md) 15f):
+
+*"in statistiche da fare adesso ha un riquadro troppo grande rispetto al
+contenuto che occupa meta'"* - *"la barra blu che circola a vuoto nella hero
+toglila sembra un pezzo di plastica"*, *"mappature per sito mettilo in fondo
+come ultimo riquadro, [...] con possibilita' di espanderlo"* - *"se ho una
+mappatura fatta a gennaio, mi compare lo stesso da fare [...] se completo 1/4
+di settembre il nome sparisce, e' molto piena di bug questa sezione"*.
+
+**Il difetto stava nel modello, non nella carta.** `calcolaMappatura`
+(#ANCHOR: mappatura-anno in `web/js/stato.js`) cercava il lavoro solo nei mesi
+"utili" del calendario contrattuale e saltava `prima-contratto` /
+`non-previsto`. Il cassetto invece le quattro caselle le mostra per **ogni**
+mese di manutenzione scritto in Access: su un contratto che parte ad agosto
+(NIPPON SANSO #618/#619, mesi gennaio+maggio+settembre) una mappatura **chiusa
+a gennaio** non risultava chiusa, e il sito restava "da fare" a settembre. Ora
+il giro guarda tutti e dodici i mesi per il lavoro segnato e usa il calendario
+solo come ripiego per dire dove starebbe il lavoro quando non ce n'e' ancora
+nessuno. La regola dichiarata da otto sessioni - *chiusa in un mese qualsiasi,
+il sito e' a posto per l'anno* - adesso e' davvero implementata.
+
+Le altre correzioni: **"Da fare adesso"** ha tre gruppi di urgenza nella stessa
+agenda (arretrate, questo mese, il prossimo) con i contatori che fanno da
+filtro - prima la testa scriveva "229 in ritardo" sopra un elenco che le
+arretrate non le conteneva; l'ordine dentro un gruppo **non guarda i passi**
+(era quello a far "sparire" il nome appena spuntato); gli scorrevoli dentro le
+carte conservano la posizione al ridisegno; la lista prende tutta l'altezza
+della fila (`flex: 1 1 0`) invece di stare in mezzo a mezza carta vuota. Via la
+**pista di avanzamento nell'eroe**, e **Mappature per sito** e' l'ultima carta
+della pagina col bottone **Espandi** che la apre in un foglio grande
+(`ui.modale` ha l'opzione nuova `classe`).
+
+Verificato in browser sui dati reali (222 clienti / 274 siti / 267 dovute),
+chiaro e scuro, a 1440 e 900 px. **Le prove di spunta sono state fatte su una
+copia del `.db`** servita da un secondo server sulla 8772: l'archivio del
+committente non e' stato toccato. Solo `web/` (`stato.js`, `stat.js`, `ui.js`,
+`stat.css`, `base.css`): basta ricaricare la pagina.
+
+## Stato al 2026-09-08 (12a sessione)
+
+*"rinnova la sezione delle statistiche, fai una bella dashboard esteticamente
+impeccabile, visivamente d'impatto, super moderna, futuristica ed elegante. non
+aggiungere statistiche inutili, quelle che ci sono vanno bene + qualcosa di
+veramente utile al massimo ma proponi prima"*.
+
+Proposte tre statistiche, il committente ne ha scelte due: **"Ritmo per
+chiudere l'anno"** (quante mappature al mese servono da oggi a dicembre contro
+quante se ne chiudono, con la proiezione a fine anno) e **"Da fare adesso"**
+(le dovute non chiuse che scadono questo mese e il prossimo; la riga apre il
+cassetto del service). Scartata "Contratti da rinnovare". Nessuna carta tolta.
+
+La vista e' diventata un **pannello di comando**
+([ai/decisioni.md](ai/decisioni.md) 15e): apre col **quadrante dell'anno**
+(`quadranteAnno` in `stat.js`: i dodici mesi a raggiera, verde chiuso / ambra
+scoperto in un mese passato / grigio in tempo, tacca sul mese corrente,
+percentuale al centro - e' l'unico numero eroe della pagina), a destra titolo e
+cinque tessere che salgono da zero (`contaSu`). Sotto, in una griglia a dodici
+colonne (`.c12 .c8 .c7 .c6 .c5 .c4 .c3`): Da fare adesso + (Ritmo e I 4 passi
+impilati), i tre quadranti, mese per mese + andamento, province / scadute / chi
+spunta, e in fondo l'elenco per sito (la 13a sessione l'ha spostato la' e la
+pista dell'eroe l'ha tolta). Le carte sono di vetro (`--vetro`, `--lucido`,
+`--punti` nuovi in `theme.css`, **senza** `backdrop-filter`) su un fondo a
+punti che sfuma, ed entrano una per una quando arrivano in vista (`rivela`).
+Al secondo giro il committente ha chiesto piu' dinamicita' e grafici in basso
+meno banali: capsula a segmenti + pillole nell'elenco per sito, righe di
+riferimento nelle colonne, area a gradiente e onda nell'andamento, quattro
+anelli per i passi, barre con rango e parte chiusa. Regole `dataviz`
+rispettate: cifre grandi in sans proporzionale, tabella su ogni carta nuova,
+nessuna tinta nuova. Il committente ha anche ricordato che **una mappatura
+chiusa in un mese qualsiasi mette a posto il sito per l'anno**: e' gia' cosi'
+(`mappaturaSito().completa`) e "Da fare adesso" filtra su quello.
+
+Verificato in browser sui dati reali (222 clienti / 274 siti / 267 dovute /
+236 in ritardo, `inizio_tracciamento` ora a **2026-01**), chiaro e scuro, a
+1440 e 900 px: quadrante, tooltip dei settori, riga dell'agenda che apre il
+cassetto, tabella del ritmo (66,8 al mese servono, 0 finora, proiezione 0%).
+Solo `web/`: basta ricaricare la pagina. Il service worker e' "prima la rete",
+non serve toccarlo.
 
 ## Stato al 2026-09-07 (10a sessione)
 

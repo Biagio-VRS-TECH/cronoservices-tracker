@@ -154,18 +154,36 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .sep { width: 1px; height: 20px; background: var(--bordo); margin: 0 4px; }
 
+/* Il filtro di stato e' un segmented control come le viste, ma ogni posizione
+   porta il suo numero: e' quello che si guarda per decidere dove andare, ed e'
+   cliccabile. Il numero non e' il conteggio della selezione ma dell'insieme
+   intero (vedi #ANCHOR: filtro-stato in js/stato.js), quindi resta leggibile
+   anche quando il filtro e' acceso. */
+.gruppo.stati button { display: inline-flex; align-items: baseline; gap: 6px; }
+.gruppo.stati button .n {
+  font-family: var(--f-dato); font-size: var(--t-micro); font-weight: 600;
+  color: var(--tenue-2); font-style: normal;
+}
+.gruppo.stati button[aria-pressed="true"] .n { color: var(--marchio-scuro); }
+.gruppo.stati button[aria-pressed="true"]::after { width: 100%; }
+.gruppo.stati button[data-stato="ritardo"] .n { color: var(--allerta); }
+
+/* Le pillole dei filtri sono piatte: fondo tenue, niente bordo. Sette bordi in
+   fila pesavano piu' della griglia. Il bordo compare solo al passaggio e
+   sull'attivo. */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: var(--r-tonda); border: 1px solid var(--bordo);
-  background: var(--superficie); font-size: var(--t-mini); font-weight: 500;
+  padding: 5px 11px; border-radius: var(--r-tonda); border: 1px solid transparent;
+  background: var(--fondo); font-size: var(--t-mini); font-weight: 500;
   color: var(--inchiostro-2); transition: var(--rapido); white-space: nowrap;
 }
-.pill:hover { border-color: var(--bordo-forte); background: var(--superficie-2); }
+.pill:hover { border-color: var(--bordo); background: var(--superficie-2); color: var(--inchiostro); }
 .pill[aria-pressed="true"] {
   background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
   color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
 }
-.pill.debole { border-style: dashed; color: var(--tenue); }
+.pill.debole { background: transparent; color: var(--tenue); }
+.pill.debole:hover { border-style: dashed; }
 .pill.mini { padding: 3px 9px; font-size: var(--t-micro); }
 select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
 
@@ -212,7 +230,17 @@ select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
    spingeva la voce piu' in basso delle altre e la colonna sembrava sfalsata:
    ora l'etichetta non va a capo e la riga dei numeri resta una. */
 .riepilogo .voce { display: flex; flex-direction: column; align-items: flex-end;
-  line-height: 1.15; white-space: nowrap; }
+  line-height: 1.15; white-space: nowrap; padding: 0; background: none; }
+/* Le voci che sono anche un filtro ("17/267 complete", "236 in ritardo"): il
+   numero E' il bottone. Si annuncia con un sottolineato tratteggiato tenue,
+   non con un bordo: nella testa quattro bottoni pieni erano rumore. */
+.riepilogo .voce.scelta { cursor: pointer; border-radius: var(--r-1); transition: var(--rapido); }
+.riepilogo .voce.scelta .et { border-bottom: 1px dashed var(--bordo-forte); }
+.riepilogo .voce.scelta:hover { background: none; }
+.riepilogo .voce.scelta:hover .n { color: var(--marchio-scuro); }
+.riepilogo .voce.scelta:hover .et { color: var(--inchiostro-2); border-bottom-style: solid; }
+.riepilogo .voce.attiva .n, .riepilogo .voce.attiva .et { color: var(--marchio-scuro); }
+.riepilogo .voce.attiva .et { border-bottom: 2px solid var(--marchio); }
 .riepilogo .n { font-family: var(--f-dato); font-size: var(--t-med); font-weight: 700; letter-spacing: -.02em; }
 .riepilogo .et { font-size: var(--t-micro); color: var(--tenue); text-transform: uppercase; letter-spacing: .07em; }
 .riepilogo .contesto {
@@ -263,6 +291,13 @@ select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
   animation: entra var(--medio) both;
 }
 @keyframes entra { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+/* Foglio grande, per gli elenchi che non stanno in 520px: l'elenco per sito
+   delle Statistiche si apre qui, quasi a tutta pagina. Non scorre lui, scorre
+   la lista dentro, altrimenti la testa del foglio scappa via. */
+.foglio.largo {
+  width: min(1160px, 100%); max-height: 92vh; overflow: hidden;
+  display: flex; flex-direction: column; padding: 22px 24px 24px;
+}
 .foglio h2 { margin: 0 0 4px; font-size: var(--t-grande); letter-spacing: -.02em; }
 .foglio p.sotto { margin: 0 0 18px; color: var(--tenue); }
 .campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo);

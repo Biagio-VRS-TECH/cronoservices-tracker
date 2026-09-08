@@ -63,11 +63,24 @@
 
     <span class="sep"></span>
 
-    <select class="pill" id="f-tipo" aria-label="Filtra per tipo"></select>
+    <!-- Stato della mappatura: un filtro solo a quattro posizioni, coi numeri
+         dentro. I numeri contano l'insieme SENZA il filtro di stato, cosi'
+         restano fermi e servono da bottone per tornare indietro.
+         #ANCHOR: filtro-stato in js/stato.js -->
+    <div class="gruppo stati" id="f-stato" role="group"
+         aria-label="Stato della mappatura"
+         title="Nella vista Mese la domanda è su QUEL mese; nella vista Anno sulla mappatura dell'anno del sito">
+      <button data-stato="" aria-pressed="true"
+              title="Tutte, senza filtro di stato">Tutte<i class="n"></i></button>
+      <button data-stato="incomplete" aria-pressed="false"
+              title="Solo quelle non ancora complete, comprese le in ritardo">Da fare<i class="n"></i></button>
+      <button data-stato="ritardo" aria-pressed="false"
+              title="Solo quelle con la scadenza già passata e non chiuse">In ritardo<i class="n"></i></button>
+      <button data-stato="complete" aria-pressed="false"
+              title="Solo quelle già complete">Complete<i class="n"></i></button>
+    </div>
+
     <select class="pill" id="f-prov" aria-label="Filtra per provincia"></select>
-    <button class="pill" id="f-inc" aria-pressed="false"
-            title="Nella vista Mese: solo le mappature incomplete di QUEL mese. Nella vista Anno: i siti con la mappatura dell'anno da finire">Solo incomplete</button>
-    <button class="pill" id="f-rit" aria-pressed="false">Solo in ritardo</button>
     <button class="pill debole" id="f-chiusi" aria-pressed="false">Mostra chiusi</button>
 
     <span class="sep"></span>

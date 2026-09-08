@@ -53,6 +53,7 @@
      0 spunte a completa: un tono solo a cinque chiari, cosi' non insegna un
      secondo alfabeto di colori accanto ai quattro passi. */
   --completa: var(--accento);
+  --completa-testo: var(--accento-scuro);  /* "a posto" scritto: sul chiaro serve il verde profondo */
   --pr-0: var(--st-vuoto);
   --pr-1: color-mix(in srgb, var(--completa) 26%, var(--st-vuoto));
   --pr-2: color-mix(in srgb, var(--completa) 50%, var(--st-vuoto));
@@ -102,6 +103,11 @@
   --velo: radial-gradient(1100px 380px at 8% -10%,
             color-mix(in srgb, var(--marchio) 7%, transparent), transparent 68%);
   --filo: linear-gradient(90deg, var(--marchio), var(--completa));
+  /* Vetro delle carte della vista Statistiche: la superficie lasciata un po'
+     trasparente sul velo, e il riflesso di 1px sul bordo alto. */
+  --vetro:  color-mix(in srgb, var(--superficie) 86%, transparent);
+  --lucido: rgba(255,255,255,.7);
+  --punti:  color-mix(in srgb, var(--bordo-forte) 55%, transparent);
 
   /* Tipografia: sistema per la prosa, monospazio per ogni dato.
      Nessun webfont: l'app deve funzionare senza rete. */
@@ -119,9 +125,11 @@
 
   /* Misure della griglia: il passo del mese e' il modulo di tutto il layout */
   --passo-mese: 44px;   /* modulo del layout: la capsula ci sta con 4 segmenti */
-  --h-riga:     34px;
+  --h-riga:     32px;
   --col-min:    280px;   /* larghezza minima della colonna nome; oltre cresce lei */
   --col-tot:    78px;
+  --rientro:    12px;    /* aria ai lati delle carte cliente nella vista Anno */
+  --r-carta:    10px;    /* raggio delle carte cliente e delle schede del mese */
 
   --r-1: 5px;
   --r-2: 9px;
@@ -153,6 +161,7 @@
     --marchio-scuro: #8FDCFF;
     --marchio-tenue: #0B2C3B;
     --accento:       #22C39A;
+    --completa-testo: var(--accento);
     --st-stampata:   #6E7175;
     --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
     --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
@@ -164,6 +173,8 @@
     --scadenza-tenue:#2C1614;
     --velo: radial-gradient(1100px 380px at 8% -10%,
               color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
+    --lucido: rgba(255,255,255,.06);
+    --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
     --ombra-1: 0 1px 2px rgba(0,0,0,.5);
     --ombra-2: 0 4px 16px rgba(0,0,0,.55);
     --ombra-3: 0 18px 48px rgba(0,0,0,.65);
@@ -183,6 +194,7 @@
   --marchio-scuro: #8FDCFF;
   --marchio-tenue: #0B2C3B;
   --accento:       #22C39A;
+  --completa-testo: var(--accento);
   --st-stampata:   #6E7175;
   --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
   --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
@@ -194,6 +206,8 @@
   --scadenza-tenue:#2C1614;
   --velo: radial-gradient(1100px 380px at 8% -10%,
             color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
+  --lucido: rgba(255,255,255,.06);
+  --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
   --ombra-1: 0 1px 2px rgba(0,0,0,.5);
   --ombra-2: 0 4px 16px rgba(0,0,0,.55);
   --ombra-3: 0 18px 48px rgba(0,0,0,.65);

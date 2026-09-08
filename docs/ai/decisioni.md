@@ -413,6 +413,161 @@ aggiunta e' `--ar-*`, ed e' un dato - vedi frontend.md). Tutte le animazioni
 passano da `.vivo`, che al ridisegno dopo una spunta c'e' gia': la pagina non
 lampeggia a ogni clic, e `prefers-reduced-motion` le spegne.
 
+## 15e. Le Statistiche come pannello di comando, col quadrante dell'anno (12a sessione)
+La richiesta: *"una bella dashboard esteticamente impeccabile, visivamente
+d'impatto, super moderna, futuristica ed elegante"*, senza statistiche inutili.
+La regola di 15d resta (un segnale, niente somma di effetti); quello che cambia
+e' la **forma**: la pagina e' una griglia a dodici colonne di carte di vetro,
+e apre con una firma sola, il **quadrante dell'anno** - i dodici mesi a
+raggiera, come il ciclo di manutenzione che l'applicazione racconta. Non e' un
+grafico in piu': e' "Come stanno le scadenze" distesa sui mesi, con le stesse
+tre tinte di stato, e al centro l'unico numero eroe della pagina. La scelta
+viene dal soggetto (la cadenza annuale, la testina del mese corrente), non da
+un modello di dashboard.
+
+Le due statistiche nuove sono state **proposte prima** e scelte dal
+committente fra tre: il **ritmo** ("ce la facciamo?": quante al mese servono
+contro quante se ne chiudono, con la proiezione) e **da fare adesso** (la
+lista di lavoro del mese e del prossimo, che apre il cassetto). Scartata
+"Contratti da rinnovare". Nessuna carta e' stata tolta.
+
+Vincoli tenuti: nessuna tinta nuova (i tre token nuovi - `--vetro`, `--lucido`,
+`--punti` - sono superficie, non dato), cifre grandi in sans proporzionale e
+mai in monospazio, tabella su ogni carta nuova, `prefers-reduced-motion`
+spegne tutto, anche la salita delle cifre.
+
+**Sul movimento** il committente ha poi chiesto *"piu' dinamicita' alla pagina
+senza appesantirla troppo"* e che i grafici in basso non restassero *"banali"*.
+La regola di 15d ("un solo movimento permanente") si allarga qui, e solo qui, a
+**due**: la spazzata dietro il quadrante e l'onda sul punto finale
+dell'andamento - entrambe faint, entrambe spente da `prefers-reduced-motion`.
+Il resto della dinamicita' non e' permanente: le carte entrano **quando
+arrivano in vista** (IntersectionObserver), le forme crescono e le cifre salgono
+carta per carta, e al passaggio del mouse colonne, righe e tessere si alzano di
+2-3 px. Niente `backdrop-filter`: rendeva le carte una penombra in tema scuro
+e pesa a ogni scorrimento.
+
+## 15f. "Da fare adesso" e' la lista del lavoro, non un promemoria di due mesi (13a sessione)
+Il committente ha guardato la carta appena fatta e ha trovato tre cose, tutte
+vere: *"se ho una mappatura fatta a gennaio, mi compare lo stesso da fare,
+invece non deve comparire perche' e' gia' stata completata per questo anno"*,
+*"se completo 1/4 di settembre il nome sparisce"*, *"un riquadro troppo grande
+rispetto al contenuto, che occupa metà"*.
+
+**Il difetto di fondo era nel modello, non nella carta.** `calcolaMappatura`
+cercava il lavoro solo nei mesi "utili" del calendario contrattuale e saltava
+`non-previsto` e `prima-contratto`. Ma il cassetto le quattro caselle le mostra
+per OGNI mese di manutenzione scritto in Access, senza guardare la classe
+temporale: su un contratto che parte ad agosto, gennaio e maggio sono
+`prima-contratto` e si spuntano comunque. Risultato: una mappatura **chiusa e
+firmata a gennaio** non risultava chiusa, il sito restava "da fare" e
+ricompariva nella lista di settembre. La regola dichiarata da otto sessioni -
+*una mappatura per sito per anno, chiusa in un mese qualsiasi il sito e' a
+posto* - non era implementata fino in fondo. Ora il giro guarda **tutti e
+dodici i mesi** per il lavoro segnato, e il calendario serve solo come ripiego
+per dire dove starebbe il lavoro quando non ce n'e' ancora nessuno.
+
+**La carta mostrava il numero piu' grande e non le righe che ci stavano
+dietro.** In testa scriveva "229 in ritardo" mentre l'elenco teneva solo le
+scadenze del mese corrente e del prossimo: il lavoro piu' urgente era l'unico
+non raggiungibile. Ora l'elenco ha **tre gruppi in ordine di urgenza**
+(arretrate, questo mese, il prossimo) e i tre contatori sono anche i **filtri**
+per isolarne uno. La carta non e' piu' un promemoria di due mesi: e' la lista
+del lavoro, e i suoi numeri portano tutti a delle righe.
+
+**Una lista di lavoro non si ordina per avanzamento.** Ordinare per passi fatti
+faceva saltare via la riga appena toccata. Dentro un gruppo l'ordine e' per
+scadenza e nome: qualcosa che mentre si lavora non si muove. Per la stessa
+ragione gli scorrevoli dentro le carte conservano la posizione al ridisegno.
+
+**E la carta e' grande quanto il suo contenuto.** La lista prende tutta
+l'altezza che la fila della griglia le da' (`flex: 1 1 0`), invece di restare
+un riquadro di 336px dentro una carta di 814: la fila la detta la colonna a
+fianco, e lo scorrevole la riempie.
+
+Nella stessa passata, per la stessa idea che ogni cosa a schermo debba portare
+un dato: via la **pista di avanzamento nell'eroe** (*"la barra blu che circola
+a vuoto, sembra un pezzo di plastica"*) - la percentuale la dice il quadrante a
+fianco - e l'**elenco per sito** e' passato in fondo alla pagina con un bottone
+**Espandi** che lo apre a tutta pagina: e' l'archivio completo, non una domanda
+da un secondo, e in mezzo alla pagina spezzava in due la fascia dei grafici.
+
+## 15g. "Completa" si vede a tre livelli, con lo stesso verde (14a sessione)
+Richiesta: *"se la mappatura e' completa per un sito, o per un intero cliente,
+evidenzialo bene non solo quel quadratino"*, dentro un rinnovo delle viste Anno
+e Mese *"senza stravolgerla completamente"*. La tentazione era un secondo
+colore o un'icona per riga. La scelta e' l'opposta: **lo stesso segnale sale
+di livello**. La cella verde accende la riga del sito (spina, fondo, spunta
+nel totale, etichetta "a posto") e la carta del cliente (bordo e alone verdi,
+etichetta), con la stessa condizione del totale `.pieno`, cosi' non ci sono mai
+due verdetti diversi sulla stessa riga. Per tenere il verde a un significato
+solo, "N aperti" - che e' un conteggio, non uno stato - ha perso il verde.
+
+La forma e' cambiata quel tanto che serve a farlo leggere: clienti come
+**carte** separate da aria invece che da bordi forti, punti al posto dei
+trattini nei mesi vuoti, i passi del mese come **capsula segmentata** uguale
+alla cella. Regola di 15d rispettata: nessun effetto in piu', nessun nodo in
+piu' per cella (tutto e' `::before` o markup gia' presente mostrato da una
+classe), un solo movimento nuovo - l'indicatore della pista dei mesi che
+scivola - e solo perche' il cambio mese non ridisegna piu' la testa.
+
+## 15h. Un filtro solo per lo stato, e i numeri sono il filtro (15a sessione)
+
+*"aggiungi la possibilita' di vedere la vista annuale o mensile senza quelle
+gia complete o solo quele in ritardo o solo quele complete (forse con un unico
+tasto di quello di prima magari rendendo clicabili i numeri che ci sono tipo
+17/267 complete)"*.
+
+C'erano due pillole indipendenti, "Solo incomplete" e "Solo in ritardo": due
+interruttori che coprivano tre risposte su quattro, e la quarta - *fammi vedere
+solo quelle gia' chiuse* - non era esprimibile. Sono diventati **un filtro solo
+a quattro posizioni** (#ANCHOR: filtro-stato in `stato.js`): Tutte / Da fare /
+In ritardo / Complete, uno stato per volta, quindi non ci sono piu'
+combinazioni che non vogliono dire niente ("solo incomplete" + "solo in
+ritardo" era un and che nessuno sapeva di aver acceso).
+
+**La domanda cambia con la vista, non con l'etichetta.** Nella vista Mese lo
+stato e' quello della cella di QUEL mese; nella vista Anno e' quello dell'unica
+mappatura dell'anno del sito. Era gia' cosi' per le due pillole ed e' rimasto:
+`statoPassa()` e' l'unico posto dove la regola e' scritta.
+
+**I numeri sono il filtro.** Ogni posizione porta il suo conteggio e i numeri
+della testa ("19/267 complete", "225 in ritardo") sono bottoni. Da qui la
+regola meno ovvia: **i conteggi ignorano il filtro di stato**
+(`gruppiFiltrati({ ignoraStato: true })`). Se contassero la selezione, dopo un
+clic su "Complete" la testa direbbe "19/19" e gli altri numeri sarebbero zero:
+il bottone per tornare indietro sparirebbe proprio quando serve. Cosi' invece
+la testa e il filtro restano la fotografia dell'anno, e solo la griglia si
+stringe.
+
+Il numero dentro il filtro e' `statoPassa` contato riga per riga: il bottone
+non puo' dire 7 e poi mostrarne 18. Non e' lo stesso numero della testa, che
+conta le mappature **dovute**: "Complete" comprende anche i siti chiusi in un
+anno pre-tracciamento, che sono lavoro fatto e vanno mostrati. Due domande
+diverse, due numeri diversi, entrambi spiegati nel suggerimento.
+
+Nella stessa richiesta e' sparito il **filtro per tipo di gas**: tre valori che
+nessuno restringeva, e il tipo si cerca dalla barra di ricerca.
+
+## 15i. Il pallino della riga dice lo stato, non il tipo di gas (15a sessione)
+
+*"il pallino all'inizio del sito mettilo in base allo stato della mappatura, in
+ritardo, completa, ecc"*. Il pallino colorava il tipo di gas (medicale /
+tecnici / altro): un'informazione che non cambia mai, che nessuno consultava, e
+che dal momento in cui il filtro per tipo non esiste piu' non serve nemmeno a
+capire cosa si sta filtrando. Adesso dice **lo stato della mappatura dell'anno
+di quel sito** (`statoMappatura()`), che e' la stessa scala del filtro nella
+barra: verde completa, ambra in ritardo, cyan iniziata, contorno da fare,
+contorno tenue pre-tracciamento, puntino non dovuta.
+
+Nessun colore nuovo: sono gli stessi verde e ambra delle celle, con lo stesso
+significato (10f, 10e). Il valore aggiunto e' che il pallino sta **a sinistra,
+sempre a schermo**, mentre la cella piena puo' stare in un mese fuori dalla
+finestra: con 274 righe e' l'unico posto dove lo stato si legge scorrendo.
+
+Il tipo di gas non e' perso: e' nel suggerimento del pallino, nel cassetto,
+nella scheda del Mese e nella ricerca.
+
 ## 16. Un solo perimetro per le azioni di massa: i filtri
 Non esistono "completa per cliente", "completa per mese", "completa per tipo":
 esiste "completa quello che stai vedendo". Cercare il cliente e ripetere l'azione

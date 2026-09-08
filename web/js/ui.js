@@ -102,11 +102,13 @@ export function avviso(testo, opz = {}) {
 }
 
 /* ------------------------------------------------------------- modale ---- */
-export function modale(costruisci, { chiudibile = true } = {}) {
+export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   const velo = h('div.velo');
   const chiudi = () => { velo.remove(); document.removeEventListener('keydown', tasto); };
   const tasto = e => { if (e.key === 'Escape' && chiudibile) chiudi(); };
-  const foglio = h('div.foglio', { role: 'dialog', 'aria-modal': 'true' });
+  /* `classe` serve ai fogli che non stanno nei 520px della modale normale (per
+     esempio l'elenco per sito delle Statistiche, aperto a tutta pagina). */
+  const foglio = h('div.foglio' + (classe ? '.' + classe : ''), { role: 'dialog', 'aria-modal': 'true' });
   foglio.append(...[costruisci(chiudi)].flat());
   velo.append(foglio);
   if (chiudibile) velo.addEventListener('click', e => { if (e.target === velo) chiudi(); });

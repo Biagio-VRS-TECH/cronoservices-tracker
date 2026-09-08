@@ -103,10 +103,10 @@ export const st = {
   vista: 'anno', mese: new Date().getMonth() + 1,
   selezione: new Set(),
   ultimaAzione: null,      // per l'Annulla
-  filtri: {
-    q: '', tipo: '', prov: '', mostraChiusi: false,
-    soloIncomplete: false, soloRitardo: false,
-  },
+  /* `stato`: '' | 'incomplete' | 'ritardo' | 'complete' (#ANCHOR: filtro-stato).
+     Il filtro per tipo di gas e' stato tolto alla 15a sessione: nessuno lo
+     usava e il tipo si cerca dalla barra di ricerca. */
+  filtri: { q: '', prov: '', mostraChiusi: false, stato: '' },
 };
 
 /* --------------------------------------------------------- emettitore ---- */
@@ -115,10 +115,21 @@ export const on = (ev, fn) => ((ascolto[ev] ||= new Set()).add(fn), () => ascolt
 export const emetti = (ev, d) => ascolto[ev]?.forEach(f => f(d));
 
 /* ------------------------------------------------------------- filtri --- */
+export const STATI = ['', 'incomplete', 'ritardo', 'complete'];
+
+/** Si leggono solo le chiavi che esistono ancora: la v1 salvava due booleani
+ *  (`soloIncomplete`, `soloRitardo`) e un `tipo`, e chi ha gia' l'applicazione
+ *  aperta se li ritrova in memoria. I due booleani diventano la posizione
+ *  corrispondente del filtro nuovo, il tipo si perde e va bene cosi'. */
 export function caricaFiltri() {
-  try {
-    Object.assign(st.filtri, JSON.parse(localStorage.getItem(K_FILTRI) || '{}'), { q: '' });
-  } catch { }
+  let g = {};
+  try { g = JSON.parse(localStorage.getItem(K_FILTRI) || '{}') || {}; } catch { }
+  const f = st.filtri;
+  f.q = '';
+  f.prov = typeof g.prov === 'string' ? g.prov : '';
+  f.mostraChiusi = !!g.mostraChiusi;
+  f.stato = STATI.includes(g.stato) ? g.stato
+    : g.soloRitardo ? 'ritardo' : g.soloIncomplete ? 'incomplete' : '';
 }
 export function salvaFiltri() {
   try { localStorage.setItem(K_FILTRI, JSON.stringify(st.filtri)); } catch { }
@@ -285,7 +296,10 @@ export function meseScadenza(s) {
  *    mese     dove sta il lavoro: il mese in cui e' stata chiusa se c'e',
  *             altrimenti quello piu' avanti
  *    n        spunte fatte la' (al massimo PASSI: la mappatura del sito e' una)
- *    completa tutti i passi fatti in un mese qualsiasi -> il sito e' a posto
+ *    completa tutti i passi fatti in un mese QUALSIASI dell'anno -> il sito e'
+ *             a posto. Qualsiasi vuol dire anche un mese che il calendario del
+ *             contratto non prevede: il cassetto le spunte le accetta la', e il
+ *             lavoro fatto e' lavoro fatto
  *    prevista impegno dell'anno preso QUI (dovuta e non pre-tracciamento)
  *    preTrac  scadenza anteriore all'inizio del tracciamento: fuori dai conti
  *    motivo   se non e' dovuta, PERCHE': la classe del suo primo mese utile
@@ -318,15 +332,28 @@ function calcolaMappatura(s) {
       if (b !== 'non-previsto') { motivo = b; break; }
     }
   }
-  let mese = 0, n = 0, completa = false;
+  /* IL LAVORO CONTA IN QUALSIASI MESE IN CUI E' STATO SEGNATO.
+     La mappatura di un sito e' UNA per anno: se e' stata chiusa a gennaio, quel
+     sito e' a posto anche se la sua scadenza cade a settembre. Prima questo
+     giro guardava solo i mesi "utili" del contratto e saltava gli altri, ma il
+     cassetto le spunte le accetta in OGNI mese di manutenzione (rigaMese non
+     guarda la classe): il lavoro segnato in un mese fuori finestra - tipico dei
+     contratti che partono a meta' anno, dove i mesi prima sono
+     `prima-contratto` - non contava, e il sito restava "da fare" pur essendo
+     chiuso. Era il difetto di "Da fare adesso" segnalato alla 13a sessione.
+     I mesi del calendario servono ancora, ma solo come RIPIEGO per dire dove
+     starebbe il lavoro quando non ce n'e' ancora nessuno. */
+  let mese = 0, n = 0, completa = false, ripiego = 0;
   for (let m = 1; m <= 12; m++) {
     const b = classeBase(s, m);
-    if (b === 'non-previsto' || b === 'prima-contratto') continue;
+    if (!ripiego && b !== 'non-previsto' && b !== 'prima-contratto') ripiego = m;
     const c = cella(s.id, m);
     const k = c.s + c.c + c.k + c.r;
+    if (!k) continue;
     if (k === PASSI) { mese = m; n = k; completa = true; break; }
-    if (k > n || !mese) { mese = m; n = k; }
+    if (k > n) { mese = m; n = k; }
   }
+  if (!mese) mese = ripiego;
   const passato = !!scad && ym(st.anno, scad) < st.ymOggi;
   return {
     scad, mese: mese || scad, n, completa, motivo,
@@ -395,57 +422,133 @@ export function progressoGruppo(g) {
 }
 
 /* -------------------------------------------------------------- filtri --- */
-function passa(s, cli, q) {
+/* IL FILTRO DI STATO E' UNO SOLO, A QUATTRO POSIZIONI (#ANCHOR: filtro-stato):
+   tutte / da fare / in ritardo / complete. Prima erano due interruttori
+   indipendenti ("solo incomplete" + "solo in ritardo") e il contrario - "solo
+   le complete" - non c'era: due bottoni per tre risposte su quattro.
+
+   `ignoraStato` serve ai CONTEGGI: i numeri della testa e quelli scritti dentro
+   il filtro sono quelli di tutto l'insieme, non del sottoinsieme scelto.
+   Altrimenti chiedendo "Complete" gli altri numeri andrebbero a zero e non si
+   tornerebbe piu' indietro cliccandoli. */
+function passa(s, cli, q, ignoraStato) {
   const f = st.filtri;
   if (s.stato !== 'APERTO' && !f.mostraChiusi) return false;
-  if (f.tipo && s.tipo !== f.tipo) return false;
   if (f.prov && s.prov !== f.prov) return false;
   if (q.length) {
     const fieno = (cli.rs + ' ' + s.dest + ' ' + s.loc + ' ' + s.prov + ' ' +
       s.id + ' ' + s.nc + ' ' + s.tipo).toLowerCase();
     if (!q.every(t => fieno.includes(t))) return false;
   }
-  if (s.stato === 'APERTO' && (f.soloIncomplete || f.soloRitardo)) {
-    /* I filtri di stato guardano quello che si sta effettivamente guardando.
-       Nella vista Mese e' SOLO quel mese (prima si guardava sempre tutto l'anno,
-       quindi completando la mappatura di settembre la riga restava a schermo
-       perche' dicembre era ancora da fare); nella vista Anno la domanda e'
-       sull'UNICA mappatura dell'anno di questo SITO, non sui mesi di visita. */
-    const inMese = st.vista === 'mese';
-    const ma = mappaturaSito(s);
-    if (f.soloIncomplete) {
-      const e = statoCella(s.id, st.mese);
-      const ok = inMese ? (e.spuntabile && e.n < PASSI) : (ma.prevista && !ma.completa);
-      if (!ok) return false;
-    }
-    if (f.soloRitardo) {
-      const ok = inMese ? statoCella(s.id, st.mese).ritardo : ma.ritardo;
-      if (!ok) return false;
-    }
-  }
+  if (f.stato && !ignoraStato && s.stato === 'APERTO' && !statoPassa(s, f.stato)) return false;
   return true;
+}
+
+/** Il sito risponde allo stato chiesto? La domanda cambia con quello che si sta
+ *  guardando: nella vista Mese e' SOLO quel mese (prima si guardava sempre tutto
+ *  l'anno, quindi completando la mappatura di settembre la riga restava a
+ *  schermo perche' dicembre era ancora da fare); nella vista Anno e' l'UNICA
+ *  mappatura dell'anno di questo SITO, non i suoi mesi di visita. */
+function statoPassa(s, quale) {
+  if (st.vista === 'mese') {
+    const e = statoCella(s.id, st.mese);
+    if (!e.spuntabile) return false;
+    if (quale === 'complete') return e.n === PASSI;
+    if (quale === 'ritardo') return e.ritardo;
+    return e.n < PASSI;                                   // 'incomplete' = da fare
+  }
+  const ma = mappaturaSito(s);
+  if (quale === 'complete') return ma.completa;
+  if (quale === 'ritardo') return ma.ritardo;
+  return ma.prevista && !ma.completa;                     // 'incomplete' = da fare
+}
+
+/** Lo stato della mappatura dell'anno di un sito in una parola sola: e' quello
+ *  che colora il pallino in testa alla riga nella vista Anno. Le in ritardo sono
+ *  anche "da fare": qui vince il ritardo, perche' e' l'informazione che serve. */
+export function statoMappatura(s) {
+  if (s.stato !== 'APERTO') return 'chiuso';
+  const ma = mappaturaSito(s);
+  if (ma.completa) return 'completa';
+  if (ma.ritardo) return 'ritardo';
+  /* Il lavoro iniziato viene prima del "non dovuta": un sito con tre passi su
+     quattro in un anno pre-tracciamento e' una mappatura in corso, e mostrarlo
+     come puntino spento sarebbe una bugia. */
+  if (ma.n > 0) return 'corso';
+  if (ma.prevista) return 'attesa';
+  /* Pre-tracciamento non e' "niente da fare": e' lavoro recuperabile, e con
+     l'inizio del tracciamento a meta' anno sono la maggioranza delle righe.
+     Merita un segno diverso dal sito che quest'anno non ha proprio mappatura. */
+  return ma.preTrac ? 'pretrac' : 'fuori';
+}
+
+export const ET_STATO = {
+  completa: 'Mappatura completa: questo sito è a posto per l\'anno',
+  ritardo: 'In ritardo: la scadenza è passata e la mappatura non è chiusa in nessun mese',
+  corso: 'Iniziata: mancano dei passi, la scadenza non è ancora passata',
+  attesa: 'Da fare: dovuta quest\'anno, nessun passo ancora fatto',
+  pretrac: 'Scadenza prima dell\'inizio del tracciamento: fuori dai totali, ma si può recuperare',
+  fuori: 'Nessuna mappatura dovuta quest\'anno per questo sito',
+  chiuso: 'Service chiuso',
+};
+
+/** Cambia il filtro di stato e ridisegna. Sta qui, e non in app.js, perche' lo
+ *  usano anche i numeri cliccabili delle viste Anno e Mese. Con `alterna` un
+ *  secondo clic sullo stesso stato lo toglie. */
+export function filtraStato(quale, alterna = false) {
+  const nuovo = alterna && st.filtri.stato === quale ? '' : quale;
+  if (nuovo === st.filtri.stato) return;
+  st.filtri.stato = nuovo;
+  salvaFiltri();
+  emetti('rilegge');
 }
 
 export const termini = () => st.filtri.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-export function gruppiFiltrati() {
+export function gruppiFiltrati(opz) {
   const q = termini();
+  const ignoraStato = !!opz?.ignoraStato;
   const out = [];
   for (const g of st.gruppi) {
-    const srvs = g.srvs.filter(s => passa(s, g.cli, q));
+    const srvs = g.srvs.filter(s => passa(s, g.cli, q, ignoraStato));
     if (srvs.length) out.push({ cli: g.cli, srvs });
   }
   return out;
 }
 
+/** Quante righe lascerebbe a schermo ogni posizione del filtro, sull'insieme
+ *  filtrato ma SENZA il filtro di stato: sono i numeri scritti dentro il filtro
+ *  stesso, e devono restare fermi mentre lo si usa.
+ *
+ *  Ogni numero e' esattamente `statoPassa` contato: il bottone non puo' dire 7
+ *  e poi mostrarne 18. E' anche il motivo per cui questi numeri non sono quelli
+ *  della testa: le complete comprendono i siti chiusi in un anno
+ *  pre-tracciamento (lavoro fatto, che si vede), mentre la testa conta le
+ *  mappature DOVUTE quest'anno. Due domande diverse, due numeri diversi. */
+export function contaStato() {
+  const c = { tutte: 0, incomplete: 0, ritardo: 0, complete: 0 };
+  for (const g of gruppiFiltrati({ ignoraStato: true })) {
+    for (const s of g.srvs) {
+      if (s.stato !== 'APERTO') continue;
+      if (st.vista === 'mese' && !statoCella(s.id, st.mese).spuntabile) continue;
+      c.tutte++;
+      for (const k of ['incomplete', 'ritardo', 'complete']) {
+        if (statoPassa(s, k)) c[k]++;
+      }
+    }
+  }
+  return c;
+}
+
 /** Righe di lavoro di un mese: una per (service, mese) da fare. */
-export function lavoroDelMese(mese) {
+export function lavoroDelMese(mese, opz) {
   const q = termini();
+  const ignoraStato = !!opz?.ignoraStato;
   const out = [];
   for (const g of st.gruppi) {
     for (const s of g.srvs) {
       if (s.stato !== 'APERTO') continue;
-      if (!passa(s, g.cli, q)) continue;
+      if (!passa(s, g.cli, q, ignoraStato)) continue;
       const e = statoCella(s.id, mese);
       if (!e.spuntabile) continue;
       out.push({ cli: g.cli, s, ...e });
@@ -465,7 +568,11 @@ export function riepilogoAnno() {
     clienti: 0, aperti: 0, mappature: 0, complete: 0, ritardo: 0, preTrac: 0,
     stime: 0, daRinnovare: 0, nonTracciate: 0, visite: 0, passi: 0, passiFatti: 0,
   };
-  for (const g of gruppiFiltrati()) {
+  /* Senza il filtro di stato: la testa e la linea di stato dicono come sta
+     l'anno, non come sta la selezione. Chiedendo "solo le complete" un
+     "17/17 complete" non direbbe piu' niente, e i numeri sono anche i
+     bottoni per cambiare filtro. */
+  for (const g of gruppiFiltrati({ ignoraStato: true })) {
     let aperti = 0;
     for (const s of g.srvs) {
       if (s.stato !== 'APERTO') continue;
@@ -490,7 +597,6 @@ export function riepilogoAnno() {
   return r;
 }
 
-export const elencoTipi = () => [...new Set([...st.perServ.values()].map(s => s.tipo).filter(Boolean))].sort();
 export const elencoProv = () => [...new Set([...st.perServ.values()].map(s => s.prov).filter(Boolean))].sort();
 
 /* ------------------------------------------------------------ scritture -- */

@@ -22,7 +22,8 @@
     break-inside: avoid; }
   .scheda .info b { font-size: 10pt; }
   .scheda .info .meta { font-size: 7.5pt; }
-  .passi-riga { gap: 4mm; }
+  .passi-riga { gap: 4mm; padding: 0; background: none; }
+  .scheda .tag.completo { display: none !important; }
   .passi-riga .passo { border: 0; background: none; padding: 0; gap: 2mm; }
   .passi-riga .passo .box { width: 4mm; height: 4mm; border: .8pt solid #000; border-radius: .8mm;
     background: none !important; }

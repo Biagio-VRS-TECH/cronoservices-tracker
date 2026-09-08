@@ -20,14 +20,24 @@
 import { esc, ICO, FRECCE, fuoco, frecceEntrano } from './ui.js';
 import {
   st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
-  mappaturaSito, meseScadenza, scadEffettiva, CAMPI, SIGLA, PASSI, CLASSE_ET,
+  mappaturaSito, meseScadenza, scadEffettiva, statoMappatura,
+  CAMPI, SIGLA, PASSI, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriPop, chiudiPop, popAperto } from './spunte.js';
 import { apriCassetto } from './cassetto.js';
 
 let radice = null, contenitore = null;
 
-const puntoTipo = t => t === 'GAS MEDICALE' ? 'med' : t === 'GAS TECNICI' ? 'tec' : 'alt';
+/* Il pallino in testa alla riga diceva il tipo di gas: tre colori fissi che
+   nessuno leggeva, tanto meno da quando il filtro per tipo non c'e' piu'. Ora
+   dice come sta LA mappatura dell'anno di quel sito (#ANCHOR: filtro-stato in
+   stato.js) - ed e' l'unico segnale che si vede anche quando la casella piena
+   sta in un mese fuori dallo schermo. Il tipo resta nel suggerimento. */
+const titoloPunto = (s, k) => ET_STATO[k] + (s.tipo ? ' · ' + s.tipo : '');
+const htmlPunto = s => {
+  const k = statoMappatura(s);
+  return `<span class="punto-stato ${k}" title="${esc(titoloPunto(s, k))}"></span>`;
+};
 const segAttr = c => `data-s="${c.s}" data-c="${c.c}" data-k="${c.k}" data-r="${c.r}"`;
 const SEG = '<i class="seg s"></i><i class="seg c"></i><i class="seg k"></i>' +
   '<i class="seg r"></i>';
@@ -74,16 +84,22 @@ function htmlCella(s, m) {
 function htmlRigaSrv(s, rit) {
   const p = progresso(s);
   const chiuso = s.stato !== 'APERTO';
+  /* `a-posto`: la mappatura dell'anno di questo sito e' chiusa. La riga intera
+     lo dice (spina verde, fondo, spunta nel totale), non solo la cella: la
+     cella verde puo' stare in un mese fuori dallo schermo. Stessa condizione
+     del `.pieno` sul totale, cosi' i due segnali non si contraddicono mai. */
+  const aPosto = !chiuso && p.tot > 0 && p.fatti === p.tot;
   let mesi = '';
   for (let m = 1; m <= 12; m++) mesi += htmlCella(s, m);
-  return `<div class="riga riga-srv${chiuso ? ' chiuso' : ''} entra-riga" data-srv="${s.id}"
-      style="--rit:${rit}ms">
+  return `<div class="riga riga-srv${chiuso ? ' chiuso' : ''}${aPosto ? ' a-posto' : ''} entra-riga"
+      data-srv="${s.id}" style="--rit:${rit}ms">
     <div class="col-nome">
-      <span class="punto-tipo ${puntoTipo(s.tipo)}" title="${esc(s.tipo)}"></span>
+      ${htmlPunto(s)}
       <span class="srv-id">#${s.id}</span>
       <span class="srv-dest" title="${esc(s.dest)}">${esc(s.dest || '(senza destinazione)')}</span>
       <span class="srv-loc">${esc(s.loc || '')}</span>
       ${chiuso ? '<span class="tag">chiuso</span>' : ''}
+      <span class="tag completo" title="Mappatura dell'anno completa">a posto</span>
     </div>
     <div class="mesi">${mesi}</div>
     <div class="col-tot${p.tot && p.fatti === p.tot ? ' pieno' : ''}">
@@ -125,7 +141,12 @@ function htmlGruppo(g, rit) {
   const piegato = st.chiusiCli.has(g.cli.id);
   const righe = piegato ? ''
     : g.srvs.map((s, i) => htmlRigaSrv(s, Math.min(rit + i * 6, 260))).join('');
-  return `<section class="blocco" data-cli="${g.cli.id}">
+  /* `completo`: tutti i passi contati del cliente sono fatti. La carta intera
+     si accende, anche da piegata: e' il livello piu' alto dello stesso segnale
+     della cella. L'etichetta "a posto" e' sempre nel markup e la mostra il CSS,
+     cosi' `aggiornaTotali` cambia una classe sola e non tocca il DOM. */
+  const completo = pg.tot > 0 && pg.fatti === pg.tot;
+  return `<section class="blocco${completo ? ' completo' : ''}" data-cli="${g.cli.id}">
     <div class="riga riga-cli entra-riga" role="button" tabindex="0"
          aria-expanded="${!piegato}" style="--rit:${rit}ms">
       <div class="col-nome">
@@ -134,6 +155,7 @@ function htmlGruppo(g, rit) {
         <span class="cli-id">${g.cli.id}</span>
         ${pg.aperti ? `<span class="tag aperti">${pg.aperti} apert${pg.aperti === 1 ? 'o' : 'i'}</span>` : ''}
         ${pg.chiusi ? `<span class="tag">${pg.chiusi} chius${pg.chiusi === 1 ? 'o' : 'i'}</span>` : ''}
+        <span class="tag completo" title="Tutte le mappature dell'anno di questo cliente sono complete">a posto</span>
       </div>
       <div class="mesi">${barreCliente(g)}</div>
       <div class="col-tot${pg.tot && pg.fatti === pg.tot ? ' pieno' : ''}"
@@ -161,22 +183,15 @@ function totaliMese(gruppi, m) {
   return [fatte, tot];
 }
 
-/** Riga dei totali per mese: e' quello che si guarda per capire dove intervenire
- *  senza contare le celle a occhio. */
-function htmlTotaliMese(gruppi) {
-  let celle = '';
-  for (let m = 1; m <= 12; m++) {
-    const [fatte, tot] = totaliMese(gruppi, m);
-    celle += `<div class="q${oggiCl(m)}">${tot
-      ? `<span class="tm${fatte === tot ? ' pieno' : ''}"
-           title="${fatte} chiuse su ${tot} mappature (una per sito) che scadono in questo mese">${fatte}/${tot}</span>`
-      : ''}</div>`;
-  }
-  return `<div class="riga riga-totali">
-    <div class="col-nome">Mappature in scadenza</div>
-    <div class="mesi">${celle}</div>
-    <div class="col-tot"></div>
-  </div>`;
+/** Il totale del mese sotto il suo nome, nell'intestazione: chiuse/in scadenza
+ *  e il filo che si riempie (`--p`). E' quello che si guarda per capire dove
+ *  intervenire senza contare le celle a occhio. Lo span c'e' sempre, anche
+ *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola. */
+function htmlTotaleMese(gruppi, m) {
+  const [fatte, tot] = totaliMese(gruppi, m);
+  return `<span class="tm${tot && fatte === tot ? ' pieno' : ''}"
+    style="--p:${tot ? Math.round(fatte / tot * 100) : 0}%"
+    title="${fatte} chiuse su ${tot} mappature (una per sito) che scadono in questo mese">${tot ? `${fatte}/${tot}` : ''}</span>`;
 }
 
 /** Tutti i clienti a schermo sono piegati? Serve al bottone della testa, che
@@ -207,13 +222,14 @@ export function disegna(area) {
         <span>${chiuse ? 'Apri tutti' : 'Chiudi tutti'}</span>
       </button>
       <span>Cliente &middot; sito</span>
+      <i title="Sotto ogni mese: mappature chiuse / in scadenza in quel mese">chiuse / in scadenza</i>
     </div>
     <div class="mesi">${st.mesi.map((m, i) =>
-    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}</div>`).join('')}</div>
+    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(gruppi, i + 1)}</div>`).join('')}</div>
     <div class="col-tot">Anno</div>
   </div>`;
   area.innerHTML = `<div class="crono">${testa}${gruppi.length
-    ? htmlTotaliMese(gruppi) + gruppi.map((g, i) => htmlGruppo(g, Math.min(i * 14, 240))).join('')
+    ? gruppi.map((g, i) => htmlGruppo(g, Math.min(i * 14, 240))).join('')
     : `<div class="vuoto"><b>Nessun service con questi filtri</b>
          Togli un filtro o svuota la ricerca.</div>`}</div>`;
   contenitore = area;
@@ -385,8 +401,16 @@ function rinfrescaRiga(id) {
   if (!s || !riga) return;
   const p = progresso(s);
   const t = riga.querySelector('.col-tot');
+  const pieno = p.tot > 0 && p.fatti === p.tot;
   t.innerHTML = p.tot ? `<b>${p.fatti}</b>/${p.tot}` : '&mdash;';
-  t.classList.toggle('pieno', p.tot > 0 && p.fatti === p.tot);
+  t.classList.toggle('pieno', pieno);
+  riga.classList.toggle('a-posto', pieno && s.stato === 'APERTO');
+  const punto = riga.querySelector('.punto-stato');
+  if (punto) {
+    const k = statoMappatura(s);
+    punto.className = 'punto-stato ' + k;
+    punto.title = titoloPunto(s, k);
+  }
 }
 
 function aggiornaTotali(id) {
@@ -406,8 +430,10 @@ function aggiornaTotali(id) {
   if (!sez || !g) return;
   const pg = progressoGruppo(g);
   const t2 = sez.querySelector('.riga-cli .col-tot');
+  const completo = pg.tot > 0 && pg.fatti === pg.tot;
   t2.innerHTML = pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;';
-  t2.classList.toggle('pieno', pg.tot > 0 && pg.fatti === pg.tot);
+  t2.classList.toggle('pieno', completo);
+  sez.classList.toggle('completo', completo);
   const caselle = sez.querySelectorAll('.riga-cli .mesi > .q');
   for (let m = 1; m <= 12; m++) {
     const b = caselle[m - 1]?.querySelector('.qb');
@@ -420,19 +446,19 @@ function aggiornaTotali(id) {
   aggiornaRigaTotali();
 }
 
-/* Tiene al passo la riga dei totali per mese durante le spunte in serie. */
+/* Tiene al passo i totali per mese nell'intestazione durante le spunte in serie. */
 function aggiornaRigaTotali() {
-  const riga = radice?.querySelector('.riga-totali');
-  if (!riga) return;
+  const tms = radice?.querySelectorAll('.crono-testa .tm');
+  if (!tms?.length) return;
   const gruppi = gruppiFiltrati();
-  const caselle = riga.querySelectorAll('.mesi > .q');
   for (let m = 1; m <= 12; m++) {
-    const tm = caselle[m - 1]?.querySelector('.tm');
+    const tm = tms[m - 1];
     if (!tm) continue;
     const [fatte, tot] = totaliMese(gruppi, m);
-    tm.textContent = `${fatte}/${tot}`;
+    tm.textContent = tot ? `${fatte}/${tot}` : '';
     tm.title = `${fatte} chiuse su ${tot} mappature che scadono in questo mese`;
     tm.classList.toggle('pieno', tot > 0 && fatte === tot);
+    tm.style.setProperty('--p', (tot ? Math.round(fatte / tot * 100) : 0) + '%');
   }
 }
 

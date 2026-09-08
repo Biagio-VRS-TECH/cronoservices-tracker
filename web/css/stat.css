@@ -1,41 +1,76 @@
 /* ============================================================================
-   stat.css - la vista Statistiche. Carte su fondo tenue, molto respiro, un solo
-   numero grande per carta e i dati sempre scritti accanto alla forma.
+   stat.css - la vista Statistiche: un pannello di comando. Carte di vetro su un
+   fondo a punti, griglia a dodici colonne, il quadrante dell'anno in apertura,
+   un solo numero grande per carta e i dati sempre scritti accanto alla forma.
    Nessun colore vive qui: solo i token di theme.css.  #ANCHOR: css-stat
    ========================================================================= */
 
+/* -- il pannello: griglia a dodici colonne su un fondo a punti -------------
+   Ogni carta dichiara quante colonne prende (.c12 .c8 .c6 .c4 .c3): e' un
+   pannello di strumenti, non un elenco che scorre. Il fondo a punti e' il
+   rilievo di un foglio tecnico, appena percettibile, e sfuma verso il basso. */
 .stat {
-  padding: 20px 18px 48px;
-  max-width: 1280px; margin: 0 auto;
-  display: flex; flex-direction: column; gap: 16px;
-}
-
-/* -- la carta ------------------------------------------------------------- */
-.carta {
   position: relative;
-  background: var(--superficie);
+  padding: 22px 22px 60px;
+  max-width: 1380px; margin: 0 auto;
+}
+/* i punti stanno su uno pseudo-elemento, cosi' la maschera che li sfuma verso
+   il basso non tocca le carte */
+.stat::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(var(--punti) 1px, transparent 1.2px);
+  background-size: 26px 26px;
+  background-position: 13px 13px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 60%, transparent 100%);
+          mask-image: linear-gradient(180deg, #000 0, #000 60%, transparent 100%);
+}
+.stat-griglia {
+  position: relative; z-index: 1;
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+.c12 { grid-column: span 12; }
+.c8  { grid-column: span 8; }
+.c6  { grid-column: span 6; }
+.c7  { grid-column: span 7; }
+.c5  { grid-column: span 5; }
+.c4  { grid-column: span 4; }
+.c3  { grid-column: span 3; }
+/* due carte impilate in una colonna: l'ultima si allunga fino in fondo, cosi'
+   la fila resta pareggiata con la carta alta a fianco */
+.colonna-carte { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.colonna-carte > .carta:last-child { flex: 1; }
+
+/* -- la carta: vetro sul velo ---------------------------------------------- */
+/* Vetro = superficie all'86% sul velo, riflesso di 1px in alto. NIENTE
+   backdrop-filter: provato, in tema scuro la sfocatura del fondo rendeva le
+   carte una penombra uniforme nella cattura del browser (e costa a ogni
+   scorrimento su un PC d'ufficio). La trasparenza da sola basta. */
+.carta {
+  position: relative; min-width: 0;
+  background: var(--vetro);
   border: 1px solid var(--bordo);
-  border-radius: var(--r-3);
-  padding: 18px 20px 20px;
-  transition: box-shadow var(--medio), border-color var(--medio),
-              transform var(--medio);
+  border-radius: 18px;
+  padding: 20px 22px 22px;
+  box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-1);
 }
-/* Un filo di luce sul bordo alto, che si accende passandoci sopra: e' l'unico
-   ornamento della carta, e serve a dire quale si sta leggendo. Sta su ::before
-   perche' ::after e' liberissimo ma il filo va SOPRA il bordo, non dentro. */
+/* Il filo di luce sul bordo alto: sempre acceso appena, pieno passandoci sopra.
+   E' l'unico ornamento della carta e dice quale si sta leggendo. */
 .carta::before {
-  content: ''; position: absolute; left: 14px; right: 14px; top: -1px; height: 1px;
-  background: var(--filo); opacity: 0; transition: opacity var(--medio);
+  content: ''; position: absolute; left: 18px; right: 18px; top: -1px; height: 1px;
+  background: var(--filo); opacity: .35; transition: opacity var(--medio);
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
 }
-.carta:hover { border-color: var(--bordo-forte); box-shadow: var(--ombra-2); }
-.carta:hover::before { opacity: .9; }
+.carta:hover { border-color: var(--bordo-forte); box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-2); }
+.carta:hover::before { opacity: 1; }
 .carta-testa {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 14px; margin-bottom: 18px;
 }
 .carta-testa h3 {
-  margin: 0; font-size: var(--t-med); font-weight: 600; letter-spacing: -.022em;
+  margin: 0; font-size: var(--t-med); font-weight: 650; letter-spacing: -.024em;
 }
 .carta-testa p {
   margin: 5px 0 0; font-size: var(--t-mini); color: var(--tenue);
@@ -44,64 +79,230 @@
 .link-tab {
   flex: none; font-size: var(--t-micro); color: var(--tenue);
   border: 1px solid var(--bordo); border-radius: var(--r-tonda);
-  padding: 4px 11px; transition: var(--rapido);
+  padding: 4px 11px; transition: var(--rapido); background: var(--superficie-2);
 }
 .link-tab:hover { color: var(--marchio-scuro); border-color: var(--marchio); }
-.niente { margin: 0; font-size: var(--t-mini); color: var(--tenue); }
+/* Quando una carta ha piu' di un comando (l'elenco per sito ne ha due, piu' il
+   "Tabella" che `carta()` aggiunge da se'), stanno in fila in un contenitore. */
+.carta-comandi { display: flex; flex: none; gap: 8px; }
+.link-tab.forte {
+  color: var(--marchio-scuro);
+  border-color: color-mix(in srgb, var(--marchio) 45%, transparent);
+}
+.niente { margin: 0; font-size: var(--t-mini); color: var(--tenue); line-height: 1.5; }
 
-/* -- la carta d'apertura: un numero e quattro tessere --------------------- */
-.eroe { display: flex; flex-wrap: wrap; align-items: center; gap: 30px 40px; }
-.eroe-num { min-width: 260px; flex: 1 1 260px; }
-.eroe-et {
-  display: block; font-size: var(--t-mini); color: var(--tenue); font-weight: 500;
+/* Occhiello: la riga tecnica sopra un titolo, maiuscoletto spaziato con un
+   trattino di separazione. */
+.occhiello {
+  display: flex; align-items: center; gap: 10px;
+  font: 600 var(--t-micro)/1 var(--f-dato); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--tenue);
 }
-.eroe-cifra {
-  display: block; margin: 2px 0 4px;
-  font: 600 64px/1 var(--f-dato); letter-spacing: -.05em;
-  font-variant-numeric: tabular-nums;
-}
-.eroe-sotto {
-  display: block; font-size: var(--t-mini); color: var(--tenue);
-  font-family: var(--f-dato);
-}
-/* La pista dell'eroe e' la stessa linea di stato che sta sotto la barra
-   strumenti, alla scala della carta: cyan che diventa verde, con l'alone. Il
-   segnale e' UNO e torna a tre misure diverse - il filo in testa, questa
-   pista, l'alone della casella completa - invece di tre effetti diversi. */
-.pista-eroe { margin-top: 14px; max-width: 420px; height: 11px; }
-.pista-eroe i {
-  background-image: var(--filo);
-  background-repeat: no-repeat;
-  /* il gradiente e' largo quanto TUTTA la pista: la parte piena ne mostra solo
-     il tratto raggiunto, quindi la tinta e' un dato, non un ornamento */
-  background-size: calc(100% * 100 / var(--pn, 100)) 100%;
-  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--completa) 65%, transparent);
-}
+.occhiello i { width: 22px; height: 1px; background: var(--bordo-forte); }
 
-.tessere { display: flex; flex-wrap: wrap; gap: 14px 30px; }
-/* Un filo sopra ogni tessera: le tiene allineate come le tacche di uno
-   strumento, senza scatole ne' bordi in piu'. */
-.tessera { min-width: 96px; padding-top: 10px; border-top: 1px solid var(--bordo); }
+/* -- la carta d'apertura: il quadrante dell'anno e le tessere ------------- */
+.eroe {
+  display: grid; grid-template-columns: minmax(240px, 330px) minmax(0, 1fr);
+  align-items: center; gap: 24px 44px;
+  padding: 26px 32px 28px; overflow: hidden;
+}
+/* un alone di cyan dietro il quadrante: e' il velo del fondo, avvicinato */
+.eroe::after {
+  content: ''; position: absolute; left: -60px; top: -80px; width: 480px; height: 480px;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--marchio) 14%, transparent), transparent);
+  pointer-events: none;
+}
+.eroe-quadro { position: relative; z-index: 1; max-width: 330px; margin: 0 auto; width: 100%; }
+/* Una spazzata lenta dietro l'anello, come un radar: e' il movimento della
+   pagina, faint, un giro ogni 14 secondi, mascherata sulla sola corona. */
+.eroe-quadro::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0 74%,
+    color-mix(in srgb, var(--marchio) 26%, transparent) 100%);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 65%, #000 67% 86%, transparent 88%);
+          mask: radial-gradient(circle closest-side, transparent 0 65%, #000 67% 86%, transparent 88%);
+  animation: spazzata 14s linear infinite;
+}
+@keyframes spazzata { to { transform: rotate(1turn); } }
+.eroe-testo { position: relative; z-index: 1; min-width: 0; }
+.eroe-titolo {
+  margin: 12px 0 0; font: 600 26px/1.15 var(--f-ui); letter-spacing: -.03em;
+  color: var(--inchiostro-2);
+}
+.eroe-titolo b { font-weight: 800; color: var(--inchiostro); font-size: 34px; }
+.eroe-frase {
+  margin: 8px 0 0; font-size: var(--t-mini); color: var(--tenue); line-height: 1.5;
+  max-width: 62ch;
+}
+/* Qui stava `.pista-eroe`, la barra di avanzamento larga quanto la carta. Via
+   alla 13a sessione: la percentuale la dice gia' il quadrante a fianco, in
+   grande, e con pochi punti percentuali quella pista era un binario grigio
+   quasi tutto vuoto. Il segnale sull'avanzamento resta a due misure, la linea
+   di stato sotto la barra strumenti e l'alone della casella completa. */
+
+.tessere {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 14px 22px; margin-top: 24px;
+}
+/* Un filo sopra ogni tessera con una tacca piu' scura a sinistra: le tiene
+   allineate come le tacche di uno strumento, senza scatole in piu'. */
+.tessera { position: relative; padding-top: 12px; border-top: 1px solid var(--bordo); min-width: 0; }
+.tessera::before {
+  content: ''; position: absolute; top: -1px; left: 0; width: 18px; height: 2px;
+  background: var(--bordo-forte);
+}
 .tessera .t-n {
-  display: block; font: 600 26px/1.1 var(--f-dato); letter-spacing: -.03em;
-  font-variant-numeric: tabular-nums;
+  display: block; font: 700 30px/1 var(--f-ui); letter-spacing: -.035em;
 }
 .tessera .t-et {
-  display: block; margin-top: 3px; font-size: var(--t-mini); font-weight: 500;
+  display: block; margin-top: 7px;
+  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--inchiostro-2);
 }
 .tessera .t-nota {
-  display: block; margin-top: 1px; font-size: var(--t-micro); color: var(--tenue-2);
+  display: block; margin-top: 4px; font-size: var(--t-micro); color: var(--tenue-2);
+  line-height: 1.35;
 }
 
-/* -- i tre quadranti: le tre domande da un secondo ----------------------- */
-/* Una fascia sola, tre carte uguali: e' un pannello di strumenti, non un
-   elenco. Sotto i 1080px diventano due, poi una: la ciambella e la sua legenda
-   restano affiancate finche' c'e' spazio, poi la legenda passa sotto. */
-.quadranti {
-  display: grid; gap: 16px;
-  grid-template-columns: repeat(3, 1fr);
+/* -- il quadrante dell'anno ------------------------------------------------ */
+.quadrante { display: block; width: 100%; max-width: 330px; margin: 0 auto; overflow: visible; }
+.quadrante .traccia { fill: var(--st-vuoto); }
+.quadrante .settore.vuoto .traccia { opacity: .38; }
+.quadrante .settore.arretrato .traccia { fill: var(--allerta-tenue); }
+.quadrante .piena { fill: var(--completa); }
+.quadrante .tardi { fill: var(--allerta); }
+.quadrante .settore { transition: opacity var(--rapido), filter var(--rapido); cursor: default; outline: none; }
+.quadrante .settori:hover .settore { opacity: .5; }
+.quadrante .settori .settore:hover,
+.quadrante .settori .settore:focus-visible { opacity: 1; }
+.quadrante .settore.oggi {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--marchio) 60%, transparent));
 }
-.quadro { padding: 16px 18px 18px; }
+.quadrante .settore:focus-visible .traccia { stroke: var(--marchio); stroke-width: 1.5; }
+.q-alone { fill: none; stroke: color-mix(in srgb, var(--marchio) 22%, transparent); stroke-width: 1; }
+.q-tick { stroke: var(--bordo); stroke-width: 1; }
+.q-tick.lunga { stroke: var(--bordo-forte); }
+.q-tacca { stroke: var(--marchio); stroke-width: 2.2; stroke-linecap: round; }
+.q-mese {
+  font: 600 8.5px var(--f-dato); fill: var(--tenue); text-anchor: middle;
+  dominant-baseline: middle; text-transform: uppercase; letter-spacing: .08em;
+}
+.q-mese.oggi { fill: var(--marchio-scuro); font-weight: 700; }
+.q-sopra { font: 500 10.5px var(--f-dato); fill: var(--tenue); text-anchor: middle; letter-spacing: .04em; }
+.q-cifra { font: 800 40px var(--f-ui); fill: var(--inchiostro); text-anchor: middle; letter-spacing: -.045em; }
+.q-sotto {
+  font: 700 8px var(--f-ui); fill: var(--tenue); text-anchor: middle;
+  text-transform: uppercase; letter-spacing: .2em;
+}
+
+/* -- il ritmo ---------------------------------------------------------------- */
+.ritmo-due { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ritmo-fig {
+  padding: 14px 15px 13px; border-radius: 13px; min-width: 0;
+  background: var(--superficie-2); border: 1px solid var(--bordo);
+}
+.ritmo-n { display: block; font: 700 34px/1 var(--f-ui); letter-spacing: -.04em; }
+.ritmo-et {
+  display: block; margin-top: 7px;
+  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--inchiostro-2);
+}
+.ritmo-nota { display: block; margin-top: 3px; font-size: var(--t-micro); color: var(--tenue-2); line-height: 1.35; }
+.ritmo-misura { margin-top: 18px; padding-bottom: 16px; }
+.pista.con-obiettivo { position: relative; overflow: visible; }
+.pista.con-obiettivo i { border-radius: var(--r-tonda); }
+/* l'obiettivo e' una tacca sopra la pista, con la parola sotto: e' un
+   riferimento, quindi inchiostro, non un colore di serie */
+.obiettivo {
+  position: absolute; top: -5px; left: var(--x, 0); width: 2px; height: 19px;
+  background: var(--inchiostro); border-radius: 1px; transform: translateX(-50%);
+  transition: left 720ms var(--molla);
+}
+.obiettivo::after {
+  content: 'obiettivo'; position: absolute; top: 21px; left: 50%; transform: translateX(-50%);
+  font: 500 var(--t-micro)/1 var(--f-dato); color: var(--tenue); white-space: nowrap;
+  letter-spacing: .04em;
+}
+.ritmo-frase { margin: 12px 0 0; font-size: var(--t-base); font-weight: 600; line-height: 1.4; }
+
+/* -- da fare adesso: la lista di lavoro --------------------------------------- */
+.agenda-testa {
+  display: flex; flex-wrap: wrap; gap: 14px 30px;
+  margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--bordo);
+}
+/* I tre contatori sono anche i filtri: uno acceso isola il suo gruppo. */
+.agenda-conta {
+  text-align: left; padding: 7px 12px; border-radius: 12px;
+  border: 1px solid transparent; transition: var(--rapido);
+}
+.agenda-conta:hover:not([disabled]) { background: var(--superficie-2); border-color: var(--bordo); }
+.agenda-conta.acceso {
+  background: var(--superficie-2);
+  border-color: color-mix(in srgb, var(--marchio) 45%, transparent);
+}
+.agenda-conta[disabled] { opacity: .45; cursor: default; }
+.agenda-n { display: block; font: 700 28px/1 var(--f-ui); letter-spacing: -.035em; }
+.agenda-et {
+  display: block; margin-top: 6px;
+  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--inchiostro-2);
+}
+/* La carta e' alta quanto la sua fila (a fianco ci sono due carte impilate):
+   senza questo la lista restava un riquadro di 336px in mezzo a mezza carta
+   vuota. Cosi' lo scorrevole prende tutto lo spazio che resta e la carta e'
+   piena quanto e' grande. */
+.dafare { display: flex; flex-direction: column; }
+.dafare > .carta-corpo { flex: 1; min-height: 0; display: flex; }
+.dafare-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.agenda { display: grid; gap: 3px; align-content: start; }
+/* `flex: 1` con base ZERO, non `auto`: la lista non chiede l'altezza delle sue
+   righe (con l'arretrato sono centinaia, e la carta diventava alta 11.000px
+   trascinandosi dietro tutta la fila), chiede il posto che AVANZA. Cosi'
+   l'altezza della fila la decide la colonna a fianco e lo scorrevole la
+   riempie: mai mezza carta vuota, mai una carta chilometrica. */
+.agenda.lunga {
+  /* la base minima e' ~otto righe: e' quello che si vede quando la carta va a
+     tutta larghezza (sotto i 1180px) e non ha nessuna colonna a fianco che le
+     detti l'altezza */
+  flex: 1 1 0; min-height: 320px;
+  overflow-y: auto; overscroll-behavior: contain; padding-right: 4px;
+}
+.agenda-riga {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto 40px;
+  gap: 12px; align-items: center;
+  padding: 7px 10px; border-radius: 11px; border: 1px solid transparent;
+  cursor: pointer; transition: var(--rapido);
+}
+.agenda-riga:hover { background: var(--superficie-2); border-color: var(--bordo); }
+.agenda-riga:focus-visible { outline: 2px solid var(--marchio); outline-offset: 1px; }
+.agenda-mese {
+  font: 600 var(--t-micro)/1 var(--f-dato); letter-spacing: .08em; text-transform: uppercase;
+  text-align: center; padding: 5px 0; border-radius: 6px;
+  background: var(--superficie-2); border: 1px solid var(--bordo); color: var(--tenue);
+}
+.agenda-mese.ora {
+  background: var(--marchio-tenue); color: var(--marchio-scuro);
+  border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
+}
+/* Arretrata: ambra, come il ritardo in tutto il resto dell'applicazione. */
+.agenda-mese.tardi {
+  background: var(--allerta-tenue); color: var(--allerta);
+  border-color: color-mix(in srgb, var(--allerta) 40%, transparent);
+}
+.agenda-nome { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.agenda-nome b, .agenda-nome span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-nome b { font-size: var(--t-mini); font-weight: 600; }
+.agenda-nome span { font-size: var(--t-micro); color: var(--tenue); }
+/* la capsula della griglia, in piccolo: quattro segmenti, i fatti in verde */
+.agenda-passi { display: flex; gap: 3px; }
+.agenda-passi i { width: 13px; height: 6px; border-radius: 2px; background: var(--st-vuoto); }
+.agenda-passi i.fatto { background: var(--completa); }
+.agenda-val { text-align: right; font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue); font-variant-numeric: tabular-nums; }
+
+/* -- i tre quadranti: le tre domande da un secondo ----------------------- */
+.quadro { padding: 18px 20px 20px; }
 .quadro .carta-testa { margin-bottom: 12px; }
 .quadro .carta-testa h3 { font-size: var(--t-base); }
 .quadro .carta-testa p { font-size: var(--t-micro); max-width: 40ch; }
@@ -109,11 +310,12 @@
   flex: none; font-size: var(--t-mini); color: var(--tenue);
   padding: 2px 9px; border-radius: var(--r-tonda);
   border: 1px solid var(--bordo); background: var(--superficie-2);
+  font-family: var(--f-dato);
 }
 
 .torta-avvolge { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .torta-box { flex: none; }
-.torta { width: 118px; height: 118px; display: block; overflow: visible; }
+.torta { width: 124px; height: 124px; display: block; overflow: visible; }
 /* Il distacco fra due spicchi e' superficie, non un bordo: e' cio' che li tiene
    distinti anche per chi non separa bene i chiari della rampa. */
 .torta path {
@@ -122,10 +324,10 @@
 }
 .torta-avvolge:hover path { opacity: .5; }
 .torta path:hover { opacity: 1; }
-.torta-n { text-anchor: middle; font: 700 19px var(--f-dato); fill: var(--inchiostro); }
+.torta-n { text-anchor: middle; font: 800 19px var(--f-ui); fill: var(--inchiostro); letter-spacing: -.03em; }
 .torta-et {
-  text-anchor: middle; font: 500 8.5px var(--f-ui); fill: var(--tenue);
-  text-transform: uppercase; letter-spacing: .1em;
+  text-anchor: middle; font: 600 8px var(--f-ui); fill: var(--tenue);
+  text-transform: uppercase; letter-spacing: .14em;
 }
 .legenda-t { flex: 1; min-width: 158px; display: grid; gap: 3px; align-content: center; }
 .legenda-t .vt {
@@ -140,13 +342,6 @@
 }
 .legenda-t .vt-n { font-weight: 600; }
 .legenda-t .vt-p { color: var(--tenue-2); width: 34px; text-align: right; }
-
-/* -- la griglia delle carte: le prime due sono larghe --------------------- */
-.stat-griglia {
-  display: grid; gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-}
-.stat-griglia > .carta:nth-child(-n+2) { grid-column: 1 / -1; }
 
 /* -- misuratore orizzontale ---------------------------------------------- */
 .misure { display: grid; gap: 15px; }
@@ -183,39 +378,69 @@
   overflow: hidden;
 }
 .barra-pista i {
-  display: block; height: 100%; width: var(--w, 0);
+  position: relative; display: block; height: 100%; width: var(--w, 0);
   background: var(--t, var(--marchio)); border-radius: var(--r-tonda);
   transition: width 720ms var(--molla);
 }
+/* la parte gia' chiusa, dentro la barra: il verde di --completa, con 2px di
+   superficie a destra per staccarsi dal resto */
+.barra-pista i b {
+  position: absolute; inset: 0 auto 0 0; width: var(--w, 0);
+  background: var(--completa); border-radius: var(--r-tonda);
+  box-shadow: 2px 0 0 var(--superficie); transition: width 720ms var(--molla);
+}
+.barra-riga:hover .barra-pista i { filter: brightness(1.08); }
+.con-rango .barra-riga { grid-template-columns: 20px minmax(0, 110px) 1fr 54px; }
+.barra-rango { font-size: var(--t-micro); color: var(--tenue-2); font-variant-numeric: tabular-nums; }
 .barra-val {
   text-align: right; font-family: var(--f-dato); font-size: var(--t-micro);
   color: var(--tenue); font-variant-numeric: tabular-nums;
 }
 
 /* -- barre per sito (grafico 1) ------------------------------------------ */
-/* Una riga per SITO = la sua UNICA mappatura dell'anno: la pista sono i suoi
-   passi, piena = a posto per l'anno. La riga e' un bottone: apre i mesi di quel
-   cliente. Ci sono tutti i siti aperti, quindi l'elenco lungo scorre dentro la
-   carta invece di allungare la pagina all'infinito, e i siti fuori conto
-   (.fuori) restano tenui: si vedono, non gridano.
-   L'etichetta si prende molto piu' spazio della pista perche' porta due nomi
-   ("cliente - destinazione") e un cliente con nove impianti si distingue solo
-   dalla seconda meta': con 200px restavano nove righe identiche coi puntini. */
-.barre-cli .barra-riga {
-  grid-template-columns: minmax(0, 2fr) minmax(80px, 1fr) 52px 80px;
-  padding: 3px 6px; border-radius: var(--r-1); border: 1px solid transparent;
+/* Una riga per SITO = la sua UNICA mappatura dell'anno: la capsula a quattro
+   segmenti sono i suoi passi (la cella della griglia, in piccolo), piena e
+   verde = a posto per l'anno; a destra lo stato in una pillola. La riga e' un
+   bottone: apre i mesi di quel cliente. L'elenco lungo scorre dentro la carta
+   e i siti fuori conto (.fuori) restano tenui: si vedono, non gridano. */
+.barre-testa {
+  display: grid; grid-template-columns: minmax(0, 1fr) 92px 44px 118px; gap: 12px;
+  padding: 0 10px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--bordo);
+  font: 600 var(--t-micro)/1 var(--f-dato); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tenue-2);
 }
-.barre-cli .barra-pista { width: var(--l, 100%); }
+.barre-testa span:nth-child(n+2) { text-align: right; }
+.barre-cli { gap: 2px; }
+.barre-cli .barra-riga {
+  grid-template-columns: minmax(0, 1fr) 92px 44px 118px; gap: 12px;
+  padding: 6px 10px; border-radius: 10px; border: 1px solid transparent;
+}
+.barra-et.due { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.barra-et.due b, .barra-et.due span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-et.due b { font-weight: 600; }
+.barra-et.due span { font-size: var(--t-micro); color: var(--tenue); }
+.seg { display: flex; gap: 3px; justify-self: end; }
+.seg i { width: 19px; height: 7px; border-radius: 2px; background: var(--st-vuoto); transition: background var(--medio); }
+.seg i.fatto { background: var(--completa); }
+.seg.tutta i.fatto { box-shadow: 0 0 8px -2px var(--completa); }
+.carta:not(.entrata) .seg i.fatto { background: var(--st-vuoto); }
 .barre-cli.lunga {
-  max-height: 460px; overflow-y: auto; overscroll-behavior: contain;
+  max-height: 470px; overflow-y: auto; overscroll-behavior: contain;
   padding-right: 4px;
 }
+/* A tutta pagina (bottone "Espandi"): le stesse righe, ma lo scorrevole prende
+   l'altezza del foglio invece dei 470px della carta. */
+.siti-testa { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.siti-testa h2 { margin: 0 0 4px; }
+.siti-testa p.sotto { margin: 0; max-width: 76ch; }
+.siti-espansi { flex: 1; min-height: 0; display: flex; margin-top: 18px; }
+.siti-espansi > div { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.siti-espansi .barre-cli { flex: 1; min-height: 0; max-height: none; }
 .barra-riga.fuori .barra-et { color: var(--tenue); }
-.barra-riga.fuori .barra-pista { opacity: .55; }
-.barra-riga.fuori .barra-rit { color: var(--tenue-2); }
-.barra-riga.cliccabile { cursor: pointer; transition: var(--rapido); }
+.barra-riga.fuori .seg { opacity: .5; }
+.barra-riga.cliccabile { cursor: pointer; transition: background var(--rapido), border-color var(--rapido), transform var(--rapido); }
 .barra-riga.cliccabile:hover {
-  background: var(--superficie-2); border-color: var(--bordo);
+  background: var(--superficie-2); border-color: var(--bordo); transform: translateX(2px);
 }
 .barra-riga.cliccabile:focus-visible {
   outline: 2px solid var(--marchio); outline-offset: 1px;
@@ -224,12 +449,19 @@
   background: var(--marchio-tenue);
   border-color: color-mix(in srgb, var(--marchio) 45%, transparent);
 }
-.barra-riga.sel .barra-et { font-weight: 600; }
-.barra-rit {
-  text-align: right; font-family: var(--f-dato); font-size: var(--t-micro);
-  color: var(--allerta); font-variant-numeric: tabular-nums;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.barra-riga.sel .barra-et b { color: var(--marchio-scuro); }
+/* la pillola di stato (NON .pill, che in base.css e' il bottone a capsula): la
+   tinta di stato in tenue con il testo pieno */
+.stato-pill {
+  justify-self: end; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 var(--t-micro)/1 var(--f-dato); letter-spacing: .04em;
+  padding: 5px 9px; border-radius: var(--r-tonda);
+  background: var(--superficie-2); border: 1px solid var(--bordo); color: var(--tenue);
 }
+.stato-pill.ritardo { background: var(--allerta-tenue); color: var(--allerta); border-color: color-mix(in srgb, var(--allerta) 35%, transparent); }
+.stato-pill.completa { background: color-mix(in srgb, var(--completa) 14%, transparent); color: var(--completa); border-color: color-mix(in srgb, var(--completa) 35%, transparent); }
+.stato-pill.aperta { background: var(--marchio-tenue); color: var(--marchio-scuro); border-color: color-mix(in srgb, var(--marchio) 35%, transparent); }
+.stato-pill.daRinnovare { background: var(--scadenza-tenue); color: var(--scadenza); border-color: color-mix(in srgb, var(--scadenza) 35%, transparent); }
 .link-tab.acceso {
   color: var(--marchio-scuro);
   border-color: color-mix(in srgb, var(--marchio) 50%, transparent);
@@ -239,36 +471,57 @@
 /* -- colonne per mese: a che punto siamo (grafico 2) --------------------- */
 /* Altezza della pista = mappature che scadono nel mese; dentro, i segmenti si
    impilano DAL BASSO in ordine di completamento (complete in fondo, non
-   iniziate in cima) con la rampa sequenziale --pr-*. Nei mesi passati e non
-   finiti la pista prende il contorno ambra: quello e' arretrato. */
+   iniziate in cima) con la rampa sequenziale --pr-*. Dietro, tre righe di
+   riferimento con il valore. Nei mesi passati e non finiti la pista prende il
+   contorno ambra: quello e' arretrato. Il mese corrente ha una linea verticale
+   cyan alle spalle, la testina della griglia. */
+.colonne-avvolge { position: relative; }
+.griglia-h { position: absolute; left: 0; right: 0; top: 18px; bottom: 21px; pointer-events: none; }
+.griglia-h span {
+  position: absolute; left: 0; right: 0; top: var(--y); height: 1px; background: var(--bordo);
+}
+.griglia-h em {
+  position: absolute; right: 0; top: -14px; font-style: normal;
+  font-size: var(--t-micro); color: var(--tenue-2); font-variant-numeric: tabular-nums;
+}
 .colonne {
-  display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px;
-  align-items: end; height: 216px;
+  position: relative; display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px;
+  height: 236px; padding-right: 26px;
 }
 .colonna {
-  height: 100%; display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-end; gap: 5px; min-width: 0;
+  position: relative; display: grid; grid-template-rows: 18px minmax(0, 1fr) 16px; row-gap: 5px;
+  height: 100%; min-width: 0;
+}
+.colonna::before {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: 21px; width: 1px;
+  background: color-mix(in srgb, var(--marchio) 45%, transparent); opacity: 0;
+  transition: opacity var(--medio);
+}
+.colonna.oggi::before { opacity: 1; }
+.col-area {
+  grid-row: 2; position: relative; display: flex; align-items: flex-end; justify-content: center;
 }
 .col-n {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--h, 0) + 5px); text-align: center;
   font: 500 var(--t-micro)/1 var(--f-dato); color: var(--tenue);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; transition: bottom 720ms var(--molla), color var(--rapido);
 }
 .col-pista {
-  width: 100%; max-width: 40px; height: var(--h, 0);
-  background: var(--st-vuoto); border-radius: 7px;
+  width: 100%; max-width: 34px; height: var(--h, 0);
+  background: var(--st-vuoto); border-radius: 8px;
   display: flex; flex-direction: column; justify-content: flex-end;
-  overflow: hidden; transition: height 720ms var(--molla);
+  overflow: hidden; transition: height 720ms var(--molla), transform var(--medio), box-shadow var(--medio);
 }
 .col-pista i {
   display: block; width: 100%; height: var(--h, 0); flex: none;
   background: var(--t, var(--completa));
   transition: height 720ms var(--molla);
 }
-/* I segmenti sono in ordine di completamento dall'alto: 0 passi in cima,
-   complete in fondo, cosi' il pieno cresce dal basso. La riga di 1,5px fra due
-   segmenti e' superficie, non un bordo: e' cio' che li tiene distinti anche per
-   chi non separa bene i chiari della rampa. */
+/* La riga di 1,5px fra due segmenti e' superficie, non un bordo: e' cio' che li
+   tiene distinti anche per chi non separa bene i chiari della rampa. */
 .col-pista i + i { box-shadow: 0 -1.5px 0 var(--superficie); }
+.col-pista.con-chiuse { box-shadow: 0 6px 16px -8px var(--completa); }
+.colonna:hover .col-pista { transform: translateY(-3px); box-shadow: 0 10px 20px -10px var(--marchio); }
 .colonna.arretrata .col-pista {
   background: var(--allerta-tenue);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--allerta) 45%, transparent);
@@ -276,14 +529,15 @@
 .colonna.oggi .col-m { color: var(--marchio-scuro); font-weight: 700; }
 .colonna.oggi .col-pista { outline: 2px solid color-mix(in srgb, var(--marchio) 55%, transparent);
   outline-offset: 2px; }
-/* nel mese corrente senza scadenze non c'e' una colonna da cerchiare: resta
-   solo il nome del mese in evidenza */
 .colonna.oggi.vuota .col-pista { outline: none; }
 .col-m {
+  grid-row: 3; align-self: end; text-align: center;
   font: 500 var(--t-micro)/1 var(--f-dato); color: var(--tenue);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .colonna:hover .col-n { color: var(--inchiostro); }
+.carta:not(.entrata) .col-pista { height: 0; }
+.carta:not(.entrata) .col-n { bottom: 5px; }
 
 /* -- il grafico dell'andamento cumulato ---------------------------------- */
 .graf-avvolge { position: relative; }
@@ -295,11 +549,27 @@
   fill: var(--tenue-2); font: 10px var(--f-dato);
 }
 .assi-x text { fill: var(--tenue); text-anchor: middle; }
-.area-c { fill: color-mix(in srgb, var(--completa) 15%, transparent); }
+.area-c { fill: url(#g-area); }
 .linea-c {
   fill: none; stroke: var(--completa); stroke-width: 2; stroke-linejoin: round;
-  stroke-linecap: round; vector-effect: non-scaling-stroke;
+  stroke-linecap: round; vector-effect: non-scaling-stroke; filter: url(#g-alone);
 }
+.oggi-l { stroke: color-mix(in srgb, var(--marchio) 50%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.assi-x text.oggi { fill: var(--marchio-scuro); font-weight: 700; }
+.fine .punto { fill: var(--completa); stroke: var(--superficie); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.fine .onda {
+  fill: none; stroke: var(--completa); stroke-width: 1.5; vector-effect: non-scaling-stroke;
+  transform-box: fill-box; transform-origin: center; animation: onda 2.8s var(--molla) infinite;
+}
+@keyframes onda { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(3.2); opacity: 0; } }
+/* le forme del grafico crescono dal basso all'entrata */
+.graf .area-c, .graf .linea-c, .graf .linea-p, .graf .fine, .graf .fine-c {
+  transform-box: view-box; transform-origin: 50% 87%;
+  transition: transform 800ms var(--molla), opacity 600ms var(--molla);
+}
+.carta:not(.entrata) .graf .area-c, .carta:not(.entrata) .graf .linea-c,
+.carta:not(.entrata) .graf .linea-p { transform: scaleY(0); }
+.carta:not(.entrata) .graf .fine, .carta:not(.entrata) .graf .fine-c { opacity: 0; }
 .linea-p {
   fill: none; stroke: var(--tenue-2); stroke-width: 1.5; stroke-dasharray: 4 4;
   vector-effect: non-scaling-stroke;
@@ -317,6 +587,22 @@
   vector-effect: non-scaling-stroke; transition: opacity var(--rapido);
 }
 .ancora.viva .croce, .ancora.viva circle { opacity: 1; }
+
+/* -- i quattro anelli dei passi ----------------------------------------- */
+.anelli { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.anello-box {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; align-items: center;
+  padding: 9px 11px; border-radius: 13px; background: var(--superficie-2); border: 1px solid var(--bordo);
+  transition: border-color var(--rapido), transform var(--rapido);
+}
+.anello-box:hover { border-color: var(--bordo-forte); transform: translateY(-2px); }
+.anello { display: block; width: 58px; height: 58px; overflow: visible; }
+.anello .fette { transform-box: fill-box; transform-origin: center; transition: opacity 480ms var(--molla), transform 700ms var(--molla); }
+.carta:not(.entrata) .anello .fette { opacity: 0; transform: rotate(-90deg) scale(.7); }
+.anello-n { text-anchor: middle; font: 800 13px var(--f-ui); fill: var(--inchiostro); letter-spacing: -.03em; }
+.anello-testo { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.anello-et { font-size: var(--t-mini); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anello-v { font-size: var(--t-micro); color: var(--tenue); font-variant-numeric: tabular-nums; }
 
 /* -- barra parte-su-tutto + legenda -------------------------------------- */
 /* I 2px di distacco fra i segmenti sono superficie, non un bordo: e' cio' che
@@ -345,6 +631,21 @@
   margin-left: auto; font-family: var(--f-dato); color: var(--inchiostro);
   font-variant-numeric: tabular-nums;
 }
+/* la legenda dello stack e' una fila di tessere: la tinta sul bordo sinistro,
+   il numero grande. Il colore resta sul segno, il testo resta inchiostro. */
+.legenda-tessere { gap: 10px; margin-top: 16px; }
+.legenda-tessere .vc {
+  display: grid; grid-template-columns: 1fr; gap: 4px;
+  padding: 9px 12px; border-radius: 11px; background: var(--superficie-2);
+  border: 1px solid var(--bordo); border-left: 3px solid var(--t, var(--bordo-forte));
+  transition: transform var(--rapido), border-color var(--rapido);
+}
+.legenda-tessere .vc:hover { transform: translateY(-2px); border-color: var(--bordo-forte); }
+.legenda-tessere .vc i { display: none; }
+.legenda-tessere .vc span { font-size: var(--t-micro); color: var(--tenue); }
+.legenda-tessere .vc b { margin-left: 0; font: 700 22px/1 var(--f-ui); letter-spacing: -.03em; }
+.stack { height: 18px; }
+.stack i { border-radius: 4px; }
 .legenda .vc.compl i { background: var(--completa); }
 .legenda .vc.prev i {
   width: 15px; height: 0; border-radius: 0;
@@ -377,52 +678,71 @@
 }
 .stat-tip.su { opacity: 1; transform: none; }
 
-/* -- l'entrata: le forme crescono da zero una volta sola -----------------
-   Il gesto e' UNO: al primo disegno le carte salgono a scalare e dentro di
-   loro le forme si riempiono. Dopo una spunta la vista si ridisegna con
-   `.vivo` gia' addosso, quindi non riparte nulla: la pagina non lampeggia a
-   ogni clic. */
-.stat:not(.vivo) .pista i,
-.stat:not(.vivo) .barra-pista i,
-.stat:not(.vivo) .stack i { width: 0; }
-.stat:not(.vivo) .col-pista { height: 0; }
-.stat:not(.vivo) .carta { opacity: 0; transform: translateY(10px); }
-.carta { transition: box-shadow var(--medio), border-color var(--medio),
-         opacity 420ms var(--molla), transform 420ms var(--molla); }
-/* La ciambella entra ruotando sul proprio centro: `transform-box` serve
-   perche' in SVG l'origine di default e' quella del viewBox, non della forma. */
-.torta .fette { transform-box: fill-box; transform-origin: center;
-  transition: opacity 480ms var(--molla), transform 620ms var(--molla); }
-.stat:not(.vivo) .torta .fette { opacity: 0; transform: rotate(-26deg) scale(.84); }
-.quadranti > .carta:nth-child(2) { transition-delay: 60ms; }
-.quadranti > .carta:nth-child(3) { transition-delay: 120ms; }
-.stat-griglia > .carta:nth-child(2) { transition-delay: 60ms; }
-.stat-griglia > .carta:nth-child(3) { transition-delay: 120ms; }
-.stat-griglia > .carta:nth-child(n+4) { transition-delay: 170ms; }
+/* -- l'entrata: ogni carta si accende quando arriva in vista ------------
+   Il gesto e' UNO: la carta sale (`.entrata`, messa da rivela() in stat.js con
+   un IntersectionObserver, scalata per gruppo con `--r`) e dentro di lei le
+   forme si riempiono, il quadrante e gli anelli ruotano a posto, le cifre
+   salgono. Dopo una spunta la vista si ridisegna con `.entrata` gia' addosso,
+   quindi non riparte nulla e la pagina non lampeggia. */
+.carta:not(.entrata) .pista i,
+.carta:not(.entrata) .barra-pista i,
+.carta:not(.entrata) .barra-pista i b,
+.carta:not(.entrata) .stack i { width: 0; }
+.carta:not(.entrata) { opacity: 0; transform: translateY(16px); }
+.carta {
+  transition: box-shadow var(--medio), border-color var(--medio),
+              opacity 560ms var(--molla) calc(var(--r, 0) * 70ms),
+              transform 560ms var(--molla) calc(var(--r, 0) * 70ms);
+}
+/* Ciambelle e quadrante entrano ruotando sul proprio centro: `transform-box`
+   serve perche' in SVG l'origine di default e' quella del viewBox. */
+.torta .fette, .quadrante .settori {
+  transform-box: fill-box; transform-origin: center;
+  transition: opacity 480ms var(--molla), transform 620ms var(--molla);
+}
+.quadrante .settori { transition-duration: 700ms, 900ms; }
+.carta:not(.entrata) .torta .fette { opacity: 0; transform: rotate(-26deg) scale(.84); }
+.carta:not(.entrata) .quadrante .settori { opacity: 0; transform: rotate(-40deg) scale(.82); }
+.quadrante .q-tacca, .quadrante .q-nomi { transition: opacity 500ms var(--molla) 500ms; }
+.carta:not(.entrata) .quadrante .q-tacca, .carta:not(.entrata) .quadrante .q-nomi { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pista i, .barra-pista i, .stack i, .col-pista, .col-pista i,
-  .torta .fette, .carta { transition: none; }
-  .stat:not(.vivo) .carta { opacity: 1; transform: none; }
-  .stat:not(.vivo) .torta .fette { opacity: 1; transform: none; }
+  .pista i, .barra-pista i, .barra-pista i b, .stack i, .col-pista, .col-pista i, .col-n,
+  .torta .fette, .quadrante .settori, .quadrante .q-tacca, .quadrante .q-nomi,
+  .anello .fette, .graf *, .obiettivo, .carta, .seg i { transition: none; }
+  .eroe-quadro::before, .fine .onda { animation: none; }
+  .fine .onda { display: none; }
 }
 
-@media (max-width: 1080px) {
-  .quadranti { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1180px) {
+  .c8, .c7, .c5, .c4 { grid-column: span 12; }
+  .quadro.c4 { grid-column: span 6; }
+  .c3 { grid-column: span 6; }
+  .colonna-carte { flex-direction: row; }
+  .colonna-carte > .carta { flex: 1; min-width: 0; }
+  .eroe { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
 }
-@media (max-width: 720px) {
-  .quadranti { grid-template-columns: 1fr; }
-  .eroe-cifra { font-size: 52px; }
-  .colonne { height: 180px; gap: 4px; }
+@media (max-width: 820px) {
+  .c12, .c8, .c7, .c6, .c5, .c4, .c3, .quadro.c4 { grid-column: span 12; }
+  .colonna-carte { flex-direction: column; }
+  .eroe { grid-template-columns: 1fr; padding: 22px 20px 24px; }
+  .eroe::after { display: none; }
+  .quadrante { max-width: 280px; }
+  .eroe-titolo { font-size: 22px; }
+  .eroe-titolo b { font-size: 28px; }
   .barra-riga { grid-template-columns: minmax(0, 90px) 1fr 48px; }
-  .barre-cli .barra-riga { grid-template-columns: minmax(0, 1fr) 60px 48px; }
-  .barra-rit { display: none; }
+  .barre-cli .barra-riga, .barre-testa { grid-template-columns: minmax(0, 1fr) 92px 44px; }
+  .stato-pill, .barre-testa span:last-child { display: none; }
+  .colonne { height: 200px; }
+  .agenda-riga { grid-template-columns: 42px minmax(0, 1fr) 40px; }
+  .agenda-passi { display: none; }
 }
 
 @media print {
   .stat { padding: 0; max-width: none; }
-  .quadranti { grid-template-columns: repeat(2, 1fr); }
-  .carta::before { display: none; }
-  .carta { break-inside: avoid; box-shadow: none; }
+  .stat::before { display: none; }
+  .stat-griglia { display: block; }
+  .carta::before, .eroe::after { display: none; }
+  .carta { break-inside: avoid; box-shadow: none; margin-bottom: 12px; background: var(--superficie); }
   .link-tab, .stat-tip { display: none !important; }
 }

@@ -76,6 +76,52 @@ visibile. Nell'angolo della testa c'e' **"Chiudi tutti"** (`.piega-tutti`), che
 piega o riapre le tendine di tutti i clienti del set filtrato: con 222 clienti si
 richiudevano a mano una per una.
 
+**Il segnale sale di livello (14a sessione).** La cella verde da sola non
+bastava: puo' stare in un mese fuori schermo, e con 274 righe non si vede quale
+sito e quale cliente sono a posto. Ora lo stesso verde arriva a tre livelli,
+sempre con la stessa condizione del `.pieno` sul totale (tutti i passi contati
+fatti): la **riga del sito** (`.riga-srv.a-posto`: spina di 3px a sinistra,
+fondo tinto al 4%, segno di spunta disegnato in CSS nel `.col-tot.pieno`,
+etichetta "a posto"), la **carta del cliente** (`.blocco.completo`: bordo e
+alone verdi, fascia sfumata sulla riga cliente, etichetta "a posto" - visibile
+anche da piegata), e la **scheda del mese** (`.scheda.finita`: spina, fondo,
+pista dei passi verde). Le etichette "a posto" stanno **sempre nel markup** e
+le mostra il CSS: cosi' `aggiornaTotali` / `rinfrescaRiga` / `aggiornaCella`
+cambiano una classe e non inseriscono nodi. Perche' il verde resti UNA cosa,
+l'etichetta "N aperti" e' neutra (prima era verde).
+
+**La forma delle carte.** Ogni cliente e' una carta (`.blocco`) con raggio
+`--r-carta`, staccata da 6px d'aria e rientrata di `--rientro` ai lati; il
+rientro torna nello `left` degli sticky della colonna nome, altrimenti
+scorrendo in orizzontale i nomi scivolavano di 12px rispetto al bordo della
+carta. I mesi non previsti sono un **punto** di 3px, non un trattino: dodici
+trattini per riga facevano una trama che copriva le capsule. I totali per
+mese (`.tm`, chiuse/in scadenza) stanno **dentro l'intestazione dei mesi**,
+sotto il nome, con un filo di 2px che si riempie (`--p` impostato dal JS): la
+riga sticky dei totali non esiste piu', erano quattro fasce impilate prima del
+primo cliente. Lo span `.tm` c'e' sempre, anche vuoto (`:empty` lo nasconde),
+cosi' `aggiornaRigaTotali` lo trova quando un mese si popola.
+
+**Leggerezza (seconda passata della 14a sessione, "risulta ancora pesante").**
+Il peso stava in quattro cose, tolte una a una: le righe dei siti **non hanno
+piu' linee** fra loro (le separa l'altezza, 32px); la **capsula vuota** e' un
+velo di `--st-vuoto` al 55% con un filo di contorno, non un blocco grigio
+pieno - con 274 righe era una muraglia, ora pesa solo il lavoro fatto; le
+**carte** non hanno contorno, solo il salto superficie/fondo e `--ombra-1`; le
+**pillole dei filtri** (`.pill` in `base.css`) sono piatte, il bordo compare al
+passaggio e sull'attivo; le etichette "N aperti / N chiusi" sono solo testo.
+Stessa cosa nella vista Mese: schede con ombra e senza bordo, pista dei passi
+al 55%.
+
+**Vista Mese.** I dodici mesi stanno in una pista (`.mese-nav`) con
+l'indicatore `::before` che scivola su `--i`; per questo il cambio di mese
+**non ridisegna la testa** (`cambiaMese` in `mese.js` aggiorna nav, titolo,
+riepilogo e ricostruisce solo `.lavoro`, che riparte con `.entra`). I quattro
+passi sono una **capsula segmentata** (`.passi-riga`: pista grigia, il passo
+fatto si alza in bianco con la sua casella colorata): e' la cella dell'Anno
+letta da vicino. Nel cassetto la capsula e' larga quanto serve (`width: auto`),
+in stampa `stampa.css` toglie pista e etichetta.
+
 **Un segnale solo, a tre misure.** Il rilievo dell'interfaccia sta tutto in una
 linea che va dal cyan del marchio al verde di `--completa` (`--filo`, cioe'
 "iniziato -> finito"), e che torna in tre punti: la **linea di stato** di 2px
@@ -116,6 +162,8 @@ Tema: `data-tema` su `<html>` con tre stati — assente (segue il sistema),
    barra strumenti; in `anno.js` era anche il contenitore del cliente, che quindi
    ereditava fondo grigio, `border-radius` e `padding`. Ora il contenitore si
    chiama **`.blocco`**. Prima di introdurre una classe, `grep` nei CSS.
+   Ricaduto alla 12a sessione con `.pill` (il bottone a capsula di `base.css`)
+   usata per la pillola di stato delle Statistiche: ora e' `.stato-pill`.
 2. **`e.target` di un `keydown` puo' non essere un Element** (document/window):
    `e.target.matches(...)` lancia e ammazza il gestore. Usare sempre
    `e.target?.matches?.(...)` / `?.closest?.(...)`. Questo bug aveva disattivato
@@ -160,8 +208,56 @@ Tema: `data-tema` su `<html>` con tre stati — assente (segue il sistema),
    mappatura di un sito e' memoizzata in `stato.js` (`memoMap`, invalidata da
    `tocca(id)` a ogni scrittura). Misure sui dati reali: 1 ms per spunta, ~18 ms
    per il disegno completo della griglia.
+13. **Il lavoro di una mappatura puo' stare in un mese che il calendario del
+   contratto non prevede.** Il cassetto mostra le quattro caselle per OGNI mese
+   con manutenzione in Access (`rigaMese` non guarda la classe temporale),
+   quindi si spunta anche dove `statoCella().spuntabile` sarebbe falso: tipico
+   dei contratti che partono a meta' anno, dove i mesi prima sono
+   `prima-contratto`. `calcolaMappatura` invece saltava quei mesi, e una
+   mappatura **chiusa a gennaio** non contava: il sito restava "da fare" in
+   settembre e ricompariva in "Da fare adesso" ([decisioni.md](decisioni.md)
+   15f). Ora il giro guarda **tutti e dodici i mesi** per il lavoro segnato e
+   usa il calendario solo come ripiego per dire dove starebbe il lavoro quando
+   non ce n'e' ancora nessuno.
+14. **Non ordinare una lista di lavoro per avanzamento.** "Da fare adesso"
+   ordinava per `scad, n, nome`: spuntavi un passo su quattro e la riga si
+   spostava in fondo al suo gruppo, sotto la piega dello scorrimento — *"se
+   completo 1/4 di settembre il nome sparisce"*. Dentro un gruppo l'ordine e'
+   per scadenza e nome, cioe' qualcosa che mentre si lavora non si muove.
+15. **Gli scorrevoli dentro le carte perdono la posizione al ridisegno.**
+   `aggiorna()` conserva lo scorrimento della PAGINA, ma le carte si
+   ricostruiscono e gli scorrevoli interni (l'agenda, l'elenco per sito)
+   tornavano in cima: dopo una spunta la riga su cui si stava lavorando usciva
+   dalla vista. `leggiScorrimento`/`rimettiScorrimento` in `stat.js` li
+   rimettono a posto (elenco `SCORREVOLI`).
+16. **`flex: 1` con base `auto` su una lista lunga fa esplodere la carta.**
+   Per far riempire alla lista lo spazio che avanza serve `flex: 1 1 0`: con
+   `1 1 auto` (o `max-height: none` e basta) la lista chiede l'altezza delle sue
+   righe — con l'arretrato sono centinaia — e la carta e' diventata alta
+   11.000px trascinandosi dietro tutta la fila della griglia. Misurato.
 
 ## Barra strumenti e azioni
+
+**Il filtro di stato e' uno solo, a quattro posizioni** (`#f-stato`,
+#ANCHOR: filtro-stato in `stato.js`): Tutte / Da fare / In ritardo / Complete,
+un segmented control `.gruppo.stati` uguale a quello delle viste. Vale in tutte
+e tre le viste, ma la domanda cambia: nel Mese e' la cella di quel mese, nell'
+Anno (e nelle Statistiche) e' la mappatura dell'anno del sito - la regola sta
+tutta in `statoPassa()`.
+
+Dentro ogni posizione c'e' il suo numero (`contaStato()`), e i numeri della
+testa sono bottoni: "19/267 complete" e "225 in ritardo" nella vista Anno,
+"6/11 complete" nel foglio del Mese (`.riepilogo .voce.scelta`, un clic filtra,
+il secondo rimette tutto). **Tutti questi conteggi ignorano il filtro di
+stato** (`gruppiFiltrati({ ignoraStato: true })`, e per questo `riepilogoAnno()`
+lo passa): se contassero la selezione, al primo clic andrebbero a zero e
+sparirebbe il bottone per tornare indietro. Nel Mese, quando il filtro nasconde
+delle schede, si aggiunge la voce "N a schermo" - i quattro numeri accanto sono
+del mese intero, e senza quella riga sembrerebbero sbagliati.
+
+Il cambio di filtro passa da `stato.filtraStato()` (che salva e emette
+`rilegge`) e non da `app.js`: lo chiamano la barra, la testa dell'Anno e la
+testa del Mese.
 
 Stampa, CSV, Sincronizza, Completa/Azzera di massa, **Diario attivita'** e
 Impostazioni stanno in un menu **Azioni** (`ui.menu()`, classe `.tendina`):
@@ -178,6 +274,14 @@ cliente si cerca il cliente e si ripete: un solo meccanismo, componibile.
 Dopo l'azione l'avviso resta 15 secondi con **Annulla**, che rimanda le operazioni
 inverse (`stato.annullaUltima()`, si appoggia allo stesso percorso di scrittura,
 quindi e' anch'esso tracciato e idempotente).
+
+**Il pallino davanti al sito** (`.punto-stato`, `statoMappatura()`) e' lo
+stato della mappatura dell'anno di quel sito: verde completa, ambra in ritardo,
+cyan iniziata, cerchio di contorno da fare, cerchio tenue pre-tracciamento,
+puntino non dovuta. Prima era il tipo di gas. Sta a sinistra e non scorre via
+con i mesi, quindi e' l'unico segnale di stato che si legge sempre; si aggiorna
+in posto in `rinfrescaRiga` (una classe e un `title`, nessun nodo nuovo) e la
+legenda e' nella finestra "Come si legge".
 
 ## Interazioni disponibili
 
@@ -252,17 +356,88 @@ e' una per sito per anno — e tutte le carte si derivano da li' con `dovute()`,
 solo elenco per sito entrano **tutte** le voci, anche quelle fuori conto.
 
 Forma delle carte: una carta = una domanda, un titolo, una frase che dice come si
-legge, e il dato **scritto** accanto alla forma. La prima carta e' un numero
-grande (percentuale di mappature complete) piu' quattro tessere.
+legge, e il dato **scritto** accanto alla forma. Le cifre grandi (tessere,
+ritmo, agenda, centro del quadrante) sono in **sans proporzionale**, non in
+monospazio: `tabular-nums` resta alle colonne (regola della skill `dataviz`).
 
-La pagina ha tre piani, in quest'ordine (8a sessione):
+Forma della pagina (12a sessione, [decisioni.md](decisioni.md) 15e): una sola
+griglia a **dodici colonne** (`.stat-griglia`, carte `.c12 .c8 .c7 .c6 .c5 .c4
+.c3`) su un fondo a punti che sfuma (`.stat::before`), carte di **vetro**
+(`--vetro`, riflesso `--lucido`, filo di luce `--filo` sul bordo alto sempre
+acceso appena; **niente `backdrop-filter`**, vedi il commento in `stat.css`).
+Ogni carta **entra quando arriva in vista** (`rivela()`: un
+IntersectionObserver mette `.entrata`, scalata per gruppo con `--r`, e fa
+salire le cifre `data-conta` di quella carta con `contaSu`); al ridisegno dopo
+una spunta tutte le carte nascono gia' `.entrata` e non riparte nulla.
+Nell'ordine:
 
-1. la carta **eroe**: il numero grande + le quattro tessere;
-2. la fascia dei **tre quadranti** (`.quadranti`, tre carte uguali): le tre
-   domande a cui si risponde in un secondo. Le prime due erano le torte della
-   vista Controlli, che non esiste piu' ([decisioni.md](decisioni.md) 15c);
-3. la **griglia delle carte** (`.stat-griglia`), dove le prime due sono a tutta
-   larghezza.
+1. la carta **eroe** (`.eroe`, c12): a sinistra il **quadrante dell'anno**, a
+   destra occhiello, titolo con la cifra grande ("N mappature chiuse su M
+   dovute") e **cinque tessere** (clienti, siti aperti, dovute, in ritardo,
+   pre-tracciamento) le cui cifre salgono da zero (`contaSu`, solo al primo
+   disegno e non con `prefers-reduced-motion`). Qui c'era anche una pista di
+   avanzamento larga quanto la carta: **via alla 13a sessione**, il committente
+   l'ha chiamata *"un pezzo di plastica"* — la percentuale la dice gia' il
+   quadrante a fianco, e con pochi punti percentuali quella pista era un
+   binario vuoto. Il segnale resta a due misure, la linea di stato sotto la
+   barra strumenti e l'alone della casella completa;
+2. **Da fare adesso** (c8) e, impilati a fianco in `.colonna-carte` (c4),
+   **Ritmo per chiudere l'anno** e **I 4 passi** (che si allunga a pareggiare
+   la fila): le carte su cui si agisce, vedi sotto;
+3. la fascia dei **tre quadranti** (c4 ciascuno): le tre domande da un secondo;
+4. il tempo: **mese per mese** (c7) e **andamento cumulato** (c5);
+5. province (c4), da quanto sono scadute (c4), chi mette le spunte (c4);
+6. **Mappature per sito** (c12) **chiude la pagina** (13a sessione): e'
+   l'archivio completo di tutti gli impianti, non una domanda da un secondo, e
+   dal bottone **Espandi** si apre a tutta pagina. Stava al punto 5 e spezzava
+   in due la fascia dei grafici.
+
+Sotto i 1180px c8/c7/c5/c4 vanno a tutta larghezza (ritmo e passi affiancati),
+i quadranti a due per riga; sotto gli 820px tutto in colonna, quadrante sopra
+il testo, pillole di stato nascoste.
+
+### Il quadrante dell'anno
+
+`quadranteAnno(mesi, d)` in `stat.js`, SVG 240x240 con lo stesso `arco()` delle
+torte (ora con raggi e centro parametrici). Dodici settori, uno per mese, con
+un distacco di superficie: la **traccia** e' `--st-vuoto` (quasi invisibile se
+il mese non ha scadenze, `--allerta-tenue` se e' passato e non finito), dentro
+la quota **chiusa** in `--completa` e la quota **in ritardo** in `--allerta`,
+proporzionali alle mappature che scadono la'. E' "Come stanno le scadenze"
+distesa sui mesi, con le stesse tinte di stato. Fuori i nomi dei mesi in
+monospazio e la **tacca** cyan sul mese corrente (la testina di lettura della
+griglia, a raggio); dentro sessanta tacche da strumento e al centro il numero
+eroe della pagina (percentuale di complete, sans 800, proporzionale) con
+"chiuse / dovute" sopra e COMPLETE sotto. Ogni settore ha `data-tip` e
+`tabindex`. Entra ruotando sul proprio centro (`transform-box: fill-box`).
+Dietro l'anello gira una **spazzata** lenta (`.eroe-quadro::before`,
+conic-gradient mascherato sulla corona, un giro ogni 14 s): e' il movimento
+permanente della pagina, insieme all'onda del punto finale dell'andamento
+([decisioni.md](decisioni.md) 15e). `prefers-reduced-motion` spegne entrambi.
+
+### Da fare adesso e il ritmo
+
+- **Da fare adesso** (`cartaDaFare`), rifatta alla 13a sessione: tre gruppi di
+  urgenza, **arretrate** (le piu' vecchie prima), **scadono questo mese**,
+  **scadono il prossimo**, uno dietro l'altro nella stessa agenda. I tre gruppi
+  non si sovrappongono ("in ritardo" vuol dire scadenza in un mese GIA' passato,
+  quindi mai il mese corrente) e i tre **contatori sono anche i filtri**: uno
+  acceso (`.agenda-conta.acceso`, `gruppoDaFare`) isola il suo gruppo.
+  Ogni riga ha il mese in capsula (`.agenda-mese.ora` corrente, `.tardi` in
+  ambra se arretrata), cliente e sito, la capsula dei passi in piccolo
+  (`.agenda-passi`) e `n/PASSI`; il clic apre **il cassetto del service**
+  (`apriCassetto`, importato da `cassetto.js`), perche' e' li' che si spunta.
+  Vale solo per l'anno in corso: in un altro anno la carta lo dice a parole.
+  Oltre 8 righe scorre dentro la carta, e lo scorrevole prende **tutta**
+  l'altezza che la fila gli da' (`flex: 1 1 0`, vedi le trappole 14 e 15).
+- **Ritmo per chiudere l'anno** (`ritmo(d)` + `cartaRitmo`): `servono` =
+  rimaste / mesi che restano (mese corrente compreso), `finora` = complete /
+  mesi tracciati trascorsi (da `inizio_tracciamento`, se cade nell'anno),
+  `proiez` = dove si arriva a dicembre tenendo il ritmo. Due figure grandi, un
+  misuratore con la **tacca dell'obiettivo** (inchiostro, non un colore di
+  serie) e la frase. Tre fasi: anno in corso, anno chiuso (rimaste aperte),
+  anno futuro o tracciamento non ancora partito (solo il necessario). Tabella
+  con tutte le voci.
 
 ### I tre quadranti
 
@@ -295,8 +470,11 @@ sessione — la mappatura e' annuale, quindi la domanda naturale e' per impianto
 non per mese):
 
 1. **Mappature per sito**: una riga per sito = la sua UNICA mappatura dell'anno,
-   etichetta "cliente — destinazione", la pista sono i suoi `PASSI` (piena = a
-   posto per l'anno), tinta sola `--completa`, a destra lo stato a parole. Ci
+   cliente sopra e destinazione sotto, la **capsula a quattro segmenti**
+   (`.seg`, la cella della griglia in piccolo; piena e verde = a posto per
+   l'anno), `n/PASSI` e a destra lo stato in una **pillola** (`.stato-pill.<stato>`, non `.pill` che e' il bottone di base.css:
+   ambra il ritardo, verde la completa, cyan la "da fare", rosso il contratto
+   da rinnovare, grigio il resto). Una riga di testa dice quanti impianti. Ci
    sono **tutti** i service aperti: quelli fuori conto (pre-avvio, mappatura non
    dovuta) prendono `.fuori` e restano tenui. Ordine per urgenza
    (`STATO[..].ord`: in ritardo, da fare, complete, pre-avvio, da rinnovare,
@@ -311,24 +489,42 @@ non per mese):
    righe. La riga e' un `role="button"`: **cliccarla apre quel CLIENTE nella
    carta dei mesi** (`cliSel`, stato della vista, azzerato se un filtro lo fa
    sparire).
+   Alla 13a sessione la carta e' passata **in fondo alla pagina** e ha preso il
+   bottone **Espandi** (`apriSiti`): apre le stesse righe in un foglio grande
+   (`ui.modale` con `classe: 'largo'`, `.foglio.largo` in `base.css` +
+   `.siti-testa` / `.siti-espansi` in `stat.css`) dove lo scorrevole prende
+   l'altezza del foglio invece dei 470px della carta. E' lo stesso `grafSiti`,
+   quindi non c'e' un secondo posto dove l'elenco possa divergere dai numeri.
+   Cliccare una riga nel foglio sceglie il cliente **e chiude il foglio**
+   (`scegliCli`), altrimenti si resterebbe a guardare un elenco mentre sotto si
+   muove il grafico dei mesi. `pulisci()` lo chiude uscendo dalla vista.
 2. **A che punto siamo, mese per mese**: una colonna per mese, alta quanto le
    mappature che scadono la', **divisa per quanti dei `PASSI` passi hanno**
    (`isto[k]`), impilata dal basso col piu' completo in fondo. Rampa sequenziale
-   `--pr-0..--pr-4`. Ogni mappatura pesa su **un mese solo**, quello della
+   `--pr-0..--pr-4`. Dietro, tre righe di riferimento col valore
+   (`.griglia-h`, allineate alla fascia delle piste perche' `.colonna` e' una
+   griglia a tre righe e la pista sta nella riga `1fr`); il mese corrente ha
+   una linea verticale cyan alle spalle; al passaggio la colonna si alza di
+   3px. Ogni mappatura pesa su **un mese solo**, quello della
    scadenza: la somma delle colonne e' il totale dovuto. Bottone "Tutti i
    clienti" quando c'e' un cliente aperto.
 
-Poi, nella griglia: **Andamento cumulato**, **I `PASSI` passi**, **Mappature per
-provincia**, e due carte nate alla 8a sessione:
+Poi: **Andamento cumulato** (area a gradiente `#g-area` e alone `#g-alone` in
+`<defs>`, linea del mese corrente, punto finale con l'onda), **I `PASSI`
+passi** (quattro **anelli** `anelliPassi()`, uno per passo nel colore del suo
+segmento, percentuale al centro e "fatte su dovute" a fianco), **Mappature per
+provincia** (barre con **rango** e, dentro la barra, la parte gia' chiusa in
+verde: `v.sub` in `barre()`), e due carte nate alla 8a sessione:
 
 - **Da quanto sono scadute**: l'elenco dei siti dice *quali* sono in ritardo,
   questa dice da *quanto*, che e' l'informazione con cui si decide da dove
   ripartire. Barra parte-su-tutto (`stack()`) su quattro bin — entro 1 mese, 2-3,
   4-6, oltre 6. I bin sono **ordinati**, quindi la tinta e' una rampa
   sequenziale di un tono solo, l'ambra dell'arretrato (`--ar-1..--ar-4`,
-  validata: chiarezza monotona, gradi vicini separati in CVD). Se non c'e'
-  arretrato la carta lo dice a parole e non disegna niente;
-- **Chi mette le spunte**: barre a una tinta per operatore, piu' quante
+  validata: chiarezza monotona, gradi vicini separati in CVD). La legenda e'
+  una fila di tessere con la tinta sul bordo sinistro (`.legenda-tessere`). Se
+  non c'e' arretrato la carta lo dice a parole e non disegna niente;
+- **Chi mette le spunte**: barre a una tinta per operatore, con rango, piu' quante
   mappature ha portato a termine. Conta **tutti** i mesi (visite comprese),
   quindi il totale e' piu' alto delle "spunte" della carta eroe, che guarda solo
   le mappature dovute: la carta lo dichiara nel sottotitolo. L'attribuzione e'
@@ -361,15 +557,17 @@ Regole seguite (skill `dataviz`), da non regredire:
   c'e' Node, quindi ne e' stato usato un gemello Python (vedi
   [da-fare.md](da-fare.md#manutenzione));
 - **ogni carta ha il bottone "Tabella"**: il colore non e' mai l'unico modo di
-  leggere il dato. L'unica eccezione sono i tre quadranti, dove la legenda porta
-  gia' parola, numero e percentuale di ogni spicchio;
+  leggere il dato. Le eccezioni sono i tre quadranti, dove la legenda porta
+  gia' parola, numero e percentuale di ogni spicchio, e la carta eroe, dove il
+  quadrante ha tooltip e `aria-label` per settore e le cinque tessere sono gia'
+  la lettura scritta;
 - i bin ordinati (l'anzianita' dell'arretrato) prendono una rampa sequenziale di
   UN tono; le categorie senza ordine naturale (province, operatori) prendono
   **una tinta sola**, mai un valore-rampa;
 - 2px di superficie fra i segmenti della barra parte-su-tutto;
 - un solo tooltip per tutta la vista, delegato su `data-tip`.
 
-Il grafico dell'andamento cumulato e' l'unico SVG: `viewBox` fisso, larghezza
+Il grafico dell'andamento cumulato e il quadrante sono gli SVG a mano: `viewBox` fisso, larghezza
 100%, `vector-effect: non-scaling-stroke` perche' i tratti restino di 2px a ogni
 dimensione. La "presa" del tooltip e' una linea invisibile larga un mese
 (`stroke-width: 53` in unita' di viewBox), non il punto: centrare un cerchio da

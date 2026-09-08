@@ -13,7 +13,7 @@
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito,
-  CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET,
+  filtraStato, CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET,
 } from './stato.js';
 import { apriCassetto } from './cassetto.js';
 
@@ -60,11 +60,18 @@ function htmlScheda(v) {
         ${bollo ? `<span class="bollo ${bollo[0]}" title="${esc(CLASSE_ET[e.classe])}">${bollo[1]}</span>` : ''}
         ${e.c.nota ? `<span title="${esc(e.c.nota)}">&#9679; nota</span>` : ''}
         ${e.c.at ? `<span class="dato">${esc(e.c.by || '')} ${quando(e.c.at)}</span>` : ''}
+        <span class="tag completo" title="I ${PASSI} passi sono fatti">a posto</span>
       </div>
     </div>
     ${htmlPassi(v.s.id, st.mese)}
   </div>`;
 }
+
+/** Il mese senza il filtro di stato: alimenta i numeri della testa, che devono
+ *  restare quelli del mese anche quando si guardano solo le complete. Senza
+ *  filtro acceso e' lo stesso elenco, e non si rifa' il giro. */
+const mesePieno = righe =>
+  st.filtri.stato ? lavoroDelMese(st.mese, { ignoraStato: true }) : righe;
 
 /** Le mappature che scadono in questo mese: una per SITO, contate come nella
  *  griglia e nelle statistiche. `righe` sono gli impianti a schermo coi filtri
@@ -81,11 +88,8 @@ function scadenzeDelMese(righe) {
   return { tot, complete };
 }
 
-export function disegna(area) {
-  const righe = lavoroDelMese(st.mese);
-  const sc = scadenzeDelMese(righe);
-  const daStampare = righe.filter(v => !cella(v.s.id, st.mese).s).length;
-
+/* Il corpo del foglio: separatori cliente + schede del mese corrente. */
+function htmlCorpo(righe) {
   let corpo = '', ultimo = null;
   for (const v of righe) {
     if (v.cli.id !== ultimo) {
@@ -95,6 +99,29 @@ export function disegna(area) {
     }
     corpo += htmlScheda(v);
   }
+  return corpo || `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
+      Nessun service aperto ha ${st.mesiNome[st.mese - 1]} tra i mesi di manutenzione.</div>`;
+}
+
+/* I numeri contano SEMPRE il mese intero, anche col filtro di stato acceso:
+   sono la fotografia del mese, e "complete" e' pure il bottone per vedere solo
+   quelle (un secondo clic le rimette tutte). Se il filtro nasconde delle schede
+   lo dice la riga di contesto, cosi' non sembra che i conti non tornino. */
+const htmlRiepilogo = (tutte, sc, daStampare, mostrati) => `
+        <div class="voce" title="Mappature dovute in questo mese: una per sito, annuale"><span class="n">${sc.tot}</span><span class="et">in scadenza</span></div>
+        <div class="voce" title="Impianti con una visita di manutenzione in questo mese"><span class="n">${tutte.length}</span><span class="et">impianti</span></div>
+        <div class="voce"><span class="n">${daStampare}</span><span class="et">da stampare</span></div>
+        <button class="voce scelta${st.filtri.stato === 'complete' ? ' attiva' : ''}"
+                data-stato="complete" aria-pressed="${st.filtri.stato === 'complete'}"
+                title="Mappature di questo mese coi ${PASSI} passi fatti. Clicca per vedere solo quelle"><span class="n">${sc.complete}/${sc.tot}</span><span class="et">complete</span></button>
+        ${mostrati === tutte.length ? '' :
+    `<div class="voce" title="Schede che il filtro di stato lascia a schermo: gli altri numeri sono quelli del mese intero"><span class="n">${mostrati}</span><span class="et">a schermo</span></div>`}`;
+
+export function disegna(area) {
+  const righe = lavoroDelMese(st.mese);                    // quello che si vede
+  const tutte = mesePieno(righe);                          // il mese intero
+  const sc = scadenzeDelMese(tutte);
+  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
 
   area.innerHTML = `
     <div class="stampa-testa" hidden>
@@ -104,20 +131,46 @@ export function disegna(area) {
     </div>
     <div class="mese-testa">
       <h2 class="mese-titolo">${st.mesiNome[st.mese - 1]} <span>${st.anno}</span></h2>
-      <div class="mese-nav">${st.mesi.map((m, i) =>
+      <div class="mese-nav" style="--i:${st.mese - 1}">${st.mesi.map((m, i) =>
     `<button data-mese="${i + 1}" aria-pressed="${i + 1 === st.mese}">${m}</button>`).join('')}</div>
-      <div class="riepilogo">
-        <div class="voce" title="Mappature dovute in questo mese: una per sito, annuale"><span class="n">${sc.tot}</span><span class="et">in scadenza</span></div>
-        <div class="voce" title="Impianti con una visita di manutenzione in questo mese"><span class="n">${righe.length}</span><span class="et">impianti</span></div>
-        <div class="voce"><span class="n">${daStampare}</span><span class="et">da stampare</span></div>
-        <div class="voce"><span class="n">${sc.complete}/${sc.tot}</span><span class="et">complete</span></div>
-      </div>
+      <div class="riepilogo">${htmlRiepilogo(tutte, sc, daStampare, righe.length)}</div>
     </div>
-    <div class="lavoro">${corpo || `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
-      Nessun service aperto ha ${st.mesiNome[st.mese - 1]} tra i mesi di manutenzione.</div>`}</div>`;
+    <div class="lavoro entra">${htmlCorpo(righe)}</div>`;
   radice = area;
   collega(area);
   area.querySelector('.scheda')?.setAttribute('tabindex', '0');
+  barraMassa();
+}
+
+/** Cambio di mese dentro il foglio: la testa resta e l'indicatore della pista
+ *  scivola (`--i`), si ricostruiscono solo titolo, numeri e schede. Ridisegnare
+ *  tutto faceva lampeggiare la pista e perdeva il movimento. */
+function cambiaMese(m) {
+  st.mese = m;
+  st.selezione.clear();
+  if (!radice?.querySelector('.mese-nav')) return disegna(radice);
+  const righe = lavoroDelMese(st.mese);
+  const tutte = mesePieno(righe);
+  const sc = scadenzeDelMese(tutte);
+  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
+  const nav = radice.querySelector('.mese-nav');
+  nav.style.setProperty('--i', String(st.mese - 1));
+  for (const b of nav.children) b.setAttribute('aria-pressed', String(Number(b.dataset.mese) === st.mese));
+  radice.querySelector('.mese-titolo').innerHTML = `${st.mesiNome[st.mese - 1]} <span>${st.anno}</span>`;
+  radice.querySelector('.mese-testa .riepilogo').innerHTML =
+    htmlRiepilogo(tutte, sc, daStampare, righe.length);
+  const st1 = radice.querySelector('.stampa-testa');
+  if (st1) {
+    st1.querySelector('h1').textContent = `Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}`;
+    st1.querySelector('p').innerHTML = `VRS Tech &middot; foglio di lavoro stampato il ${new Date().toLocaleString('it-IT')}
+         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} impianti`;
+  }
+  const lav = radice.querySelector('.lavoro');
+  lav.classList.remove('entra');
+  lav.innerHTML = htmlCorpo(righe);
+  void lav.offsetWidth;                 // riparte la comparsa
+  lav.classList.add('entra');
+  radice.querySelector('.scheda')?.setAttribute('tabindex', '0');
   barraMassa();
 }
 
@@ -126,7 +179,9 @@ function collega(r) {
   r.__collegatoMese = true;
   r.addEventListener('click', e => {
     const m = e.target?.closest?.('[data-mese]');
-    if (m) { st.mese = Number(m.dataset.mese); st.selezione.clear(); return disegna(r); }
+    if (m) return cambiaMese(Number(m.dataset.mese));
+    const fs = e.target?.closest?.('[data-stato]');
+    if (fs) return filtraStato(fs.dataset.stato, true);
     const p = e.target.closest('.passo');
     if (p) {
       const [id, mese] = p.dataset.cella.split('-').map(Number);

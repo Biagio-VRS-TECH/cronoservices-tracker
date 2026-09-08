@@ -8,9 +8,9 @@ import {
   avviaSessione, esportaCsv, inNuvola,
 } from './api.js';
 import {
-  st, on, applica, cambiaAnno, elencoTipi, elencoProv, riepilogoAnno,
+  st, on, applica, cambiaAnno, elencoProv, riepilogoAnno, contaStato, filtraStato,
   esitoConferma, esitoConflitto, eventoRemoto, spuntaMolte, annullaUltima,
-  caricaFiltri, salvaFiltri, CAMPI, PASSI, ETICHETTA, CLASSE_ET,
+  caricaFiltri, salvaFiltri, CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -123,13 +123,25 @@ function aggiornaTesta() {
   $('#anno').textContent = st.anno;
   const r = riepilogoAnno();
   aggiornaFilo(r);
+  aggiornaFiltroStato();
   const box = $('#riepilogo');
   if (st.vista !== 'anno') { box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
-  const voce = (n, et, stile, tit) =>
-    `<div class="voce"${tit ? ` title="${esc(tit)}"` : ''}>` +
-    `<span class="n"${stile ? ` style="${stile}"` : ''}>${n}</span>` +
-    `<span class="et">${et}</span></div>`;
+  /* Con `stato` la voce diventa un bottone: il numero E' il filtro. E' il modo
+     piu' corto per chiedere "fammi vedere quelle" - un clic su "17/267
+     complete" lascia a schermo le complete, un altro clic le rimette tutte.
+     I numeri restano quelli dell'anno intero anche a filtro acceso
+     (riepilogoAnno ignora il filtro di stato), altrimenti dopo il primo clic
+     direbbero "17/17" e non si tornerebbe indietro. */
+  const voce = (n, et, stile, tit, stato) => {
+    const attiva = stato && st.filtri.stato === stato;
+    const t = stato ? 'button' : 'div';
+    return `<${t} class="voce${stato ? ' scelta' : ''}${attiva ? ' attiva' : ''}"` +
+      (stato ? ` data-stato="${stato}" aria-pressed="${attiva}"` : '') +
+      (tit ? ` title="${esc(tit)}"` : '') + '>' +
+      `<span class="n"${stile ? ` style="${stile}"` : ''}>${n}</span>` +
+      `<span class="et">${et}</span></${t}>`;
+  };
   // Tre numeri grandi (il lavoro) + una riga piccola di contesto (che tipo di
   // mesi ci sono in questo anno): sei numeri grandi erano illeggibili.
   const ctx = [
@@ -144,10 +156,12 @@ function aggiornaTesta() {
       'Impianti aperti: uno per mappatura annuale') +
     voce(`${r.complete}/${r.mappature}`, 'complete', '',
       'Mappature complete su quelle dovute quest\'anno. Una mappatura per SITO ' +
-      'per anno: conta quella, non i mesi di visita') +
+      'per anno: conta quella, non i mesi di visita. Clicca per vedere solo ' +
+      'le complete', 'complete') +
     voce(r.ritardo, 'in ritardo', r.ritardo ? 'color:var(--allerta)' : '',
       'Mappature con la scadenza (primo mese di manutenzione del sito) ' +
-      'gia\' passata e non chiuse in nessun mese') +
+      'gia\' passata e non chiuse in nessun mese. Clicca per vedere solo ' +
+      'quelle', 'ritardo') +
     (ctx ? `<div class="contesto" title="Mesi che non entrano nei totali: proiezioni oltre la scadenza del contratto, contratti da rinnovare, mesi prima dell'inizio del tracciamento">${ctx}</div>` : '');
 }
 
@@ -166,6 +180,21 @@ function aggiornaFilo(r) {
     `${r.complete} mappature complete su ${r.mappature} dovute nel ${st.anno}`);
   filo.title = `${st.anno}: ${r.complete} mappature complete su ${r.mappature} ` +
     `dovute · ${p}%` + (r.ritardo ? ` · ${r.ritardo} in ritardo` : '');
+}
+
+/** I quattro bottoni del filtro di stato, coi numeri dentro. I numeri arrivano
+ *  da `contaStato()`, che guarda l'insieme SENZA il filtro di stato: sono la
+ *  fotografia di quello che c'e', non della selezione, e restano il bottone per
+ *  cambiare idea. Cambiano con la vista, perche' nella vista Mese la domanda e'
+ *  su quel mese soltanto. */
+function aggiornaFiltroStato() {
+  const c = contaStato();
+  const n = { '': c.tutte, incomplete: c.incomplete, ritardo: c.ritardo, complete: c.complete };
+  for (const b of $('#f-stato').children) {
+    const v = b.dataset.stato;
+    b.setAttribute('aria-pressed', String(st.filtri.stato === v));
+    b.querySelector('.n').textContent = n[v] ?? '';
+  }
 }
 
 /* --------------------------------------------------------------- testa --- */
@@ -199,7 +228,15 @@ function collegaTesta() {
     q.focus(); ridisegnaFiltrato();
   };
 
-  $('#f-tipo').onchange = e => { st.filtri.tipo = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
+  $('#f-stato').onclick = e => {
+    const b = e.target.closest('[data-stato]');
+    if (b) filtraStato(b.dataset.stato);
+  };
+  // I numeri del riepilogo sono lo stesso filtro: il secondo clic lo toglie.
+  $('#riepilogo').onclick = e => {
+    const v = e.target.closest('[data-stato]');
+    if (v) filtraStato(v.dataset.stato, true);
+  };
   $('#f-prov').onchange = e => { st.filtri.prov = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
   for (const [id, chiave] of FILTRI) {
     $('#' + id).onclick = e => {
@@ -217,15 +254,19 @@ function collegaTesta() {
 }
 
 /* "Mostra stime" e' stato tolto alla 7a sessione su richiesta del committente:
-   era acceso per default e nessuno lo spegneva. Le stime si vedono sempre. */
-const FILTRI = [['f-inc', 'soloIncomplete'], ['f-rit', 'soloRitardo'],
-['f-chiusi', 'mostraChiusi']];
+   era acceso per default e nessuno lo spegneva. Le stime si vedono sempre.
+   "Solo incomplete" e "Solo in ritardo" sono diventate due delle quattro
+   posizioni del filtro di stato (15a sessione), che non e' una pillola. */
+const FILTRI = [['f-chiusi', 'mostraChiusi']];
 
 function riflettiFiltri() {
   $('#q').value = st.filtri.q || '';
   $('#cerca-x').hidden = !st.filtri.q;
   for (const [id, chiave] of FILTRI) {
     $('#' + id).setAttribute('aria-pressed', String(!!st.filtri[chiave]));
+  }
+  for (const b of $('#f-stato').children) {
+    b.setAttribute('aria-pressed', String(st.filtri.stato === b.dataset.stato));
   }
 }
 
@@ -234,11 +275,12 @@ function ridisegnaFiltrato() {
   ridisegnaFiltrato.t = setTimeout(disegna, 130);
 }
 
+/* Il filtro per tipo di gas e' stato tolto alla 15a sessione: era una tendina
+   in piu' su tre valori che nessuno restringeva, e il tipo si trova comunque
+   scrivendolo nella barra di ricerca (entra nel "fieno" di `passa`). */
 function riempiFiltri() {
   const opz = (v, et) => `<option value="${esc(v)}">${esc(et)}</option>`;
-  $('#f-tipo').innerHTML = opz('', 'Tutti i tipi') + elencoTipi().map(t => opz(t, t)).join('');
   $('#f-prov').innerHTML = opz('', 'Tutte le province') + elencoProv().map(p => opz(p, p)).join('');
-  $('#f-tipo').value = st.filtri.tipo;
   $('#f-prov').value = st.filtri.prov;
 }
 
@@ -308,13 +350,16 @@ function apriAzioni(bottone) {
   ]);
 }
 
+const ET_FILTRO = {
+  incomplete: 'solo quelle da fare', ritardo: 'solo quelle in ritardo',
+  complete: 'solo quelle complete',
+};
+
 function descrizioneFiltri() {
   const f = st.filtri, p = [];
   if (f.q) p.push(`ricerca "${f.q}"`);
-  if (f.tipo) p.push(f.tipo);
   if (f.prov) p.push('provincia ' + f.prov);
-  if (f.soloIncomplete) p.push('solo incomplete');
-  if (f.soloRitardo) p.push('solo in ritardo');
+  if (f.stato) p.push(ET_FILTRO[f.stato]);
   return p.length ? p.join(', ') : 'nessun filtro attivo, quindi tutto l\'anno';
 }
 
@@ -730,6 +775,18 @@ function mostraAiuto() {
         riga(cel('darinnovare', 0), CLASSE_ET['da-rinnovare']),
         riga(cel('nontracciato', 0), CLASSE_ET['non-tracciato']),
         riga(trattino, 'Nessuna manutenzione prevista, o service non ancora attivo')),
+
+      h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
+      h('p.nota-t', {
+        style: 'margin-bottom:10px',
+        testo: 'Dice a colpo d\'occhio come sta la mappatura dell\'anno di quel ' +
+          'sito, senza cercare la casella piena fra i dodici mesi. Sono gli ' +
+          'stessi stati del filtro nella barra.',
+      }),
+      h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
+        ...['completa', 'ritardo', 'corso', 'attesa', 'pretrac', 'fuori'].map(k =>
+          riga(h('span', { style: 'width:40px;display:flex;justify-content:center;flex:none' },
+            h('span.punto-stato.' + k)), ET_STATO[k]))),
 
       h('h3.tit-p', { testo: 'Una mappatura per sito, una volta all\'anno' }),
       h('p.nota-t', {
