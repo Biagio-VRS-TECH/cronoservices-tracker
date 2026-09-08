@@ -403,8 +403,8 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 .zoomrow .btn{margin-top:0;flex:1 1 auto;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em}
 .zoomrow .ico{height:auto;width:40px;font-size:19px;font-weight:700;line-height:1}
 
-#main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--ui-0);
-  container-type:inline-size}
+#main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;
+  background:var(--ui-0);container-type:inline-size}
 /* il banco di lavoro: le pagine e la schermata iniziale, l'unica cosa che
    scorre. overflow:auto anche in orizzontale, che serve allo zoom oltre il
    100%. #partStrip e #docScroll restano fuori: sono position:fixed */
@@ -443,7 +443,8 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    dove il banco comincia sotto la testata del ponte - senza quella lo
    scaffale resterebbe centrato sulla finestra e sconfinerebbe sotto la
    testata. Cosi' segue da solo sia le maniglie sia il resize della finestra. */
-.part-strip{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);z-index:40;
+.part-strip{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);
+  transition:top .22s var(--ease);z-index:40;
   display:flex;flex-direction:column;gap:9px;align-items:center;
   max-height:min(80vh,820px);overflow-y:auto;overflow-x:hidden;
   padding:10px 11px 12px;border:1px solid var(--ui-3);border-radius:12px;
@@ -501,7 +502,8 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    entrambi i temi senza bisogno di due tavolozze separate; la traccia si
    allarga al passaggio del mouse e durante il trascinamento, e mostra il
    numero di pagina in una bolla, cosi' la barra si nota solo quando serve. */
-.doc-scroll{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);z-index:39;
+.doc-scroll{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);
+  transition:top .22s var(--ease);z-index:39;
   display:flex;align-items:center;justify-content:center;
   height:min(70vh,720px);padding:0 5px}
 .doc-scroll.cramped{display:none}
@@ -965,27 +967,39 @@ table.xls.plain tbody tr:hover{background:transparent}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
 
 /* ---- LA NUVOLETTA ----
-   Scorrendo, la testata si stringe in una pillola centrata con dentro le due
-   sole cose che servono mentre si legge il documento: di chi e' questo lavoro,
-   e il bottone che lo consegna. Resta una TESTATA, non un oggetto che
-   galleggia: la banda si accorcia insieme a lei, quindi anche da ridotta non
-   copre nessuna pagina - sembra sospesa perche' il fondo della banda e'
-   sparito, non perche' sta sopra a qualcosa.
+   Scorrendo, la testata esce dal flusso e diventa una pillola che fluttua al
+   centro dell'anteprima, con dentro le due sole cose che servono mentre si
+   legge il documento: di chi e' questo lavoro, e il bottone che lo consegna.
+   `position:absolute` dentro `#main` (che e' `position:relative`): la banda
+   sparisce del tutto, il banco si riprende tutta l'altezza e le pagine le
+   scorrono SOTTO. Sta apposta nel margine chiaro sopra la prima pagina, cosi'
+   copre il meno possibile, ma da qui in poi e' un oggetto che galleggia: e'
+   quello che il committente ha chiesto.
    La spina diventa il punto di stato sul fianco: stesso segnale, stessa
    tavolozza, la misura che ci sta.
-   Non si stringe mentre prepara il PDF (`body.ponte-lavora`): li' l'esito e
+   Non si stringe quando manca il sito (sparirebbe la casella di ricerca), con
+   la lista dei probabili aperta, o mentre prepara il PDF: li' l'esito e
    l'avanzamento sono l'unica cosa che uno guarda. */
-#ponte{transition:margin .22s var(--ease),padding .22s var(--ease),
-  border-radius .22s var(--ease),background .22s,box-shadow .22s,border-color .22s}
-#ponte.ridotto{width:max-content;max-width:min(94%,640px);margin:9px auto 10px;
-  grid-template-columns:auto auto;column-gap:12px;
-  padding:0 7px 0 17px;border:1px solid var(--ui-3);border-radius:999px;
-  background:color-mix(in srgb,var(--ui-1) 92%,transparent);
-  box-shadow:0 16px 34px -14px rgba(0,0,0,.62)}
-:root.lt #ponte.ridotto{box-shadow:0 14px 30px -16px rgba(15,20,24,.42)}
-@supports (backdrop-filter:blur(1px)){#ponte.ridotto{backdrop-filter:blur(12px) saturate(1.2)}}
-#ponte.ridotto::before{top:50%;bottom:auto;left:8px;width:7px;height:7px;
+#ponte.ridotto{position:absolute;z-index:38;top:14px;left:50%;
+  width:max-content;max-width:min(88%,620px);margin:0;
+  grid-template-columns:auto auto;column-gap:11px;
+  padding:0 7px 0 18px;border:1px solid color-mix(in srgb,var(--ui-4) 60%,transparent);
+  border-radius:999px;background:color-mix(in srgb,var(--ui-1) 82%,transparent);
+  box-shadow:0 2px 6px rgba(0,0,0,.24),0 18px 40px -12px rgba(0,0,0,.7);
+  animation:pn-atterra .26s var(--ease) both}
+@keyframes pn-atterra{from{opacity:0;transform:translate(-50%,-14px) scale(.96)}
+                        to{opacity:1;transform:translate(-50%,0) scale(1)}}
+:root.lt #ponte.ridotto{border-color:color-mix(in srgb,var(--ui-4) 75%,transparent);
+  background:color-mix(in srgb,var(--ui-1) 88%,transparent);
+  box-shadow:0 2px 6px rgba(15,20,24,.10),0 16px 36px -14px rgba(15,20,24,.34)}
+@supports (backdrop-filter:blur(1px)){
+  #ponte.ridotto{background:color-mix(in srgb,var(--ui-1) 62%,transparent);
+    backdrop-filter:blur(16px) saturate(1.6)}
+  :root.lt #ponte.ridotto{background:color-mix(in srgb,var(--ui-1) 70%,transparent)}
+}
+#ponte.ridotto::before{top:50%;bottom:auto;left:9px;width:7px;height:7px;
   border-radius:50%;transform:translateY(-50%)}
+#ponte.ridotto.t-lavoro::before{background-size:220% 100%}
 #ponte.ridotto .pn-rotta,#ponte.ridotto .pn-meta,#ponte.ridotto .pn-strip{display:none}
 #ponte.ridotto .pn-corpo{padding:7px 0;gap:0}
 #ponte.ridotto h2{font-size:13.5px;font-weight:600;letter-spacing:0;
@@ -993,7 +1007,9 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
 #ponte.ridotto .pn-azione{padding:0}
 #ponte.ridotto .btn{padding:7px 14px 7px 11px;font-size:12.5px;border-radius:999px}
 #ponte.ridotto .btn svg{width:13px;height:13px}
-@media (prefers-reduced-motion:reduce){#ponte{transition:none}}
+@media (prefers-reduced-motion:reduce){
+  #ponte.ridotto{animation:none;transform:translateX(-50%)}
+}
 
 /* la fascia: l'esito, e mentre si lavora anche l'avanzamento. Il riempimento
    sta DIETRO al testo, cosi' la frase resta leggibile per tutta la barra */
@@ -1049,9 +1065,9 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
   .pn-meta{font-size:12px;gap:1px 8px}
   .pn-strip{padding-left:13px;padding-right:13px}
   .ponte-scelte{left:13px;right:13px}
-  /* la pillola non torna a due colonne solo perche' si e' stretta: il bottone
+  /* la pillola non torna a una colonna solo perche' si e' stretta: il bottone
      resta a fianco del nome, che al massimo si accorcia */
-  #ponte.ridotto{grid-template-columns:minmax(0,auto) auto;max-width:96%}
+  #ponte.ridotto{grid-template-columns:minmax(0,auto) auto;max-width:94%;top:10px}
   #ponte.ridotto .pn-azione{grid-column:2;padding:0}
   #ponte.ridotto .btn{width:auto}
 }

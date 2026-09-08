@@ -58,11 +58,14 @@ riquadro che scorre, non perche' galleggia sopra — e cosi' non copre nessuna
 pagina in nessun punto. Sotto i 980 px i pannelli si impilano, torna a scorrere
 la finestra e `#ponte` ridiventa `sticky`.
 
-Scorrendo, la testata si stringe in una **nuvoletta** centrata
-(`#ponte.ridotto`): restano il punto di stato, il nome del sito e il bottone.
-Non e' un oggetto che galleggia sopra il documento — la banda si accorcia
-insieme a lei (119 px -> 34 px), quindi anche da ridotta non copre niente;
-sembra sospesa perche' il fondo della banda sparisce. Lo decide `guarda()` in
+Scorrendo, la testata **esce dal flusso** e diventa una nuvoletta che fluttua
+al centro dell'anteprima (`#ponte.ridotto`, `position:absolute` dentro `#main`
+che e' `position:relative`): restano il punto di stato, il nome del sito e il
+bottone. La banda sparisce del tutto, il banco si riprende tutta l'altezza e le
+pagine le scorrono **sotto** — da ridotta la pillola copre una striscia della
+pagina, ed e' voluto: il primo tentativo accorciava la banda per non coprire
+niente e il committente l'ha bocciato (*"meglio fluttuante e moderna che questo
+obrobrio"*). Lo decide `guarda()` in
 `ponte.js`, con due soglie diverse (140 giu', 90 su: con una sola, fermandosi
 proprio li' sopra, si aprirebbe e chiuderebbe a ogni pixel) e l'ascolto in fase
 di **cattura** su window, perche' lo scroll di `#banco` non risale ai genitori.
