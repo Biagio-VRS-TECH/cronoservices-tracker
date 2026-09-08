@@ -171,10 +171,22 @@ iniziata, contorno da fare, contorno tenue pre-tracciamento, puntino non
 dovuta. Nessun colore nuovo, nessun nodo in piu': `rinfrescaRiga` cambia una
 classe. La legenda e' in "Come si legge".
 
+**Seconda passata, nella stessa sessione**: *"complete spunta a zero ma una
+completa c'e'"* - *"in mese invece del quadrato che seleziona il sito metti il
+pallino dello stato come nella vista annuale"*. La regola dei conteggi era
+applicata a meta': `mese.aggiornaConteggi()` (il ricalcolo della testa del Mese
+a ogni spunta) girava sulle schede **a schermo**, quindi con "Da fare" acceso
+"complete" andava a zero; stesso difetto nei totali per mese dell'intestazione
+della vista Anno. Ora tutti e due usano l'insieme senza filtro di stato. E nel
+foglio del Mese il **quadratino di selezione e' diventato il pallino dello
+stato**: il checkbox resta sotto, invisibile ma vero, e la selezione e' l'anello
+cyan intorno al pallino.
+
 Verificato in browser sui dati reali copiati (222 clienti / 274 siti), chiaro e
 scuro, nelle tre viste, con `inizio_tracciamento` a 2026-09 (31 dovute) e a
 2026-01 (267 dovute, 225 in ritardo): i numeri del filtro sono sempre uguali
-alle righe che restano a schermo. **Le prove di spunta sono state fatte su una
+alle righe che restano a schermo, i totali per mese non si muovono cambiando
+filtro, e la selezione multipla del Mese funziona col pallino. **Le prove di spunta sono state fatte su una
 copia del `.db`** servita da un secondo server sulla 8773: l'archivio del
 committente non e' stato toccato. Solo `web/`: basta ricaricare. Il service
 worker passa a `crono-guscio-v6`.

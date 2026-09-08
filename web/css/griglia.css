@@ -499,8 +499,24 @@
 .cassetto .scheda .info { flex: 1 1 100%; }
 .cassetto .passi-riga { width: auto; align-self: flex-start; flex-wrap: wrap; }
 
-.selez { flex: none; display: flex; }
-.selez input { width: 16px; height: 16px; accent-color: var(--marchio); cursor: pointer; }
+/* Selezione della scheda: il quadratino e' diventato il PALLINO DELLO STATO
+   della mappatura dell'anno (lo stesso della vista Anno). Il checkbox e'
+   ancora li' sotto, invisibile ma vero, cosi' tastiera e lettori di schermo
+   funzionano come prima; la selezione si vede dall'anello cyan intorno al
+   pallino, che non ruba il posto al colore dello stato. */
+.selez {
+  position: relative; flex: none; display: grid; place-items: center;
+  width: 18px; height: 18px; border-radius: var(--r-tonda);
+  cursor: pointer; transition: var(--rapido);
+}
+.selez input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
+  opacity: 0; cursor: pointer; }
+.selez:hover { background: color-mix(in srgb, var(--marchio) 14%, transparent); }
+.selez:has(input:checked) {
+  background: var(--marchio-tenue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--marchio) 70%, transparent);
+}
+.selez:has(input:focus-visible) { outline: 2px solid var(--marchio); outline-offset: 2px; }
 
 .barra-massa {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 75;

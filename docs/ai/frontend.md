@@ -259,6 +259,17 @@ Il cambio di filtro passa da `stato.filtraStato()` (che salva e emette
 `rilegge`) e non da `app.js`: lo chiamano la barra, la testa dell'Anno e la
 testa del Mese.
 
+**Ogni conteggio ignora il filtro di stato, anche quando si aggiorna da solo.**
+Vale per `riepilogoAnno`, per `contaStato`, per i totali per mese
+dell'intestazione della griglia (`htmlTotaleMese` e `aggiornaRigaTotali`) e per
+il ricalcolo della testa del Mese (`aggiornaConteggi`, che usa `mesePieno()`
+come il primo disegno). Quest'ultimo era il buco della prima stesura: girava
+sulle schede a schermo, e con "Da fare" acceso la voce "complete" scendeva a
+zero alla prima spunta. Unica eccezione, la voce **"a schermo"** del Mese, che
+si conta dal DOM: e' l'unico numero che parla della selezione, e deve dire
+quello che si vede (completando una scheda con "Da fare" acceso la scheda
+resta, le righe non spariscono sotto le mani).
+
 Stampa, CSV, Sincronizza, Completa/Azzera di massa, **Diario attivita'** e
 Impostazioni stanno in un menu **Azioni** (`ui.menu()`, classe `.tendina`):
 sette bottoni in barra diventavano illeggibili. Il diario apre una modale con
@@ -274,6 +285,15 @@ cliente si cerca il cliente e si ripete: un solo meccanismo, componibile.
 Dopo l'azione l'avviso resta 15 secondi con **Annulla**, che rimanda le operazioni
 inverse (`stato.annullaUltima()`, si appoggia allo stesso percorso di scrittura,
 quindi e' anch'esso tracciato e idempotente).
+
+**Nel foglio del Mese il pallino ha preso il posto del quadratino di
+selezione** (`htmlSelez` in `mese.js`, `.selez` in `griglia.css`). Mostra lo
+stato dell'anno, non del mese: le quattro caselle dicono gia' come sta questo
+mese, il pallino dice se il sito e' gia' a posto per l'anno. Il checkbox e'
+ancora nel markup, coperto (`opacity: 0`, stesa su tutta l'etichetta), cosi'
+tastiera, lettori di schermo e barra delle azioni multiple non cambiano; la
+selezione e' l'anello cyan intorno al pallino (`.selez:has(input:checked)`). Si
+aggiorna in `mese.aggiornaCella` anche quando la spunta e' su un altro mese.
 
 **Il pallino davanti al sito** (`.punto-stato`, `statoMappatura()`) e' lo
 stato della mappatura dell'anno di quel sito: verde completa, ambra in ritardo,

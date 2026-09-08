@@ -546,6 +546,14 @@ conta le mappature **dovute**: "Complete" comprende anche i siti chiusi in un
 anno pre-tracciamento, che sono lavoro fatto e vanno mostrati. Due domande
 diverse, due numeri diversi, entrambi spiegati nel suggerimento.
 
+La regola vale per **tutti** i numeri, non solo per quelli del filtro: la testa
+dell'Anno, i totali per mese nell'intestazione della griglia, la testa del
+foglio del Mese - anche quando si aggiornano durante una raffica di spunte. E'
+proprio la' che si era rotta al primo giro: il ricalcolo della testa del Mese
+girava sulle schede a schermo, e con "Da fare" acceso "complete" andava a zero
+pur essendocene di complete. Se un numero si muove quando cambio filtro, e' un
+difetto.
+
 Nella stessa richiesta e' sparito il **filtro per tipo di gas**: tre valori che
 nessuno restringeva, e il tipo si cerca dalla barra di ricerca.
 
@@ -567,6 +575,15 @@ finestra: con 274 righe e' l'unico posto dove lo stato si legge scorrendo.
 
 Il tipo di gas non e' perso: e' nel suggerimento del pallino, nel cassetto,
 nella scheda del Mese e nella ricerca.
+
+**Nel foglio del Mese il pallino ha preso il posto del quadratino di
+selezione** (richiesta della stessa sessione). Le quattro caselle di una scheda
+parlano solo di quel mese; il pallino dice se il sito e' a posto **per
+l'anno** - una mappatura chiusa a gennaio si vede anche sulla visita di
+settembre, che e' esattamente la cosa che si rischia di rifare. Il checkbox non
+e' stato tolto, solo reso invisibile: tastiera, lettori di schermo e azioni
+multiple funzionano come prima, e la selezione si legge dall'anello cyan
+intorno al pallino, che non copre il colore dello stato.
 
 ## 16. Un solo perimetro per le azioni di massa: i filtri
 Non esistono "completa per cliente", "completa per mese", "completa per tipo":

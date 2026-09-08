@@ -42,6 +42,33 @@ mappatura, in ritardo, completa, ecc"*.
   legenda e' nella finestra "Come si legge".
 - `sw.js` -> `crono-guscio-v6`.
 
+### Seconda passata (stessa sessione)
+
+*"complete spunta a zero ma una completa c'e'"* - *"in mese invece del quadrato
+che seleziona il sito metti il pallino dello stato come nella vista annuale"*.
+
+- **La regola "i conteggi ignorano il filtro di stato" era applicata a meta'.**
+  `mese.aggiornaConteggi()` (il ricalcolo della testa del Mese dopo ogni
+  spunta) rifaceva i conti su `lavoroDelMese(st.mese)`, cioe' sulle sole schede
+  a schermo: con "Da fare" acceso "complete" andava a **0** alla prima spunta,
+  pur essendocene di complete. Ora usa `mesePieno()` come il primo disegno, e
+  riscrive tutta la riga (cinque nodi) invece di quattro `textContent` a indice
+  fisso, che lasciavano indietro la voce "a schermo". Stesso difetto nei
+  **totali per mese dell'intestazione della vista Anno** (`htmlTotaleMese` e
+  `aggiornaRigaTotali`): adesso girano su `gruppiFiltrati({ ignoraStato: true })`
+  e restano fermi qualunque filtro sia acceso.
+- **"a schermo" si conta dal DOM**: completando una scheda con "Da fare" acceso
+  la scheda resta a schermo (le righe non spariscono sotto le mani), quindi il
+  numero deve dire quello che si vede, non quello che il filtro lascerebbe
+  passare al prossimo disegno.
+- **Nel foglio del Mese il quadratino di selezione e' diventato il pallino
+  dello stato** (`htmlSelez` in `mese.js`), lo stesso della vista Anno: dice se
+  quel sito e' gia' a posto **per l'anno**, cosa che le quattro caselle non
+  dicono (guardano solo questo mese). Il checkbox e' ancora li' sotto,
+  invisibile ma vero (tastiera, lettori di schermo, barra delle azioni
+  multiple); la selezione si vede dall'anello cyan intorno al pallino. Il
+  pallino si aggiorna anche quando la spunta arriva da un altro mese.
+
 ### Da verificare (15a sessione)
 
 - Verificato in browser sui dati reali copiati (222 clienti / 274 siti), chiaro

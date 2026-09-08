@@ -13,7 +13,8 @@
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito,
-  filtraStato, CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET,
+  filtraStato, statoMappatura, CAMPI, SIGLA, PASSI, ETICHETTA, BREVE,
+  CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriCassetto } from './cassetto.js';
 
@@ -40,6 +41,20 @@ const BOLLO = {
   'non-tracciato': ['nontracciato', 'PRE-TRACCIAMENTO'],
 };
 
+/* Il quadratino di selezione E' il pallino dello stato, lo stesso della vista
+   Anno (`statoMappatura`): in un foglio di 55 schede dice a colpo d'occhio
+   quali siti sono gia' a posto per l'anno - cosa che le quattro caselle non
+   dicono, perche' guardano solo questo mese. Il checkbox resta, vero e
+   funzionante, solo invisibile: tastiera e lettori di schermo non perdono
+   niente e la barra delle azioni multiple continua a funzionare. */
+function htmlSelez(s) {
+  const k = statoMappatura(s);
+  return `<label class="selez" title="${esc(ET_STATO[k])} · clicca per selezionare">
+      <input type="checkbox" data-sel="${s.id}" ${st.selezione.has(s.id) ? 'checked' : ''}>
+      <span class="punto-stato ${k}"></span>
+    </label>`;
+}
+
 function htmlScheda(v) {
   const e = statoCella(v.s.id, st.mese);
   const cl = ['scheda', e.completa && 'finita', e.ritardo && 'ritardo',
@@ -47,9 +62,7 @@ function htmlScheda(v) {
   const bollo = BOLLO[e.classe];
   return `<div class="${cl}" data-srv="${v.s.id}" tabindex="-1"
     aria-label="${esc(String(v.s.dest || '#' + v.s.id).replace(/\s+/g, ' '))}: ${e.n} di ${PASSI} passi">
-    <label class="selez" title="Seleziona per azioni multiple">
-      <input type="checkbox" data-sel="${v.s.id}" ${st.selezione.has(v.s.id) ? 'checked' : ''}>
-    </label>
+    ${htmlSelez(v.s)}
     <div class="info">
       <b title="${esc(v.s.dest)}">${esc(v.s.dest || '(senza destinazione)')}</b>
       <div class="meta">
@@ -261,18 +274,33 @@ export function aggiornaCella(id, mese) {
   for (const p of sch.querySelectorAll('.passo')) {
     p.setAttribute('aria-checked', String(!!c[SIGLA[p.dataset.campo]]));
   }
+  // il pallino guarda l'anno, non il mese: cambia anche spuntando altrove
+  const srv = st.perServ.get(id), punto = sch.querySelector('.selez .punto-stato');
+  if (srv && punto) {
+    const k = statoMappatura(srv);
+    punto.className = 'punto-stato ' + k;
+    punto.closest('.selez').title = ET_STATO[k] + ' · clicca per selezionare';
+  }
   aggiornaConteggi();
 }
 
+/* I numeri della testa contano il MESE INTERO, filtro di stato compreso: qui si
+   rifaceva il conto su `lavoroDelMese(st.mese)` - cioe' sulle sole schede a
+   schermo - e con il filtro "Da fare" acceso la voce "complete" scendeva a
+   zero alla prima spunta, pur essendocene di complete. Stessa sorgente del
+   primo disegno (`mesePieno`), e si riscrive tutta la riga: sono cinque nodi,
+   e con quattro `textContent` a indice fisso la voce "a schermo" restava
+   indietro. */
 function aggiornaConteggi() {
-  if (!radice) return;
-  const righe = lavoroDelMese(st.mese);
-  const n = radice.querySelectorAll('.mese-testa .riepilogo .n');
-  if (n.length < 4) return;
-  const sc = scadenzeDelMese(righe);
-  n[0].textContent = sc.tot;
-  n[2].textContent = righe.filter(v => !cella(v.s.id, st.mese).s).length;
-  n[3].textContent = `${sc.complete}/${sc.tot}`;
+  const box = radice?.querySelector('.mese-testa .riepilogo');
+  if (!box) return;
+  const tutte = mesePieno(lavoroDelMese(st.mese));
+  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
+  /* "a schermo" si conta dal DOM, non dal filtro: completando una scheda con
+     "Da fare" acceso quella scheda resta a schermo (le righe non spariscono
+     sotto le mani), e il numero deve dire quello che si vede. */
+  const mostrati = radice.querySelectorAll('.lavoro .scheda').length;
+  box.innerHTML = htmlRiepilogo(tutte, scadenzeDelMese(tutte), daStampare, mostrati);
 }
 
 /* ------------------------------------------------------ azioni multiple -- */

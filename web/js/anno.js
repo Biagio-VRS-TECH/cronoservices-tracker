@@ -213,6 +213,11 @@ function piegaTutti(chiudi) {
 
 export function disegna(area) {
   const gruppi = gruppiFiltrati();
+  /* I totali per mese nell'intestazione contano l'anno, non la selezione: con
+     il filtro di stato acceso devono restare fermi, come i numeri della testa
+     e quelli dentro il filtro (vedi #ANCHOR: filtro-stato). Senza filtro e'
+     lo stesso elenco e non si rifa' il giro. */
+  const tutti = st.filtri.stato ? gruppiFiltrati({ ignoraStato: true }) : gruppi;
   const chiuse = tuttiPiegati(gruppi);
   const testa = `<div class="riga crono-testa">
     <div class="col-nome">
@@ -225,7 +230,7 @@ export function disegna(area) {
       <i title="Sotto ogni mese: mappature chiuse / in scadenza in quel mese">chiuse / in scadenza</i>
     </div>
     <div class="mesi">${st.mesi.map((m, i) =>
-    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(gruppi, i + 1)}</div>`).join('')}</div>
+    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(tutti, i + 1)}</div>`).join('')}</div>
     <div class="col-tot">Anno</div>
   </div>`;
   area.innerHTML = `<div class="crono">${testa}${gruppi.length
@@ -450,7 +455,7 @@ function aggiornaTotali(id) {
 function aggiornaRigaTotali() {
   const tms = radice?.querySelectorAll('.crono-testa .tm');
   if (!tms?.length) return;
-  const gruppi = gruppiFiltrati();
+  const gruppi = gruppiFiltrati({ ignoraStato: true });   // come in `disegna`
   for (let m = 1; m <= 12; m++) {
     const tm = tms[m - 1];
     if (!tm) continue;
