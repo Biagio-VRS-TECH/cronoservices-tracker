@@ -9,7 +9,7 @@ import {
 } from './api.js';
 import {
   st, on, applica, cambiaAnno, elencoProv, riepilogoAnno, contaStato, filtraStato,
-  esitoConferma, esitoConflitto, eventoRemoto, spuntaMolte, annullaUltima,
+  esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import * as vAnno from './anno.js';
@@ -70,6 +70,7 @@ async function avvia() {
     statoCollegamento();
     if (ev?.confermata) esitoConferma(ev.confermata.op, ev.confermata.risposta);
     if (ev?.conflitto) esitoConflitto(ev.conflitto.op, ev.conflitto.server);
+    if (ev?.fallita) esitoFallita(ev.fallita.op);
   });
 
   on('cella', d => {

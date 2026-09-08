@@ -236,6 +236,23 @@ Tema: `data-tema` su `<html>` con tre stati — assente (segue il sistema),
    righe — con l'arretrato sono centinaia — e la carta e' diventata alta
    11.000px trascinandosi dietro tutta la fila della griglia. Misurato.
 
+17. **La conferma del server sovrascriveva le spunte ancora in volo, e si
+    vedeva lampeggiare.** Il committente: *"e' buggato, le spunte sembrano
+    lampeggiare"*. Chiudendo una scheda in un colpo partono quattro
+    `/api/toggle` in fila (la coda e' seriale) e ognuno torna la cella **intera**
+    come il server la conosce in quel momento: la conferma del primo passo
+    riportava a schermo una cella con un solo passo, cancellando gli altri tre
+    finche' non arrivavano le loro conferme. Misurato con un `MutationObserver`:
+    `1111 -> 1000 -> 1100 -> 1110 -> 1111` in 35 ms su localhost - su rete vera
+    e' un lampeggio pieno. Ora `cellaDalServer()` tiene i campi ancora in
+    `st.sospese` (e' il merge per campo della decisione 7, applicato al lato
+    client): vale anche per gli eventi SSE e per chi clicca in fretta. Corollario
+    da non dimenticare: se un campo resta in `st.sospese` per sempre, quel campo
+    smette di ricevere gli aggiornamenti del server - per questo la coda ora
+    avvisa anche quando **butta via** un'operazione rifiutata (`fallita` ->
+    `esitoFallita`), cosa che prima non faceva e lasciava celle "in attesa" a
+    vita.
+
 ## Barra strumenti e azioni
 
 **Il filtro di stato e' uno solo, a quattro posizioni** (`#f-stato`,

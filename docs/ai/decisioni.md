@@ -59,6 +59,14 @@ heartbeat, scadenza, sblocco forzato e avrebbe bloccato l'operatore B per una
 spunta che non gli interessava. Con unita' di scrittura da un bit, il conflitto
 vero e' cosi' raro che vale la pena chiedere solo in quel caso.
 
+**Il merge per campo vale anche fra me e me** (15a sessione). Le risposte del
+server portano la cella intera, ma quando ne ho quattro in volo sulla stessa
+cella quella risposta e' gia' vecchia per i campi non ancora inviati:
+`cellaDalServer()` tiene i campi in `st.sospese` invece di sovrascriverli.
+Senza, chiudere una scheda in un colpo faceva lampeggiare le spunte
+(1111 -> 1000 -> 1100 -> 1110 -> 1111). La regola: **quello che il server dice
+vince, tranne su cio' che il server non ha ancora visto.**
+
 ## 8. Coda in `localStorage`, non IndexedDB
 La coda contiene decine di oggetti minuscoli. IndexedDB sarebbe piu' corretto in
 astratto e molto piu' codice da mantenere. Se un giorno la coda dovesse contenere

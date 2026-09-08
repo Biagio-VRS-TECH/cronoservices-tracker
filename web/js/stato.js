@@ -606,9 +606,26 @@ function scriviLocale(id, mese, patch) {
 }
 
 /** Cella arrivata dal server (conferma o SSE): stessa cosa, ma il valore e'
- *  quello autorevole. Passa da qui per non dimenticare l'invalidazione. */
+ *  quello autorevole. Passa da qui per non dimenticare l'invalidazione.
+ *
+ *  I passi ANCORA IN VOLO per questa cella restano quelli locali: il server non
+ *  li ha ancora visti, e la sua risposta e' vecchia per quei campi. Senza
+ *  questa riga chiudere una scheda in un colpo faceva **lampeggiare** le
+ *  spunte: le quattro scrittura partono in fila, e la conferma della prima
+ *  torna una cella con un solo passo, che cancellava a schermo gli altri tre
+ *  finche' non arrivavano le loro conferme (misurato: 1111 -> 1000 -> 1100 ->
+ *  1110 -> 1111). Vale anche per gli eventi SSE e per chi clicca in fretta con
+ *  la rete lenta: il merge per campo (decisione 7) e' la stessa idea, qui
+ *  applicata al lato client. */
 function cellaDalServer(id, mese, valore) {
-  st.celle.set(chiave(id, mese), valore);
+  const v = { ...valore };
+  if (st.sospese.size) {
+    const loc = cella(id, mese);
+    for (const campo of CAMPI) {
+      if (st.sospese.has(`${id}-${mese}-${campo}`)) v[SIGLA[campo]] = loc[SIGLA[campo]];
+    }
+  }
+  st.celle.set(chiave(id, mese), v);
   tocca(id);
 }
 
@@ -695,6 +712,17 @@ export function esitoConferma(op, risposta) {
     }
     emetti('rilegge');
   }
+}
+
+/** L'operazione e' stata rifiutata dal server (errore applicativo, non un
+ *  conflitto): la coda la butta via, quindi il passo non e' piu' "in volo".
+ *  Senza questo restava per sempre in `st.sospese` - una cella perennemente in
+ *  attesa nella vista Anno, e ora anche un campo che ignora gli aggiornamenti
+ *  del server. */
+export function esitoFallita(op) {
+  if (op?.meta?.sosp) st.sospese.delete(op.meta.sosp);
+  const { id, mese } = op?.meta || {};
+  if (id) emetti('cella', { id, mese });
 }
 
 export function esitoConflitto(op, server) {

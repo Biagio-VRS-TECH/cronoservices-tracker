@@ -87,6 +87,19 @@ spunte"*.
 - **Tasto `0`** sulla scheda col fuoco: la stessa cosa da tastiera, accanto a
   `1`..`4` che spuntano un passo per volta. In "Come si legge" c'e' la riga
   nuova.
+- **Le spunte lampeggiavano** (*"e' buggato, le spunte sembrano
+  lampeggiare"*): quattro `/api/toggle` in fila, e la conferma di ognuno
+  riportava la cella intera come il server la conosceva **in quel momento**,
+  cancellando a schermo i passi non ancora confermati. Misurato con un
+  `MutationObserver`: `1111 -> 1000 -> 1100 -> 1110 -> 1111`. Ora
+  `cellaDalServer()` (in `stato.js`) tiene i campi ancora in `st.sospese`: il
+  server vince, tranne su cio' che non ha ancora visto. Non riguarda solo il
+  bottone nuovo - lo stesso lampeggio c'era cliccando in fretta i quattro passi
+  nel popover della vista Anno, ed e' sparito anche li'.
+- Nel farlo e' venuto fuori un difetto vecchio: quando la coda **butta via**
+  un'operazione rifiutata dal server non avvisava nessuno, e la spunta restava
+  in `st.sospese` per sempre (cella perennemente "in attesa"). Ora la coda
+  emette `fallita` e `esitoFallita()` pulisce.
 
 ### Da verificare (15a sessione)
 

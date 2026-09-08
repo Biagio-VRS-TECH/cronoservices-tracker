@@ -168,6 +168,7 @@ export async function svuota() {
       }
       if (!r.ok) {                   // errore applicativo: non ha senso insistere
         rete.coda.shift(); salvaCoda();
+        rete.ascoltatori.forEach(f => f(rete, { fallita: { op } }));
         avviso('Operazione rifiutata dal server: ' + (r.dati.errore || r.stato), { tono: 'allerta' });
         continue;
       }

@@ -189,6 +189,15 @@ piu': la selezione per le azioni multiple e' il **ctrl+clic** sul pallino,
 scritto nel suggerimento. Il clic semplice va all'azione che si fa cinquanta
 volte al giorno.
 
+Il primo giro di quel bottone **faceva lampeggiare le spunte**: quattro
+`/api/toggle` in fila, e la conferma di ognuno riportava la cella intera come
+il server la conosceva in quel momento, cancellando a schermo i passi non
+ancora confermati (`1111 -> 1000 -> 1100 -> 1110 -> 1111`, misurato). Adesso
+`cellaDalServer()` tiene i campi ancora in `st.sospese`: **il server vince,
+tranne su cio' che non ha ancora visto** - il merge per campo della decisione 7
+applicato al lato client. Lo stesso lampeggio c'era cliccando in fretta i
+quattro passi nel popover della vista Anno.
+
 Verificato in browser sui dati reali copiati (222 clienti / 274 siti), chiaro e
 scuro, nelle tre viste, con `inizio_tracciamento` a 2026-09 (31 dovute) e a
 2026-01 (267 dovute, 225 in ritardo): i numeri del filtro sono sempre uguali
