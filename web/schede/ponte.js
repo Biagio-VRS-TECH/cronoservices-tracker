@@ -54,6 +54,7 @@ const ctx = {
 let siti = null;            // {id, dest, cliente, loc, cli, mese, nome} aperti dell'anno
 let pesi = null;            // rarita' delle parole fra i nomi dei siti (affinita.js)
 let inCorso = false;
+let ridotto = false;        // la testata si e' stretta in nuvoletta (vedi guarda())
 let ultimoFile = '';        // il testo con cui si e' riconosciuto (nome file / titolo)
 let esitoCorrente = null;   // {tono, testo, cand}
 
@@ -197,9 +198,13 @@ function disegna() {
   const e = esitoCorrente;
 
   /* La spina a sinistra e' l'unico segnale di stato: colore del collegamento,
-     e in movimento mentre si prepara il PDF. */
+     e in movimento mentre si prepara il PDF. `ridotto` viaggia insieme al tono
+     perche' qui la classe si riscrive tutta: si stringe solo quando c'e' un
+     sito (senza, la casella di ricerca sparirebbe) e con la lista chiusa. */
   const tono = inCorso ? 'lavoro' : (e?.tono || (conSito ? 'ok' : 'idle'));
-  dock.className = 't-' + tono;
+  dock.className = 't-' + tono +
+    (ridotto && conSito && !e?.cand?.length && !inCorso ? ' ridotto' : '');
+  if (conSito) $('#ponteCliente').title = ctx.cliente || '';
 
   $('#ponteCosa').textContent = conSito ? 'consegna a' : 'a quale sito?';
   $('#ponteSito').hidden = !conSito;
@@ -280,8 +285,34 @@ function collegaDock() {
   });
 
   $('#ponteSalva').onclick = salvaNelTracker;
+  guarda();
   new MutationObserver(() => disegna()).observe($('#pages'), { childList: true });
   addEventListener('keydown', e => { if (e.key === 'Escape' && esitoCorrente?.cand) { chiudiLista(); disegna(); } });
+}
+
+/** Lo scorrimento decide se la testata sta larga o stretta. Due soglie diverse
+ *  (140 giu', 90 su): con una sola, fermandosi proprio li' sopra, la nuvoletta
+ *  si aprirebbe e chiuderebbe a ogni pixel. L'ascolto e' in fase di CATTURA su
+ *  window perche' a scorrere e' #banco, e lo scroll di un elemento non risale
+ *  ai genitori (sotto i 980px scorre la finestra: lo stesso ascolto copre tutti
+ *  e due i casi). */
+function guarda() {
+  const GIU = 140, SU = 90;
+  let attesa = false;
+  const misura = () => {
+    const banco = $('#banco');
+    const y = banco && banco.scrollHeight > banco.clientHeight + 1
+      ? banco.scrollTop : (window.scrollY || 0);
+    const vuole = y > (ridotto ? SU : GIU);
+    if (vuole === ridotto) return;
+    ridotto = vuole;
+    disegna();
+  };
+  addEventListener('scroll', () => {
+    if (attesa) return;
+    attesa = true;
+    requestAnimationFrame(() => { attesa = false; misura(); });
+  }, { passive: true, capture: true });
 }
 
 /* ------------------------------------------------------------- il PDF ---- */

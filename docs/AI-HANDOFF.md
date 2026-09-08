@@ -168,6 +168,11 @@ quelli a mangiare gli indirizzi lunghi. Un segnale solo, e uno solo si muove: la
 in basso compare solo quando c'e' qualcosa da dire e durante il lavoro e' anche
 l'avanzamento. Da ~150 px sempre accesi a 74 a riposo / 119 con un esito.
 
+**Scorrendo la testata diventa una nuvoletta**: pillola centrata con il punto
+di stato, il nome del sito e il bottone. La banda si accorcia con lei (119 ->
+34 px), quindi non copre niente nemmeno ridotta; non si stringe senza sito, con
+la lista dei probabili aperta, o mentre prepara il PDF.
+
 **Il titolo del documento viene dal sito collegato** (`#titleFromSite`, terza
 sorgente accanto a "prima cella del foglio" e "nome del file", accesa di
 fabbrica): e' il nome sotto cui il PDF verra' archiviato, e non dipende da come

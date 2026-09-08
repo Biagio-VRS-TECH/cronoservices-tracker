@@ -964,6 +964,37 @@ table.xls.plain tbody tr:hover{background:transparent}
 #ponte .btn[disabled]{opacity:.38;cursor:default;box-shadow:none}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
 
+/* ---- LA NUVOLETTA ----
+   Scorrendo, la testata si stringe in una pillola centrata con dentro le due
+   sole cose che servono mentre si legge il documento: di chi e' questo lavoro,
+   e il bottone che lo consegna. Resta una TESTATA, non un oggetto che
+   galleggia: la banda si accorcia insieme a lei, quindi anche da ridotta non
+   copre nessuna pagina - sembra sospesa perche' il fondo della banda e'
+   sparito, non perche' sta sopra a qualcosa.
+   La spina diventa il punto di stato sul fianco: stesso segnale, stessa
+   tavolozza, la misura che ci sta.
+   Non si stringe mentre prepara il PDF (`body.ponte-lavora`): li' l'esito e
+   l'avanzamento sono l'unica cosa che uno guarda. */
+#ponte{transition:margin .22s var(--ease),padding .22s var(--ease),
+  border-radius .22s var(--ease),background .22s,box-shadow .22s,border-color .22s}
+#ponte.ridotto{width:max-content;max-width:min(94%,640px);margin:9px auto 10px;
+  grid-template-columns:auto auto;column-gap:12px;
+  padding:0 7px 0 17px;border:1px solid var(--ui-3);border-radius:999px;
+  background:color-mix(in srgb,var(--ui-1) 92%,transparent);
+  box-shadow:0 16px 34px -14px rgba(0,0,0,.62)}
+:root.lt #ponte.ridotto{box-shadow:0 14px 30px -16px rgba(15,20,24,.42)}
+@supports (backdrop-filter:blur(1px)){#ponte.ridotto{backdrop-filter:blur(12px) saturate(1.2)}}
+#ponte.ridotto::before{top:50%;bottom:auto;left:8px;width:7px;height:7px;
+  border-radius:50%;transform:translateY(-50%)}
+#ponte.ridotto .pn-rotta,#ponte.ridotto .pn-meta,#ponte.ridotto .pn-strip{display:none}
+#ponte.ridotto .pn-corpo{padding:7px 0;gap:0}
+#ponte.ridotto h2{font-size:13.5px;font-weight:600;letter-spacing:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ponte.ridotto .pn-azione{padding:0}
+#ponte.ridotto .btn{padding:7px 14px 7px 11px;font-size:12.5px;border-radius:999px}
+#ponte.ridotto .btn svg{width:13px;height:13px}
+@media (prefers-reduced-motion:reduce){#ponte{transition:none}}
+
 /* la fascia: l'esito, e mentre si lavora anche l'avanzamento. Il riempimento
    sta DIETRO al testo, cosi' la frase resta leggibile per tutta la barra */
 .pn-strip{grid-column:1/-1;position:relative;overflow:hidden;margin:0;
@@ -1018,6 +1049,11 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
   .pn-meta{font-size:12px;gap:1px 8px}
   .pn-strip{padding-left:13px;padding-right:13px}
   .ponte-scelte{left:13px;right:13px}
+  /* la pillola non torna a due colonne solo perche' si e' stretta: il bottone
+     resta a fianco del nome, che al massimo si accorcia */
+  #ponte.ridotto{grid-template-columns:minmax(0,auto) auto;max-width:96%}
+  #ponte.ridotto .pn-azione{grid-column:2;padding:0}
+  #ponte.ridotto .btn{width:auto}
 }
 
 @media print{

@@ -58,6 +58,19 @@ riquadro che scorre, non perche' galleggia sopra — e cosi' non copre nessuna
 pagina in nessun punto. Sotto i 980 px i pannelli si impilano, torna a scorrere
 la finestra e `#ponte` ridiventa `sticky`.
 
+Scorrendo, la testata si stringe in una **nuvoletta** centrata
+(`#ponte.ridotto`): restano il punto di stato, il nome del sito e il bottone.
+Non e' un oggetto che galleggia sopra il documento — la banda si accorcia
+insieme a lei (119 px -> 34 px), quindi anche da ridotta non copre niente;
+sembra sospesa perche' il fondo della banda sparisce. Lo decide `guarda()` in
+`ponte.js`, con due soglie diverse (140 giu', 90 su: con una sola, fermandosi
+proprio li' sopra, si aprirebbe e chiuderebbe a ogni pixel) e l'ascolto in fase
+di **cattura** su window, perche' lo scroll di `#banco` non risale ai genitori.
+Non si stringe quando manca il sito (sparirebbe la casella di ricerca), con la
+lista dei probabili aperta, o mentre prepara il PDF: li' l'esito e
+l'avanzamento sono l'unica cosa che si guarda. La classe la scrive `disegna()`
+insieme al tono, perche' li' `className` si riscrive tutto.
+
 Conseguenze da ricordare: `scrollBox()` trova `#banco`; `positionPartStrip` e
 `positionDocScroll` si misurano sul banco e non su `#main`, e la seconda scrive
 `--banco-top` (dove comincia il banco) che centra le due guide `fixed` sulla

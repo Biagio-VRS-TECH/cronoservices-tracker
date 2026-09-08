@@ -34,6 +34,12 @@ operatori entrano assieme?"*.
   il lavoro fa anche da avanzamento. 74 px a riposo, 119 px con un esito
   (prima ~150 sempre). `@container (max-width:620px)`: bottone a tutta
   larghezza, etichetta della provenienza nascosta.
+- **La nuvoletta** (`#ponte.ridotto`, `guarda()` in `ponte.js`): scorrendo la
+  testata si stringe in una pillola centrata con punto di stato, nome del sito
+  e bottone; la banda passa da 119 px a 34, quindi non copre niente nemmeno
+  ridotta. Due soglie (140/90) contro il tremolio, ascolto in cattura su window
+  perche' lo scroll di `#banco` non risale. Non si stringe senza sito, con la
+  lista aperta o mentre prepara il PDF.
 - **Titolo dal sito collegato** (decisione 15k): `#titleFromSite`,
   `titleSource()` a tre valori, `titoloSito()` in `ponte.js` (cliente +
   destinazione, una volta sola se l'una ripete l'altra),

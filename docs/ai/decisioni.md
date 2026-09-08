@@ -649,6 +649,14 @@ CONSEGNA A`, con l'etichetta della provenienza e "cambia sito" in fondo), il
 `text-overflow` da nessuna parte: su un sito con l'indirizzo lungo i puntini
 mangiavano proprio la parte che distingue un impianto dall'altro.
 
+**Scorrendo diventa una nuvoletta** (chiesto subito dopo: *"quando si scrolla
+in giu' diventa una semplice nuvoletta moderna centrale con scritto solo il nome
+del sito e salva tracker"*). La banda si accorcia insieme a lei, da 119 px a
+34: la pillola sembra sospesa perche' il fondo e' sparito, non perche' sta
+sopra a qualcosa - la regola "non copre il PDF in nessun punto" vale anche
+ridotta. Non si stringe quando manca il sito, con la lista aperta o mentre
+prepara il PDF.
+
 Un segnale solo, e uno solo si muove: la **spina** di 3px sul bordo sinistro
 (grigio / cyan / ambra / rosso, e scorre mentre prepara il PDF) al posto del led
 e del "cavo". La **fascia** in basso c'e' solo quando c'e' qualcosa da dire, e
