@@ -127,9 +127,10 @@ export async function esportaCsv(query) {
 /* ---------------------------------------------------------- bootstrap ---- */
 export async function bootstrap(anno) {
   try {
-    const { dati } = await chiama('/api/bootstrap' + (anno ? '?anno=' + anno : ''));
-    localStorage.setItem(K_CACHE, JSON.stringify({ salvato: Date.now(), dati }));
-    return { dati, daCache: false };
+    const r = await chiama('/api/bootstrap' + (anno ? '?anno=' + anno : ''));
+    if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+    localStorage.setItem(K_CACHE, JSON.stringify({ salvato: Date.now(), dati: r.dati }));
+    return { dati: r.dati, daCache: false };
   } catch (e) {
     const c = JSON.parse(localStorage.getItem(K_CACHE) || 'null');
     if (!c) throw e;

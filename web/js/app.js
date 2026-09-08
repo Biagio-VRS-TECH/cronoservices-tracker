@@ -37,10 +37,11 @@ async function avvia() {
   let r;
   try {
     r = await bootstrap();
-  } catch {
+  } catch (e) {
     area.innerHTML = inNuvola()
       ? `<div class="vuoto"><b>Database non raggiungibile</b>
-         Controlla il collegamento a internet e ricarica la pagina.</div>`
+         ${esc(String(e?.message || ''))}<br>Controlla il collegamento a internet e ricarica
+         la pagina.</div>`
       : `<div class="vuoto"><b>Server non raggiungibile</b>
          Avvia <code>avvia.bat</code> sul PC che ospita l'applicazione, poi ricarica
          questa pagina.</div>`;
