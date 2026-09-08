@@ -85,11 +85,11 @@ let contAvvisi;
 export function avviso(testo, opz = {}) {
   contAvvisi ||= document.body.appendChild(h('div.avvisi', { 'aria-live': 'polite' }));
   const n = h('div.avviso' + (opz.tono ? '.' + opz.tono : ''), {}, h('span', { testo }));
-  if (opz.azione) {
-    n.append(h('button', {
-      testo: opz.azione.et,
-      onclick: () => { opz.azione.fn(); via(); }
-    }));
+  /* Due azioni al massimo: il conflitto sulla nota ne ha bisogno (unisci /
+     tieni la mia), tutto il resto ne ha una sola o nessuna. Con piu' di due
+     l'avviso diventerebbe una finestra, e allora tanto vale aprirne una. */
+  for (const az of [opz.azione, opz.azione2].filter(Boolean)) {
+    n.append(h('button', { testo: az.et, onclick: () => { az.fn(); via(); } }));
   }
   const via = () => {
     if (!n.isConnected) return;

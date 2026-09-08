@@ -704,10 +704,30 @@ export function annullaUltima() {
   return n;
 }
 
-export async function salvaNota(id, mese, testo) {
+/** La nota della cella. A differenza dei quattro passi la nota e' testo libero:
+ *  due operatori che la riscrivono nello stesso momento si cancellano a vicenda,
+ *  e nessuna regola automatica puo' indovinare quale delle due frasi vale. Per
+ *  questo parte con la sua base e il server puo' rispondere 409 (api.nota,
+ *  imposta_nota).
+ *
+ *  `base` e' la nota che chi scrive **aveva sotto gli occhi**, non quella che il
+ *  modello conosce adesso: se l'altro operatore l'ha cambiata mentre si
+ *  scriveva, il modello si e' gia' aggiornato dal flusso ma la casella no, e
+ *  prendendo la base da li' il conflitto non lo vedrebbe nessuno. Chi apre una
+ *  casella di testo se la porta dietro (vedi spunte.js); chi non ha una casella
+ *  aperta usa lo stato corrente, che e' quello che sta guardando. */
+export async function salvaNota(id, mese, testo, base) {
+  const ora = cella(id, mese);
+  const prima = base || { rev: ora.rev, nota: ora.nota };
+  if ((ora.nota || '') === testo) return;
   scriviLocale(id, mese, { nota: testo });
   emetti('cella', { id, mese });
-  accoda({ rotta: '/api/nota', corpo: { id_service: id, anno: st.anno, mese, nota: testo } });
+  accoda({
+    rotta: '/api/nota',
+    corpo: { id_service: id, anno: st.anno, mese, nota: testo,
+             base_rev: prima.rev || null, base_nota: prima.nota || '' },
+    meta: { id, mese, campo: 'nota' },
+  });
 }
 
 /* --------------------------------------------- ritorni dal server / SSE -- */
@@ -744,6 +764,25 @@ export function esitoConflitto(op, server) {
   if (server.cella) cellaDalServer(server.id_service, server.mese, server.cella);
   emetti('cella', { id, mese });
   if (!campo) return;
+  /* La nota e' testo, non un interruttore: dire "ho tenuto la sua" senza far
+     vedere le due frasi non basterebbe a decidere. L'avviso le riporta
+     entrambe, e le azioni sono le tre cose sensate da farci. */
+  if (campo === 'nota') {
+    const sua = server.cella?.nota || '', mia = op.corpo.nota || '';
+    const chi = server.cella?.by || 'un altro operatore';
+    const taglia = t => (t.length > 90 ? t.slice(0, 88).trimEnd() + '…' : t) || '(vuota)';
+    avviso(
+      `Nota: ${chi} ne ha scritta un'altra mentre scrivevi la tua. ` +
+      `Ho tenuto la sua: “${taglia(sua)}”. La tua era ` +
+      `“${taglia(mia)}”.`,
+      {
+        tono: 'allerta', durata: 20000,
+        azione: { et: 'Unisci le due', fn: () => salvaNota(id, mese,
+          [sua, mia].filter(Boolean).join(' — ').slice(0, 500)) },
+        azione2: { et: 'Tieni la mia', fn: () => salvaNota(id, mese, mia) },
+      });
+    return;
+  }
   avviso(
     `${ETICHETTA[campo]}: ${server.cella?.by || 'un altro operatore'} l'ha messa a ` +
     `"${server.cella?.[SIGLA[campo]] ? 'fatta' : 'da fare'}" mentre tu la mettevi a ` +

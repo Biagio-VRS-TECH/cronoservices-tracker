@@ -3,6 +3,77 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-08 (18a sessione) - la testata del ponte, il titolo dal sito, i conflitti sulla nota
+
+Cinque richieste in una volta: *"il dock nuovo del generatore e' fissato in
+alto, quindi se scorro giu' nel file non si vede, invece dovrebbe sempre
+rimanere in vista, senza coprire il pdf in nessun punto. inoltre usando la
+skill frontend rinnovala perche' risulta antica, e alcune cose non si leggono
+per intero se ho un sito con un indirizzo molto lungo"*; *"il nome del titolo
+del documento, nel punto due intestazione, se c'e' un sito collegato, lo prende
+da li' in automatico"*; *"nel tracker la scritta che c'e' cliccando su online
+che spiega che una solo computer fa da server non penso abbia piu senso visto
+che e' online su netlify"*; *"nella schermata mesi togli le scritte del
+conteggio impianti, togli da stampare"*; *"i conflitti sono gestiti? se due
+operatori entrano assieme?"*.
+
+- **Il guscio del generatore** (`schede/index.html`). `#app` occupa la finestra
+  e non scorre; `#main` e' una colonna con la testata `#ponte` e **`#banco`**,
+  l'unico riquadro che scorre. Il dock era `sticky` dentro `#main`, che ha
+  `overflow:auto` ma non scorre mai (a scorrere era la finestra): si agganciava
+  a un riquadro fermo e usciva dallo schermo. Ora sta **fuori** dal riquadro che
+  scorre, quindi resta in vista e non copre nessuna pagina.
+  `scrollBox()`/`positionPartStrip`/`positionDocScroll` guardano `#banco`, la
+  seconda scrive `--banco-top` per centrare le due guide `fixed` sulla colonna,
+  e `@media print` rimette `#app`/`#main`/`#banco` a scorrimento libero
+  (verificato: 96 pagine impaginate, 111.514 px di documento).
+- **Il dock rinnovato** (decisione 15j): rotta in monospazio, nome del sito a
+  16,5 px, dati in una riga che **va a capo** (via ogni `text-overflow`: era
+  quello a mangiare gli indirizzi lunghi), spina di 3px come unico segnale di
+  stato al posto del led e del "cavo", fascia in basso per l'esito che durante
+  il lavoro fa anche da avanzamento. 74 px a riposo, 119 px con un esito
+  (prima ~150 sempre). `@container (max-width:620px)`: bottone a tutta
+  larghezza, etichetta della provenienza nascosta.
+- **Titolo dal sito collegato** (decisione 15k): `#titleFromSite`,
+  `titleSource()` a tre valori, `titoloSito()` in `ponte.js` (cliente +
+  destinazione, una volta sola se l'una ripete l'altra),
+  `aggiornaTitoloSito()` come varco. `nomeFile()` non premette piu' il cliente
+  a un titolo che lo contiene gia'.
+- **Il tracker non parla piu' di "il server" quando e' online**:
+  `DOVE_VIVE`/`DOVE_VIVE_MAI`/`DA_DOVE_VIVE` in `app.js`, decise da
+  `inNuvola()`. Nel pannello *Lavorare in piu' persone* l'indirizzo da dare ai
+  colleghi diventa `location.origin`, la nota parla della casella
+  @vrs-tech.it invece del firewall di Windows, e sparisce "un solo computer fa
+  da server".
+- **Vista Mese**: via le voci *impianti* e *da stampare* dal riepilogo. Restano
+  *in scadenza*, *complete* (che e' anche il filtro) e *a schermo*, quest'ultima
+  solo quando un filtro nasconde qualcosa.
+- **I conflitti**: le spunte erano gia' a posto e **non possono confliggere**
+  (un bit con due valori: o `gia-cosi` o `merge`, il 409 sui passi non scatta
+  mai). Il buco era la **nota**: `UPDATE` secco, ultimo che scrive vince, in
+  silenzio. Ora `api.nota` e `imposta_nota` seguono le quattro regole del merge
+  con `base_rev`+`base_nota`; la base e' quello che l'operatore **aveva sotto
+  gli occhi** (`notaVista`/`notaRev` nel popover), non quello che il modello sa
+  adesso; il testo che si sta scrivendo non viene mai sovrascritto (la nota
+  altrui si annuncia sopra la casella, `.js-eco-nota`); l'avviso del conflitto
+  mostra le due frasi e offre *Unisci le due* / *Tieni la mia* (`ui.avviso`
+  accetta una seconda azione).
+- **Verificato** su una copia del `.db` servita da un server sulla 8775
+  (l'archivio del committente non e' stato toccato): riconoscimento del sito,
+  titolo dal sito, salvataggio del PDF (20 pagine, 3,3 MB in 1,8 s) con
+  l'avanzamento nella fascia, scorrimento del banco con la testata ferma, chiaro
+  e scuro, 1440 e 1100 px, colonna stretta (372 px), regole della stampa
+  simulate. Conflitto nota: le quattro regole via curl (ok / conflitto 409 /
+  merge / gia-cosi) e il giro completo in browser con due operatori.
+- **Non pubblicato**: commit locale. Il deploy solo su richiesta esplicita.
+
+### Rimasto in sospeso
+- `cloud/02-funzioni.sql` e `04-sicurezza.sql` sono cambiati (`imposta_nota` ha
+  due argomenti in piu' e c'e' un `drop function` della vecchia firma): **vanno
+  rieseguiti su Supabase** prima che il conflitto sulla nota funzioni online.
+  Come sempre, il lato Postgres non e' stato eseguito qui.
+- Il service worker passa a `crono-guscio-v9`.
+
 ## Fatto il 2026-09-08 (17a sessione) - PDF veloce, nomi tolleranti, dock nuovo
 
 Richieste: *"e' cosi' lento quando prepara il pdf [...] sono pdf grandi

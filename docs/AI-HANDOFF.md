@@ -53,7 +53,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | file | righe | cosa contiene |
 |---|---|---|
 | `server.py` | 295 | HTTP + routing + file statici + hub SSE. Avvio: `main()` |
-| `api.py` | 469 | tutti gli endpoint. Ogni handler: `(ctx,q,body) -> (status,payload,evento)` |
+| `api.py` | 655 | tutti gli endpoint. Ogni handler: `(ctx,q,body) -> (status,payload,evento)` |
 | `db.py` | 158 | schema SQLite (stringa `SCHEMA`), `sess()`, `WRITE_LOCK`, `CAMPI`, costanti mesi |
 | `sync.py` | 208 | import Access -> SQLite, diff, backup |
 | `export_access.ps1` | 57 | estrazione ADODB -> JSON. **Deve restare ASCII puro** |
@@ -66,20 +66,20 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | file | righe | cosa contiene |
 |---|---|---|
 | `index.html` | 127 | struttura statica di testa e barra strumenti (gli `id` sono il contratto con `app.js`; `#f-stato` = filtro di stato) |
-| `js/app.js` | 842 | guscio: avvio, viste, filtri, tema, tastiera, operatore, sync, diario |
-| `js/stato.js` | 739 | modello in memoria, `CAMPI`/`PASSI`, filtri, **unico varco per le scritture** (`spunta`) |
+| `js/app.js` | 938 | guscio: avvio, viste, filtri, tema, tastiera, operatore, sync, diario |
+| `js/stato.js` | 827 | modello in memoria, `CAMPI`/`PASSI`, filtri, **unico varco per le scritture** (`spunta`) |
 | `js/api.js` | 224 | fetch, coda offline, flusso, presenza. Sceglie il trasporto |
 | `js/nuvola.js` | 342 | lato Supabase: login, rotte -> RPC, Realtime. #ANCHOR: nuvola |
 | `js/nuvola-config.js` | 18 | indirizzo del database online. Vuoto = locale |
 | `js/anno.js` | 500 | griglia cliente x 12 mesi (vista principale) |
-| `js/mese.js` | 321 | foglio di lavoro del mese + azioni multiple |
+| `js/mese.js` | 390 | foglio di lavoro del mese + azioni multiple |
 | `js/stat.js` | 1283 | vista Statistiche: raccolta dei numeri, quadrante dell'anno, ritmo, lista di lavoro, grafici (torte comprese) |
 | `js/cassetto.js` | 203 | pannello laterale di un service |
-| `js/spunte.js` | 127 | popover della cella |
+| `js/spunte.js` | 148 | popover della cella |
 | `js/affinita.js` | 170 | somiglianza fra nomi scritti male (normalizzazione, Damerau-Levenshtein per parola, pesi di rarita'): ricerca, riconoscimento file nel generatore, doppioni. #ANCHOR: affinita |
 | `js/documenti.js` | 230 | i PDF delle schede tecnici: modello, icona accanto al sito, apertura, consegna. #ANCHOR: documenti |
-| `schede/index.html` | 3700 | il **generatore di schede tecnici** (ex `Schede-Tecnici-Generatore.html`), pagina unica con SheetJS dentro. Il suo handoff e' `schede/HANDOFF.md` |
-| `schede/ponte.js` | 250 | il legame generatore -> tracker: barra del sito, PDF con html2canvas + jsPDF (`schede/lib/`), consegna. #ANCHOR: ponte |
+| `schede/index.html` | 3888 | il **generatore di schede tecnici** (ex `Schede-Tecnici-Generatore.html`), pagina unica con SheetJS dentro. Il guscio: `#app` non scorre, scorre solo `#banco`. Il suo handoff e' `schede/HANDOFF.md` |
+| `schede/ponte.js` | 455 | il legame generatore -> tracker: barra del sito, PDF con html2canvas + jsPDF (`schede/lib/`), consegna. #ANCHOR: ponte |
 | `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
 | `css/theme.css` | 214 | **solo token**: colori, font, misure, segnali, vetro. Il marchio si cambia qui |
 | `css/base.css` | 428 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
@@ -141,6 +141,60 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-08 (18a sessione)
+
+Cinque richieste (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-08-18a-sessione---la-testata-del-ponte-il-titolo-dal-sito-i-conflitti-sulla-nota),
+[ai/decisioni.md](ai/decisioni.md) 15j, 15k e 7).
+
+**Il dock del generatore non galleggia piu': e' la testata della colonna.** Il
+difetto non era lo `sticky`, era che sotto non scorreva niente: `#main` ha
+`overflow:auto` (serve allo zoom) quindi lo sticky si agganciava al suo riquadro
+di scorrimento, che pero' non scorre mai perche' a scorrere era la finestra
+intera. Ora `#app` occupa la finestra e non scorre, `#main` e' una colonna, e
+l'unico riquadro che scorre e' **`#banco`** (le pagine e la schermata iniziale).
+La barra sta **fuori** da quel riquadro: resta in vista da sola e non copre
+nessuna pagina in nessun punto - le due meta' della richiesta si risolvono con
+la stessa cosa. `scrollBox()` e le due guide `fixed` (scaffale dei fascicoli,
+barra di scorrimento) si misurano sul banco, e `--banco-top` le centra sulla
+colonna invece che sulla finestra.
+
+**Rinnovata di conseguenza**: tre gradi di lettura in colonna (rotta in
+monospazio, nome del sito a 16,5 px, dati in una riga **che va a capo**) al
+posto di sei cose in fila su un rigo solo tutte tagliate coi puntini - erano
+quelli a mangiare gli indirizzi lunghi. Un segnale solo, e uno solo si muove: la
+**spina** di 3px sul bordo sinistro, al posto del led e del "cavo". La **fascia**
+in basso compare solo quando c'e' qualcosa da dire e durante il lavoro e' anche
+l'avanzamento. Da ~150 px sempre accesi a 74 a riposo / 119 con un esito.
+
+**Il titolo del documento viene dal sito collegato** (`#titleFromSite`, terza
+sorgente accanto a "prima cella del foglio" e "nome del file", accesa di
+fabbrica): e' il nome sotto cui il PDF verra' archiviato, e non dipende da come
+qualcuno ha battezzato l'Excel.
+
+**Il tracker non parla piu' di "il server" quando gira online**: niente "un solo
+computer fa da server", l'indirizzo da dare ai colleghi e' quello del sito, e la
+nota parla della casella @vrs-tech.it invece del firewall di Windows. Tre
+costanti in `app.js` decise da `inNuvola()`. Nella vista Mese sono sparite le
+voci *impianti* e *da stampare*.
+
+**I conflitti: le spunte erano gia' a posto, la nota no.** Su un campo da un bit
+il 409 non puo' proprio scattare (o `gia-cosi` o `merge`); la nota invece era un
+`UPDATE` secco - due persone che scrivevano insieme si cancellavano in silenzio.
+Ora `/api/nota` porta `base_rev` + `base_nota` e segue le stesse quattro regole,
+con una precisazione che conta: **la base e' quello che l'operatore aveva sotto
+gli occhi**, non quello che il modello sa adesso (il flusso aggiorna `st.celle`
+mentre si scrive). Il testo in scrittura non viene mai sovrascritto: la nota
+altrui si annuncia sopra la casella, e il conflitto offre *Unisci le due* /
+*Tieni la mia*.
+
+**Attenzione**: `cloud/02-funzioni.sql` e `04-sicurezza.sql` sono cambiati
+(`imposta_nota` ha due argomenti in piu', con `drop function` della vecchia
+firma) e **vanno rieseguiti su Supabase**. Verificato tutto il resto in browser
+su una **copia** del `.db` (server sulla 8775): l'archivio del committente non
+e' stato toccato. Solo `web/` e `app/api.py`. Il service worker passa a
+`crono-guscio-v9`.
 
 ## Stato al 2026-09-08 (15a sessione)
 

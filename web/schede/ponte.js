@@ -5,8 +5,11 @@ Il generatore (index.html in questa cartella) e' rimasto quello che era: una
 pagina sola, offline, che da un Excel fa fogli A4. Questo modulo gli aggiunge il
 legame col tracker, che vive nella stessa origine:
 
-  1. il DOCK in testa all'anteprima (sempre visibile, staccato dai bordi) dice a
-     quale SITO e' collegato il lavoro. Arriva nell'indirizzo
+  1. la TESTATA della colonna dell'anteprima dice a quale SITO e' collegato il
+     lavoro. Non galleggia sopra le pagine: sta fuori dal riquadro che scorre
+     (#banco in index.html), quindi resta sempre in vista e non ne copre
+     nessuna. La spina colorata a sinistra e' lo stato del collegamento, la
+     fascia in basso l'esito e l'avanzamento. Il sito arriva nell'indirizzo
      (/schede/?service=ID&anno=..&mese=..) oppure si RICONOSCE dal nome del file
      Excel e dal titolo del foglio, con la stessa tolleranza alle grafie della
      ricerca del tracker (js/affinita.js): corrispondenza netta e un solo sito
@@ -83,6 +86,24 @@ async function caricaSiti() {
 }
 const sitiDelCliente = cli => siti.filter(s => s.cli === cli).length;
 
+/* Il titolo del documento quando il sito e' noto: e' il nome sotto cui il PDF
+   verra' archiviato, quindi vale piu' di come qualcuno ha battezzato l'Excel.
+   Cliente e destinazione insieme, ma una volta sola: in Access capita spesso
+   che la destinazione ripeta la ragione sociale ("CASA DI RIPOSO UMBERTO I" /
+   "Casa di Riposo Umberto I"), e stamparla due volte in copertina sarebbe
+   goffo. Qui si decide solo il testo: se poi il campo lo prenda davvero da qui
+   lo dice la spunta `titleFromSite` nel generatore. */
+const soloLettere = x => String(x || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+function titoloSito() {
+  if (!ctx.id) return '';
+  const cli = (ctx.cliente || '').trim(), dest = (ctx.sito || '').trim();
+  if (!cli || !dest) return cli || dest || ('service #' + ctx.id);
+  const a = soloLettere(cli), b = soloLettere(dest);
+  if (a.includes(b) || b.includes(a)) return a.length >= b.length ? cli : dest;
+  return cli + ' – ' + dest;
+}
+const dilloAlTitolo = () => window.aggiornaTitoloSito?.(titoloSito());
+
 function collega(s, origine) {
   Object.assign(ctx, { id: s.id, mese: s.mese, sito: s.dest, cliente: s.cliente,
                        localita: s.loc, origine });
@@ -90,6 +111,7 @@ function collega(s, origine) {
   u.searchParams.set('service', s.id); u.searchParams.set('mese', s.mese || '');
   u.searchParams.set('sito', s.dest); u.searchParams.set('cliente', s.cliente);
   history.replaceState(null, '', u);
+  dilloAlTitolo();
 }
 
 function scollega() {
@@ -97,6 +119,7 @@ function scollega() {
   const u = new URL(location.href);
   for (const k of ['service', 'mese', 'sito', 'cliente']) u.searchParams.delete(k);
   history.replaceState(null, '', u);
+  dilloAlTitolo();
 }
 
 /* ------------------------------------------------- riconoscimento file --- */
@@ -153,45 +176,65 @@ function esito(tono, testo, cand = null) {
 }
 function chiudiLista() { if (esitoCorrente?.cand) esitoCorrente = { ...esitoCorrente, cand: null }; }
 
+/* La riga dei dati del sito. Ogni voce e' un pezzo a se': quando l'indirizzo e'
+   lungo la riga va a capo invece di tagliare - il pezzo che distingue due
+   impianti dello stesso cliente sta quasi sempre in fondo. */
+function metaSito() {
+  const v = [];
+  if (ctx.sito) v.push(`<span class="dest">${esc(ctx.sito)}</span>`);
+  if (ctx.localita) v.push(esc(ctx.localita));
+  v.push(`<span class="dato">#${ctx.id} · ${ctx.anno}</span>`);
+  v.push(ctx.mese
+    ? `spunta su ${MESI[ctx.mese - 1].toLowerCase()}`
+    : 'mappatura non dovuta quest’anno');
+  return v.join('');
+}
+
 function disegna() {
   const dock = $('#ponte');
   dock.hidden = false;
   const conSito = !!ctx.id;
   const e = esitoCorrente;
 
-  // il chip del sito
+  /* La spina a sinistra e' l'unico segnale di stato: colore del collegamento,
+     e in movimento mentre si prepara il PDF. */
+  const tono = inCorso ? 'lavoro' : (e?.tono || (conSito ? 'ok' : 'idle'));
+  dock.className = 't-' + tono;
+
+  $('#ponteCosa').textContent = conSito ? 'consegna a' : 'a quale sito?';
   $('#ponteSito').hidden = !conSito;
   $('#ponteCerca').hidden = conSito;
+  $('#ponteCambia').hidden = !conSito;
   if (conSito) {
     $('#ponteCliente').textContent = ctx.cliente || ('service #' + ctx.id);
-    $('#ponteDest').textContent = ctx.sito || '';
-    const mese = ctx.mese ? MESI[ctx.mese - 1] : '';
-    $('#ponteMeta').textContent = `#${ctx.id} · ${ctx.anno}` +
-      (ctx.localita ? ' · ' + ctx.localita : '') +
-      (mese ? ` · spunta su ${mese}` : ' · mappatura non dovuta quest’anno');
+    $('#ponteMeta').innerHTML = metaSito();
     const come = $('#ponteCome');
     come.textContent = { tracker: 'dal tracker', auto: 'riconosciuto dal file',
                          lista: 'scelto dalla lista', mano: 'scelto a mano' }[ctx.origine] || '';
-    come.className = 'ponte-come' + (ctx.origine === 'mano' ? ' mano' : '');
+    come.className = 'pn-come' + (ctx.origine === 'mano' ? ' mano' : '');
     come.hidden = !come.textContent;
+  } else {
+    $('#ponteCome').hidden = true;
   }
 
-  // il led e lo stato
-  const tono = inCorso ? 'lavoro' : (e?.tono || (conSito ? 'ok' : 'idle'));
-  $('#ponteLed').className = 'ponte-led ' + tono;
-  const stato = $('#ponteStato');
+  // la fascia dell'esito: c'e' solo quando c'e' qualcosa da dire
+  const stato = $('#ponteStato'), testo = stato.querySelector('span');
   if (e?.testo) {
     stato.hidden = false;
-    stato.className = 'ponte-stato ' + e.tono;
-    if (stato.textContent !== e.testo) {
-      stato.textContent = e.testo;
+    stato.className = 'pn-strip ' + e.tono;
+    if (!inCorso) stato.style.removeProperty('--p');
+    if (testo.textContent !== e.testo) {
+      testo.textContent = e.testo;
       stato.classList.remove('entra'); void stato.offsetWidth; stato.classList.add('entra');
     }
   } else {
     stato.hidden = true;
+    stato.style.removeProperty('--p');
   }
-  $('#ponteSalva').disabled = inCorso || !conSito || !document.querySelectorAll('#pages .page').length;
-  $('#ponteSalva').querySelector('span').textContent = inCorso ? 'Salvo…' : 'Salva nel tracker';
+
+  const salva = $('#ponteSalva');
+  salva.disabled = inCorso || !conSito || !document.querySelectorAll('#pages .page').length;
+  salva.querySelector('span').textContent = inCorso ? 'Salvo…' : 'Salva nel tracker';
 
   // la lista dei probabili
   const pan = $('#ponteScelte');
@@ -256,7 +299,10 @@ async function generaPdf(avanza) {
   const pagine = k ? tutte.filter(p => p.getAttribute('data-part') === k) : tutte;
   if (!pagine.length) throw new Error('nessuna pagina in anteprima');
 
-  const cont = $('#pages'), main = $('#main');
+  /* chi scorre e' #banco (vedi il guscio in index.html): togliendo la scala
+     alle pagine la colonna si accorcia di colpo, e senza rimettere lo
+     scorrimento a posto alla fine si tornerebbe in cima al documento */
+  const cont = $('#pages'), main = $('#banco') || $('#main');
   const trasf = cont.style.transform, scroll = main.scrollTop;
   cont.style.transform = 'none';
   const { jsPDF } = window.jspdf;
@@ -309,19 +355,25 @@ function miniatura(tela) {
   return d.length < 80000 ? d : null;
 }
 
+/** Il nome del file consegnato. Il titolo del documento di regola viene gia' dal
+ *  sito (vedi titoloSito), quindi ripetere il cliente davanti darebbe
+ *  "NIPPON SANSO - NIPPON SANSO - 2026": il cliente si mette solo se il titolo
+ *  non lo contiene gia'. */
 function nomeFile() {
-  const titolo = $('#docTitle')?.value?.trim();
-  const base = [ctx.cliente || ctx.sito || 'sito', titolo || 'schede tecnici', ctx.anno]
+  const titolo = ($('#docTitle')?.value || '').trim();
+  const chi = ctx.cliente || ctx.sito || '';
+  const ripete = chi && titolo && soloLettere(titolo).includes(soloLettere(chi));
+  const base = [ripete ? '' : (chi || 'sito'), titolo || 'schede tecnici', ctx.anno]
     .filter(Boolean).join(' - ');
   return base.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) + '.pdf';
 }
 
+/** L'avanzamento e' la fascia stessa che si riempie dietro alla frase: una
+ *  barra in piu' direbbe la stessa cosa in un posto diverso. */
 function progresso(fatte, totale) {
-  const bar = $('#ponteProg');
-  bar.hidden = false;
-  bar.style.setProperty('--p', totale ? (fatte / totale * 100).toFixed(1) + '%' : '0%');
   esitoCorrente = { tono: 'lavoro', testo: `Preparo il PDF · ${fatte} di ${totale} pagine` };
   disegna();
+  $('#ponteStato').style.setProperty('--p', totale ? (fatte / totale * 100).toFixed(1) + '%' : '0%');
 }
 
 /** Il giro completo: PDF -> tracker -> esito nel dock. */
@@ -352,7 +404,6 @@ async function salvaNelTracker() {
     esito('errore', 'Non salvato: ' + (e?.message || e));
   } finally {
     inCorso = false;
-    $('#ponteProg').hidden = true;
     document.body.classList.remove('ponte-lavora');
     disegna();
   }
@@ -395,6 +446,7 @@ function agganci() {
   collegaDock();
   agganci();
   disegna();
+  dilloAlTitolo();      // arrivando dal tracker il sito c'e' gia' nell'indirizzo
   if (inNuvola() && !nuvola.haSessione()) {
     return esito('errore', 'Non sei collegato al tracker: entra da Crono Mappature per salvare i PDF.');
   }

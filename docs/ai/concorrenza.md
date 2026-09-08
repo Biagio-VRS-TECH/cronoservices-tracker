@@ -44,6 +44,37 @@ mese" in pratica non si toccano mai.
    mettevi a «da fare». Ho tenuto la sua."* con un pulsante **Tieni la mia**.
    Vince il server per default: chi arriva secondo non sovrascrive in silenzio.
 
+## Le spunte non possono confliggere davvero. La nota si'
+
+Vale la pena scriverlo, perche' rileggendo la tabella qui sopra sembra il
+contrario: **sui quattro passi il 409 non scatta mai**, ed e' giusto cosi'. Il
+campo e' un bit e il client manda solo cambiamenti, quindi `valore` e'
+per forza l'opposto di `base_valore`: se il valore sul server e' quello
+richiesto siamo a `gia-cosi`, se e' quello che il client credeva di avere siamo
+a `merge`. Non c'e' un terzo caso. Due operatori che spuntano lo stesso passo
+non si accorgono l'uno dell'altro perche' *non c'e' niente di cui accorgersi*:
+volevano la stessa cosa.
+
+**La nota e' l'unico campo di testo libero, quindi l'unico dove si perde
+davvero del lavoro** (18a sessione: fino ad allora era un UPDATE secco, ultimo
+che scrive vince, senza che nessuno lo sapesse). Ora `POST /api/nota` porta
+`base_rev` e `base_nota` e segue le stesse quattro regole di sopra; il 409
+esiste per lui.
+
+Due dettagli che sembrano cavilli e non lo sono:
+
+- **La base e' quello che l'operatore AVEVA SOTTO GLI OCCHI, non quello che il
+  modello sa adesso.** Mentre si scrive nella casella la nota altrui arriva dal
+  flusso e aggiorna `st.celle`: prendendo la base da li' il conflitto sarebbe
+  gia' stato "risolto" da solo, sovrascrivendo. Chi apre la casella si porta
+  dietro `notaVista`/`notaRev` (`spunte.js`) e li passa a `salvaNota`.
+- **Il testo che si sta scrivendo non si tocca mai.** `rinfrescaPop` riscrive la
+  casella solo se non e' stata modificata; altrimenti la nota dell'altro viene
+  *annunciata* sopra (`.js-eco-nota`, ambra) e si decide uscendo dal campo.
+
+L'avviso del conflitto riporta tutte e due le frasi e offre **Unisci le due**
+(`sua — mia`) e **Tieni la mia**; senza scegliere resta quella del server.
+
 ## Lato database
 
 `WAL` + `busy_timeout` + un `threading.RLock` in-process (`db.WRITE_LOCK`) e
@@ -114,9 +145,18 @@ tre cose da sapere:
 - i **pallini** degli altri operatori collegati, col nome e cosa stanno guardando;
 - un'**etichetta** parlante: "collegato", "3 collegati", "2 in coda - offline".
 
-Cliccandolo si apre il pannello **Lavorare in piu' persone**: indirizzo LAN da
-dare ai colleghi (con Copia), chi e' collegato adesso, quante spunte sono in
-attesa, e il diario delle ultime modifiche di tutti.
+Cliccandolo si apre il pannello **Lavorare in piu' persone**: indirizzo da dare
+ai colleghi (con Copia), chi e' collegato adesso, quante spunte sono in attesa,
+e il diario delle ultime modifiche di tutti.
+
+**Le parole cambiano fra locale e online** (18a sessione). In locale c'e' un PC
+che fa da server, un indirizzo LAN e un computer da tenere acceso; su Netlify
+non c'e' niente di tutto questo, e spiegarlo lo stesso confondeva e basta.
+`DOVE_VIVE` / `DOVE_VIVE_MAI` / `DA_DOVE_VIVE` in `app.js` sono le tre forme
+della stessa parola ("il server" / "l'archivio online"), decise una volta a
+inizio modulo da `inNuvola()`; l'indirizzo da dare ai colleghi online e'
+`location.origin`, e la nota sotto dice che serve una casella @vrs-tech.it
+invece di parlare del firewall di Windows.
 
 Quando il server non risponde compare una **fascia ambra** in cima con il numero
 di spunte in coda e un pulsante "Riprova ora": e' impossibile lavorare mezz'ora

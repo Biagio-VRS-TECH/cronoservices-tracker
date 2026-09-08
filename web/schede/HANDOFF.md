@@ -46,6 +46,24 @@ Tre colonne: `#side` (`--sidew` 392) · `#sidegrip` · `#main` · `#treegrip` ·
 `#treecol` (`--treew` 320). Le due maniglie sono `makeColGrip()` chiamata due
 volte (`fromRight` cambia il verso). Doppio clic = misura di fabbrica.
 
+**Il guscio (18a sessione).** `#app` occupa la finestra e **non scorre**
+(`height:100vh; overflow:hidden`); `#main` e' una colonna flex con due figli: la
+testata del ponte (`#ponte`, altezza propria) e **`#banco`**, che e' l'unico
+riquadro di scorrimento — dentro ci stanno `#empty-state` e
+`#zoomwrap`/`#pages`. Prima scorreva la finestra intera e il dock, dichiarato
+`sticky` dentro `#main` (che ha `overflow:auto`), si agganciava a un riquadro
+che non si muoveva mai: usciva dallo schermo al primo giro di rotellina. Con il
+banco che scorre per conto suo la testata resta ferma perche' e' **fuori** dal
+riquadro che scorre, non perche' galleggia sopra — e cosi' non copre nessuna
+pagina in nessun punto. Sotto i 980 px i pannelli si impilano, torna a scorrere
+la finestra e `#ponte` ridiventa `sticky`.
+
+Conseguenze da ricordare: `scrollBox()` trova `#banco`; `positionPartStrip` e
+`positionDocScroll` si misurano sul banco e non su `#main`, e la seconda scrive
+`--banco-top` (dove comincia il banco) che centra le due guide `fixed` sulla
+colonna invece che sulla finestra; `@media print` deve rimettere `#app`,
+`#main` e `#banco` a scorrimento libero, altrimenti si stampa una pagina sola.
+
 ## 3. Tracciati Excel
 
 Una sola cella A contiene tutto:
@@ -178,15 +196,29 @@ anche quando ci sono pagine in anteprima) e le due sole cose da fare,
 `#pickFile` e `#startTutorial`. Il secondo dice "Avvia" o "Rivedi" secondo
 `vrsSchedeCampo.tourSeen` (`syncTutorialBtn`).
 
-**2 Intestazione** — il titolo si autocompila con la prima cella del foglio
-(se non contiene `PIANO:`), altrimenti con il nome del file. La spunta
-`#titleFromName` (`label.tick`, casella quadrata: non accende un
-comportamento della stampa, dice **da dove viene** il testo del campo sopra)
-fissa la scelta sul nome del file: `applyTitleSource()` mette il valore, il
-campo va in `readOnly` + `.locked` (bordo tratteggiato) e il segnaposto
-cambia. Spegnendola torna `MANUAL_TITLE`, quello che c'era scritto prima.
-È un'**impostazione salvata** (`FACTORY_DEFAULTS`/`BOOL_KEYS`), non il
-titolo: titolo e cantiere restano legati al documento e non si salvano.
+**2 Intestazione** — il titolo ha **tre sorgenti**, decise da `titleSource()`:
+
+| sorgente | da dove | quando |
+|---|---|---|
+| `sito` | il sito del tracker collegato (`SITE_TITLE`, lo passa `ponte.js`) | spunta `#titleFromSite`, accesa di fabbrica; la riga compare solo se un sito c'è |
+| `file` | nome del file senza estensione (`LAST_FILE_BASE`) | spunta `#titleFromName` |
+| — | prima cella del foglio se non contiene `PIANO:`, altrimenti il nome del file | nessuna delle due |
+
+Il sito vince perche' e' il nome sotto cui il PDF verra' archiviato: non dipende
+da come qualcuno ha battezzato l'Excel. Il testo lo compone `titoloSito()` in
+`ponte.js` — cliente + destinazione, ma **una volta sola** quando l'una ripete
+l'altra (in Access capita spesso). Le due spunte sono alternative: accenderne
+una spegne l'altra. `aggiornaTitoloSito(nome)` e' il varco dal ponte al
+generatore ('' = nessun sito: la riga sparisce).
+
+Le spunte (`label.tick`, casella quadrata) non accendono un comportamento della
+stampa: dicono **da dove viene** il testo del campo sopra. Con una accesa
+`applyTitleSource()` mette il valore, il campo va in `readOnly` + `.locked`
+(bordo tratteggiato) e il segnaposto cambia; spegnendole torna `MANUAL_TITLE`,
+cioe' quello che era stato scritto a mano — il testo automatico dell'altra
+sorgente non viene mai scambiato per roba scritta a mano.
+Sono **impostazioni salvate** (`FACTORY_DEFAULTS`/`BOOL_KEYS`), non il titolo:
+titolo e cantiere restano legati al documento e non si salvano.
 
 **3 Impostazioni stampa** — cinque riquadri `.optgrp`, non un elenco di
 interruttori: *Schede nella pagina* (densità, riempimento) · *Piani, reparti

@@ -67,6 +67,20 @@ Senza, chiudere una scheda in un colpo faceva lampeggiare le spunte
 (1111 -> 1000 -> 1100 -> 1110 -> 1111). La regola: **quello che il server dice
 vince, tranne su cio' che il server non ha ancora visto.**
 
+**Sui quattro passi il conflitto non puo' esistere; sulla nota si'**
+(18a sessione). Il campo e' un bit e si mandano solo cambiamenti, quindi
+`valore` e' sempre l'opposto di `base_valore`: o il server ha gia' il valore
+richiesto (`gia-cosi`), o ha ancora quello che il client credeva (`merge`). Il
+409 sui passi e' codice che non scatta mai, e va benissimo cosi'. **La nota
+invece e' testo libero**, e fino alla 18a sessione era un UPDATE secco: due
+persone che scrivevano nello stesso minuto si cancellavano a vicenda in
+silenzio. Ora anche `/api/nota` porta `base_rev` + `base_nota` e puo' rispondere
+409, con una regola in piu': la base e' **quello che l'operatore aveva sotto gli
+occhi** (`notaVista`/`notaRev` del popover), non quello che il modello sa
+adesso — il flusso aggiorna `st.celle` mentre si scrive, e prendendo la base da
+li' il conflitto si sarebbe "risolto" da solo sovrascrivendo. Dettaglio in
+[concorrenza.md](concorrenza.md).
+
 ## 8. Coda in `localStorage`, non IndexedDB
 La coda contiene decine di oggetti minuscoli. IndexedDB sarebbe piu' corretto in
 astratto e molto piu' codice da mantenere. Se un giorno la coda dovesse contenere
@@ -605,6 +619,54 @@ suggerimento che dicono cosa fa il clic, e la selezione multipla resta un gesto
 da mouse. E' la sola cosa che si perde da tastiera, e vale il baratto: il
 quadratino serviva una volta ogni tanto, il pallino-bottone e' il gesto del
 foglio.
+
+## 15j. Il ponte non e' una barra che galleggia: e' la testata della colonna (18a sessione)
+Chiesto dal committente: *"il dock nuovo del generatore e' fissato in alto,
+quindi se scorro giu' nel file non si vede, invece dovrebbe sempre rimanere in
+vista, senza coprire il pdf in nessun punto [...] rinnovala perche' risulta
+antica, e alcune cose non si leggono per intero se ho un sito con un indirizzo
+molto lungo"*.
+
+Il difetto non era il `position:sticky`: era che **non c'era niente che
+scorresse** sotto di lui. `#main` ha `overflow:auto` (serve allo zoom oltre il
+100%), quindi lo sticky si agganciava al riquadro di scorrimento di `#main` —
+che pero' non scorre mai, perche' a scorrere era la finestra intera. La stessa
+trappola era gia' scritta nel commento di `.part-strip`, che l'aveva evitata
+usando `fixed`.
+
+Con `fixed` la barra sarebbe rimasta in vista **coprendo le pagine**, ed era
+l'altra meta' della richiesta. Quindi il guscio: `#app` occupa la finestra e non
+scorre, `#main` e' una colonna, e a scorrere e' solo `#banco`. La barra sta
+**fuori** dal riquadro che scorre: non e' piu' un oggetto che galleggia sopra il
+documento, e' la testata della colonna, come l'etichetta di consegna sopra una
+risma di fogli. E' la stessa cosa che risolve i due problemi in una volta.
+
+**Rinnovata di conseguenza.** Non piu' una lastra di vetro sfumato con l'ombra
+profonda e sei cose in fila su un rigo solo, tutte tagliate con i puntini: tre
+gradi di lettura in colonna — la **rotta** in monospazio (`‹ CRONO MAPPATURE /
+CONSEGNA A`, con l'etichetta della provenienza e "cambia sito" in fondo), il
+**nome del sito** a 16,5px, i **dati** in una riga che va a capo. Niente
+`text-overflow` da nessuna parte: su un sito con l'indirizzo lungo i puntini
+mangiavano proprio la parte che distingue un impianto dall'altro.
+
+Un segnale solo, e uno solo si muove: la **spina** di 3px sul bordo sinistro
+(grigio / cyan / ambra / rosso, e scorre mentre prepara il PDF) al posto del led
+e del "cavo". La **fascia** in basso c'e' solo quando c'e' qualcosa da dire, e
+durante il lavoro e' anche l'avanzamento (il riempimento sta dietro alla frase,
+non e' una barra in piu'). Il dock passa da ~150 px di roba sempre accesa a
+74 px a riposo e 119 px con un esito.
+
+## 15k. Il titolo del documento viene dal sito collegato (18a sessione)
+Chiesto: *"nel punto due intestazione, se c'e' un sito collegato, lo prende da
+li' in automatico"*. Terza sorgente accanto a "prima cella del foglio" e "nome
+del file", e la piu' attendibile delle tre: e' il nome sotto cui il PDF verra'
+archiviato nel tracker, e non dipende da come qualcuno ha battezzato l'Excel.
+Resta una spunta come le altre — dice **da dove viene** il testo, non accende un
+comportamento della stampa — accesa di fabbrica e visibile solo quando un sito
+c'e' davvero. Cliente e destinazione una volta sola quando l'una ripete l'altra;
+per lo stesso motivo `nomeFile()` non premette piu' il cliente a un titolo che
+lo contiene gia' (si otteneva
+`CASA DI RIPOSO UMBERTO I - CASA DI RIPOSO UMBERTO I - 2026.pdf`).
 
 ## 16. Un solo perimetro per le azioni di massa: i filtri
 Non esistono "completa per cliente", "completa per mese", "completa per tipo":

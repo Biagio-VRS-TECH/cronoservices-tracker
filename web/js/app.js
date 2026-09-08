@@ -15,7 +15,7 @@ import {
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
 import * as vStat from './stat.js';
-import { chiudiPop } from './spunte.js';
+import { chiudiPop, rinfrescaPop } from './spunte.js';
 import { chiudiCassetto } from './cassetto.js';
 import {
   eventoDocumento, ricaricaDocumenti, ascoltaAltreSchede, collegaChip, rinfrescaChip,
@@ -80,6 +80,7 @@ async function avvia() {
   });
 
   on('cella', d => {
+    rinfrescaPop(d.id, d.mese);   // il popover aperto su quella cella
     if (st.vista === 'anno') vAnno.aggiornaCella(d.id, d.mese, d.remoto);
     else if (st.vista === 'mese') vMese.aggiornaCella(d.id, d.mese);
     else if (st.vista === 'stat') vStat.aggiorna();
@@ -531,8 +532,8 @@ function statoCollegamento() {
     ? (n ? `${n} in coda · offline` : 'offline')
     : n ? `${n} in invio` : (altri.length ? `${altri.length + 1} collegati` : 'collegato');
   $('#collegamento').title = giu
-    ? 'Server non raggiungibile: le spunte restano in coda su questo computer'
-    : 'Chi è collegato, indirizzo per i colleghi, stato degli invii';
+    ? `${DOVE_VIVE_MAI} non raggiungibile: le spunte restano in coda su questo computer`
+    : `Chi è collegato, indirizzo dell\'applicazione, stato degli invii`;
 
   const banner = $('#banner');
   // Due archivi separati sono il guasto peggiore possibile: l'avviso viene
@@ -553,7 +554,7 @@ function statoCollegamento() {
     const inCoda = n === 1
       ? 'La tua spunta è al sicuro in coda su questo computer e riparte da sola appena torna.'
       : `Le tue ${n} spunte sono al sicuro in coda su questo computer e ripartono da sole appena torna.`;
-    banner.innerHTML = `<b>Server non raggiungibile.</b> <span>${n ? inCoda
+    banner.innerHTML = `<b>${DOVE_VIVE_MAI} non raggiungibile.</b> <span>${n ? inCoda
       : 'Puoi continuare a spuntare: tutto resta in coda su questo computer.'
       }</span><button id="banner-riprova">Riprova ora</button>`;
     $('#banner-riprova').onclick = () => { svuota(); statoCollegamento(); };
@@ -563,9 +564,19 @@ function statoCollegamento() {
   }
 }
 
+/* Come si chiama, per chi legge, il posto dove le spunte vanno a finire. In
+   locale e' un PC dell'ufficio che fa da server e i colleghi lo aprono per
+   indirizzo LAN; online e' un archivio su internet e nessuno tiene acceso
+   niente. Una parola sola, decisa all'avvio, usata dovunque si parli del
+   collegamento. */
+const DOVE_VIVE = inNuvola() ? 'l’archivio online' : 'il server';
+const DOVE_VIVE_MAI = inNuvola() ? 'Archivio online' : 'Server';
+const DA_DOVE_VIVE = inNuvola() ? 'dall’archivio online' : 'dal server';
+
 function pannelloCollegamento() {
   modale(chiudi => {
-    const lan = st.indirizzoLan || '';
+    // online l'indirizzo da passare ai colleghi e' quello del sito, non la LAN
+    const lan = inNuvola() ? location.origin : (st.indirizzoLan || '');
     const tutti = (st.online || []).filter(o => o.nome);
     const box = h('div');
     chiama('/api/attivita?limit=12').then(({ dati }) => {
@@ -586,8 +597,11 @@ function pannelloCollegamento() {
     return [
       h('h2', { testo: 'Lavorare in più persone' }),
       h('p.sotto', {
-        testo: 'Un solo computer fa da server; gli altri lo aprono nel browser. ' +
-          'Le spunte si vedono a vicenda in tempo reale.'
+        testo: inNuvola()
+          ? 'L’archivio sta online: entrate tutti dallo stesso indirizzo, da ' +
+            'qualunque computer, e le spunte si vedono a vicenda in tempo reale.'
+          : 'Un solo computer fa da server; gli altri lo aprono nel browser. ' +
+            'Le spunte si vedono a vicenda in tempo reale.'
       }),
 
       h('h3.tit-p', { testo: 'Indirizzo da dare ai colleghi' }),
@@ -601,12 +615,16 @@ function pannelloCollegamento() {
               e.currentTarget.querySelector('span').textContent = ok ? 'Copiato' : 'Copia a mano';
             }
           }))
-        : h('p.nota-t', { testo: 'Indirizzo non disponibile: server non raggiungibile.' }),
+        : h('p.nota-t', { testo: `Indirizzo non disponibile: ${DOVE_VIVE} non risponde.` }),
       h('p.nota-t', {
         style: 'margin-bottom:18px',
-        testo: 'Il computer che fa da server deve restare acceso. La prima volta ' +
-          'Windows chiede di autorizzare Python sulla rete: rispondere Consenti ' +
-          'sulle reti private.'
+        testo: inNuvola()
+          ? 'Per entrare serve una casella @vrs-tech.it. Non c’è nessun computer ' +
+            'da tenere acceso: i dati di Access salgono una volta al giorno dal PC ' +
+            'dell’ufficio, le spunte nascono e restano online.'
+          : 'Il computer che fa da server deve restare acceso. La prima volta ' +
+            'Windows chiede di autorizzare Python sulla rete: rispondere Consenti ' +
+            'sulle reti private.'
       }),
 
       h('h3.tit-p', { testo: 'Collegati ora' }),
@@ -625,7 +643,7 @@ function pannelloCollegamento() {
           ? `<b>${rete.coda.length}</b> in attesa di essere ` +
           `${rete.coda.length === 1 ? 'inviata' : 'inviate'}. ` +
           'Restano su questo computer anche se chiudi il browser.'
-          : 'Tutte inviate e confermate dal server.'
+          : `Tutte inviate e confermate ${DA_DOVE_VIVE}.`
       }),
 
       h('h3.tit-p', { testo: 'Ultime modifiche di tutti' }),
@@ -677,7 +695,7 @@ function mostraDiario() {
             h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })))))
         : h('p.nota-t', { testo: 'Nessuna modifica registrata: il diario parte dalla prima spunta.' }));
     }).catch(() => corpo.replaceChildren(h('p.nota-t', {
-      testo: 'Server non raggiungibile: il diario vive sul PC che ospita l’applicazione.',
+      testo: `Diario non disponibile: ${DOVE_VIVE} non risponde.`,
     })));
     return [
       h('h2', { testo: 'Diario attività' }),
@@ -905,8 +923,9 @@ function mostraAiuto() {
       h('p.nota-t', {
         testo: 'Le spunte degli altri arrivano da sole: la cella lampeggia col nome di ' +
           'chi l\'ha toccata. Se manca la rete le tue restano in coda e partono da ' +
-          'sole quando torna. Solo se due persone cambiano lo stesso passo nello ' +
-          'stesso momento ti viene chiesto quale tenere. Il pulsante con la spia in ' +
+          'sole quando torna. Le spunte si fondono da sole, passo per passo: ti ' +
+          'viene chiesto di scegliere solo se due persone scrivono la stessa nota ' +
+          'nello stesso momento. Il pulsante con la spia in ' +
           'alto mostra chi è collegato e l\'indirizzo da dare ai colleghi.'
       }),
       h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },

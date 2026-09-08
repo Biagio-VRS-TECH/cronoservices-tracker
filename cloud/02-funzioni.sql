@@ -211,30 +211,77 @@ begin
 end $fn$;
 
 -- ----------------------------------------------------------------- nota ----
+-- Gemello di api.nota. La nota e' l'unico campo di testo libero: su un booleano
+-- i due valori possibili si riconciliano sempre da soli, su una frase no.
+-- Stesse regole di _applica: rev invariata -> scrive; rev cambiata ma la nota e'
+-- gia' la tua -> gia-cosi; rev cambiata e la nota e' ancora quella che il client
+-- credeva -> l'altro ha toccato una spunta, merge; rev cambiata e la nota e'
+-- un'altra -> 409, sceglie l'operatore. Senza p_base_rev si scrive e basta.
+-- la firma cambia (base_rev/base_nota): senza il drop la versione a quattro
+-- argomenti resterebbe in giro come sovraccarico, e PostgREST sceglierebbe a
+-- caso fra le due
+drop function if exists public.imposta_nota(int, int, int, text);
 create or replace function public.imposta_nota(
-  p_id_service int, p_anno int, p_mese int, p_nota text)
+  p_id_service int, p_anno int, p_mese int, p_nota text,
+  p_base_rev int default null, p_base_nota text default null)
 returns jsonb
 language plpgsql security definer set search_path = public as $fn$
 declare r public.mappature%rowtype; op text; ts text := public.ts_locale();
-        testo text := nullif(left(btrim(coalesce(p_nota, '')), 500), '');
+        testo   text := left(btrim(coalesce(p_nota, '')), 500);
+        attuale text;
+        esito   text := 'ok';
+        base    jsonb := jsonb_build_object('id_service', p_id_service,
+                                            'anno', p_anno, 'mese', p_mese);
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
   op := public.operatore_corrente();
 
-  insert into public.mappature(id_service, anno, mese, rev, updated_at, updated_by)
-  values (p_id_service, p_anno, p_mese, 0, ts, op)
-  on conflict (id_service, anno, mese) do nothing;
+  select * into r from public.mappature
+   where id_service = p_id_service and anno = p_anno and mese = p_mese for update;
+
+  if r.id_service is null then
+    if testo = '' then
+      return base || jsonb_build_object('http', 200, 'esito', 'gia-cosi',
+                                        'cella', public._cella_vuota());
+    end if;
+    insert into public.mappature(id_service, anno, mese, rev, updated_at, updated_by)
+    values (p_id_service, p_anno, p_mese, 0, ts, op)
+    on conflict (id_service, anno, mese) do nothing;
+    select * into r from public.mappature
+     where id_service = p_id_service and anno = p_anno and mese = p_mese for update;
+  end if;
+
+  attuale := coalesce(r.nota, '');
+
+  if p_base_rev is not null and p_base_rev <> r.rev then
+    if attuale = testo then
+      return base || jsonb_build_object('http', 200, 'esito', 'gia-cosi',
+                                        'cella', public._cella_out(r));
+    end if;
+    if p_base_nota is not null
+       and attuale <> left(btrim(p_base_nota), 500) then
+      return base || jsonb_build_object('http', 409, 'esito', 'conflitto',
+                                        'cella', public._cella_out(r),
+                                        'campo', 'nota', 'tuo', testo);
+    end if;
+    esito := 'merge';
+  end if;
+
+  if attuale = testo then
+    return base || jsonb_build_object('http', 200, 'esito', 'gia-cosi',
+                                      'cella', public._cella_out(r));
+  end if;
 
   update public.mappature
-     set nota = testo, rev = rev + 1, updated_at = ts, updated_by = op
+     set nota = nullif(testo, ''), rev = rev + 1, updated_at = ts, updated_by = op
    where id_service = p_id_service and anno = p_anno and mese = p_mese
   returning * into r;
 
   insert into public.eventi(ts, operatore, id_service, anno, mese, campo, origine)
   values (ts, op, p_id_service, p_anno, p_mese, 'nota', 'live');
 
-  return jsonb_build_object('http', 200, 'cella', public._cella_out(r),
-    'id_service', p_id_service, 'anno', p_anno, 'mese', p_mese);
+  return base || jsonb_build_object('http', 200, 'esito', esito,
+                                    'cella', public._cella_out(r));
 end $fn$;

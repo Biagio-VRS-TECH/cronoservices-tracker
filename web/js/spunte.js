@@ -58,6 +58,25 @@ function disegnaPassi() {
   firma.textContent = c.at ? `ultima modifica ${quando(c.at)} · ${c.by || '?'}` : 'nessuna modifica';
 }
 
+/** La cella e' cambiata mentre il popover era aperto (di solito: un altro
+ *  operatore). I quattro passi si riscrivono sempre; la nota **no**, se chi sta
+ *  qui l'ha gia' toccata: sovrascrivere il testo sotto le dita e' il modo piu'
+ *  sicuro per far perdere del lavoro. In quel caso il testo altrui resta
+ *  annunciato sopra la casella, e quando si esce dal campo il server dira' che
+ *  c'e' un conflitto (api.nota) offrendo di unire le due frasi. */
+export function rinfrescaPop(id, mese) {
+  if (!aperto || aperto.id !== id || aperto.mese !== mese) return;
+  disegnaPassi();
+  const ta = aperto.nodo.querySelector('textarea');
+  const c = cella(id, mese), nuova = c.nota || '';
+  const mioTesto = ta.value !== aperto.notaVista;
+  if (!mioTesto) { ta.value = nuova; aperto.notaVista = nuova; aperto.notaRev = c.rev; }
+  const eco = aperto.nodo.querySelector('.js-eco-nota');
+  const dillo = mioTesto && nuova !== aperto.notaVista;
+  eco.hidden = !dillo;
+  if (dillo) eco.textContent = `${c.by || 'Un altro operatore'} intanto ha scritto: “${nuova || '(nota tolta)'}”`;
+}
+
 /** Apre il popover ancorato all'elemento della cella. */
 export function apriPop(bersaglio, id, mese) {
   chiudiPop();
@@ -69,9 +88,17 @@ export function apriPop(bersaglio, id, mese) {
     h('p.pop-sotto', { testo: `#${id} · ${s?.dest || ''}`.slice(0, 60) }),
     h('div.passi'),
     h('div.pop-nota', {},
+      h('p.js-eco-nota', { hidden: true }),
       h('textarea', {
         placeholder: 'Nota (opzionale)', maxlength: 500,
-        onchange: e => { salvaNota(id, mese, e.target.value.trim()); },
+        /* la base e' quella che si vedeva quando la casella e' stata riempita:
+           se intanto e' arrivata la nota di un altro, il server se ne accorge e
+           chiede quale tenere invece di sovrascriverla in silenzio */
+        onchange: e => {
+          const v = e.target.value.trim();
+          salvaNota(id, mese, v, { rev: aperto?.notaRev, nota: aperto?.notaVista });
+          if (aperto) aperto.notaVista = v;
+        },
       })),
     h('div.pop-piede', {},
       h('button.js-tutte', {
@@ -98,7 +125,7 @@ export function apriPop(bersaglio, id, mese) {
   nodo.style.left = x + 'px';
   nodo.style.top = y + 'px';
 
-  aperto = { nodo, id, mese, bersaglio };
+  aperto = { nodo, id, mese, bersaglio, notaVista: c.nota || '', notaRev: c.rev };
   disegnaPassi();
   // la tastiera si collega subito (un Esc immediato andava perso); il
   // pointerdown al giro dopo, per non farsi chiudere dal clic che ha aperto

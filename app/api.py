@@ -236,23 +236,64 @@ def bulk(ctx, q, body):
 
 
 def nota(ctx, q, body):
+    """La nota della cella, con lo stesso merge per campo delle spunte
+    (#ANCHOR: merge).
+
+    E' l'unico campo di testo libero dell'applicazione, quindi l'unico dove due
+    operatori possono davvero perdere del lavoro: su un booleano i due valori
+    possibili si riconciliano sempre da soli (o l'altro ha gia' messo quello che
+    volevi, o ha toccato un passo diverso), su una frase no. Le regole, uguali a
+    quelle di _applica:
+      rev invariata                          -> scrive
+      rev cambiata, la nota e' gia' la tua   -> gia-cosi
+      rev cambiata, la nota e' quella che il client credeva di avere
+                                             -> ha toccato una spunta: merge
+      rev cambiata e la nota e' un'altra     -> 409, sceglie l'operatore
+    Senza `base_rev` (client vecchio) resta il comportamento di prima: scrive."""
     sid, anno, mese = int(body["id_service"]), int(body["anno"]), int(body["mese"])
     testo = (body.get("nota") or "").strip()[:500]
+    base_rev = body.get("base_rev")
+    base_nota = body.get("base_nota")
+    operatore = body.get("operatore") or "?"
     with db.WRITE_LOCK:
         c = db.connect()
         try:
             c.execute("BEGIN IMMEDIATE")
-            if _cella(c, sid, anno, mese) is None:
+            r = _cella(c, sid, anno, mese)
+            if r is None:
+                if not testo:      # niente riga e niente da scrivere
+                    c.execute("COMMIT")
+                    return 200, {"esito": "gia-cosi", "cella": _cella_out_vuota(),
+                                 "id_service": sid, "anno": anno,
+                                 "mese": mese}, None
                 c.execute("""INSERT INTO mappature(id_service,anno,mese,rev,updated_at,
                              updated_by) VALUES(?,?,?,0,?,?)""",
-                          (sid, anno, mese, db.now(), body.get("operatore") or "?"))
+                          (sid, anno, mese, db.now(), operatore))
+                r = _cella(c, sid, anno, mese)
+            attuale = r["nota"] or ""
+            esito = "ok"
+            if base_rev is not None and int(base_rev) != r["rev"]:
+                if attuale == testo:
+                    c.execute("COMMIT")
+                    return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+                                 "id_service": sid, "anno": anno, "mese": mese}, None
+                if base_nota is not None and attuale != str(base_nota).strip()[:500]:
+                    c.execute("COMMIT")
+                    return 409, {"esito": "conflitto", "cella": _cella_out(r),
+                                 "campo": "nota", "tuo": testo,
+                                 "id_service": sid, "anno": anno, "mese": mese}, None
+                esito = "merge"
+            if attuale == testo:
+                c.execute("COMMIT")
+                return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+                             "id_service": sid, "anno": anno, "mese": mese}, None
+            ts = db.now()
             c.execute("""UPDATE mappature SET nota=?, rev=rev+1, updated_at=?, updated_by=?
                          WHERE id_service=? AND anno=? AND mese=?""",
-                      (testo or None, db.now(), body.get("operatore") or "?",
-                       sid, anno, mese))
+                      (testo or None, ts, operatore, sid, anno, mese))
             c.execute("""INSERT INTO eventi(ts,operatore,id_service,anno,mese,campo,da,a,
                          origine) VALUES(?,?,?,?,?,'nota',NULL,NULL,'live')""",
-                      (db.now(), body.get("operatore") or "?", sid, anno, mese))
+                      (ts, operatore, sid, anno, mese))
             r = _cella(c, sid, anno, mese)
             c.execute("COMMIT")
         except Exception:
@@ -260,9 +301,10 @@ def nota(ctx, q, body):
             raise
         finally:
             c.close()
-    out = {"cella": _cella_out(r), "id_service": sid, "anno": anno, "mese": mese}
+    out = {"esito": esito, "cella": _cella_out(r), "id_service": sid, "anno": anno,
+           "mese": mese}
     return 200, out, {"tipo": "cella", "anno": anno, "id_service": sid, "mese": mese,
-                      "cella": out["cella"], "operatore": body.get("operatore") or "?"}
+                      "cella": out["cella"], "operatore": operatore}
 
 
 # ------------------------------------------------------------- letture ------

@@ -87,8 +87,16 @@ button,select,input{font-family:inherit}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 
-/* ---------- APP ---------- */
-#app{display:flex;min-height:100vh;background:var(--ui-0)}
+/* ---------- APP ----------
+   L'applicazione occupa la finestra e NON scorre: a scorrere e' solo la
+   colonna dell'anteprima (#banco), che e' un riquadro di scorrimento vero.
+   Prima scorreva la finestra intera, e la testata del ponte - dichiarata
+   sticky dentro #main, che ha overflow:auto - si agganciava a un riquadro che
+   non si muoveva mai: usciva dallo schermo alla prima rotellina. Con il banco
+   che scorre per conto suo la testata resta dov'e' perche' e' fuori dal
+   riquadro che scorre, non perche' galleggia sopra: le pagine non le passano
+   mai sotto. */
+#app{display:flex;height:100vh;overflow:hidden;background:var(--ui-0)}
 #side{width:var(--sidew);flex:0 0 var(--sidew);background:var(--ui-1);border-right:1px solid var(--ui-3);
   padding:0 20px;position:sticky;top:0;height:100vh;overflow:auto}
 /* barre di scorrimento dei pannelli: sottili, senza fondino chiaro che
@@ -395,7 +403,12 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 .zoomrow .btn{margin-top:0;flex:1 1 auto;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em}
 .zoomrow .ico{height:auto;width:40px;font-size:19px;font-weight:700;line-height:1}
 
-#main{flex:1;padding:30px 20px 60px;overflow:auto;background:var(--ui-0);container-type:inline-size}
+#main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--ui-0);
+  container-type:inline-size}
+/* il banco di lavoro: le pagine e la schermata iniziale, l'unica cosa che
+   scorre. overflow:auto anche in orizzontale, che serve allo zoom oltre il
+   100%. #partStrip e #docScroll restano fuori: sono position:fixed */
+#banco{flex:1 1 auto;min-height:0;overflow:auto;padding:30px 20px 60px}
 
 /* le pagine sono l'unica superficie chiara: staccano dal banco di lavoro con
    un'ombra profonda e un filo di luce sul bordo. La regola sta in @media
@@ -421,19 +434,16 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    Sta a sinistra (bordo verso #side) apposta: la barra di scorrimento sta a
    destra (bordo verso #treecol), cosi' le due guide restano una per lato
    invece di contendersi lo stesso margine.
-   E' "fixed" rispetto alla finestra, non "sticky" dentro #main: #main ha
-   overflow:auto (serve per lo zoom oltre il 100%, che scorre in orizzontale
-   dentro la colonna) e uno sticky dentro un antenato con overflow non-visible
-   si aggancia al SUO riquadro di scorrimento, non alla finestra - che qui e'
-   quella che scorre davvero (vedi scrollBox()). Il fixed non ha questo
-   problema: esce dal flusso e si posiziona in coordinate di finestra a
-   prescindere dagli antenati.
-   Stando di lato non ruba altezza a nessuno, quindi non serve piu' lo spazio
-   di riserva che prima teneva libera la cima di #main. L'unica misura
-   calcolata in JS e' la distanza dal bordo sinistro della colonna #main
-   (positionPartStrip, chiamata da un ResizeObserver su #main): cosi' lo
-   scaffale segue da solo sia le maniglie sia il resize della finestra. */
-.part-strip{position:fixed;top:50%;transform:translateY(-50%);z-index:40;
+   E' "fixed" rispetto alla finestra, non "sticky" dentro il banco: uno sticky
+   si aggancia al riquadro di scorrimento del suo antenato e si fermerebbe al
+   bordo di quello, mentre lo scaffale deve stare in mezzo alla colonna sempre.
+   Stando di lato non ruba altezza a nessuno. Le misure calcolate in JS sono
+   due, tutte e due in positionPartStrip (chiamata da un ResizeObserver su
+   #banco): la distanza dal bordo sinistro del banco, e --banco-top, cioe'
+   dove il banco comincia sotto la testata del ponte - senza quella lo
+   scaffale resterebbe centrato sulla finestra e sconfinerebbe sotto la
+   testata. Cosi' segue da solo sia le maniglie sia il resize della finestra. */
+.part-strip{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);z-index:40;
   display:flex;flex-direction:column;gap:9px;align-items:center;
   max-height:min(80vh,820px);overflow-y:auto;overflow-x:hidden;
   padding:10px 11px 12px;border:1px solid var(--ui-3);border-radius:12px;
@@ -482,7 +492,7 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    scorrimento vera ma disegnata sui colori dell'app. Sono due domande
    diverse, quindi stanno nei due margini opposti dell'anteprima e non si
    contendono lo stesso spazio (stessa meccanica: fixed sopra la colonna
-   #main, misura presa dal bordo della colonna in positionDocScroll).
+   dell'anteprima, misura presa dal bordo di #banco in positionDocScroll).
    Sostituisce la vecchia mappa a miniature: quella mostrava ogni pagina, il
    documento intero, sempre nitido nei punti in vista; questa e' volutamente
    piu' piccola - un dorso solo, con l'indicatore che dice quanto e' lungo il
@@ -491,7 +501,7 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    entrambi i temi senza bisogno di due tavolozze separate; la traccia si
    allarga al passaggio del mouse e durante il trascinamento, e mostra il
    numero di pagina in una bolla, cosi' la barra si nota solo quando serve. */
-.doc-scroll{position:fixed;top:50%;transform:translateY(-50%);z-index:39;
+.doc-scroll{position:fixed;top:calc(50% + var(--banco-top,0px)/2);transform:translateY(-50%);z-index:39;
   display:flex;align-items:center;justify-content:center;
   height:min(70vh,720px);padding:0 5px}
 .doc-scroll.cramped{display:none}
@@ -550,7 +560,11 @@ body.scrubbing{cursor:grabbing;user-select:none}
 /* schermi stretti: i pannelli si impilano, le maniglie non servono piu' e lo
    scaffale dei fascicoli non avrebbe dove stare senza coprire la pagina */
 @media (max-width:980px){
-  #app{flex-direction:column}
+  #app{flex-direction:column;height:auto;overflow:visible}
+  #main{display:block}
+  #banco{overflow:visible}
+  /* qui scorre di nuovo la finestra, quindi la testata puo' tornare sticky */
+  #ponte{position:sticky;top:0}
   #side,#treecol{width:auto!important;flex:0 0 auto!important;position:static;height:auto;max-height:none;
     overflow:visible;border-right:0;border-left:0;border-bottom:1px solid var(--ui-3)}
   #brandbar{position:static}
@@ -875,97 +889,135 @@ table.xls.plain tbody tr:hover{background:transparent}
 #brandbar #themeSeg{margin-left:6px}
 
 /* ---------- PONTE col tracker (ponte.js) ----------
-   Il DOCK: una lastra staccata dai bordi, sempre in vista sopra le pagine che
-   le scorrono sotto. Da sinistra: il ritorno al tracker, il "cavo" con il led
-   di stato, il sito collegato, l'esito, il bottone che consegna. Vive nei
-   token dell'app (mai del documento); in stampa non esiste. */
-#ponte{position:sticky;top:12px;z-index:30;margin:-14px auto 28px;width:min(100%,1040px);
-  display:flex;align-items:center;gap:14px;padding:10px 12px 10px 16px;border-radius:16px;
-  background:color-mix(in srgb,var(--ui-1) 84%,transparent);
-  border:1px solid color-mix(in srgb,var(--ui-3) 80%,var(--acc) 20%);
-  box-shadow:0 22px 50px -18px rgba(0,0,0,.65),0 1px 0 rgba(255,255,255,.05) inset;
-  font-size:13px;color:var(--ui-tx2);isolation:isolate}
-@supports (backdrop-filter:blur(1px)){#ponte{backdrop-filter:blur(14px) saturate(1.25)}}
-:root.lt #ponte{box-shadow:0 22px 50px -22px rgba(15,20,24,.35),0 1px 0 rgba(255,255,255,.7) inset}
+   Non e' una barra di comandi che galleggia sopra il documento: e' la TESTATA
+   della colonna dell'anteprima, cioe' l'etichetta di consegna appiccicata alla
+   risma di fogli. Sta fuori dal riquadro che scorre (#banco), quindi resta in
+   vista da sola e non copre mai una pagina.
+   Si legge in tre gradi: la ROTTA in monospazio (da dove si viene, dove va il
+   lavoro), il NOME del sito grande, i dati in una riga che va a capo - un
+   indirizzo lungo si legge tutto, niente e' tagliato con i puntini.
+   La SPINA a sinistra e' l'unica cosa che cambia colore ed e' l'unica che si
+   muove: dice lo stato del collegamento e, mentre si prepara il PDF, scorre.
+   La FASCIA in basso compare solo quando c'e' qualcosa da dire, e durante il
+   lavoro e' anche l'avanzamento (--p). Vive nei token dell'app, mai in quelli
+   del documento; in stampa non esiste. */
+#ponte{position:relative;z-index:30;flex:none;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:20px;
+  padding-left:3px;background:var(--ui-1);border-bottom:1px solid var(--ui-3);
+  font-size:13px;color:var(--ui-tx2)}
 #ponte [hidden]{display:none!important}
-#ponte .ponte-back{color:var(--ui-tx);text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;letter-spacing:.01em}
-#ponte .ponte-back svg{width:15px;height:15px;color:var(--acc);transition:transform .2s var(--ease)}
-#ponte .ponte-back:hover svg{transform:translateX(-3px)}
-#ponte .ponte-back:hover{color:var(--acc)}
-/* il cavo: un filo con il led. E' il segnale del collegamento, l'unica cosa che si muove da sola */
-.ponte-cavo{flex:none;display:flex;align-items:center;gap:0;width:54px}
-.ponte-cavo::before,.ponte-cavo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--ui-4),var(--ui-3))}
-.ponte-led{width:11px;height:11px;border-radius:50%;flex:none;background:var(--ui-4);box-shadow:0 0 0 3px color-mix(in srgb,var(--ui-4) 25%,transparent);transition:background .3s,box-shadow .3s}
-.ponte-led.ok{background:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent),0 0 14px color-mix(in srgb,var(--acc) 55%,transparent)}
-.ponte-led.lavoro{background:var(--acc);animation:ponte-batte 1.1s ease-in-out infinite}
-.ponte-led.dubbio,.ponte-led.lista{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent)}
-.ponte-led.nessuno,.ponte-led.errore{background:#E5484D;box-shadow:0 0 0 3px rgba(229,72,77,.25)}
-@keyframes ponte-batte{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent)}50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--acc) 8%,transparent),0 0 18px var(--acc)}}
-/* il sito */
-.ponte-sito{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto}
-.ponte-sito .txt{display:flex;flex-direction:column;min-width:150px;flex:1 1 220px;line-height:1.28}
-.ponte-sito b{color:var(--ui-tx);font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ponte-sito .dest{color:var(--ui-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
-.ponte-sito i{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ponte-come{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;
-  color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);border:1px solid color-mix(in srgb,var(--acc) 30%,transparent)}
-.ponte-come.mano{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
-#ponte .ponte-mini{background:none;border:0;color:var(--ui-tx3);cursor:pointer;font-size:12px;padding:0;font-family:inherit;white-space:nowrap}
-#ponte .ponte-mini:hover{color:var(--acc);text-decoration:underline}
-/* la ricerca, quando il sito non c'e' */
-#ponteCerca{flex:1 1 auto;min-width:0;display:flex}
-#ponte input{flex:1;background:var(--ui-2);border:1px solid var(--ui-3);color:var(--ui-tx);border-radius:10px;
-  padding:8px 12px;font-size:13px;font-family:inherit;min-width:0}
+
+/* la spina: 3px sul bordo sinistro, tutta l'altezza. Sostituisce il led e il
+   filo che c'erano prima - un segnale solo, grande abbastanza da vedersi con
+   la coda dell'occhio mentre si guarda una pagina */
+#ponte::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--ui-4);transition:background .3s}
+#ponte.t-ok::before{background:var(--acc)}
+#ponte.t-dubbio::before,#ponte.t-lista::before{background:var(--warn)}
+#ponte.t-nessuno::before,#ponte.t-errore::before{background:#E5484D}
+#ponte.t-lavoro::before{background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));
+  background-size:100% 220%;animation:pn-scorre 1.4s linear infinite}
+@keyframes pn-scorre{to{background-position:0 -220%}}
+
+/* la rotta, il nome, i dati */
+.pn-corpo{grid-column:1;min-width:0;padding:10px 0 10px 15px;
+  display:flex;flex-direction:column;gap:3px}
+.pn-rotta{margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 9px;
+  font:700 10px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ui-tx3)}
+.pn-rotta a{color:var(--ui-tx3);text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.pn-rotta a svg{width:12px;height:12px;transition:transform .2s var(--ease)}
+.pn-rotta a:hover{color:var(--acc)}
+.pn-rotta a:hover svg{transform:translateX(-2px)}
+.pn-rotta .sep{opacity:.4}
+.pn-rotta #ponteCambia{margin-left:auto}
+/* da dove viene il collegamento: "a mano" e' l'unico che merita un colore,
+   perche' e' l'unico che nessuno ha verificato */
+.pn-come{font-size:9.5px;letter-spacing:.12em;padding:2px 7px;border-radius:999px;
+  color:var(--acc);background:var(--acc-lo);border:1px solid color-mix(in srgb,var(--acc) 28%,transparent)}
+.pn-come.mano{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);
+  border-color:color-mix(in srgb,var(--warn) 34%,transparent)}
+#ponte h2{margin:0;font:700 16.5px/1.2 inherit;letter-spacing:-.015em;color:var(--ui-tx);
+  overflow-wrap:anywhere}
+/* i dati del sito: una riga sola che VA A CAPO. Niente text-overflow: su un
+   sito con l'indirizzo lungo i puntini nascondevano proprio la parte che
+   distingue un impianto dall'altro */
+.pn-meta{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 10px;
+  font-size:12.5px;line-height:1.45;color:var(--ui-tx2);overflow-wrap:anywhere}
+.pn-meta .dest{color:var(--ui-tx)}
+.pn-meta .dato{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--ui-tx3)}
+#ponte .pn-mini{background:none;border:0;padding:0;font:inherit;font-size:12px;
+  color:var(--ui-tx3);cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+  text-decoration-color:var(--ui-4)}
+#ponte .pn-mini:hover{color:var(--acc);text-decoration-color:currentColor}
+
+/* la ricerca, quando il sito non c'e' ancora */
+.pn-cerca{display:flex;min-width:0}
+#ponte input{flex:1;min-width:0;background:var(--ui-2);border:1px solid var(--ui-3);
+  color:var(--ui-tx);border-radius:var(--r2);padding:9px 12px;font-size:13px;font-family:inherit}
 #ponte input:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-lo)}
-/* l'esito */
-.ponte-stato{font-size:12.5px;line-height:1.35;color:var(--ui-tx2);max-width:34ch;min-width:14ch;flex:0 1 auto;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ponte-stato.entra{animation:ponte-entra .32s var(--ease) both}
-@keyframes ponte-entra{from{opacity:0;transform:translateY(4px)}}
-.ponte-stato.ok{color:#3FD0A3}
-:root.lt .ponte-stato.ok{color:#007A5C}
-.ponte-stato.dubbio,.ponte-stato.lista{color:var(--warn)}
-.ponte-stato.nessuno,.ponte-stato.errore{color:#F0767A}
-:root.lt .ponte-stato.nessuno,:root.lt .ponte-stato.errore{color:#C0392B}
+
 /* il bottone che consegna */
-#ponte .btn{width:auto;margin:0;padding:9px 16px 9px 13px;font-size:13px;white-space:nowrap;border-radius:11px;flex:none;
-  display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 20px -10px var(--acc)}
+.pn-azione{grid-column:2;display:flex;align-items:center;padding:10px 15px 10px 0}
+#ponte .btn{width:auto;margin:0;padding:10px 16px 10px 13px;font-size:13px;white-space:nowrap;
+  border-radius:var(--r2);display:inline-flex;align-items:center;gap:8px}
 #ponte .btn svg{width:15px;height:15px}
-#ponte .btn[disabled]{opacity:.4;cursor:default;box-shadow:none}
+#ponte .btn[disabled]{opacity:.38;cursor:default;box-shadow:none}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
-/* la barra di avanzamento: il bordo basso del dock che si riempie */
-.ponte-prog{position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ui-3);overflow:hidden}
-.ponte-prog::after{content:"";position:absolute;inset:0;width:var(--p,0%);background:var(--acc);transition:width .25s var(--ease)}
-/* la lista dei probabili: cala da sotto il dock */
-.ponte-scelte{position:absolute;left:12px;right:12px;top:calc(100% + 8px);z-index:31;border-radius:14px;padding:10px 10px 8px;
-  background:color-mix(in srgb,var(--ui-1) 97%,transparent);border:1px solid var(--ui-3);
-  box-shadow:0 30px 60px -20px rgba(0,0,0,.7);animation:ponte-entra .26s var(--ease) both}
-@supports (backdrop-filter:blur(1px)){.ponte-scelte{backdrop-filter:blur(16px)}}
-.ponte-scelte header{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-tx3);font-weight:700}
-.ponte-scelte ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.ponte-scelte li button{width:100%;display:grid;grid-template-columns:78px 1fr auto;align-items:center;gap:12px;text-align:left;
-  background:transparent;border:1px solid transparent;border-radius:10px;padding:8px 10px;color:var(--ui-tx);cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
+
+/* la fascia: l'esito, e mentre si lavora anche l'avanzamento. Il riempimento
+   sta DIETRO al testo, cosi' la frase resta leggibile per tutta la barra */
+.pn-strip{grid-column:1/-1;position:relative;overflow:hidden;margin:0;
+  padding:6px 15px 7px;border-top:1px solid var(--ui-3);
+  font-size:12.5px;line-height:1.4;color:var(--ui-tx2)}
+.pn-strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p,0);
+  background:color-mix(in srgb,var(--acc) 14%,transparent);transition:width .25s var(--ease)}
+.pn-strip span{position:relative}
+.pn-strip.entra span{animation:pn-entra .3s var(--ease) both}
+@keyframes pn-entra{from{opacity:0;transform:translateY(3px)}}
+.pn-strip.ok{color:#3FD0A3}
+:root.lt .pn-strip.ok{color:#00714F}
+.pn-strip.dubbio,.pn-strip.lista{color:var(--warn)}
+.pn-strip.nessuno,.pn-strip.errore{color:#F0767A}
+:root.lt .pn-strip.nessuno,:root.lt .pn-strip.errore{color:#C0392B}
+
+/* la lista dei probabili: cala da sotto la testata, sopra le pagine */
+.ponte-scelte{position:absolute;left:15px;right:15px;top:100%;z-index:31;
+  border-radius:0 0 var(--r3) var(--r3);padding:10px 10px 8px;
+  background:var(--ui-1);border:1px solid var(--ui-3);border-top:0;
+  box-shadow:0 30px 60px -22px rgba(0,0,0,.7);animation:pn-entra .26s var(--ease) both}
+.ponte-scelte header{display:flex;align-items:center;justify-content:space-between;
+  padding:2px 6px 8px;font:700 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ui-tx3)}
+.ponte-scelte ul{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.ponte-scelte li button{width:100%;display:grid;grid-template-columns:74px minmax(0,1fr) auto;
+  align-items:center;gap:12px;text-align:left;background:transparent;border:1px solid transparent;
+  border-radius:var(--r1);padding:8px 10px;color:var(--ui-tx);cursor:pointer;font-family:inherit;
+  transition:background .15s,border-color .15s}
 .ponte-scelte li button:hover,.ponte-scelte li button:focus-visible{background:var(--ui-2);border-color:var(--ui-3);outline:0}
 .sc-aff{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--ui-tx2)}
 .sc-aff i{flex:1;height:4px;border-radius:2px;background:var(--ui-3);position:relative;overflow:hidden}
 .sc-aff i::after{content:"";position:absolute;inset:0;width:var(--a);background:linear-gradient(90deg,var(--warn),var(--acc))}
 .sc-nome{display:flex;flex-direction:column;min-width:0;line-height:1.25}
-.sc-nome b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-nome span{font-size:12px;color:var(--ui-tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-meta{font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);white-space:nowrap}
-@media (prefers-reduced-motion:reduce){.ponte-led.lavoro,.ponte-stato.entra,.ponte-scelte{animation:none}}
-/* l'anteprima puo' essere stretta anche su uno schermo largo (i due pannelli
-   laterali): il dock va a capo guardando la SUA larghezza, non quella della
-   finestra. L'esito scende su una riga tutta sua, il cavo si accorcia. */
-@container (max-width:1000px){
-  #ponte{flex-wrap:wrap;row-gap:8px}
-  .ponte-cavo{width:26px}
-  .ponte-stato{order:9;flex:1 1 100%;max-width:none;-webkit-line-clamp:3;padding-left:2px}
+.sc-nome b{font-size:13px;overflow-wrap:anywhere}
+.sc-nome span{font-size:12px;color:var(--ui-tx2);overflow-wrap:anywhere}
+.sc-meta{font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);white-space:nowrap;align-self:center}
+@media (prefers-reduced-motion:reduce){
+  #ponte.t-lavoro::before{animation:none}
+  .pn-strip.entra span,.ponte-scelte{animation:none}
 }
-@container (max-width:640px){
-  #ponte{margin:-8px auto 18px;top:6px;padding:10px 12px}
-  .ponte-cavo{display:none}
-  .ponte-come{display:none}
+/* l'anteprima puo' essere stretta anche su uno schermo largo (i due pannelli
+   laterali): la testata guarda la SUA larghezza, non quella della finestra */
+@container (max-width:470px){
+  #ponte{grid-template-columns:minmax(0,1fr)}
+  .pn-azione{grid-column:1;padding:0 13px 11px}
+  .pn-corpo{padding:9px 0 8px 13px}
+  #ponte .btn{width:100%;justify-content:center}
+  /* qui l'altezza vale piu' della provenienza: l'etichetta "riconosciuto dal
+     file" e' un di piu' e da sola mandava la rotta a capo */
+  .pn-come{display:none}
+  #ponte h2{font-size:15.5px}
+  .pn-meta{font-size:12px;gap:1px 8px}
+  .pn-strip{padding-left:13px;padding-right:13px}
+  .ponte-scelte{left:13px;right:13px}
 }
 
 @media print{
@@ -976,8 +1028,13 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
      restano in pagina (#app avvolge tutto e coprirebbe il body) */
   html,body,#app{background:#fff}
   body{color:var(--ink)}
+  /* a schermo l'applicazione sta dentro la finestra e a scorrere e' solo il
+     banco; sul foglio non c'e' nessuna finestra da riempire, e lasciare
+     height:100vh + overflow:hidden stamperebbe una pagina sola */
+  #app{display:block;height:auto!important;overflow:visible!important}
   #side,#sidegrip,#treecol,#treegrip,#empty-state,#notesModalWrap,#skipModalWrap,#tourWrap{display:none!important}
-  #main{padding:0!important;overflow:visible;background:#fff!important}
+  #main{display:block;padding:0!important;overflow:visible;background:#fff!important}
+  #banco{padding:0!important;overflow:visible!important}
   #pages{transform:none!important;width:auto!important;padding:0!important}
   #zoomwrap{width:auto!important;height:auto!important;margin:0!important;overflow:visible!important}
   .partsep{display:none!important}
@@ -1052,6 +1109,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <div class="grp" id="headGrp">
     <h2>2 · Intestazione</h2>
     <input type="text" id="docTitle" placeholder="Titolo documento (es. PRO SERVICE)">
+    <label class="tick" id="titleFromSiteRow" hidden
+           title="Il titolo diventa il nome del sito collegato nel tracker">
+      <input type="checkbox" id="titleFromSite" checked><span>Prendi il titolo dal sito collegato</span>
+    </label>
     <label class="tick" title="Il titolo diventa il nome del file caricato, senza estensione">
       <input type="checkbox" id="titleFromName"><span>Prendi il titolo dal nome del file</span>
     </label>
@@ -1143,40 +1204,38 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 <main id="main">
   <div id="ponte" hidden>
-    <a class="ponte-back" href="/" title="Torna a Crono Mappature">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-      Crono Mappature</a>
-    <span class="ponte-cavo" aria-hidden="true"><span class="ponte-led idle" id="ponteLed"></span></span>
-    <span class="ponte-sito" id="ponteSito" hidden>
-      <span class="txt"><b id="ponteCliente"></b><span class="dest" id="ponteDest"></span><i id="ponteMeta"></i></span>
-      <span class="ponte-come" id="ponteCome" hidden></span>
-      <button type="button" class="ponte-mini" id="ponteCambia">cambia</button>
-    </span>
-    <span id="ponteCerca">
-      <input id="ponteQ" list="ponteLista" autocomplete="off"
-             placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
-             aria-label="Sito del tracker a cui collegare le schede">
-      <datalist id="ponteLista"></datalist>
-    </span>
-    <span class="ponte-stato" id="ponteStato" role="status" hidden></span>
-    <button type="button" class="btn" id="ponteSalva" disabled
-            title="Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
-      <span>Salva nel tracker</span></button>
-    <span class="ponte-prog" id="ponteProg" hidden></span>
+    <div class="pn-corpo">
+      <p class="pn-rotta">
+        <a href="/" title="Torna a Crono Mappature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          Crono Mappature</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span id="ponteCosa">consegna a</span>
+        <span class="pn-come" id="ponteCome" hidden></span>
+        <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
+      </p>
+      <div id="ponteSito" hidden>
+        <h2 id="ponteCliente"></h2>
+        <p class="pn-meta" id="ponteMeta"></p>
+      </div>
+      <div class="pn-cerca" id="ponteCerca">
+        <input id="ponteQ" list="ponteLista" autocomplete="off"
+               placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
+               aria-label="Sito del tracker a cui collegare le schede">
+        <datalist id="ponteLista"></datalist>
+      </div>
+    </div>
+    <div class="pn-azione">
+      <button type="button" class="btn" id="ponteSalva" disabled
+              title="Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
+        <span>Salva nel tracker</span></button>
+    </div>
+    <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
     <div class="ponte-scelte" id="ponteScelte" hidden>
-      <header><span>Probabilmente e’ uno di questi</span><button type="button" class="ponte-mini" id="ponteChiudiScelte">chiudi</button></header>
+      <header><span>Probabilmente e’ uno di questi</span><button type="button" class="pn-mini" id="ponteChiudiScelte">chiudi</button></header>
       <ul></ul>
     </div>
-  </div>
-  <div id="empty-state">
-    <div class="kick">Nessun file caricato</div>
-    <h2 id="emptyHook" aria-live="polite"></h2>
-    <div class="acts">
-      <button type="button" class="btn" id="pickFile">Scegli il file</button>
-      <button type="button" class="btn sec" id="startTutorial">Avvia il tutorial</button>
-    </div>
-    <p class="foot">.xls · .xlsx · .csv &nbsp;·&nbsp; niente esce dal browser (tranne il PDF che consegni al tracker), e funziona anche senza rete</p>
   </div>
   <div id="partStrip" class="part-strip" hidden></div>
   <div id="docScroll" class="doc-scroll" hidden aria-label="Scorrimento del documento">
@@ -1185,7 +1244,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="ds-tip"></div>
     </div>
   </div>
-  <div id="zoomwrap"><div id="pages"></div></div>
+  <div id="banco">
+    <div id="empty-state">
+      <div class="kick">Nessun file caricato</div>
+      <h2 id="emptyHook" aria-live="polite"></h2>
+      <div class="acts">
+        <button type="button" class="btn" id="pickFile">Scegli il file</button>
+        <button type="button" class="btn sec" id="startTutorial">Avvia il tutorial</button>
+      </div>
+      <p class="foot">.xls · .xlsx · .csv &nbsp;·&nbsp; niente esce dal browser (tranne il PDF che consegni al tracker), e funziona anche senza rete</p>
+    </div>
+    <div id="zoomwrap"><div id="pages"></div></div>
+  </div>
 </main>
 <div id="treegrip" title="Trascina per allargare o stringere la colonna dell'albero · doppio clic per la misura predefinita" role="separator" aria-orientation="vertical" hidden></div>
 <aside id="treecol" hidden>
@@ -2193,8 +2263,10 @@ function flash(el,cls){
   el.classList.add('flash');
   setTimeout(function(){ el.classList.remove('flash'); },1400);
 }
-/* chi scorre davvero: con il pannello appiccicato a sinistra e' la finestra,
-   ma se in futuro l'anteprima avesse una sua barra il calcolo resta valido */
+/* chi scorre davvero. Di regola e' #banco (la colonna dell'anteprima ha il suo
+   riquadro di scorrimento, cosi' la testata del ponte resta ferma); sotto i
+   980px i pannelli si impilano e torna a scorrere la finestra. Il giro sui
+   genitori copre tutti e due i casi senza saperlo. */
 function scrollBox(el){
   var p=el.parentElement;
   while(p&&p!==document.body){
@@ -2357,12 +2429,12 @@ function updateSplitInfo(L){
    titolo, cantiere, densita' e tutto cio' che cambia da un render all'altro.
    Compare solo con piu' di una parte: con una sola non c'e' niente da
    scegliere e occuperebbe spazio senza motivo. */
-/* posiziona la striscia (fixed) esattamente sopra la colonna #main, non sopra
+/* posiziona la striscia (fixed) esattamente sopra il banco, non sopra
    tutta la finestra: cosi' non copre il pannello a sinistra ne' l'albero a
-   destra. Richiamata dal ResizeObserver su #main, quindi segue da sola sia le
+   destra. Richiamata dal ResizeObserver su #banco, quindi segue da sola sia le
    maniglie di ridimensionamento sia il resize della finestra */
 function positionPartStrip(){
-  var strip=document.getElementById('partStrip'), main=document.getElementById('main');
+  var strip=document.getElementById('partStrip'), main=document.getElementById('banco');
   if(!strip||!main||strip.hidden) return;
   var r=main.getBoundingClientRect();
   /* margine bianco disponibile fra il bordo sinistro della pagina in anteprima
@@ -2375,7 +2447,7 @@ function positionPartStrip(){
 }
 if(window.ResizeObserver) new ResizeObserver(function(){
   positionPartStrip(); positionDocScroll(); updateDocScroll();
-}).observe(document.getElementById('main'));
+}).observe(document.getElementById('banco'));
 
 function buildPartStrip(L){
   var strip=document.getElementById('partStrip');
@@ -2433,9 +2505,9 @@ function updateActivePart(){
   }
   PART_ANCHORS.forEach(function(a){ a.thumb.classList.toggle('active',a===active); });
 }
-/* chi scorre davvero e' quasi sempre la finestra, non #main (vedi scrollBox()
+/* chi scorre davvero e' #banco, o la finestra sotto i 980px (vedi scrollBox()
    sopra), e lo scroll non risale ai genitori: la cattura in fase di capture su
-   window intercetta comunque l'evento, scorra la finestra o #main stesso */
+   window intercetta comunque l'evento, scorra la finestra o il banco */
 window.addEventListener('scroll',function(){
   if(partObserverRAF) return;
   partObserverRAF=requestAnimationFrame(function(){
@@ -2458,9 +2530,15 @@ window.addEventListener('scroll',function(){
    nasconde del tutto invece di ridursi ancora - coprire la pagina per un
    cursore che non si legge piu' non sarebbe uno scambio conveniente. */
 function positionDocScroll(){
-  var bar=document.getElementById('docScroll'), main=document.getElementById('main');
+  var bar=document.getElementById('docScroll'), main=document.getElementById('banco');
   if(!bar||!main) return;
   var r=main.getBoundingClientRect();
+  /* le due guide sono fixed rispetto alla finestra, ma devono stare in mezzo al
+     BANCO, che comincia sotto la testata del ponte: senza questa misura
+     resterebbero centrate sulla finestra e la piu' alta sconfinerebbe sotto la
+     testata. Sta qui e non in positionPartStrip perche' quella esce subito
+     quando lo scaffale non c'e' (un fascicolo solo). */
+  document.documentElement.style.setProperty('--banco-top',Math.round(r.top)+'px');
   var wrap=document.getElementById('zoomwrap').getBoundingClientRect();
   var free=r.right-wrap.right;
   bar.classList.toggle('cramped',free<22);
@@ -3013,29 +3091,62 @@ function applyFilter(){
 
 /* ============ INPUT ============ */
 /* ---- da dove viene il titolo ----
-   Di regola il titolo e' la prima cella del foglio; quando quella cella non
-   dice niente di utile, il nome del file lo dice meglio. La spunta fissa la
-   scelta invece di lasciarla al caso: accesa, il titolo e' il nome del file
-   senza estensione e il campo non si scrive a mano - un titolo che dichiara
-   di venire dal file e intanto e' stato riscritto direbbe una bugia.
-   Spegnendola torna quello che c'era scritto prima. */
-var LAST_FILE_BASE='', MANUAL_TITLE='';
+   Tre sorgenti, in ordine di quanto sono attendibili:
+     SITO    il sito del tracker a cui il lavoro e' collegato (ponte.js). E' il
+             nome giusto per definizione: e' quello sotto cui il PDF verra'
+             archiviato, e non dipende da come qualcuno ha battezzato l'Excel;
+     FILE    il nome del file caricato, senza estensione;
+     FOGLIO  la prima cella del foglio - il ripiego di sempre, che vale finche'
+             non dice niente di utile.
+   Le due spunte dicono da DOVE viene il testo del campo sopra, non accendono un
+   comportamento della stampa: quando una e' accesa il campo e' in sola lettura
+   col bordo tratteggiato, perche' un titolo che dichiara di venire dal sito e
+   intanto e' stato riscritto a mano direbbe una bugia. Sono alternative fra
+   loro; spegnendole torna quello che c'era scritto prima.
+   La spunta del sito compare solo quando un sito c'e' davvero
+   (`aggiornaTitoloSito`, chiamata dal ponte a ogni collegamento). */
+var LAST_FILE_BASE='', MANUAL_TITLE='', SITE_TITLE='';
 function fileBaseName(n){ return String(n||'').replace(/\.[^.]+$/,''); }
+function titleSource(){
+  if(SITE_TITLE&&document.getElementById('titleFromSite').checked) return 'sito';
+  if(document.getElementById('titleFromName').checked) return 'file';
+  return '';
+}
 function applyTitleSource(fill){
-  var on=document.getElementById('titleFromName').checked,
+  var src=titleSource(), on=!!src,
+      auto=src==='sito'?SITE_TITLE:(src==='file'?LAST_FILE_BASE:''),
       t=document.getElementById('docTitle');
   t.readOnly=on;
   t.classList.toggle('locked',on);
   /* senza file il campo resta vuoto: il segnaposto dice perche', invece di
      lasciar credere che il titolo sia andato perso */
-  t.placeholder=on?'Si compila con il nome del file caricato':'Titolo documento (es. PRO SERVICE)';
+  t.placeholder=src==='sito'?'Si compila con il sito collegato'
+    :src==='file'?'Si compila con il nome del file caricato'
+    :'Titolo documento (es. PRO SERVICE)';
   if(!fill) return;
   if(on){
-    if(t.value!==LAST_FILE_BASE) MANUAL_TITLE=t.value;
-    t.value=LAST_FILE_BASE;
+    /* quello che c'era scritto si mette da parte solo se e' roba scritta a
+       mano: reimpostando da una sorgente all'altra non va salvato il testo
+       automatico della sorgente precedente */
+    if(t.value&&t.value!==auto&&t.value!==LAST_FILE_BASE&&t.value!==SITE_TITLE) MANUAL_TITLE=t.value;
+    t.value=auto;
   } else if(MANUAL_TITLE){ t.value=MANUAL_TITLE; MANUAL_TITLE=''; }
 }
-document.getElementById('titleFromName').onchange=function(){ applyTitleSource(true); render(); };
+/* il ponte ha collegato (o staccato) un sito: '' lo toglie di mezzo */
+function aggiornaTitoloSito(nome){
+  SITE_TITLE=String(nome||'').trim();
+  document.getElementById('titleFromSiteRow').hidden=!SITE_TITLE;
+  applyTitleSource(true);
+  render();
+}
+document.getElementById('titleFromSite').onchange=function(){
+  if(this.checked) document.getElementById('titleFromName').checked=false;
+  applyTitleSource(true); render();
+};
+document.getElementById('titleFromName').onchange=function(){
+  if(this.checked) document.getElementById('titleFromSite').checked=false;
+  applyTitleSource(true); render();
+};
 /* leggere il file e caricare il modello sono due cose diverse: le righe possono
    arrivare da un .xls scelto dall'utente (readFile) o da dentro l'app (le righe
    d'esempio del tutorial). Da qui in giu' non conta piu' da dove vengono.
@@ -3064,10 +3175,8 @@ function loadRows(rows,name,label){
   var first=(rows[0]||[]).map(norm).filter(Boolean)[0]||'';
   LAST_FILE_BASE=fileBaseName(name);
   MANUAL_TITLE='';
-  document.getElementById('docTitle').value=document.getElementById('titleFromName').checked
-    ? LAST_FILE_BASE
-    : ((first&&!/PIANO\s*:/i.test(first))?first:LAST_FILE_BASE);
-  applyTitleSource(false);
+  document.getElementById('docTitle').value=(first&&!/PIANO\s*:/i.test(first))?first:LAST_FILE_BASE;
+  applyTitleSource(true);
   document.getElementById('docSub').value='';
   document.getElementById('dropFile').hidden=false;
   buildTree(); applyFilter();
@@ -3106,7 +3215,7 @@ function unloadFile(){
   LAST_FILE_BASE=''; MANUAL_TITLE='';
   document.getElementById('docTitle').value='';
   document.getElementById('docSub').value='';
-  applyTitleSource(false);
+  applyTitleSource(true);
   /* lo stesso file scelto due volte di seguito deve poter rientrare: senza
      azzerare il valore, il campo non emette il cambiamento */
   document.getElementById('file').value='';
@@ -3203,7 +3312,7 @@ if(SYS_LIGHT){
 
 /* ============ IMPOSTAZIONI PREDEFINITE (salvate nel browser) ============ */
 var LS_KEY='vrsSchedeCampo.defaults.v2';
-var FACTORY_DEFAULTS={dens:'5',titleFromName:false,fillGap:true,newRep:true,newRoom:true,roomBlankPage:true,
+var FACTORY_DEFAULTS={dens:'5',titleFromName:false,titleFromSite:true,fillGap:true,newRep:true,newRoom:true,roomBlankPage:true,
   coverPage:true,tocPage:true,bookMode:true,splitParts:false,splitEvery:'1',
   extraAtEnd:false,extraAtEndN:'1',extraPerPart:false,extraPerPartN:'1',extraWhole:false,extraWholeN:'4'};
 /* il tema NON sta fra le predefinite di fabbrica, di proposito: vive nella sua
@@ -3215,7 +3324,7 @@ var FACTORY_DEFAULTS={dens:'5',titleFromName:false,fillGap:true,newRep:true,newR
    applica solo se il file che arriva ne porta uno. */
 /* le spunte a valore booleano e i loro contatori: elencarle una volta evita che
    aggiungerne una richieda di ricordarsi di quattro punti diversi */
-var BOOL_KEYS=['titleFromName','fillGap','newRep','newRoom','roomBlankPage','coverPage','tocPage','bookMode','splitParts',
+var BOOL_KEYS=['titleFromName','titleFromSite','fillGap','newRep','newRoom','roomBlankPage','coverPage','tocPage','bookMode','splitParts',
   'extraAtEnd','extraPerPart','extraWhole'];
 var NUM_KEYS=[['extraAtEndN',1,50],['extraPerPartN',1,50],['extraWholeN',1,50]];
 /* quanti piani per fascicolo: e' un comando segmentato, non un campo, quindi
@@ -3225,6 +3334,7 @@ function readSettings(){
   return {
     dens:document.getElementById('dens').value,
     titleFromName:document.getElementById('titleFromName').checked,
+    titleFromSite:document.getElementById('titleFromSite').checked,
     fillGap:document.getElementById('fillGap').checked,
     newRep:document.getElementById('newRep').checked,
     newRoom:document.getElementById('newRoom').checked,
@@ -3246,6 +3356,7 @@ function readSettings(){
 function applySettings(s){
   document.getElementById('dens').value=s.dens;
   document.getElementById('titleFromName').checked=!!s.titleFromName;
+  document.getElementById('titleFromSite').checked=!!s.titleFromSite;
   applyTitleSource(true);
   document.getElementById('fillGap').checked=s.fillGap;
   document.getElementById('newRep').checked=s.newRep;

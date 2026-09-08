@@ -4,11 +4,11 @@
    Attenzione all'unita': la mappatura e' una per SITO per anno (#ANCHOR:
    mappatura-anno in stato.js), e scade nel primo mese di manutenzione di quel
    sito. Le schede sono invece TUTTI gli impianti che si visitano in questo mese,
-   scadenze e visite insieme. Percio' il riepilogo in testa tiene separate le due
-   cose: quante mappature SCADONO qui (l'impegno, quello che si conta anche nella
-   griglia e nelle statistiche) e quanti impianti ci sono da visitare (il lavoro
-   sul campo, che e' di piu'). Chiamare "mappature" le schede faceva sembrare che
-   ce ne fosse una per visita.
+   scadenze e visite insieme. Il riepilogo in testa conta percio' le mappature che
+   SCADONO qui (l'impegno, lo stesso numero della griglia e delle statistiche),
+   non le schede: chiamare "mappature" le schede faceva sembrare che ce ne fosse
+   una per visita. Il numero delle schede a schermo lo dice la voce "a schermo",
+   e solo quando un filtro ne nasconde qualcuna.
    #ANCHOR: vista-mese */
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano } from './ui.js';
 import {
@@ -134,10 +134,8 @@ function htmlCorpo(righe) {
    sono la fotografia del mese, e "complete" e' pure il bottone per vedere solo
    quelle (un secondo clic le rimette tutte). Se il filtro nasconde delle schede
    lo dice la riga di contesto, cosi' non sembra che i conti non tornino. */
-const htmlRiepilogo = (tutte, sc, daStampare, mostrati) => `
+const htmlRiepilogo = (tutte, sc, mostrati) => `
         <div class="voce" title="Mappature dovute in questo mese: una per sito, annuale"><span class="n">${sc.tot}</span><span class="et">in scadenza</span></div>
-        <div class="voce" title="Impianti con una visita di manutenzione in questo mese"><span class="n">${tutte.length}</span><span class="et">impianti</span></div>
-        <div class="voce"><span class="n">${daStampare}</span><span class="et">da stampare</span></div>
         <button class="voce scelta${st.filtri.stato === 'complete' ? ' attiva' : ''}"
                 data-stato="complete" aria-pressed="${st.filtri.stato === 'complete'}"
                 title="Mappature di questo mese coi ${PASSI} passi fatti. Clicca per vedere solo quelle"><span class="n">${sc.complete}/${sc.tot}</span><span class="et">complete</span></button>
@@ -148,7 +146,6 @@ export function disegna(area) {
   const righe = lavoroDelMese(st.mese);                    // quello che si vede
   const tutte = mesePieno(righe);                          // il mese intero
   const sc = scadenzeDelMese(tutte);
-  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
 
   area.innerHTML = `
     <div class="stampa-testa" hidden>
@@ -160,7 +157,7 @@ export function disegna(area) {
       <h2 class="mese-titolo">${st.mesiNome[st.mese - 1]} <span>${st.anno}</span></h2>
       <div class="mese-nav" style="--i:${st.mese - 1}">${st.mesi.map((m, i) =>
     `<button data-mese="${i + 1}" aria-pressed="${i + 1 === st.mese}">${m}</button>`).join('')}</div>
-      <div class="riepilogo">${htmlRiepilogo(tutte, sc, daStampare, righe.length)}</div>
+      <div class="riepilogo">${htmlRiepilogo(tutte, sc, righe.length)}</div>
     </div>
     <div class="lavoro entra">${htmlCorpo(righe)}</div>`;
   radice = area;
@@ -179,13 +176,12 @@ function cambiaMese(m) {
   const righe = lavoroDelMese(st.mese);
   const tutte = mesePieno(righe);
   const sc = scadenzeDelMese(tutte);
-  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
   const nav = radice.querySelector('.mese-nav');
   nav.style.setProperty('--i', String(st.mese - 1));
   for (const b of nav.children) b.setAttribute('aria-pressed', String(Number(b.dataset.mese) === st.mese));
   radice.querySelector('.mese-titolo').innerHTML = `${st.mesiNome[st.mese - 1]} <span>${st.anno}</span>`;
   radice.querySelector('.mese-testa .riepilogo').innerHTML =
-    htmlRiepilogo(tutte, sc, daStampare, righe.length);
+    htmlRiepilogo(tutte, sc, righe.length);
   const st1 = radice.querySelector('.stampa-testa');
   if (st1) {
     st1.querySelector('h1').textContent = `Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}`;
@@ -314,12 +310,11 @@ function aggiornaConteggi() {
   const box = radice?.querySelector('.mese-testa .riepilogo');
   if (!box) return;
   const tutte = mesePieno(lavoroDelMese(st.mese));
-  const daStampare = tutte.filter(v => !cella(v.s.id, st.mese).s).length;
   /* "a schermo" si conta dal DOM, non dal filtro: completando una scheda con
      "Da fare" acceso quella scheda resta a schermo (le righe non spariscono
      sotto le mani), e il numero deve dire quello che si vede. */
   const mostrati = radice.querySelectorAll('.lavoro .scheda').length;
-  box.innerHTML = htmlRiepilogo(tutte, scadenzeDelMese(tutte), daStampare, mostrati);
+  box.innerHTML = htmlRiepilogo(tutte, scadenzeDelMese(tutte), mostrati);
 }
 
 /** Chiude (o riapre) la scheda in un clic: tutti e PASSI i passi del mese

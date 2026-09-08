@@ -265,7 +265,12 @@ tutta in `statoPassa()`.
 Dentro ogni posizione c'e' il suo numero (`contaStato()`), e i numeri della
 testa sono bottoni: "19/267 complete" e "225 in ritardo" nella vista Anno,
 "6/11 complete" nel foglio del Mese (`.riepilogo .voce.scelta`, un clic filtra,
-il secondo rimette tutto). **Tutti questi conteggi ignorano il filtro di
+il secondo rimette tutto). Nel Mese sono rimaste tre voci sole - *in scadenza*,
+*complete*, *a schermo* (18a sessione): *impianti* e *da stampare* le ha fatte
+togliere il committente. La distinzione fra le mappature che **scadono** qui e
+le schede a schermo resta pero' vera e va tenuta a mente leggendo `mese.js`: le
+seconde sono di piu', perche' comprendono le visite dei mesi successivi al
+primo. **Tutti questi conteggi ignorano il filtro di
 stato** (`gruppiFiltrati({ ignoraStato: true })`, e per questo `riepilogoAnno()`
 lo passa): se contassero la selezione, al primo clic andrebbero a zero e
 sparirebbe il bottone per tornare indietro. Nel Mese, quando il filtro nasconde
@@ -275,6 +280,15 @@ del mese intero, e senza quella riga sembrerebbero sbagliati.
 Il cambio di filtro passa da `stato.filtraStato()` (che salva e emette
 `rilegge`) e non da `app.js`: lo chiamano la barra, la testa dell'Anno e la
 testa del Mese.
+
+**La nota del popover non si sovrascrive mai sotto le dita** (18a sessione).
+`rinfrescaPop(id, mese)` - chiamata da `app.js` a ogni evento `cella` - riscrive
+la casella solo se non e' stata toccata; se ci si stava scrivendo, la nota
+arrivata da un altro operatore viene **annunciata** sopra (`.js-eco-nota`, in
+ambra) e la scelta si fa uscendo dal campo, dove il server puo' rispondere 409.
+La base del conflitto e' `notaVista`/`notaRev`, cioe' quello che si aveva sotto
+gli occhi: prenderla da `st.celle` vorrebbe dire non accorgersi di niente.
+Dettaglio in [concorrenza.md](concorrenza.md).
 
 **Ogni conteggio ignora il filtro di stato, anche quando si aggiorna da solo.**
 Vale per `riepilogoAnno`, per `contaStato`, per i totali per mese

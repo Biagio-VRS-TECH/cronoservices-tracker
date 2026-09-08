@@ -55,7 +55,7 @@ grant execute on function
   public.app_ping(text),
   public.toggle_cella(int, int, int, text, int, int, int, text, text),
   public.bulk_celle(int, jsonb, text, text),
-  public.imposta_nota(int, int, int, text),
+  public.imposta_nota(int, int, int, text, int, text),
   public.imposta_operatore(text),
   public.imposta_meta(text)
 to authenticated;

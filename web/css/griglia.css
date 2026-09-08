@@ -376,6 +376,10 @@
 .passo .n-passo { font: 600 var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); flex: none; }
 
 .pop-nota { margin-top: 10px; }
+/* la nota che un altro operatore ha scritto mentre questa era aperta: si
+   annuncia sopra la casella e non tocca quello che si sta scrivendo */
+.pop-nota .js-eco-nota { margin: 0 0 6px; font-size: var(--t-micro); line-height: 1.35;
+  color: var(--allerta); }
 .pop-nota textarea { width: 100%; min-height: 46px; resize: vertical; font-size: var(--t-mini);
   padding: 7px 9px; border: 1px solid var(--bordo); border-radius: var(--r-2);
   background: var(--fondo); }

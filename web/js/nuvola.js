@@ -169,7 +169,9 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       }, Math.max(ms, 40000));
     case '/api/nota':
       return rpc('imposta_nota', { p_id_service: b.id_service, p_anno: b.anno,
-                                   p_mese: b.mese, p_nota: b.nota || '' }, ms);
+                                   p_mese: b.mese, p_nota: b.nota || '',
+                                   p_base_rev: b.base_rev ?? null,
+                                   p_base_nota: b.base_nota ?? null }, ms);
     case '/api/operatore':
       return rpc('imposta_operatore', { p_nome: b.nome }, ms);
     case '/api/ping':
