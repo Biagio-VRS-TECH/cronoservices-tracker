@@ -903,9 +903,9 @@ table.xls.plain tbody tr:hover{background:transparent}
    La FASCIA in basso compare solo quando c'e' qualcosa da dire, e durante il
    lavoro e' anche l'avanzamento (--p). Vive nei token dell'app, mai in quelli
    del documento; in stampa non esiste. */
-#ponte{position:relative;z-index:30;flex:none;
-  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:20px;
-  padding-left:3px;background:var(--ui-1);border-bottom:1px solid var(--ui-3);
+#ponte{position:relative;z-index:38;flex:none;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  border-bottom:1px solid var(--ui-3);
   font-size:13px;color:var(--ui-tx2)}
 #ponte [hidden]{display:none!important}
 
@@ -924,17 +924,17 @@ table.xls.plain tbody tr:hover{background:transparent}
 /* la rotta, il nome, i dati */
 .pn-corpo{grid-column:1;min-width:0;padding:10px 0 10px 15px;
   display:flex;flex-direction:column;gap:3px}
-.pn-rotta{margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 9px;
+.pn-rotta{margin:0;display:flex;align-items:center;flex-wrap:wrap;
   font:700 10px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ui-tx3)}
 .pn-rotta a{color:var(--ui-tx3);text-decoration:none;display:inline-flex;align-items:center;gap:5px}
-.pn-rotta a svg{width:12px;height:12px;transition:transform .2s var(--ease)}
+.pn-rotta a svg{transition:transform .2s var(--ease)}
 .pn-rotta a:hover{color:var(--acc)}
 .pn-rotta a:hover svg{transform:translateX(-2px)}
 .pn-rotta .sep{opacity:.4}
 .pn-rotta #ponteCambia{margin-left:auto}
 /* da dove viene il collegamento: "a mano" e' l'unico che merita un colore,
    perche' e' l'unico che nessuno ha verificato */
-.pn-come{font-size:9.5px;letter-spacing:.12em;padding:2px 7px;border-radius:999px;
+.pn-come{letter-spacing:.12em;border-radius:999px;
   color:var(--acc);background:var(--acc-lo);border:1px solid color-mix(in srgb,var(--acc) 28%,transparent)}
 .pn-come.mano{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);
   border-color:color-mix(in srgb,var(--warn) 34%,transparent)}
@@ -943,8 +943,8 @@ table.xls.plain tbody tr:hover{background:transparent}
 /* i dati del sito: una riga sola che VA A CAPO. Niente text-overflow: su un
    sito con l'indirizzo lungo i puntini nascondevano proprio la parte che
    distingue un impianto dall'altro */
-.pn-meta{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 10px;
-  font-size:12.5px;line-height:1.45;color:var(--ui-tx2);overflow-wrap:anywhere}
+.pn-meta{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;
+  font-size:12.5px;color:var(--ui-tx2);overflow-wrap:anywhere}
 .pn-meta .dest{color:var(--ui-tx)}
 .pn-meta .dato{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--ui-tx3)}
 #ponte .pn-mini{background:none;border:0;padding:0;font:inherit;font-size:12px;
@@ -967,55 +967,116 @@ table.xls.plain tbody tr:hover{background:transparent}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
 
 /* ---- LA NUVOLETTA ----
-   Scorrendo, la testata esce dal flusso e diventa una pillola che fluttua al
-   centro dell'anteprima, con dentro le due sole cose che servono mentre si
-   legge il documento: di chi e' questo lavoro, e il bottone che lo consegna.
-   `position:absolute` dentro `#main` (che e' `position:relative`): la banda
-   sparisce del tutto, il banco si riprende tutta l'altezza e le pagine le
-   scorrono SOTTO. Sta apposta nel margine chiaro sopra la prima pagina, cosi'
-   copre il meno possibile, ma da qui in poi e' un oggetto che galleggia: e'
-   quello che il committente ha chiesto.
-   La spina diventa il punto di stato sul fianco: stesso segnale, stessa
-   tavolozza, la misura che ci sta.
-   Non si stringe quando manca il sito (sparirebbe la casella di ricerca), con
-   la lista dei probabili aperta, o mentre prepara il PDF: li' l'esito e
-   l'avanzamento sono l'unica cosa che uno guarda. */
-#ponte.ridotto{position:absolute;z-index:38;top:14px;left:50%;
-  width:max-content;max-width:min(88%,620px);margin:0;
-  grid-template-columns:auto auto;column-gap:11px;
-  padding:0 7px 0 18px;border:1px solid color-mix(in srgb,var(--ui-4) 60%,transparent);
-  border-radius:999px;background:color-mix(in srgb,var(--ui-1) 82%,transparent);
-  box-shadow:0 2px 6px rgba(0,0,0,.24),0 18px 40px -12px rgba(0,0,0,.7);
-  animation:pn-atterra .26s var(--ease) both}
-@keyframes pn-atterra{from{opacity:0;transform:translate(-50%,-14px) scale(.96)}
-                        to{opacity:1;transform:translate(-50%,0) scale(1)}}
-:root.lt #ponte.ridotto{border-color:color-mix(in srgb,var(--ui-4) 75%,transparent);
-  background:color-mix(in srgb,var(--ui-1) 88%,transparent);
-  box-shadow:0 2px 6px rgba(15,20,24,.10),0 16px 36px -14px rgba(15,20,24,.34)}
+   Non due stati con un salto in mezzo: **una sola forma con un cursore**.
+   `--r` va da 0 (testata larga) a 1 (pillola) e a muoverlo e' lo scorrimento,
+   un valore per fotogramma (`guarda()` in ponte.js). Tutto quello che cambia e'
+   scritto qui come interpolazione su `--r`: la trasformazione e' continua e sta
+   in piedi a qualunque punto la si fermi.
+
+   Cosa si muove, e perche' cosi':
+   - la LARGHEZZA da tutta la colonna a `--wpill`, la misura naturale della
+     pillola: e' l'unica cosa che il CSS non puo' sapere da solo, la prende JS
+     una volta sola (`misuraPillola()`) e la scrive qui;
+   - la BANDA si chiude da se'. La testata resta nel FLUSSO, quindi si accorcia
+     insieme al suo contenuto; il margine negativo in fondo toglie quel che
+     resta (`--hpill` + lo stacco), cosi' a `--r:1` la banda vale zero e le
+     pagine passano SOTTO la pillola. In mezzo, l'anteprima si riprende
+     l'altezza a poco a poco invece di ereditarla di colpo;
+   - le righe che spariscono (rotta, dati, fascia) collassano con la
+     `line-height` invece che con un'altezza fissa: funziona con una riga come
+     con tre, che e' il caso vero di un indirizzo lungo. Il nome del sito non
+     viene mai tagliato - se non ci sta, va a capo anche dentro la pillola;
+   - la SPINA di 3px alta tutta la testata diventa il punto di stato di 7px sul
+     fianco della pillola: stesso segnale, una forma sola;
+   - l'OMBRA cresce da un filo di 1px sotto la banda a un'ombra profonda: e'
+     lei a dire "adesso questa cosa sta sopra al foglio".
+   `@property` serve a far interpolare `--r` come numero: senza, il ritorno
+   forzato a 0 (niente sito, lista aperta, PDF in corso) sarebbe uno scatto. */
+@property --r{syntax:"<number>";inherits:true;initial-value:0}
+#ponte{--r:0;
+  width:calc(100% + (var(--wpill,100%) - 100%) * var(--r));
+  margin:calc(14px * var(--r)) auto calc((var(--hpill,34px) + 14px) * var(--r) * -1);
+  column-gap:calc(20px - 9px * var(--r));
+  padding-left:calc(3px + 15px * var(--r));
+  border-bottom-color:color-mix(in srgb,var(--ui-3) calc(100% - var(--r) * 100%),transparent);
+  border-radius:calc(999px * var(--r));
+  background:color-mix(in srgb,var(--ui-1) calc(88% - 22% * var(--r)),transparent);
+  box-shadow:0 calc(1px + 17px * var(--r)) calc(40px * var(--r)) calc(-14px * var(--r))
+             rgba(0,0,0,calc(.12 + .58 * var(--r)));
+  transition:--r .18s linear}
 @supports (backdrop-filter:blur(1px)){
-  #ponte.ridotto{background:color-mix(in srgb,var(--ui-1) 62%,transparent);
-    backdrop-filter:blur(16px) saturate(1.6)}
-  :root.lt #ponte.ridotto{background:color-mix(in srgb,var(--ui-1) 70%,transparent)}
+  #ponte{backdrop-filter:blur(calc(18px * var(--r))) saturate(calc(1 + .6 * var(--r)))}
 }
-#ponte.ridotto::before{top:50%;bottom:auto;left:9px;width:7px;height:7px;
-  border-radius:50%;transform:translateY(-50%)}
-#ponte.ridotto.t-lavoro::before{background-size:220% 100%}
-#ponte.ridotto .pn-rotta,#ponte.ridotto .pn-meta,#ponte.ridotto .pn-strip{display:none}
-#ponte.ridotto .pn-corpo{padding:7px 0;gap:0}
-#ponte.ridotto h2{font-size:13.5px;font-weight:600;letter-spacing:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#ponte.ridotto .pn-azione{padding:0}
-#ponte.ridotto .btn{padding:7px 14px 7px 11px;font-size:12.5px;border-radius:999px}
-#ponte.ridotto .btn svg{width:13px;height:13px}
-@media (prefers-reduced-motion:reduce){
-  #ponte.ridotto{animation:none;transform:translateX(-50%)}
-}
+:root.lt #ponte{
+  background:color-mix(in srgb,var(--ui-1) calc(96% - 20% * var(--r)),transparent);
+  box-shadow:0 calc(1px + 15px * var(--r)) calc(36px * var(--r)) calc(-16px * var(--r))
+             rgba(15,20,24,calc(.06 + .28 * var(--r)))}
+/* il contorno completo appartiene alla pillola: sulla banda non c'e' */
+#ponte::after{content:"";position:absolute;inset:0;pointer-events:none;
+  border:1px solid color-mix(in srgb,var(--ui-4) 60%,transparent);
+  border-radius:inherit;opacity:var(--r)}
+:root.lt #ponte::after{border-color:color-mix(in srgb,var(--ui-4) 80%,transparent)}
+
+/* la spina che diventa punto */
+#ponte::before{top:50%;bottom:auto;transform:translateY(-50%);
+  left:calc(9px * var(--r));
+  width:calc(3px + 4px * var(--r));
+  height:calc(100% - (100% - 7px) * var(--r));
+  border-radius:calc(50% * var(--r))}
+
+/* Le righe che si chiudono. La `line-height` a zero le fa collassare qualunque
+   sia il numero di righe a cui erano andate a capo - ed e' il motivo per cui e'
+   lei e non un'altezza fissa: un indirizzo lungo va a capo due o tre volte.
+   Ma la line-height non tocca quello che ha una misura sua: l'icona della
+   freccia e il bottone "cambia sito" tenevano la rotta alta 30px anche a
+   sipario chiuso, e la pillola restava un rettangolo. Percio' dentro la rotta
+   tutto e' in `em` e a chiudersi e' il CORPO del testo: a zero, sparisce anche
+   quello che dentro ci sta appeso. */
+.pn-rotta,.pn-meta,.pn-strip{overflow:hidden}
+.pn-rotta{font-size:calc(10px * (1 - var(--r)));
+  line-height:calc(1.3 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2);
+  gap:calc(4px * (1 - var(--r))) calc(9px * (1 - var(--r)))}
+.pn-rotta a svg{width:1.2em;height:1.2em}
+.pn-rotta .pn-mini{font-size:1.2em}
+.pn-meta{line-height:calc(1.45 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2);
+  gap:calc(1px * (1 - var(--r))) calc(10px * (1 - var(--r)))}
+.pn-strip{line-height:calc(1.4 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2)}
+.pn-come{font-size:.95em;padding:.2em .7em;opacity:calc(1 - var(--r) * 3)}
+
+.pn-corpo{padding:calc(10px - 3px * var(--r)) 0 calc(10px - 3px * var(--r))
+                  calc(15px + 3px * var(--r));
+  gap:calc(3px * (1 - var(--r)))}
+#ponte h2{font-size:calc(16.5px - 3px * var(--r));
+  font-weight:calc(700 - 100 * var(--r));
+  letter-spacing:calc(-.015em * (1 - var(--r)))}
+.pn-azione{padding:calc(10px * (1 - var(--r))) calc(15px - 8px * var(--r))
+                   calc(10px * (1 - var(--r))) 0}
+#ponte .btn{padding:calc(10px - 3px * var(--r)) calc(16px - 2px * var(--r))
+                    calc(10px - 3px * var(--r)) calc(13px - 2px * var(--r));
+  font-size:calc(13px - .5px * var(--r));
+  border-radius:calc(var(--r2) + (999px - var(--r2)) * var(--r))}
+#ponte .btn svg{width:calc(15px - 2px * var(--r));height:calc(15px - 2px * var(--r))}
+body.ponte-lavora #print{opacity:.6;pointer-events:none}
+
+/* la misura della pillola: un fotogramma a --r:1 e larghezza naturale, poi
+   tutto com'era. La fa `misuraPillola()`, non a ogni scorrimento. Il tetto e'
+   qui e non nel calcolo: cosi' `--wpill` arriva gia' limitato */
+#ponte.misura{width:max-content!important;max-width:min(86%,600px)!important;
+  --r:1!important;transition:none!important;visibility:hidden}
+/* durante la misura le righe che si chiudono vanno tolte del tutto: la
+   line-height a zero annulla l'altezza ma NON la larghezza, e la riga dei dati
+   di un indirizzo lungo faceva risultare la pillola larga quanto la testata */
+#ponte.misura .pn-rotta,#ponte.misura .pn-meta,#ponte.misura .pn-strip{display:none}
+
+@media (prefers-reduced-motion:reduce){#ponte{transition:none}}
 
 /* la fascia: l'esito, e mentre si lavora anche l'avanzamento. Il riempimento
    sta DIETRO al testo, cosi' la frase resta leggibile per tutta la barra */
 .pn-strip{grid-column:1/-1;position:relative;overflow:hidden;margin:0;
-  padding:6px 15px 7px;border-top:1px solid var(--ui-3);
-  font-size:12.5px;line-height:1.4;color:var(--ui-tx2)}
+  padding:calc(6px * (1 - var(--r))) 15px calc(7px * (1 - var(--r)));
+  border-top:calc(1px * (1 - var(--r))) solid
+             color-mix(in srgb,var(--ui-3) calc(100% - var(--r) * 100%),transparent);
+  font-size:12.5px;color:var(--ui-tx2)}
 .pn-strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p,0);
   background:color-mix(in srgb,var(--acc) 14%,transparent);transition:width .25s var(--ease)}
 .pn-strip span{position:relative}
@@ -1053,23 +1114,21 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
 }
 /* l'anteprima puo' essere stretta anche su uno schermo largo (i due pannelli
    laterali): la testata guarda la SUA larghezza, non quella della finestra */
+/* colonna stretta (i due pannelli laterali la stringono anche su schermi
+   larghi). Il bottone resta a fianco del nome anche qui: mandarlo a tutta
+   larghezza sotto avrebbe voluto dire cambiare la griglia a meta' corsa, e
+   `--r` non puo' interpolare una `grid-template-columns`. Si stringe tutto
+   il resto: misure, etichetta della provenienza, corpo del nome. */
 @container (max-width:470px){
-  #ponte{grid-template-columns:minmax(0,1fr)}
-  .pn-azione{grid-column:1;padding:0 13px 11px}
-  .pn-corpo{padding:9px 0 8px 13px}
-  #ponte .btn{width:100%;justify-content:center}
-  /* qui l'altezza vale piu' della provenienza: l'etichetta "riconosciuto dal
-     file" e' un di piu' e da sola mandava la rotta a capo */
   .pn-come{display:none}
-  #ponte h2{font-size:15.5px}
+  .pn-corpo{padding:calc(9px - 2px * var(--r)) 0 calc(8px - 1px * var(--r))
+                    calc(13px + 3px * var(--r))}
+  .pn-azione{padding:calc(9px * (1 - var(--r))) calc(12px - 5px * var(--r))
+                     calc(9px * (1 - var(--r))) 0}
+  #ponte h2{font-size:calc(15px - 1.5px * var(--r))}
   .pn-meta{font-size:12px;gap:1px 8px}
   .pn-strip{padding-left:13px;padding-right:13px}
   .ponte-scelte{left:13px;right:13px}
-  /* la pillola non torna a una colonna solo perche' si e' stretta: il bottone
-     resta a fianco del nome, che al massimo si accorcia */
-  #ponte.ridotto{grid-template-columns:minmax(0,auto) auto;max-width:94%;top:10px}
-  #ponte.ridotto .pn-azione{grid-column:2;padding:0}
-  #ponte.ridotto .btn{width:auto}
 }
 
 @media print{
@@ -3157,7 +3216,13 @@ function applyFilter(){
    loro; spegnendole torna quello che c'era scritto prima.
    La spunta del sito compare solo quando un sito c'e' davvero
    (`aggiornaTitoloSito`, chiamata dal ponte a ogni collegamento). */
-var LAST_FILE_BASE='', MANUAL_TITLE='', SITE_TITLE='';
+/* `SHEET_TITLE` e' il titolo che il FILE porta con se' (la prima cella, quando
+   dice qualcosa): serve al ripiego, e serve al ponte per riconoscere il sito
+   senza farsi confondere da quello che il sito precedente ha scritto nel campo.
+   `AUTO_TITLE` e' l'ultimo testo che ci ha messo l'applicazione: e' il modo per
+   sapere se quello che c'e' scritto adesso l'ha scritto una persona. */
+var LAST_FILE_BASE='', SHEET_TITLE='', MANUAL_TITLE='', SITE_TITLE='', AUTO_TITLE='';
+var titoloDiRipiego=function(){ return SHEET_TITLE||LAST_FILE_BASE; };
 function fileBaseName(n){ return String(n||'').replace(/\.[^.]+$/,''); }
 function titleSource(){
   if(SITE_TITLE&&document.getElementById('titleFromSite').checked) return 'sito';
@@ -3176,13 +3241,15 @@ function applyTitleSource(fill){
     :src==='file'?'Si compila con il nome del file caricato'
     :'Titolo documento (es. PRO SERVICE)';
   if(!fill) return;
-  if(on){
-    /* quello che c'era scritto si mette da parte solo se e' roba scritta a
-       mano: reimpostando da una sorgente all'altra non va salvato il testo
-       automatico della sorgente precedente */
-    if(t.value&&t.value!==auto&&t.value!==LAST_FILE_BASE&&t.value!==SITE_TITLE) MANUAL_TITLE=t.value;
-    t.value=auto;
-  } else if(MANUAL_TITLE){ t.value=MANUAL_TITLE; MANUAL_TITLE=''; }
+  /* quello che c'e' scritto si mette da parte solo se non ce l'abbiamo messo
+     noi: cosi' passando da una sorgente all'altra non si scambia il testo
+     automatico della precedente per una scelta di chi lavora */
+  if(t.value&&t.value!==AUTO_TITLE) MANUAL_TITLE=t.value;
+  /* spegnendo tutto si torna a quello scritto a mano, e se non c'e' al titolo
+     del file. Senza il ripiego, staccando il sito resterebbe in copertina il
+     nome del sito precedente su un documento che non e' piu' il suo. */
+  t.value = on ? auto : (MANUAL_TITLE||titoloDiRipiego());
+  AUTO_TITLE = on ? auto : '';
 }
 /* il ponte ha collegato (o staccato) un sito: '' lo toglie di mezzo */
 function aggiornaTitoloSito(nome){
@@ -3226,8 +3293,11 @@ function loadRows(rows,name,label){
      zero, altrimenti il file B esce con l'intestazione del file A */
   var first=(rows[0]||[]).map(norm).filter(Boolean)[0]||'';
   LAST_FILE_BASE=fileBaseName(name);
+  SHEET_TITLE=(first&&!/PIANO\s*:/i.test(first))?first:'';
+  window.SHEET_TITLE=SHEET_TITLE;          // lo legge ponte.js per riconoscere il sito
   MANUAL_TITLE='';
-  document.getElementById('docTitle').value=(first&&!/PIANO\s*:/i.test(first))?first:LAST_FILE_BASE;
+  document.getElementById('docTitle').value=titoloDiRipiego();
+  AUTO_TITLE=document.getElementById('docTitle').value;
   applyTitleSource(true);
   document.getElementById('docSub').value='';
   document.getElementById('dropFile').hidden=false;
@@ -3264,7 +3334,8 @@ function unloadFile(){
   document.getElementById('treecol').hidden=true;
   document.getElementById('treegrip').hidden=true;
   document.getElementById('selAll').checked=true;
-  LAST_FILE_BASE=''; MANUAL_TITLE='';
+  LAST_FILE_BASE=''; SHEET_TITLE=''; MANUAL_TITLE=''; AUTO_TITLE='';
+  window.SHEET_TITLE='';
   document.getElementById('docTitle').value='';
   document.getElementById('docSub').value='';
   applyTitleSource(true);

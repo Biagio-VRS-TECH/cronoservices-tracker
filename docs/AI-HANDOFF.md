@@ -168,11 +168,16 @@ quelli a mangiare gli indirizzi lunghi. Un segnale solo, e uno solo si muove: la
 in basso compare solo quando c'e' qualcosa da dire e durante il lavoro e' anche
 l'avanzamento. Da ~150 px sempre accesi a 74 a riposo / 119 con un esito.
 
-**Scorrendo la testata esce dal flusso e fluttua**: una nuvoletta centrata con
-il punto di stato, il nome del sito e il bottone, e le pagine che le passano
-sotto. La regola "non copre il PDF" resta per la testata larga; da ridotta il
+**Scorrendo la testata si stringe fino a diventare una nuvoletta sospesa** (872
+x115 px → 388x38), e le pagine le passano sotto. Non e' un secondo stato: e' un
+**cursore**, `--r` da 0 a 1 mosso dallo scorrimento, con tutta la forma
+interpolata in CSS - larghezza, altezza, raggio, ombra, corpo del testo, spina
+che diventa punto. La banda si chiude da se' perche' la testata resta nel
+flusso. La regola "non copre il PDF" resta per la testata larga; da ridotta il
 committente ha preferito la pillola sospesa. Non si stringe senza sito, con la
-lista dei probabili aperta, o mentre prepara il PDF.
+lista dei probabili aperta, o mentre prepara il PDF. Le tre trappole da non
+ripetere (ResizeObserver che si morde la coda, `line-height:0` che non chiude
+le icone, ordine delle regole) sono in `web/schede/HANDOFF.md`.
 
 **Il titolo del documento viene dal sito collegato** (`#titleFromSite`, terza
 sorgente accanto a "prima cella del foglio" e "nome del file", accesa di

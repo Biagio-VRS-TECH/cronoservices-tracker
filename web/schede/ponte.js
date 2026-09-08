@@ -54,7 +54,9 @@ const ctx = {
 let siti = null;            // {id, dest, cliente, loc, cli, mese, nome} aperti dell'anno
 let pesi = null;            // rarita' delle parole fra i nomi dei siti (affinita.js)
 let inCorso = false;
-let ridotto = false;        // la testata si e' stretta in nuvoletta (vedi guarda())
+let stretta = 0;            // 0 testata larga, 1 nuvoletta: il cursore di guarda()
+let aggiorna = () => { };   // lo riscrive guarda(); prima non fa niente
+let rimisura = () => { };   // idem: rimisura la pillola al fotogramma dopo
 let ultimoFile = '';        // il testo con cui si e' riconosciuto (nome file / titolo)
 let esitoCorrente = null;   // {tono, testo, cand}
 
@@ -161,7 +163,7 @@ async function riconosci(nomeFile, titolo) {
     secondo.affinita >= RIVALE && secondo.affinita >= primo.affinita - 0.12;
   if (primo.affinita >= NETTA && !rivale && sitiDelCliente(primo.voce.cli) === 1) {
     collega(primo.voce, 'auto');
-    return esito('ok', `Riconosciuto dal nome del file (${Math.round(primo.affinita * 100)}%).`);
+    return esito('ok', `Riconosciuto dal file (${Math.round(primo.affinita * 100)}%).`);
   }
   scollega();
   esito('lista', primo.affinita >= NETTA && sitiDelCliente(primo.voce.cli) > 1
@@ -198,13 +200,9 @@ function disegna() {
   const e = esitoCorrente;
 
   /* La spina a sinistra e' l'unico segnale di stato: colore del collegamento,
-     e in movimento mentre si prepara il PDF. `ridotto` viaggia insieme al tono
-     perche' qui la classe si riscrive tutta: si stringe solo quando c'e' un
-     sito (senza, la casella di ricerca sparirebbe) e con la lista chiusa. */
+     e in movimento mentre si prepara il PDF. */
   const tono = inCorso ? 'lavoro' : (e?.tono || (conSito ? 'ok' : 'idle'));
-  dock.className = 't-' + tono +
-    (ridotto && conSito && !e?.cand?.length && !inCorso ? ' ridotto' : '');
-  if (conSito) $('#ponteCliente').title = ctx.cliente || '';
+  dock.className = 't-' + tono;
 
   $('#ponteCosa').textContent = conSito ? 'consegna a' : 'a quale sito?';
   $('#ponteSito').hidden = !conSito;
@@ -254,6 +252,11 @@ function disegna() {
   } else {
     pan.hidden = true;
   }
+
+  /* il nome del sito e la parola sul bottone sono cambiati: la pillola ha
+     un'altra misura, e possono essere cambiate le condizioni per stringersi */
+  rimisura();
+  aggiorna();
 }
 
 function collegaDock() {
@@ -290,29 +293,97 @@ function collegaDock() {
   addEventListener('keydown', e => { if (e.key === 'Escape' && esitoCorrente?.cand) { chiudiLista(); disegna(); } });
 }
 
-/** Lo scorrimento decide se la testata sta larga o stretta. Due soglie diverse
- *  (140 giu', 90 su): con una sola, fermandosi proprio li' sopra, la nuvoletta
- *  si aprirebbe e chiuderebbe a ogni pixel. L'ascolto e' in fase di CATTURA su
- *  window perche' a scorrere e' #banco, e lo scroll di un elemento non risale
- *  ai genitori (sotto i 980px scorre la finestra: lo stesso ascolto copre tutti
- *  e due i casi). */
+/* ------------------------------------------------ la testata che si chiude --
+   Lo scorrimento non accende uno stato: muove un CURSORE, `--r` da 0 (testata
+   larga) a 1 (nuvoletta). Tutta la forma e' interpolata in CSS su quel numero
+   (sezione LA NUVOLETTA in index.html); qui si decide solo quanto vale.
+
+   Sulla corsa si smorza (`morbida`): a velocita' costante la pillola arriva di
+   colpo, cosi' la stretta parte decisa e si posa. */
+const CORSA = 170;                         // px di scorrimento per chiudere del tutto
+const morbida = t => t * t * (3 - 2 * t);  // smoothstep
+
+/** Quanto si e' scorso sotto le pagine. A scorrere e' #banco; sotto i 980px i
+ *  pannelli si impilano e torna a scorrere la finestra. */
+function quantoGiu() {
+  const banco = $('#banco');
+  return banco && banco.scrollHeight > banco.clientHeight + 1
+    ? banco.scrollTop : (window.scrollY || 0);
+}
+
 function guarda() {
-  const GIU = 140, SU = 90;
-  let attesa = false;
-  const misura = () => {
-    const banco = $('#banco');
-    const y = banco && banco.scrollHeight > banco.clientHeight + 1
-      ? banco.scrollTop : (window.scrollY || 0);
-    const vuole = y > (ridotto ? SU : GIU);
-    if (vuole === ridotto) return;
-    ridotto = vuole;
-    disegna();
+  const dock = $('#ponte');
+  const secco = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let attesa = false, inMisura = false, larghezzaMisurata = -1;
+
+  /* La testata resta larga in tre casi, e non sono capricci: senza un sito
+     collegato sparirebbe la casella di ricerca; con la lista dei probabili
+     aperta si sta scegliendo; mentre prepara il PDF l'avanzamento e' l'unica
+     cosa che uno guarda. */
+  const puoStringersi = () => !!ctx.id && !inCorso && $('#ponteScelte').hidden;
+
+  /* La larghezza e l'altezza naturali della pillola: l'unica cosa che il CSS
+     non sa ricavarsi da solo. Si prendono mettendo la testata a `--r:1` con
+     larghezza libera per un fotogramma (invisibile).
+
+     **Mai da un ResizeObserver.** Il primo giro ne aveva uno su #banco, e il
+     risultato era una macchina impazzita: misurare cambia per un attimo la
+     testata -> cambia l'altezza del banco -> l'osservatore riparte -> misura di
+     nuovo, all'infinito. La misura si rifa' solo quando cambia davvero
+     qualcosa: il contenuto (`disegna`) o la larghezza della colonna
+     (confrontata in `aggiorna`, che gira gia' a ogni scorrimento). */
+  const misuraPillola = () => {
+    if (dock.hidden || inMisura) return;
+    inMisura = true;
+    dock.classList.add('misura');
+    const r = dock.getBoundingClientRect();
+    dock.classList.remove('misura');
+    inMisura = false;
+    if (r.width < 40) return;
+    larghezzaMisurata = dock.parentElement.clientWidth;
+    /* due pixel di respiro: alla misura esatta il nome del sito va a capo per
+       un decimo di pixel, e la pillola diventa alta il doppio */
+    dock.style.setProperty('--wpill', (Math.ceil(r.width) + 4) + 'px');
+    dock.style.setProperty('--hpill', Math.ceil(r.height) + 'px');
   };
+
+  /* setTimeout e non requestAnimationFrame: a scheda nascosta il rAF non gira,
+     e la pillola resterebbe con la misura di prima - cioe' sbagliata appena si
+     torna a guardarla */
+  let inCoda = false;
+  rimisura = () => {
+    if (inCoda) return;
+    inCoda = true;
+    setTimeout(() => { inCoda = false; misuraPillola(); }, 0);
+  };
+
+  aggiorna = () => {
+    /* la colonna si e' allargata (finestra ridimensionata, maniglie dei
+       pannelli trascinate)? allora la pillola ha un'altra misura. Il confronto
+       e' qui e non in un ResizeObserver di proposito: vedi il commento di
+       misuraPillola */
+    const largo = dock.parentElement.clientWidth;
+    if (largo !== larghezzaMisurata) misuraPillola();
+
+    let r = puoStringersi() ? Math.min(1, Math.max(0, quantoGiu() / CORSA)) : 0;
+    r = secco ? (r > .5 ? 1 : 0) : morbida(r);
+    if (r === stretta) return;
+    stretta = r;
+    dock.style.setProperty('--r', r.toFixed(3));
+  };
+
+  /* in cattura su window: a scorrere e' #banco, e lo scroll di un elemento non
+     risale ai genitori (sotto i 980px scorre la finestra, e lo stesso ascolto
+     copre anche quel caso) */
   addEventListener('scroll', () => {
     if (attesa) return;
     attesa = true;
-    requestAnimationFrame(() => { attesa = false; misura(); });
+    requestAnimationFrame(() => { attesa = false; aggiorna(); });
   }, { passive: true, capture: true });
+
+  addEventListener('resize', () => { rimisura(); aggiorna(); });
+  misuraPillola();
+  aggiorna();
 }
 
 /* ------------------------------------------------------------- il PDF ---- */
@@ -457,7 +528,11 @@ function agganci() {
   if (typeof caricaOriginale === 'function') {
     window.loadRows = function (rows, name, label) {
       const r = caricaOriginale.apply(this, arguments);
-      if (r !== false && !label) riconosci(String(name || ''), $('#docTitle')?.value || '');
+      /* il titolo del FOGLIO, non quello che c'e' scritto nel campo: se il
+         campo lo riempie il sito ancora collegato (titleFromSite), il file
+         nuovo verrebbe riconosciuto con il nome del sito vecchio - e tutti e
+         due risulterebbero al 100% */
+      if (r !== false && !label) riconosci(String(name || ''), window.SHEET_TITLE || '');
       return r;
     };
   }

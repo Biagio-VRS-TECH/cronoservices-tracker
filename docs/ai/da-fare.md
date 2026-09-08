@@ -34,14 +34,33 @@ operatori entrano assieme?"*.
   il lavoro fa anche da avanzamento. 74 px a riposo, 119 px con un esito
   (prima ~150 sempre). `@container (max-width:620px)`: bottone a tutta
   larghezza, etichetta della provenienza nascosta.
-- **La nuvoletta** (`#ponte.ridotto`, `guarda()` in `ponte.js`): scorrendo la
-  testata esce dal flusso (`position:absolute` dentro `#main`) e fluttua al
-  centro dell'anteprima con punto di stato, nome del sito e bottone; la banda
-  sparisce e le pagine passano sotto. Prima passata: la banda si accorciava a
-  34 px per non coprire niente - bocciata (*"meglio fluttuante e moderna che
-  questo obrobrio"*). Due soglie (140/90) contro il tremolio, ascolto in
-  cattura su window perche' lo scroll di `#banco` non risale. Non si stringe
-  senza sito, con la lista aperta o mentre prepara il PDF.
+- **La nuvoletta**, al terzo tentativo (`guarda()` in `ponte.js`, sezione
+  `LA NUVOLETTA` nel CSS). Non due stati con un salto: **un cursore**, `--r` da
+  0 a 1 mosso dallo scorrimento (170 px di corsa, smoothstep), con tutta la
+  forma interpolata in CSS. La testata resta nel flusso e si accorcia col suo
+  contenuto; un margine negativo (`--hpill` + stacco) chiude quel che avanza,
+  cosi' a `--r:1` la banda vale zero e le pagine passano sotto la pillola.
+  Misurato: 872x115 px → 388x38 px, banda 115 → 0.
+  Le due passate buttate: banda che si accorciava senza far fluttuare niente
+  (*"meglio fluttuante e moderna che questo obrobrio"*), e poi due stati con
+  una soglia.
+  **Tre trappole, tutte incontrate davvero**: (a) misurare la pillola da un
+  ResizeObserver su `#banco` e' un giro senza fine, perche' misurare cambia
+  l'altezza del banco - la misura si rifa' solo a contenuto o colonna cambiati,
+  e con `setTimeout` perche' a scheda nascosta il rAF non gira; (b)
+  `line-height:0` chiude il testo ma non l'icona e il bottone dentro la rotta,
+  che tenevano la pillola alta il doppio - dentro `.pn-rotta` tutto e' in `em`;
+  (c) le interpolazioni della fascia devono stare nella sua regola base, che
+  nel foglio viene dopo e altrimenti le scavalca.
+- **Il file nuovo non eredita piu' il sito vecchio.** Con `titleFromSite` acceso
+  il campo del titolo porta il nome del sito collegato; il riconoscimento
+  leggeva quel campo, quindi caricando un secondo Excel il sito precedente
+  risultava al 100% insieme a quello giusto. Ora ponte.js guarda
+  `window.SHEET_TITLE` - il titolo che il FILE porta con se' - e non il campo.
+  Nello stesso giro `applyTitleSource` ha imparato a distinguere il testo
+  scritto a mano da quello messo dall'applicazione (`AUTO_TITLE`) e ha un
+  ripiego (`titoloDiRipiego`): staccando il sito il campo torna al titolo del
+  file, invece di restare col nome di un sito che non c'entra piu'.
 - **Titolo dal sito collegato** (decisione 15k): `#titleFromSite`,
   `titleSource()` a tre valori, `titoloSito()` in `ponte.js` (cliente +
   destinazione, una volta sola se l'una ripete l'altra),

@@ -58,21 +58,45 @@ riquadro che scorre, non perche' galleggia sopra — e cosi' non copre nessuna
 pagina in nessun punto. Sotto i 980 px i pannelli si impilano, torna a scorrere
 la finestra e `#ponte` ridiventa `sticky`.
 
-Scorrendo, la testata **esce dal flusso** e diventa una nuvoletta che fluttua
-al centro dell'anteprima (`#ponte.ridotto`, `position:absolute` dentro `#main`
-che e' `position:relative`): restano il punto di stato, il nome del sito e il
-bottone. La banda sparisce del tutto, il banco si riprende tutta l'altezza e le
-pagine le scorrono **sotto** — da ridotta la pillola copre una striscia della
-pagina, ed e' voluto: il primo tentativo accorciava la banda per non coprire
-niente e il committente l'ha bocciato (*"meglio fluttuante e moderna che questo
-obrobrio"*). Lo decide `guarda()` in
-`ponte.js`, con due soglie diverse (140 giu', 90 su: con una sola, fermandosi
-proprio li' sopra, si aprirebbe e chiuderebbe a ogni pixel) e l'ascolto in fase
-di **cattura** su window, perche' lo scroll di `#banco` non risale ai genitori.
-Non si stringe quando manca il sito (sparirebbe la casella di ricerca), con la
-lista dei probabili aperta, o mentre prepara il PDF: li' l'esito e
-l'avanzamento sono l'unica cosa che si guarda. La classe la scrive `disegna()`
-insieme al tono, perche' li' `className` si riscrive tutto.
+**La nuvoletta.** Scorrendo, la testata si stringe fino a diventare una pillola
+sospesa al centro dell'anteprima. **Non e' un secondo stato: e' un cursore.**
+`--r` va da 0 (testata larga) a 1 (pillola), lo muove lo scorrimento un valore
+per fotogramma (`guarda()` in `ponte.js`) e tutta la forma e' interpolata su
+quel numero nella sezione `LA NUVOLETTA` del CSS. `@property --r` la dichiara
+come numero, cosi' interpola anche quando la si riporta a 0 di forza.
+
+Come si chiude la banda: la testata **resta nel flusso**, quindi si accorcia
+insieme al suo contenuto, e un margine negativo in fondo (`--hpill` + lo stacco)
+toglie quel che avanza — a `--r:1` la banda vale zero e le pagine passano sotto
+la pillola. Cosi' l'anteprima si riprende l'altezza a poco a poco invece di
+ereditarla di colpo.
+
+Tre trappole, tutte gia' pagate:
+
+- **niente ResizeObserver per misurare.** Il primo giro ne aveva uno su
+  `#banco`: misurare cambia per un attimo la testata → cambia l'altezza del
+  banco → l'osservatore riparte → misura di nuovo, all'infinito. La misura
+  (`--wpill`, `--hpill`: le uniche due cose che il CSS non sa da solo) si rifa'
+  solo quando cambia il contenuto (`disegna`) o la larghezza della colonna
+  (confrontata in `aggiorna`, che gira gia' a ogni scorrimento). Il rinvio e' un
+  `setTimeout`, non un `requestAnimationFrame`: a scheda nascosta il rAF non
+  gira e la misura resterebbe quella vecchia;
+- **`line-height:0` non chiude tutto.** Fa collassare il testo qualunque sia il
+  numero di righe a cui e' andato a capo — ed e' per questo che si usa lei e non
+  un'altezza fissa — ma non tocca chi ha una misura sua: l'icona della freccia e
+  il bottone "cambia sito" tenevano la rotta alta 30px e la pillola restava un
+  rettangolo. Dentro `.pn-rotta` tutto e' in `em` e a chiudersi e' il **corpo
+  del testo**;
+- **l'ordine nel foglio conta.** Le interpolazioni della fascia stanno nella
+  regola base di `.pn-strip`, che viene dopo: scritte prima, il suo `padding`
+  fisso le scavalcava e la pillola restava alta 14px di troppo.
+
+`--wpill` prende 4px di respiro sulla misura: alla misura esatta il nome del
+sito va a capo per un decimo di pixel e la pillola raddoppia in altezza.
+
+Resta larga in tre casi: senza sito collegato (sparirebbe la casella di
+ricerca), con la lista dei probabili aperta, e mentre prepara il PDF — li'
+l'esito e l'avanzamento sono l'unica cosa che si guarda.
 
 Conseguenze da ricordare: `scrollBox()` trova `#banco`; `positionPartStrip` e
 `positionDocScroll` si misurano sul banco e non su `#main`, e la seconda scrive

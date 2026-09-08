@@ -651,14 +651,28 @@ mangiavano proprio la parte che distingue un impianto dall'altro.
 
 **Scorrendo diventa una nuvoletta** (chiesto subito dopo: *"quando si scrolla
 in giu' diventa una semplice nuvoletta moderna centrale con scritto solo il nome
-del sito e salva tracker"*). Al primo tentativo la banda si accorciava insieme
-alla pillola, per non contraddire il "non copre il PDF in nessun punto" di
-mezz'ora prima: *"meglio fluttuante e moderna che questo obrobrio"*. Quindi
-`position:absolute` dentro `#main`: la banda sparisce, il banco si riprende
-tutta l'altezza e le pagine passano sotto la pillola. **La regola vale ancora
-per la testata larga** - quella non copre niente - e da ridotta si accetta la
-striscia coperta in cambio dell'altezza guadagnata. Non si stringe quando manca
-il sito, con la lista aperta o mentre prepara il PDF.
+del sito e salva tracker"*, poi *"fagli un'animazione dinamica scroll down che
+scrollando in basso si rimpicciolisce piano piano fino a diventare una pillola
+con ombra"*).
+
+Due tentativi buttati prima di quello giusto, e vale la pena ricordarli.
+Il **primo** accorciava la banda insieme alla pillola per non contraddire il
+"non copre il PDF in nessun punto" di mezz'ora prima: *"meglio fluttuante e
+moderna che questo obrobrio"*. Il **secondo** faceva fluttuare la pillola ma con
+un salto, due stati e una soglia.
+
+Quello che regge e' **un cursore, non due stati**: `--r` da 0 a 1 mosso dallo
+scorrimento, e tutta la forma interpolata su quel numero in CSS - larghezza,
+altezza, raggio, ombra, corpo del testo, spina che diventa punto. Nessun salto
+da nascondere, e la trasformazione sta in piedi a qualunque punto la si fermi.
+La banda si chiude da se' perche' la testata **resta nel flusso**: si accorcia
+col suo contenuto, e un margine negativo toglie quel che avanza. **La regola
+"non copre il PDF" vale ancora per la testata larga**; da ridotta si accetta la
+striscia coperta in cambio dell'altezza guadagnata.
+
+Le tre trappole (ResizeObserver che si morde la coda, `line-height:0` che non
+chiude le icone, ordine delle regole nel foglio) sono scritte in
+`web/schede/HANDOFF.md`: costano mezz'ora ognuna a riscoprirle.
 
 Un segnale solo, e uno solo si muove: la **spina** di 3px sul bordo sinistro
 (grigio / cyan / ambra / rosso, e scorre mentre prepara il PDF) al posto del led
