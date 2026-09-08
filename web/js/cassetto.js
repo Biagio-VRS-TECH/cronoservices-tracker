@@ -10,6 +10,9 @@
 import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
 import { chiama } from './api.js';
 import {
+  documentiDi, apriDocumento, eliminaDocumento, urlGeneratore, dimensione, ICO_PDF,
+} from './documenti.js';
+import {
   st, cella, statoCella, spunta, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE,
   mappaturaSito, scadEffettiva, on,
 } from './stato.js';
@@ -30,7 +33,12 @@ export function apriCassetto(id) {
   nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio service' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
-  stacca = on('cella', d => { if (d.id === idAperto) rinfresca(d.mese); });
+  const s1 = on('cella', d => { if (d.id === idAperto) rinfresca(d.mese); });
+  // un PDF nuovo o tolto: si rifa' solo la sezione, il pannello non torna in cima
+  const s2 = on('documenti', d => {
+    if (!d || d.id === idAperto) nodo?.querySelector('.sez-documenti')?.replaceWith(sezDocumenti());
+  });
+  stacca = () => { s1(); s2(); };
   disegna();
   caricaStoria(id);
 }
@@ -114,6 +122,8 @@ function disegna() {
         style: 'margin:14px 0 0;padding:10px 12px;background:var(--fondo);border-radius:var(--r-2);font-size:var(--t-mini)'
       }) : null,
 
+      sezDocumenti(),
+
       h('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin:22px 0 8px' },
         h('h3', { testo: 'Mesi ' + st.anno, style: 'margin:0;font-size:var(--t-mini);font-weight:600' }),
         /* Chiude LA mappatura dell'anno di questo sito, in un mese solo: prima
@@ -140,6 +150,54 @@ function disegna() {
       storia || h('p.js-attesa', { testo: 'Caricamento…', style: 'color:var(--tenue);font-size:var(--t-mini)' }),
     ),
   );
+}
+
+/** Le schede tecnici del sito: il bottone che apre il generatore gia' puntato
+ *  su questo impianto, e i PDF gia' stampati quest'anno con la miniatura della
+ *  prima pagina. #ANCHOR: documenti */
+function sezDocumenti() {
+  const s = st.perServ.get(idAperto);
+  const docs = documentiDi(idAperto);
+  return h('div.sez-documenti', {},
+    h('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin:22px 0 8px' },
+      h('h3', { testo: 'Schede tecnici ' + st.anno, style: 'margin:0;font-size:var(--t-mini);font-weight:600' }),
+      h('a.pill', {
+        href: urlGeneratore(s), target: '_blank', rel: 'opener',
+        html: ICO_PDF + ' Genera dall\'Excel',
+        title: 'Apre il generatore con questo sito gia\' scelto: alla stampa il PDF ' +
+          'torna qui e la spunta "stampata" si mette da sola',
+      })),
+    docs.length
+      ? h('ul.doc-lista', {}, docs.map(d => h('li', {},
+          h('button.doc-mini', {
+            title: 'Apri il PDF', 'aria-label': 'Apri ' + d.nome,
+            onclick: () => apriDocumento(d),
+          }, d.anteprima ? h('img', { src: d.anteprima, alt: '' }) : h('span', { html: ICO_PDF })),
+          h('div.doc-info', {},
+            h('b', { testo: d.nome, title: d.nome }),
+            h('span.meta', { html:
+              `${d.pagine ? d.pagine + ' pag. · ' : ''}${dimensione(d.bytes || 0)}` +
+              (d.mese ? ` · spunta su ${esc(st.mesiNome[d.mese - 1])}` : '') +
+              `<br><span class="dato">${esc(d.creato_da || '?')} ${quando(d.creato_il)}</span>` })),
+          h('div.doc-azioni', {},
+            h('button.pill.mini', { testo: 'Apri', onclick: () => apriDocumento(d) }),
+            h('button.pill.mini.debole', {
+              testo: 'Elimina', title: 'Toglie il PDF (la spunta resta)',
+              onclick: async e => {
+                const b = e.currentTarget;
+                if (b.dataset.conferma !== '1') {
+                  b.dataset.conferma = '1'; b.textContent = 'Sicuro?';
+                  setTimeout(() => { b.dataset.conferma = ''; b.textContent = 'Elimina'; }, 3000);
+                  return;
+                }
+                try { await eliminaDocumento(d); avviso('PDF eliminato.'); }
+                catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
+              },
+            })))))
+      : h('p', {
+          testo: 'Nessun PDF ancora: dal generatore, alla stampa, il documento arriva qui da solo.',
+          style: 'color:var(--tenue);font-size:var(--t-mini);margin:0',
+        }));
 }
 
 /** Una spunta e' arrivata: si ritoccano SOLO le caselle di quel mese, la sua

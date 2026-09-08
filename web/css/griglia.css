@@ -540,6 +540,7 @@
   :root { --col-min: 210px; --rientro: 8px; }
   .riga-cli .tag:not(.aperti):not(.completo) { display: none; }
   .riga-srv .srv-loc { display: none; }
+  .riga-srv .doc-chip { display: none; }
   .riepilogo { display: none; }
   .mese-nav::before { display: none; }
   .mese-nav { flex-wrap: wrap; border-radius: var(--r-2); }

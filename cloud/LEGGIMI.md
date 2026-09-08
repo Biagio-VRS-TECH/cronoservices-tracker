@@ -125,6 +125,17 @@ Se cambi le variabili, rilancia il deploy: il file viene riscritto solo allora.
 
 ---
 
+## 6. Le schede tecnici e i loro PDF
+
+Il generatore di schede (`/schede/`) alla stampa consegna il PDF al tracker.
+Online serve una tabella e un bucket in piu': **SQL Editor** → esegui
+`06-documenti.sql`, poi **riesegui `03-letture.sql`** (il bootstrap ora porta
+anche i documenti dell'anno). Il bucket `documenti` nasce da solo, privato, solo
+PDF fino a 40 MB. I file si leggono con indirizzi firmati che durano un'ora.
+
+Finche' il 06 non e' eseguito, il tracker online funziona come prima e il
+generatore dice "Non salvato" quando prova a consegnare.
+
 ## Cosa cambia, usandola online
 
 | | locale | online |

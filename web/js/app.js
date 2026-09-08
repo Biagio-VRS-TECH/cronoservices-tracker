@@ -17,6 +17,10 @@ import * as vMese from './mese.js';
 import * as vStat from './stat.js';
 import { chiudiPop } from './spunte.js';
 import { chiudiCassetto } from './cassetto.js';
+import {
+  eventoDocumento, ricaricaDocumenti, ascoltaAltreSchede, collegaChip, rinfrescaChip,
+  urlGeneratore, ICO_PDF,
+} from './documenti.js';
 
 const area = $('#area');
 
@@ -84,6 +88,15 @@ async function avvia() {
     if (d?.remoto) avviso(`${d.remoto} ha aggiornato più mappature.`);
   });
   on('presenze', statoCollegamento);
+  /* I PDF delle schede tecnici: arrivano dal flusso (o da un'altra scheda del
+     browser) e toccano solo l'icona accanto al nome del sito. */
+  on('documento-remoto', eventoDocumento);
+  on('documenti', d => d?.id ? rinfrescaChip(area, d.id) : disegna());
+  collegaChip();
+  ascoltaAltreSchede();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') ricaricaDocumenti();
+  });
   on('sync-fatto', rs => {
     avviso(riassuntoSync(rs) + ' Ricarico i dati.', { tono: 'ok' });
     cambiaAnno(st.anno).then(() => { riempiFiltri(); disegna(); });
@@ -204,6 +217,7 @@ function icone() {
   $('#anno-su').innerHTML = ICO.dx;
   $('#cerca-ico').innerHTML = ICO.cerca;
   $('#tema').innerHTML = ICO.tema;
+  $('#schede').innerHTML = ICO_PDF + ' Schede tecnici';
 }
 
 function collegaTesta() {
@@ -215,6 +229,7 @@ function collegaTesta() {
   $('#tema').onclick = giraTema;
   $('#io').onclick = chiediOperatore;
   $('#aiuto').onclick = mostraAiuto;
+  $('#schede').onclick = () => open(urlGeneratore(null), '_blank');
   $('#azioni').onclick = e => apriAzioni(e.currentTarget);
   $('#collegamento').onclick = pannelloCollegamento;
 

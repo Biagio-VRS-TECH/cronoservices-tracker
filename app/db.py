@@ -96,6 +96,25 @@ CREATE TABLE IF NOT EXISTS sync_log (
   mesi_cambiati INTEGER, spunte_orfane INTEGER,
   dettaglio TEXT
 );
+
+-- I PDF delle schede tecnici (web/schede/), uno per stampa. Legati al SITO e
+-- all'anno della sua mappatura; `mese` e' la cella su cui la stampa ha messo
+-- la spunta "stampata". Il file sta in data/documenti/<anno>/, qui l'indice e
+-- la miniatura JPEG della prima pagina (data URL, pochi KB). #ANCHOR: documenti
+CREATE TABLE IF NOT EXISTS documenti (
+  id          TEXT PRIMARY KEY,
+  id_service  INTEGER NOT NULL,
+  anno        INTEGER NOT NULL,
+  mese        INTEGER,
+  nome        TEXT NOT NULL,
+  percorso    TEXT NOT NULL,
+  bytes       INTEGER NOT NULL DEFAULT 0,
+  pagine      INTEGER NOT NULL DEFAULT 0,
+  anteprima   TEXT,
+  creato_il   TEXT NOT NULL,
+  creato_da   TEXT NOT NULL DEFAULT '?'
+);
+CREATE INDEX IF NOT EXISTS ix_doc_anno ON documenti(anno, id_service);
 """
 
 

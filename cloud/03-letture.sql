@@ -51,6 +51,8 @@ begin
     'indirizzo_lan', null,
     'altri_server', '[]'::jsonb,
     'sync', (select to_jsonb(sl) from public.sync_log sl order by sl.id desc limit 1),
+    -- i PDF delle schede tecnici dell'anno (06-documenti.sql)
+    'documenti', public._documenti_json(v_anno),
     'online', public._presenti(),
     'mesi', to_jsonb(array['Gen','Feb','Mar','Apr','Mag','Giu',
                            'Lug','Ago','Set','Ott','Nov','Dic']),

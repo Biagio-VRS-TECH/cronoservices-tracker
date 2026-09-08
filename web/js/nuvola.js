@@ -177,6 +177,18 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
     case '/api/impostazioni':
       return rpc('imposta_meta', { p_inizio_tracciamento: b.inizio_tracciamento }, ms);
 
+    // i PDF delle schede tecnici (cloud/06-documenti.sql, #ANCHOR: documenti)
+    case '/api/documenti':
+      return rpc('app_documenti', { p_anno: num(q.anno) }, ms);
+    case '/api/documento':
+      return rpc('registra_documento', {
+        p_id_service: b.id_service, p_anno: b.anno, p_mese: num(b.mese),
+        p_nome: b.nome || '', p_percorso: b.percorso,
+        p_bytes: b.bytes || 0, p_pagine: b.pagine || 0, p_anteprima: b.anteprima || null,
+      }, ms);
+    case '/api/documento_elimina':
+      return rpc('elimina_documento', { p_id: b.id }, ms);
+
     case '/api/sync':
       // Il .accdb sta sul PC dell'ufficio e da qui non si raggiunge: e' quel PC
       // a spingere l'anagrafica, una volta al giorno.
@@ -187,7 +199,52 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
   return { ok: false, stato: 404, dati: { errore: 'rotta sconosciuta: ' + u.pathname } };
 }
 
+/* --------------------------------------------------------------- storage - */
+/* Il bucket `documenti` e' privato: si carica, si cancella e si legge (con un
+   indirizzo firmato a scadenza) solo da chi e' entrato. Le policy stanno in
+   cloud/06-documenti.sql. */
+export const haSessione = () => !!ses;
+
+async function intestazioni() {
+  const t = await token();
+  if (!t) throw new Error('sessione scaduta: rientra nel tracker');
+  return { apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t };
+}
+
+export async function caricaOggetto(bucket, percorso, blob) {
+  const r = await fetch(`${ORIGINE}/storage/v1/object/${bucket}/${percorso}`, {
+    method: 'POST', body: blob,
+    headers: { ...await intestazioni(), 'Content-Type': blob.type || 'application/pdf',
+               'x-upsert': 'false' },
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || d.error || ('caricamento rifiutato (' + r.status + ')'));
+  }
+}
+
+export async function eliminaOggetto(bucket, percorso) {
+  const r = await fetch(`${ORIGINE}/storage/v1/object/${bucket}/${percorso}`, {
+    method: 'DELETE', headers: await intestazioni() });
+  if (!r.ok && r.status !== 404) throw new Error('eliminazione rifiutata (' + r.status + ')');
+}
+
+export async function urlFirmato(bucket, percorso, secondi = 3600) {
+  const r = await fetch(`${ORIGINE}/storage/v1/object/sign/${bucket}/${percorso}`, {
+    method: 'POST', body: JSON.stringify({ expiresIn: secondi }),
+    headers: { ...await intestazioni(), 'Content-Type': 'application/json' },
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.signedURL) throw new Error(d.message || 'indirizzo firmato non ottenuto');
+  return ORIGINE + '/storage/v1' + d.signedURL;
+}
+
 /* -------------------------------------------------------------- realtime - */
+const docDa = r => ({
+  id: r.id, id_service: r.id_service, anno: r.anno, mese: r.mese, nome: r.nome,
+  percorso: r.percorso, bytes: r.bytes, pagine: r.pagine, anteprima: r.anteprima,
+  creato_il: r.creato_il, creato_da: r.creato_da,
+});
 const cellaDa = r => ({
   s: r.stampata, c: r.controllata, k: r.corretta, r: r.ricambi,
   rev: r.rev, by: r.updated_by, at: r.updated_at, nota: r.nota || '',
@@ -245,6 +302,7 @@ export function apriStream(onEvento, mio = () => '') {
               { event: '*', schema: 'public', table: 'mappature' },
               { event: '*', schema: 'public', table: 'meta' },
               { event: 'INSERT', schema: 'public', table: 'sync_log' },
+              { event: '*', schema: 'public', table: 'documenti' },
             ],
           },
         },
@@ -271,6 +329,16 @@ export function apriStream(onEvento, mio = () => '') {
         onEvento({ tipo: 'impostazioni', inizio_tracciamento: r.v });
       } else if (d.table === 'sync_log' && r.ts) {
         onEvento({ tipo: 'sync', riepilogo: r });
+      } else if (d.table === 'documenti') {
+        const vecchio = d.old_record || d.old || {};
+        if (d.type === 'DELETE' || (!r.id && vecchio.id)) {
+          onEvento({ tipo: 'documento', anno: vecchio.anno, id_service: vecchio.id_service,
+                     eliminato: vecchio.id });
+        } else if (r.id) {
+          onEvento({ tipo: 'documento', anno: r.anno, id_service: r.id_service,
+                     documento: docDa(r),
+                     operatore: r.creato_da === mio() ? '' : (r.creato_da || '') });
+        }
       }
     };
 

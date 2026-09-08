@@ -72,6 +72,9 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/stat.js` | 1283 | vista Statistiche: raccolta dei numeri, quadrante dell'anno, ritmo, lista di lavoro, grafici (torte comprese) |
 | `js/cassetto.js` | 203 | pannello laterale di un service |
 | `js/spunte.js` | 127 | popover della cella |
+| `js/documenti.js` | 230 | i PDF delle schede tecnici: modello, icona accanto al sito, apertura, consegna. #ANCHOR: documenti |
+| `schede/index.html` | 3700 | il **generatore di schede tecnici** (ex `Schede-Tecnici-Generatore.html`), pagina unica con SheetJS dentro. Il suo handoff e' `schede/HANDOFF.md` |
+| `schede/ponte.js` | 250 | il legame generatore -> tracker: barra del sito, PDF con html2canvas + jsPDF (`schede/lib/`), consegna. #ANCHOR: ponte |
 | `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
 | `css/theme.css` | 214 | **solo token**: colori, font, misure, segnali, vetro. Il marchio si cambia qui |
 | `css/base.css` | 428 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
@@ -80,7 +83,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `css/stampa.css` | 38 | foglio cartaceo |
 | `sw.js` | 45 | service worker (guscio offline) |
 
-`data/cronoservice.db` = dati applicativi. `data/backup/` = copie automatiche a
+`data/cronoservice.db` = dati applicativi. `data/documenti/<anno>/` = i PDF delle schede (locale). `data/backup/` = copie automatiche a
 ogni sync (ne tiene 20).
 
 ### Online `cloud/`
@@ -92,6 +95,7 @@ ogni sync (ne tiene 20).
 | `03-letture.sql` | `app_bootstrap` e le altre letture, CSV compreso |
 | `04-sicurezza.sql` | RLS, permessi, pubblicazione Realtime |
 | `05-sync.sql` | `sync_applica`: il gemello di `sync.esegui` |
+| `06-documenti.sql` | tabella `documenti`, bucket Storage, `registra_documento` (gemello di `api.salva_documento`) |
 | `installa-sync-cloud.cmd` | crea l'operazione pianificata delle 06:00 |
 | `sync-cloud.cmd` | un travaso a mano |
 | `netlify-build.sh` | scrive `nuvola-config.js` in pubblicazione |

@@ -17,6 +17,7 @@ import {
   CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriCassetto } from './cassetto.js';
+import { htmlChipDocumento } from './documenti.js';
 
 let radice = null;
 
@@ -79,6 +80,7 @@ function htmlScheda(v) {
       <b title="${esc(v.s.dest)}">${esc(v.s.dest || '(senza destinazione)')}</b>
       <div class="meta">
         <span class="dato">#${v.s.id}</span>
+        ${htmlChipDocumento(v.s.id)}
         <span>${esc(v.s.loc || '')}${v.s.prov ? ' (' + esc(v.s.prov) + ')' : ''}</span>
         <span>${esc(v.s.tipo)}</span>
         <span>${esc(v.s.cad || '')}</span>

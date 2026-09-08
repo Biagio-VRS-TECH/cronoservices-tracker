@@ -380,6 +380,49 @@ code.lan {
 }
 @keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
 .cassetto header { padding: 18px 20px 14px; border-bottom: 1px solid var(--bordo); }
+
+/* ---- Schede tecnici: l'icona del PDF accanto al nome del sito ---------------
+   Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,
+   non verde: dice "c'e' il documento", non "e' a posto". #ANCHOR: documenti */
+.doc-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 20px;
+  padding: 0 5px; border: 0; border-radius: var(--r-1); cursor: pointer;
+  color: var(--marchio-scuro); background: var(--marchio-tenue);
+  font: 600 var(--t-micro)/1 var(--f-dato); transition: var(--rapido);
+}
+.doc-chip:hover, .doc-chip:focus-visible { box-shadow: var(--alone-marchio); outline: 0;
+  background: color-mix(in srgb, var(--marchio) 22%, var(--superficie)); }
+.doc-chip i { font-style: normal; padding-left: 1px; }
+.doc-chip.vuoto { display: none; }
+.doc-anteprima {
+  position: fixed; z-index: 120; pointer-events: none; opacity: 0;
+  transform: translateY(-4px) scale(.98); transition: var(--rapido);
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-2);
+  box-shadow: var(--ombra-3); padding: 6px; width: 132px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.doc-anteprima.vista { opacity: 1; transform: none; }
+.doc-anteprima img { width: 120px; aspect-ratio: 210 / 297; object-fit: cover;
+  border: 1px solid var(--bordo); border-radius: 3px; background: #fff; display: block; }
+.doc-anteprima span { font-size: var(--t-micro); color: var(--tenue); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+/* nel cassetto: l'elenco dei PDF del sito con la miniatura vera */
+.doc-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.doc-lista li { display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+  border: 1px solid var(--bordo); border-radius: var(--r-2); background: var(--superficie-2); }
+.doc-mini { flex: none; width: 44px; height: 62px; padding: 0; border: 1px solid var(--bordo);
+  border-radius: 3px; background: #fff; cursor: pointer; overflow: hidden;
+  display: grid; place-items: center; color: var(--marchio-scuro); transition: var(--rapido); }
+.doc-mini:hover { box-shadow: var(--alone-marchio); transform: translateY(-1px); }
+.doc-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.doc-info { flex: 1; min-width: 0; font-size: var(--t-mini); }
+.doc-info b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.doc-info .meta { color: var(--tenue); font-size: var(--t-micro); line-height: 1.5; }
+.doc-info .dato { font-family: var(--f-dato); }
+.doc-azioni { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.doc-azioni .pill { justify-content: center; }
+.sez-documenti a.pill { text-decoration: none; }
+.sez-documenti a.pill svg { color: var(--marchio-scuro); }
 .cassetto .corpo { flex: 1; overflow: auto; padding: 16px 20px 28px; }
 .chiudi { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px;
   border-radius: var(--r-tonda); color: var(--tenue); display: grid; place-items: center; }

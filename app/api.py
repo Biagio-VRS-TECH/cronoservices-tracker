@@ -7,7 +7,7 @@ ctx = {"cfg":..., "base":...}
 q    = dict dei query string (valori singoli)
 body = dict del JSON in ingresso (vuoto sui GET)
 """
-import calendar, csv, datetime, io, json, os, time
+import base64, calendar, csv, datetime, io, json, os, re, time, uuid
 import db, sync
 
 CAMPI = db.CAMPI  # ("stampata","controllata","corretta","ricambi")
@@ -92,6 +92,7 @@ def bootstrap(ctx, q, body):
             "indirizzo_lan": ctx.get("lan"),
             "altri_server": ctx.get("altri_server") or [],
             "sync": dict(ultimo) if ultimo else None,
+            "documenti": _documenti(c, anno),
             "online": _online(),
             "mesi": db.MESI_ABBR,
             "mesi_nome": db.MESI_NOME,
@@ -453,6 +454,145 @@ def esporta_csv(ctx, q, body):
     return 200, {"__csv__": out.getvalue(), "__nome__": nome}, None
 
 
+# -------------------------------------------------------------- documenti ----
+# I PDF che il generatore di schede tecnici (web/schede/) produce quando si
+# stampa: archiviati per sito e anno, con la spunta "stampata" messa in
+# automatico sul mese della mappatura. Il file vive su disco in
+# data/documenti/<anno>/, la riga in `documenti`. #ANCHOR: documenti
+def _cartella_documenti():
+    d = os.path.join(os.path.dirname(db._DB_PATH), "documenti")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _doc_out(r):
+    return dict(id=r["id"], id_service=r["id_service"], anno=r["anno"], mese=r["mese"],
+                nome=r["nome"], percorso=r["percorso"], bytes=r["bytes"],
+                pagine=r["pagine"], anteprima=r["anteprima"], creato_il=r["creato_il"],
+                creato_da=r["creato_da"])
+
+
+def _documenti(c, anno):
+    return [_doc_out(r) for r in c.execute(
+        "SELECT * FROM documenti WHERE anno=? ORDER BY creato_il", (anno,))]
+
+
+def documenti(ctx, q, body):
+    with db.sess() as c:
+        anno = _anno(q, c)
+        return 200, {"anno": anno, "documenti": _documenti(c, anno)}, None
+
+
+def salva_documento(ctx, q, body):
+    """Il generatore ha prodotto un PDF: si archivia il file, si registra la riga
+    e si mette la spunta "stampata" sul mese della mappatura del sito (quello
+    indicato dal client, altrimenti il mese di scadenza). Riga e spunta stanno
+    nella stessa transazione; se salta, il file appena scritto viene tolto."""
+    try:
+        sid, anno = int(body["id_service"]), int(body["anno"])
+    except (KeyError, TypeError, ValueError):
+        return 400, {"errore": "id_service e anno obbligatori"}, None
+    try:
+        dati = base64.b64decode(body.get("pdf") or "", validate=True)
+    except (ValueError, TypeError):
+        return 400, {"errore": "PDF non leggibile"}, None
+    if not dati.startswith(b"%PDF"):
+        return 400, {"errore": "il contenuto non e' un PDF"}, None
+    if len(dati) > 40 * 1024 * 1024:
+        return 413, {"errore": "PDF troppo grande (oltre 40 MB)"}, None
+    anteprima = body.get("anteprima") or None
+    if anteprima and (not str(anteprima).startswith("data:image/jpeg;base64,")
+                      or len(anteprima) > 80000):
+        anteprima = None
+    operatore = body.get("operatore") or "?"
+    ts = db.now()
+    nome = re.sub(r"[^\w\-. ()°]", "_", str(body.get("nome") or "schede")).strip() or "schede"
+    if not nome.lower().endswith(".pdf"):
+        nome += ".pdf"
+    doc_id = uuid.uuid4().hex
+    rel = os.path.join(str(anno), "%d-%s-%s" % (sid, doc_id[:8], nome))
+    percorso = os.path.join(_cartella_documenti(), rel)
+    os.makedirs(os.path.dirname(percorso), exist_ok=True)
+    with open(percorso, "wb") as fh:
+        fh.write(dati)
+
+    cella = None
+    with db.WRITE_LOCK:
+        c = db.connect()
+        try:
+            c.execute("BEGIN IMMEDIATE")
+            s = c.execute("SELECT * FROM services WHERE id_service=?", (sid,)).fetchone()
+            if not s:
+                c.execute("ROLLBACK")
+                os.remove(percorso)
+                return 404, {"errore": "service #%d sconosciuto" % sid}, None
+            try:
+                mese = int(body.get("mese") or 0)
+            except (TypeError, ValueError):
+                mese = 0
+            if not 1 <= mese <= 12:
+                mese = _mese_scadenza(s, anno)
+            c.execute("INSERT INTO documenti(id,id_service,anno,mese,nome,percorso,bytes,"
+                      "pagine,anteprima,creato_il,creato_da) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      (doc_id, sid, anno, mese or None, nome, rel.replace(os.sep, "/"),
+                       len(dati), int(body.get("pagine") or 0), anteprima, ts, operatore))
+            if mese:
+                st, out = _applica(c, operatore, sid, anno, mese, "stampata", 1,
+                                   None, None, None, "schede")
+                if st == 200:
+                    cella = out
+            c.execute("COMMIT")
+            r = c.execute("SELECT * FROM documenti WHERE id=?", (doc_id,)).fetchone()
+        except Exception:
+            c.execute("ROLLBACK")
+            try:
+                os.remove(percorso)
+            except OSError:
+                pass
+            raise
+        finally:
+            c.close()
+    doc = _doc_out(r)
+    ev = {"tipo": "documento", "anno": anno, "id_service": sid, "documento": doc,
+          "operatore": operatore}
+    if cella and cella.get("esito") in ("ok", "merge"):
+        ev["mese"], ev["cella"] = mese, cella["cella"]
+    return 200, {"documento": doc, "mese": mese, "cella": cella}, ev
+
+
+def scarica_documento(ctx, q, body):
+    with db.sess() as c:
+        r = c.execute("SELECT * FROM documenti WHERE id=?", (q.get("id"),)).fetchone()
+    if not r:
+        return 404, {"errore": "documento non trovato"}, None
+    p = os.path.join(_cartella_documenti(), r["percorso"])
+    if not os.path.isfile(p):
+        return 404, {"errore": "file mancante sul disco: " + r["percorso"]}, None
+    with open(p, "rb") as fh:
+        dati = fh.read()
+    return 200, {"__file__": dati, "__nome__": r["nome"], "__tipo__": "application/pdf",
+                 "__inline__": "scarica" not in q}, None
+
+
+def elimina_documento(ctx, q, body):
+    """Toglie un PDF sbagliato. La spunta "stampata" resta: e' una decisione
+    dell'operatore, si toglie dalla cella se serve."""
+    doc_id = str(body.get("id") or "")
+    with db.WRITE_LOCK:
+        with db.sess() as c:
+            r = c.execute("SELECT * FROM documenti WHERE id=?", (doc_id,)).fetchone()
+            if not r:
+                return 404, {"errore": "documento non trovato"}, None
+            c.execute("DELETE FROM documenti WHERE id=?", (doc_id,))
+    try:
+        os.remove(os.path.join(_cartella_documenti(), r["percorso"]))
+    except OSError:
+        pass
+    ev = {"tipo": "documento", "anno": r["anno"], "id_service": r["id_service"],
+          "eliminato": doc_id, "operatore": body.get("operatore") or "?"}
+    return 200, {"eliminato": doc_id}, ev
+
+
 ROUTE = {
     ("GET", "/api/bootstrap"): bootstrap,
     ("GET", "/api/storia"): storia,
@@ -466,4 +606,8 @@ ROUTE = {
     ("POST", "/api/ping"): ping,
     ("POST", "/api/impostazioni"): impostazioni,
     ("POST", "/api/sync"): fai_sync,
+    ("GET", "/api/documenti"): documenti,
+    ("GET", "/api/documento"): scarica_documento,
+    ("POST", "/api/documento"): salva_documento,
+    ("POST", "/api/documento_elimina"): elimina_documento,
 }

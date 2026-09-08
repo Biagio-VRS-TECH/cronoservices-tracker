@@ -3,6 +3,69 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-08 (16a sessione) - il generatore di schede dentro il tracker, coi PDF
+
+Richiesta: *"se metto online anche schede tecnici generatore collegato tramite
+un pulsante da cronoservice [...] se genero un pdf e clicco su stampa [...] si
+spunterebbe in automatico nel service tracker, e si salverebbe anche il
+documento nel db supabase che apparirebbe nel tracker con un'icona del file in
+miniatura accanto al nome di ogni sito"* - poi *"fai spuntare sia la stampa
+come e' adesso sia si salva il pdf, collega tutto bene anche esteticamente"*.
+
+- **Il generatore vive in `web/schede/`** (copia di
+  `Desktop/Claude/exel pdf converter/Schede-Tecnici-Generatore.html`, che da ora
+  e' la copia vecchia: si lavora qui). Stessa origine del tracker, quindi
+  stessa sessione Supabase, stesso `nuvola-config.js`, stesso operatore.
+  `server.py` serve `/schede/` come cartella con `index.html`; su Netlify e'
+  automatico.
+- **Barra "ponte" in testa all'anteprima** (`schede/ponte.js`, HTML e CSS
+  dentro `schede/index.html` sotto `PONTE col tracker`): torna al tracker,
+  cliente / destinazione / #id / anno / mese della spunta. Dal cassetto di un
+  sito ("Genera dall'Excel") arriva gia' collegata; dal pulsante "Schede
+  tecnici" della barra strumenti si sceglie il sito da un `datalist` con tutti
+  gli aperti dell'anno (legge `/api/bootstrap` e usa `mappaturaSito` di
+  `stato.js` per il mese). Il tema segue `cs.tema` del tracker se qui non se
+  n'e' scelto uno.
+- **Alla stampa succedono due cose**: la finestra di stampa del browser come
+  prima, e poi (quando si chiude, con qualunque bottone) il PDF: ogni `.page`
+  resa con html2canvas a scala 2 in JPEG 0.8, un foglio A4 per pagina con
+  jsPDF (`schede/lib/`, niente CDN). ~250 KB/pagina. La prima pagina in
+  piccolo (240 px, ~10 KB) e' la **miniatura** salvata nella riga. Il bottone
+  "Salva nel tracker" fa solo la seconda parte.
+- **Non si puo' sapere se l'operatore ha premuto "Stampa" o "Annulla"** nella
+  finestra di Windows: il browser non lo dice. Il fatto certo che il tracker
+  registra e' "il PDF esiste", ed e' quello che mette la spunta `stampata` sul
+  mese della mappatura (quello passato nell'indirizzo, altrimenti
+  `_mese_scadenza`), con `_applica` e origine `schede`. Se il PDF era
+  sbagliato si elimina dal cassetto; la spunta resta, si toglie a mano.
+- **Modello**: tabella `documenti` (SQLite `db.py` e Postgres
+  `cloud/06-documenti.sql`, stessa forma), file in `data/documenti/<anno>/`
+  in locale e nel bucket Storage privato `documenti` online (indirizzi firmati
+  di un'ora). Rotte `/api/documenti`, `/api/documento` GET (il file) e POST
+  (base64 in locale; online il client carica nello Storage e poi chiama
+  `registra_documento`, che verifica che l'oggetto esista), `/api/documento_elimina`.
+  Il bootstrap porta `documenti` dell'anno; `st.documenti` = Map sito ->
+  [PDF dal piu' recente].
+- **Nel tracker** (`js/documenti.js`): il chip `.doc-chip` accanto al nome del
+  sito nella vista Anno e nella scheda del Mese (c'e' solo se il sito ha un
+  PDF quest'anno, cyan tenue: "c'e' il documento", non "e' a posto"); clic =
+  apre l'ultimo, passaggio del mouse = miniatura vera della prima pagina
+  (`.doc-anteprima`, una sola per pagina). Nel cassetto la sezione "Schede
+  tecnici <anno>" con l'elenco (miniatura, pagine, peso, mese della spunta,
+  chi/quando, Apri, Elimina con conferma a doppio clic) e il bottone che apre
+  il generatore puntato sul sito. Gli eventi: SSE/Realtime `documento`
+  (tabella `documenti` con `replica identity full` per il DELETE) +
+  `BroadcastChannel('crono-documenti')` fra le due schede del browser +
+  ricarica al ritorno sulla scheda (`visibilitychange`).
+- **Da fare sul progetto Supabase**, a mano dal committente: eseguire
+  `cloud/06-documenti.sql`, poi rieseguire `03-letture.sql`
+  (`cloud/LEGGIMI.md` §6). Finche' non e' fatto, online il generatore dice
+  "Non salvato".
+- Provato in locale su un server di prova (porta 8771, `.claude/launch.json`
+  `crono-8771`): 20 pagine -> PDF in 4,4 s, 5,2 MB (con 0.86; ora 0.8), spunta
+  e icona arrivate, eliminazione ok. Non provato: la stampa vera dal browser
+  interno (apre la finestra di sistema), il giro Storage online (serve il 06).
+
 ## Fatto il 2026-09-08 (15a sessione) - un filtro solo per lo stato, e il pallino dice lo stato
 
 Tre richieste in una volta: *"aggiungi la possibilita' di vedere la vista

@@ -97,6 +97,7 @@ export const st = {
   mesi: [], mesiNome: [],
   clienti: new Map(), perServ: new Map(), gruppi: [],
   celle: new Map(),        // "idServ-mese" -> {s,c,k,r,rev,by,at,nota}
+  documenti: new Map(),    // idServ -> [PDF delle schede tecnici], dal piu' recente
   sospese: new Set(),      // "idServ-mese-campo" in attesa di conferma
   chiusiCli: new Set(),    // clienti collassati
   online: [], ultimoSync: null,
@@ -150,6 +151,7 @@ export function applica(d) {
   st.clienti = new Map(d.clienti.map(c => [c.id, c]));
   st.perServ = new Map(d.services.map(s => [s.id, s]));
   st.celle = new Map(Object.entries(d.celle));
+  st.documenti = mappaDocumenti(d.documenti);
   riapplicaCoda();
 
   /* Un sync o un cambio d'anno rifanno i mesi e le date: le memoizzazioni
@@ -191,6 +193,15 @@ function riapplicaCoda() {
 }
 
 /* -------------------------------------------------------------- letture -- */
+/** I PDF delle schede tecnici per sito, dal piu' recente (#ANCHOR: documenti
+ *  in documenti.js). Il bootstrap li porta gia' dell'anno giusto. */
+export function mappaDocumenti(lista) {
+  const m = new Map();
+  for (const d of lista || []) (m.get(d.id_service) || m.set(d.id_service, []).get(d.id_service)).push(d);
+  for (const l of m.values()) l.sort((a, b) => (b.creato_il || '').localeCompare(a.creato_il || ''));
+  return m;
+}
+
 export const chiave = (id, mese) => id + '-' + mese;
 export const ym = (a, m) => a + '-' + String(m).padStart(2, '0');
 export const VUOTA = { s: 0, c: 0, k: 0, r: 0, rev: 0, by: null, at: null, nota: '' };
@@ -752,6 +763,15 @@ export function eventoRemoto(ev) {
     return;
   }
   if (ev.anno !== st.anno) return;
+  if (ev.tipo === 'documento') {
+    // un PDF delle schede tecnici: porta con se' la spunta "stampata" che ha messo
+    if (ev.cella) {
+      cellaDalServer(ev.id_service, ev.mese, ev.cella);
+      emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
+    }
+    emetti('documento-remoto', ev);
+    return;
+  }
   if (ev.tipo === 'cella') {
     cellaDalServer(ev.id_service, ev.mese, ev.cella);
     emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });

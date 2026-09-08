@@ -13,6 +13,21 @@
       "port": 8770,
       "url": "http://localhost:8770",
       "autoPort": false
+    },
+    {
+      "name": "crono-8771",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py",
+        "--no-sync",
+        "--verbose",
+        "--porta",
+        "8771"
+      ],
+      "cwd": "app",
+      "port": 8771,
+      "url": "http://localhost:8771",
+      "autoPort": false
     }
   ]
 }

@@ -18,6 +18,7 @@
    suoi impianti.
    #ANCHOR: vista-anno */
 import { esc, ICO, FRECCE, fuoco, frecceEntrano } from './ui.js';
+import { htmlChipDocumento } from './documenti.js';
 import {
   st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
   mappaturaSito, meseScadenza, scadEffettiva, statoMappatura,
@@ -97,6 +98,7 @@ function htmlRigaSrv(s, rit) {
       ${htmlPunto(s)}
       <span class="srv-id">#${s.id}</span>
       <span class="srv-dest" title="${esc(s.dest)}">${esc(s.dest || '(senza destinazione)')}</span>
+      ${htmlChipDocumento(s.id)}
       <span class="srv-loc">${esc(s.loc || '')}</span>
       ${chiuso ? '<span class="tag">chiuso</span>' : ''}
       <span class="tag completo" title="Mappatura dell'anno completa">a posto</span>

@@ -130,6 +130,14 @@ class H(BaseHTTPRequestHandler):
             import traceback
             traceback.print_exc()
             return self._json(500, {"errore": "%s: %s" % (type(e).__name__, e)})
+        if isinstance(out, dict) and "__file__" in out:
+            # un file binario (i PDF delle schede): inline nel browser, oppure
+            # scaricato se la query chiede ?scarica
+            nome = out["__nome__"].encode("ascii", "ignore").decode() or "documento"
+            disp = "inline" if out.get("__inline__") else "attachment"
+            return self._invia(st, out["__file__"], out.get("__tipo__") or
+                               "application/octet-stream",
+                               {"Content-Disposition": '%s; filename="%s"' % (disp, nome)})
         if isinstance(out, dict) and "__csv__" in out:
             return self._invia(st, "﻿" + out["__csv__"], "text/csv; charset=utf-8",
                                {"Content-Disposition": 'attachment; filename="%s"'
@@ -168,6 +176,8 @@ class H(BaseHTTPRequestHandler):
     def _statico(self, path):
         rel = "index.html" if path in ("/", "") else path.lstrip("/")
         f = os.path.abspath(os.path.join(WEB, rel))
+        if os.path.isdir(f):                     # /schede/ -> schede/index.html
+            f = os.path.join(f, "index.html")
         if not f.startswith(WEB) or not os.path.isfile(f):
             return self._invia(404, "Non trovato: %s" % rel, "text/plain; charset=utf-8")
         ctype = mimetypes.guess_type(f)[0] or "application/octet-stream"
