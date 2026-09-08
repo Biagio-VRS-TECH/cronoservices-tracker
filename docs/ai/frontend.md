@@ -286,14 +286,17 @@ Dopo l'azione l'avviso resta 15 secondi con **Annulla**, che rimanda le operazio
 inverse (`stato.annullaUltima()`, si appoggia allo stesso percorso di scrittura,
 quindi e' anch'esso tracciato e idempotente).
 
-**Nel foglio del Mese il pallino ha preso il posto del quadratino di
-selezione** (`htmlSelez` in `mese.js`, `.selez` in `griglia.css`). Mostra lo
-stato dell'anno, non del mese: le quattro caselle dicono gia' come sta questo
-mese, il pallino dice se il sito e' gia' a posto per l'anno. Il checkbox e'
-ancora nel markup, coperto (`opacity: 0`, stesa su tutta l'etichetta), cosi'
-tastiera, lettori di schermo e barra delle azioni multiple non cambiano; la
-selezione e' l'anello cyan intorno al pallino (`.selez:has(input:checked)`). Si
-aggiorna in `mese.aggiornaCella` anche quando la spunta e' su un altro mese.
+**Nel foglio del Mese il pallino e' il bottone della scheda** (`htmlSelez` e
+`completaScheda` in `mese.js`, `.selez` in `griglia.css`). Il colore e' lo stato
+dell'**anno**, non del mese: le quattro caselle dicono gia' come sta questo
+mese, il pallino dice se il sito e' gia' a posto per l'anno (si aggiorna in
+`mese.aggiornaCella` anche quando la spunta e' su un altro mese). Il **clic**
+mette tutti e `PASSI` i passi di quel mese - e li toglie se c'erano gia' tutti,
+con un avviso perche' quel verso cancella lavoro; da tastiera e' il tasto `0`
+sulla scheda col fuoco. Il **ctrl+clic** (o cmd, o shift) seleziona per le
+azioni multiple: e' l'unico resto del vecchio checkbox, che non esiste piu', e
+si vede dall'anello cyan (`.selez.scelto`). L'alone verde al passaggio dice cosa
+fa il clic senza scrivere niente - il verde vuol dire "completa" dappertutto.
 
 **Il pallino davanti al sito** (`.punto-stato`, `statoMappatura()`) e' lo
 stato della mappatura dell'anno di quel sito: verde completa, ambra in ritardo,

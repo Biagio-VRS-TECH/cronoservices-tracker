@@ -580,10 +580,23 @@ nella scheda del Mese e nella ricerca.
 selezione** (richiesta della stessa sessione). Le quattro caselle di una scheda
 parlano solo di quel mese; il pallino dice se il sito e' a posto **per
 l'anno** - una mappatura chiusa a gennaio si vede anche sulla visita di
-settembre, che e' esattamente la cosa che si rischia di rifare. Il checkbox non
-e' stato tolto, solo reso invisibile: tastiera, lettori di schermo e azioni
-multiple funzionano come prima, e la selezione si legge dall'anello cyan
-intorno al pallino, che non copre il colore dello stato.
+settembre, che e' esattamente la cosa che si rischia di rifare.
+
+**E il pallino e' anche il bottone della scheda**: *"fai che cliccando invece
+di selezionare, completa tutte e quattro le spunte"*. Il clic semplice va
+all'azione frequente - chiudere una scheda si fa cinquanta volte al giorno,
+selezionarne un gruppo quasi mai - e la selezione per le azioni multiple si
+sposta sul **ctrl+clic**, scritto nel suggerimento del pallino. Un secondo clic
+su una scheda gia' chiusa toglie i quattro passi: i passi sono interruttori
+(10f) e senza questo verso un clic di troppo si correggerebbe solo a mano, uno
+per uno; siccome pero' cancella lavoro, lo dice con un avviso. Da tastiera e'
+il tasto `0`, accanto a `1`..`4`.
+
+Non c'e' piu' un `<input type=checkbox>`: il bottone porta `aria-label` e
+suggerimento che dicono cosa fa il clic, e la selezione multipla resta un gesto
+da mouse. E' la sola cosa che si perde da tastiera, e vale il baratto: il
+quadratino serviva una volta ogni tanto, il pallino-bottone e' il gesto del
+foglio.
 
 ## 16. Un solo perimetro per le azioni di massa: i filtri
 Non esistono "completa per cliente", "completa per mese", "completa per tipo":

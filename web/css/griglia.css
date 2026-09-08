@@ -499,24 +499,23 @@
 .cassetto .scheda .info { flex: 1 1 100%; }
 .cassetto .passi-riga { width: auto; align-self: flex-start; flex-wrap: wrap; }
 
-/* Selezione della scheda: il quadratino e' diventato il PALLINO DELLO STATO
-   della mappatura dell'anno (lo stesso della vista Anno). Il checkbox e'
-   ancora li' sotto, invisibile ma vero, cosi' tastiera e lettori di schermo
-   funzionano come prima; la selezione si vede dall'anello cyan intorno al
-   pallino, che non ruba il posto al colore dello stato. */
+/* Il pallino dello stato E' il bottone della scheda: un clic chiude tutti e
+   quattro i passi del mese. L'alone verde al passaggio dice cosa succede (il
+   verde vuol dire "completa" in tutta l'applicazione) senza scrivere niente;
+   l'anello cyan e' invece la selezione per le azioni multiple, che ora si fa
+   con ctrl+clic. Colore dello stato al centro, sempre visibile. */
 .selez {
   position: relative; flex: none; display: grid; place-items: center;
   width: 18px; height: 18px; border-radius: var(--r-tonda);
   cursor: pointer; transition: var(--rapido);
 }
-.selez input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
-  opacity: 0; cursor: pointer; }
-.selez:hover { background: color-mix(in srgb, var(--marchio) 14%, transparent); }
-.selez:has(input:checked) {
+.selez:hover { background: color-mix(in srgb, var(--completa) 22%, transparent); }
+.selez:active { transform: scale(.88); }
+.selez.scelto {
   background: var(--marchio-tenue);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--marchio) 70%, transparent);
 }
-.selez:has(input:focus-visible) { outline: 2px solid var(--marchio); outline-offset: 2px; }
+.selez:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; }
 
 .barra-massa {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 75;

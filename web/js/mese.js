@@ -41,18 +41,30 @@ const BOLLO = {
   'non-tracciato': ['nontracciato', 'PRE-TRACCIAMENTO'],
 };
 
-/* Il quadratino di selezione E' il pallino dello stato, lo stesso della vista
-   Anno (`statoMappatura`): in un foglio di 55 schede dice a colpo d'occhio
-   quali siti sono gia' a posto per l'anno - cosa che le quattro caselle non
-   dicono, perche' guardano solo questo mese. Il checkbox resta, vero e
-   funzionante, solo invisibile: tastiera e lettori di schermo non perdono
-   niente e la barra delle azioni multiple continua a funzionare. */
+/* IL PALLINO E' IL BOTTONE DELLA SCHEDA.
+   Colore: lo stato della mappatura dell'ANNO di quel sito (`statoMappatura`),
+   lo stesso della vista Anno - in un foglio di 55 schede dice a colpo d'occhio
+   quali siti sono gia' a posto, cosa che le quattro caselle non dicono perche'
+   guardano solo questo mese.
+   Clic: chiude la scheda, cioe' mette tutti e PASSI i passi DI QUESTO MESE in
+   un colpo (il lavoro normale del foglio: si scorre e si chiude). Il
+   quadratino di selezione che stava qui e' diventato il ctrl+clic: era usato
+   solo per la barra delle azioni multiple, mentre chiudere una scheda si fa
+   cinquanta volte al giorno. */
+const etichettaSelez = (s, k, pieno) => ({
+  titolo: `${ET_STATO[k]} · clic: ${pieno ? 'toglie' : 'mette'} tutti e ${PASSI} i ` +
+    `passi di ${(st.mesiNome[st.mese - 1] || '').toLowerCase()} · ctrl+clic: seleziona`,
+  aria: `${pieno ? 'Togli' : 'Spunta'} tutti e ${PASSI} i passi di ` +
+    `${s.dest || '#' + s.id} in ${st.mesiNome[st.mese - 1] || ''}`,
+});
+
 function htmlSelez(s) {
   const k = statoMappatura(s);
-  return `<label class="selez" title="${esc(ET_STATO[k])} · clicca per selezionare">
-      <input type="checkbox" data-sel="${s.id}" ${st.selezione.has(s.id) ? 'checked' : ''}>
+  const et = etichettaSelez(s, k, statoCella(s.id, st.mese).n === PASSI);
+  return `<button type="button" class="selez${st.selezione.has(s.id) ? ' scelto' : ''}"
+      data-comp="${s.id}" title="${esc(et.titolo)}" aria-label="${esc(et.aria)}">
       <span class="punto-stato ${k}"></span>
-    </label>`;
+    </button>`;
 }
 
 function htmlScheda(v) {
@@ -195,6 +207,12 @@ function collega(r) {
     if (m) return cambiaMese(Number(m.dataset.mese));
     const fs = e.target?.closest?.('[data-stato]');
     if (fs) return filtraStato(fs.dataset.stato, true);
+    const pal = e.target?.closest?.('[data-comp]');
+    if (pal) {
+      const id = Number(pal.dataset.comp);
+      return (e.ctrlKey || e.metaKey || e.shiftKey)
+        ? alternaSelezione(id, pal) : completaScheda(id);
+    }
     const p = e.target.closest('.passo');
     if (p) {
       const [id, mese] = p.dataset.cella.split('-').map(Number);
@@ -224,6 +242,10 @@ function collega(r) {
       const id = Number(sch.dataset.srv), campo = CAMPI[i];
       return spunta(id, st.mese, campo, !cella(id, st.mese)[SIGLA[campo]]);
     }
+    if (e.key === '0') {                // tutti insieme, come il clic sul pallino
+      e.preventDefault();
+      return completaScheda(Number(sch.dataset.srv));
+    }
     if ((e.key === 'Enter' || e.key === ' ') && !passo && !e.target.closest('input')) {
       e.preventDefault();               // scheda col fuoco: apre il cassetto
       return apriCassetto(Number(sch.dataset.srv));
@@ -251,16 +273,9 @@ function collega(r) {
   // col mouse: il clic su una scheda la rende quella corrente per i tasti
   r.addEventListener('pointerdown', e => {
     const sch = e.target?.closest?.('.scheda');
-    if (sch && !e.target.closest('.passo,input')) fuoco(sch);
+    if (sch && !e.target.closest('.passo,input,.selez')) fuoco(sch);
   });
 
-  r.addEventListener('change', e => {
-    const s = e.target.closest('[data-sel]');
-    if (!s) return;
-    const id = Number(s.dataset.sel);
-    s.checked ? st.selezione.add(id) : st.selezione.delete(id);
-    barraMassa();
-  });
 }
 
 /** Ridisegna solo la scheda toccata: evita di perdere lo scorrimento. */
@@ -275,11 +290,13 @@ export function aggiornaCella(id, mese) {
     p.setAttribute('aria-checked', String(!!c[SIGLA[p.dataset.campo]]));
   }
   // il pallino guarda l'anno, non il mese: cambia anche spuntando altrove
-  const srv = st.perServ.get(id), punto = sch.querySelector('.selez .punto-stato');
-  if (srv && punto) {
+  const srv = st.perServ.get(id), bot = sch.querySelector('.selez');
+  if (srv && bot) {
     const k = statoMappatura(srv);
-    punto.className = 'punto-stato ' + k;
-    punto.closest('.selez').title = ET_STATO[k] + ' · clicca per selezionare';
+    const et = etichettaSelez(srv, k, e.completa);
+    bot.querySelector('.punto-stato').className = 'punto-stato ' + k;
+    bot.title = et.titolo;
+    bot.setAttribute('aria-label', et.aria);
   }
   aggiornaConteggi();
 }
@@ -303,6 +320,33 @@ function aggiornaConteggi() {
   box.innerHTML = htmlRiepilogo(tutte, scadenzeDelMese(tutte), daStampare, mostrati);
 }
 
+/** Chiude (o riapre) la scheda in un clic: tutti e PASSI i passi del mese
+ *  insieme. Se c'erano gia' tutti li toglie - i passi sono interruttori e
+ *  restarlo anche in blocco e' l'unico modo per correggere un clic di troppo -
+ *  ma quel verso cancella lavoro, quindi lo dice. Passa dallo stesso `spunta()`
+ *  dei bottoni: coda offline, diario e conflitti restano quelli. */
+function completaScheda(id) {
+  const c = cella(id, st.mese);
+  const valore = statoCella(id, st.mese).n === PASSI ? 0 : 1;
+  for (const campo of CAMPI) {
+    if (!!c[SIGLA[campo]] === !!valore) continue;
+    spunta(id, st.mese, campo, valore);
+  }
+  if (!valore) {
+    const s = st.perServ.get(id);
+    avviso(`Tolti i ${PASSI} passi di ${s?.dest || '#' + id}: riclicca il pallino ` +
+      'per rimetterli.', { tono: 'allerta' });
+  }
+}
+
+/** La selezione per le azioni multiple: ctrl (o cmd, o shift) + clic sul
+ *  pallino. Non ridisegna la scheda, cambia una classe. */
+function alternaSelezione(id, nodo) {
+  st.selezione.has(id) ? st.selezione.delete(id) : st.selezione.add(id);
+  nodo.classList.toggle('scelto', st.selezione.has(id));
+  barraMassa();
+}
+
 /* ------------------------------------------------------ azioni multiple -- */
 let barra = null;
 function barraMassa() {
@@ -320,7 +364,7 @@ function barraMassa() {
     if (!az) return;
     if (az === 'annulla') {
       st.selezione.clear();
-      radice.querySelectorAll('[data-sel]').forEach(i => { i.checked = false; });
+      radice.querySelectorAll('.selez.scelto').forEach(b => b.classList.remove('scelto'));
       return barraMassa();
     }
     const campi = az === 'tutte' ? CAMPI : [az];

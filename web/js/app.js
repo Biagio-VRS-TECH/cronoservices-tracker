@@ -781,7 +781,10 @@ function mostraAiuto() {
         style: 'margin-bottom:10px',
         testo: 'Dice a colpo d\'occhio come sta la mappatura dell\'anno di quel ' +
           'sito, senza cercare la casella piena fra i dodici mesi. Sono gli ' +
-          'stessi stati del filtro nella barra.',
+          'stessi stati del filtro nella barra. Nel foglio del Mese il pallino ' +
+          `è anche il bottone della scheda: un clic mette tutti e ${PASSI} i passi ` +
+          'di quel mese (un altro clic li toglie), ctrl+clic seleziona per le ' +
+          'azioni multiple.',
       }),
       h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
         ...['completa', 'ritardo', 'corso', 'attesa', 'pretrac', 'fuori'].map(k =>
@@ -815,6 +818,7 @@ function mostraAiuto() {
         ['/', 'Cerca'], ['A / M / S', 'Anno · Mese · Statistiche'],
         ['O', 'Torna a oggi'],
         ['1 2 3 4', 'Spunta il passo corrispondente sulla cella (o sulla scheda del mese) col fuoco'],
+        ['0', `Mese: mette (o toglie) tutti e ${PASSI} i passi della scheda col fuoco`],
         ['↑ ↓', 'Anno: riga sopra/sotto · Mese: scheda sopra/sotto, evidenziata tutta'],
         ['← →', 'Anno: mese previsto precedente/successivo · Mese: entra ed esce dalle caselle'],
         ['Home / Fine', 'Anno: primo · ultimo mese previsto della riga'],

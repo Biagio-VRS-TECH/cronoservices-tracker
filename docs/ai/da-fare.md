@@ -64,10 +64,29 @@ che seleziona il sito metti il pallino dello stato come nella vista annuale"*.
 - **Nel foglio del Mese il quadratino di selezione e' diventato il pallino
   dello stato** (`htmlSelez` in `mese.js`), lo stesso della vista Anno: dice se
   quel sito e' gia' a posto **per l'anno**, cosa che le quattro caselle non
-  dicono (guardano solo questo mese). Il checkbox e' ancora li' sotto,
-  invisibile ma vero (tastiera, lettori di schermo, barra delle azioni
-  multiple); la selezione si vede dall'anello cyan intorno al pallino. Il
-  pallino si aggiorna anche quando la spunta arriva da un altro mese.
+  dicono (guardano solo questo mese). Si aggiorna anche quando la spunta arriva
+  da un altro mese.
+
+### Terza passata (stessa sessione)
+
+*"fai che cliccando invece di selezionare, completa tutte e quattro le
+spunte"*.
+
+- **Il pallino e' il bottone della scheda**: un clic mette tutti e `PASSI` i
+  passi di quel mese in un colpo (`completaScheda` in `mese.js`), che e' il
+  lavoro normale del foglio - si scorre e si chiude. Se c'erano gia' tutti, li
+  toglie: i passi sono interruttori e serve un modo per correggere un clic di
+  troppo, ma quel verso cancella lavoro e quindi lo dice con un avviso. Passa
+  dallo stesso `spunta()` dei bottoni dei passi, quindi coda offline, diario e
+  conflitti non cambiano.
+- **La selezione per le azioni multiple e' passata al ctrl+clic** (o cmd, o
+  shift) sul pallino, scritto nel suggerimento; l'anello cyan resta il segno
+  della selezione, il `<label>` col checkbox e' sparito. Chiudere una scheda si
+  fa cinquanta volte al giorno, selezionarne un gruppo quasi mai: il clic
+  semplice va all'azione frequente.
+- **Tasto `0`** sulla scheda col fuoco: la stessa cosa da tastiera, accanto a
+  `1`..`4` che spuntano un passo per volta. In "Come si legge" c'e' la riga
+  nuova.
 
 ### Da verificare (15a sessione)
 

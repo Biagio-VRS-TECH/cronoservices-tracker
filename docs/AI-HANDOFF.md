@@ -179,8 +179,15 @@ a ogni spunta) girava sulle schede **a schermo**, quindi con "Da fare" acceso
 "complete" andava a zero; stesso difetto nei totali per mese dell'intestazione
 della vista Anno. Ora tutti e due usano l'insieme senza filtro di stato. E nel
 foglio del Mese il **quadratino di selezione e' diventato il pallino dello
-stato**: il checkbox resta sotto, invisibile ma vero, e la selezione e' l'anello
-cyan intorno al pallino.
+stato**.
+
+**Terza passata**: *"fai che cliccando invece di selezionare, completa tutte e
+quattro le spunte"*. Il pallino del Mese e' ora il **bottone della scheda**: un
+clic mette tutti e quattro i passi di quel mese (un secondo clic li toglie, con
+avviso, perche' cancella lavoro), tasto `0` da tastiera. Il checkbox non c'e'
+piu': la selezione per le azioni multiple e' il **ctrl+clic** sul pallino,
+scritto nel suggerimento. Il clic semplice va all'azione che si fa cinquanta
+volte al giorno.
 
 Verificato in browser sui dati reali copiati (222 clienti / 274 siti), chiaro e
 scuro, nelle tre viste, con `inizio_tracciamento` a 2026-09 (31 dovute) e a
