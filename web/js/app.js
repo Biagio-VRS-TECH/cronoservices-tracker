@@ -21,6 +21,8 @@ import {
   eventoDocumento, ricaricaDocumenti, ascoltaAltreSchede, collegaChip, rinfrescaChip,
   urlGeneratore, ICO_PDF,
 } from './documenti.js';
+import { doppioni } from './affinita.js';
+import { apriCassetto } from './cassetto.js';
 
 const area = $('#area');
 
@@ -360,6 +362,7 @@ function apriAzioni(bottone) {
     { et: 'Scarica CSV', ico: ICO.giu, fn: scaricaCsv },
     null,
     { et: 'Diario attività', ico: ICO.gente, nota: 'chi ha fatto cosa', fn: mostraDiario },
+    { et: 'Possibili doppioni', ico: ICO.cerca, nota: 'nomi che si somigliano', fn: mostraDoppioni },
     null,
     { et: 'Sincronizza da Access', ico: ICO.sync, fn: sincronizza },
     { et: 'Impostazioni', fn: mostraImpostazioni },
@@ -720,6 +723,60 @@ function mostraImpostazioni() {
         })),
     ];
   });
+}
+
+/* ------------------------------------------------------------ doppioni --- */
+/** Siti dello stesso cliente con destinazioni quasi uguali, e clienti con
+ *  ragioni sociali quasi uguali: in Access sono due righe, nella realta'
+ *  spesso una sola scritta in due modi. Access non si tocca da qui: questo e'
+ *  l'elenco per andare a correggerlo la'. La ricerca e il generatore, intanto,
+ *  li trovano comunque (#ANCHOR: affinita). */
+function mostraDoppioni() {
+  const siti = [...st.perServ.values()].filter(s => s.stato === 'APERTO' && !s.arch);
+  const perCli = new Map();
+  for (const s of siti) (perCli.get(s.cli) || perCli.set(s.cli, []).get(s.cli)).push(s);
+  const coppieSiti = [];
+  for (const [cli, l] of perCli) {
+    if (l.length < 2) continue;
+    for (const d of doppioni(l, s => s.dest, 0.8)) coppieSiti.push({ cli, ...d });
+  }
+  coppieSiti.sort((x, y) => y.affinita - x.affinita);
+  const clienti = [...st.clienti.values()].filter(c => perCli.has(c.id));
+  const coppieCli = doppioni(clienti, c => c.rs, 0.86);
+
+  const pct = a => Math.round(a * 100) + '%';
+  const rigaSito = ({ cli, a, b, affinita }) => h('li.dop', {},
+    h('span.dop-aff', { style: `--a:${pct(affinita)}` }, h('i'), h('b', { testo: pct(affinita) })),
+    h('div.dop-nomi', {},
+      h('small', { testo: st.clienti.get(cli)?.rs || '' }),
+      ...[a, b].map(s => h('button.dop-voce', {
+        onclick: () => apriCassetto(s.id), title: 'Apri il sito',
+      }, h('span.dato', { testo: '#' + s.id }), h('span', { testo: s.dest || '(senza destinazione)' })))));
+  const rigaCli = ({ a, b, affinita }) => h('li.dop', {},
+    h('span.dop-aff', { style: `--a:${pct(affinita)}` }, h('i'), h('b', { testo: pct(affinita) })),
+    h('div.dop-nomi', {}, ...[a, b].map(c => h('span.dop-voce', {},
+      h('span.dato', { testo: 'cliente ' + c.id }), h('span', { testo: c.rs })))));
+  const testo = () => [
+    ...coppieSiti.map(x => `${pct(x.affinita)}\t${st.clienti.get(x.cli)?.rs || ''}\t#${x.a.id} ${x.a.dest}\t#${x.b.id} ${x.b.dest}`),
+    ...coppieCli.map(x => `${pct(x.affinita)}\tclienti\t${x.a.id} ${x.a.rs}\t${x.b.id} ${x.b.rs}`),
+  ].join('\n');
+
+  modale(chiudi => [
+    h('h2', { testo: 'Possibili doppioni' }),
+    h('p.sotto', { html: 'Nomi che si somigliano troppo per essere due cose diverse: lo stesso ' +
+      'sito scritto in due modi, o lo stesso cliente con due ragioni sociali. Da qui ' +
+      'Access non si tocca: è l\'elenco per correggerlo là. Ricerca e generatore li ' +
+      'trovano comunque, anche con le grafie diverse.' }),
+    h('h3.dop-titolo', { testo: `Siti dello stesso cliente · ${coppieSiti.length}` }),
+    coppieSiti.length ? h('ul.dop-lista', {}, coppieSiti.map(rigaSito))
+      : h('p.dop-vuoto', { testo: 'Nessuna destinazione doppia trovata.' }),
+    h('h3.dop-titolo', { testo: `Clienti · ${coppieCli.length}` }),
+    coppieCli.length ? h('ul.dop-lista', {}, coppieCli.map(rigaCli))
+      : h('p.dop-vuoto', { testo: 'Nessuna ragione sociale doppia trovata.' }),
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px' },
+      h('button.pill', { testo: 'Copia elenco', onclick: () => copia(testo()) }),
+      h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
+  ], { classe: 'largo' });
 }
 
 /* ----------------------------------------------------------------- tema -- */

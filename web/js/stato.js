@@ -55,6 +55,7 @@ tecnico -> mappatura completa rapportino -> controllo ricambi e scadenze.
 aggiungere o togliere un passo si fa QUI e in `db.CAMPI`, tutto il resto conta
 `PASSI` e non tre.
 */
+import { terminePassa } from './affinita.js';
 import { accoda, rete, chiama } from './api.js';
 import { avviso } from './ui.js';
 
@@ -449,7 +450,7 @@ function passa(s, cli, q, ignoraStato) {
   if (q.length) {
     const fieno = (cli.rs + ' ' + s.dest + ' ' + s.loc + ' ' + s.prov + ' ' +
       s.id + ' ' + s.nc + ' ' + s.tipo).toLowerCase();
-    if (!q.every(t => fieno.includes(t))) return false;
+    if (!q.every(t => terminePassa(t, fieno))) return false;   // tollera le grafie (#ANCHOR: affinita)
   }
   if (f.stato && !ignoraStato && s.stato === 'APERTO' && !statoPassa(s, f.stato)) return false;
   return true;

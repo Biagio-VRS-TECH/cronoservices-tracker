@@ -3,6 +3,56 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-08 (17a sessione) - PDF veloce, nomi tolleranti, dock nuovo
+
+Richieste: *"e' cosi' lento quando prepara il pdf [...] sono pdf grandi
+abbastanza"*; *"segna nell'handoff che non devi mai fare il deploy a meno che
+non sono io a chiederlo esplicitamente"* (fatto: in testa a AI-HANDOFF.md e in
+memoria); *"siti doppi [...] per errori di battitura [...] rea klinic / rea
+clinik [...] avendo un affinita' alta nella barra di ricerca lo farei spuntare
+lo stesso [...] se carico un excel chiamato casa umberto primo e combacia alla
+perfezione allora lo collega automaticamente [...] se ha affinita' piu' bassa o
+piu' siti, una tabellina [...] se non combacia un alert"*; *"la barra con salva
+nel tracker sempre visibile e staccata, rinnovala"*.
+
+- **PDF 3x piu' veloce e 40% piu' leggero** (`schede/ponte.js`, `generaPdf`):
+  html2canvas clona TUTTO il documento a ogni chiamata, quindi pagina per
+  pagina costava ~1 s a pagina. Ora si catturano lotti di 8 pagine in una
+  tela sola (spostate per un attimo in un contenitore proprio, poi rimesse) e
+  si ritaglia. Scala 1,5 e JPEG 0,8. Misurato: 20 pagine da 4,4 s / 5,2 MB a
+  1,5 s / 3,1 MB. Provato anche `foreignObjectRendering`: piu' lento e tele
+  vuote, scartato.
+- **`js/affinita.js`**: normalizzazione (accenti, k->c, y->i, ph->f, h via,
+  doppie ridotte, "I"/"primo" -> 1, sigle e articoli tolti), somiglianza per
+  parola con Damerau-Levenshtein (i bigrammi davano 0,67 a umberto/bertoli:
+  troppo), pesi di rarita' delle parole (`pesiParole`: "casa", "riposo",
+  "via" contano poco). `terminePassa` nella ricerca del tracker (`passa()` in
+  stato.js): "umberto primo" trova UMBERTO I, "clinik" trova KLINIK.
+- **Riconoscimento del sito dal file Excel** (`riconosci()` in ponte.js):
+  nome del file + titolo del foglio contro cliente+destinazione di tutti i
+  siti aperti dell'anno. Soglie: `NETTA` 0,88 e cliente con un solo sito e
+  nessun rivale (altro cliente >= 0,72 e a meno di 0,12 dal primo) ->
+  collegato da solo, tag "riconosciuto dal file"; altrimenti la lista dei
+  probabili (max 6, con la barra dell'affinita'); sotto 0,5 -> avviso rosso
+  "nessun sito somiglia", si sceglie a mano e resta il tag ambra "scelto a
+  mano". Se il sito arriva dal tracker e il file non gli somiglia, avviso
+  senza cambiare niente. `loadRows`/`unloadFile` sono globali del generatore
+  riassegnate su `window` (vale anche per le chiamate interne); l'esempio
+  della guida (`label`) non si riconosce.
+- **Il dock** (HTML/CSS in `schede/index.html`, sezione `PONTE col tracker`):
+  lastra staccata, `position:sticky` sopra le pagine, vetro sfumato, il
+  "cavo" con il led di stato (grigio / cyan / pulsa / ambra / rosso), chip del
+  sito con il tag dell'origine, esito su due righe, bottone primario "Salva nel
+  tracker" con la barra di avanzamento nel bordo basso. `#main` e' un
+  `container-type:inline-size`: sotto 1000 px di anteprima (i due pannelli
+  laterali la stringono anche su schermi larghi) l'esito scende su una riga
+  sua. Riduzione del movimento rispettata.
+- **Azioni -> Possibili doppioni** (`mostraDoppioni` in app.js, `.dop-*` in
+  base.css): siti dello stesso cliente con destinazioni >= 0,80 e clienti con
+  ragioni sociali >= 0,86, con "Copia elenco". Access non si tocca: e' la
+  lista per correggerlo la'. Sui dati veri: 5 coppie di siti, 4 di clienti.
+- **Non pubblicato**: commit locale. Il deploy solo su richiesta esplicita.
+
 ## Fatto il 2026-09-08 (16a sessione) - il generatore di schede dentro il tracker, coi PDF
 
 Richiesta: *"se metto online anche schede tecnici generatore collegato tramite

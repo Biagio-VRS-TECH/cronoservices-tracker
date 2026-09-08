@@ -381,6 +381,23 @@ code.lan {
 @keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
 .cassetto header { padding: 18px 20px 14px; border-bottom: 1px solid var(--bordo); }
 
+/* ---- Possibili doppioni (Azioni): coppie di nomi che si somigliano ---- */
+.dop-titolo { margin: 18px 0 8px; font-size: var(--t-mini); font-weight: 600; color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; }
+.dop-vuoto { margin: 0; color: var(--tenue); font-size: var(--t-mini); }
+.dop-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow: auto; }
+.dop { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; padding: 8px 10px;
+  border: 1px solid var(--bordo); border-radius: var(--r-2); background: var(--superficie-2); }
+.dop-aff { display: flex; align-items: center; gap: 7px; font: 600 var(--t-micro)/1 var(--f-dato); color: var(--inchiostro-2); }
+.dop-aff i { flex: 1; height: 4px; border-radius: 2px; background: var(--st-vuoto); position: relative; overflow: hidden; }
+.dop-aff i::after { content: ""; position: absolute; inset: 0; width: var(--a); background: linear-gradient(90deg, var(--allerta), var(--marchio)); }
+.dop-nomi { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--t-mini); }
+.dop-nomi small { color: var(--tenue); font-size: var(--t-micro); }
+.dop-voce { display: flex; gap: 8px; align-items: baseline; min-width: 0; background: none; border: 0; padding: 0;
+  font: inherit; color: var(--inchiostro); text-align: left; }
+button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { color: var(--marchio-scuro); text-decoration: underline; }
+.dop-voce .dato { font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
+.dop-voce span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---- Schede tecnici: l'icona del PDF accanto al nome del sito ---------------
    Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,
    non verde: dice "c'e' il documento", non "e' a posto". #ANCHOR: documenti */

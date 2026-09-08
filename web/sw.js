@@ -4,7 +4,7 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v7';
+const CACHE = 'crono-guscio-v8';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
   '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
@@ -12,7 +12,7 @@ const GUSCIO = [
   '/js/app.js', '/js/api.js', '/js/nuvola.js', '/js/nuvola-config.js',
   '/js/stato.js', '/js/ui.js',
   '/js/anno.js', '/js/mese.js', '/js/stat.js',
-  '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js',
+  '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js',
   '/schede/', '/schede/index.html', '/schede/ponte.js',
   '/schede/lib/html2canvas.min.js', '/schede/lib/jspdf.umd.min.js',
   '/assets/icona.svg', '/assets/logo.webp',

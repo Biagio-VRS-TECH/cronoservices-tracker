@@ -1,6 +1,10 @@
 # AI-HANDOFF — indice
 
-**Questo file e' l'unico da leggere all'inizio di una sessione pulita.** Da qui si
+**Questo file e' l'unico da leggere all'inizio di una sessione pulita.**
+
+> **REGOLA: nessun deploy senza richiesta esplicita del committente.** Il deploy
+> e' `git push origin main` (Netlify pubblica da solo). A fine lavoro si fa il
+> commit locale e ci si ferma: si pubblica solo quando lui dice "fai deploy". Da qui si
 apre solo il file di `docs/ai/` che riguarda la modifica richiesta. Non leggere
 il codice a blocco: usa la mappa e le ancore qui sotto.
 
@@ -72,6 +76,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/stat.js` | 1283 | vista Statistiche: raccolta dei numeri, quadrante dell'anno, ritmo, lista di lavoro, grafici (torte comprese) |
 | `js/cassetto.js` | 203 | pannello laterale di un service |
 | `js/spunte.js` | 127 | popover della cella |
+| `js/affinita.js` | 170 | somiglianza fra nomi scritti male (normalizzazione, Damerau-Levenshtein per parola, pesi di rarita'): ricerca, riconoscimento file nel generatore, doppioni. #ANCHOR: affinita |
 | `js/documenti.js` | 230 | i PDF delle schede tecnici: modello, icona accanto al sito, apertura, consegna. #ANCHOR: documenti |
 | `schede/index.html` | 3700 | il **generatore di schede tecnici** (ex `Schede-Tecnici-Generatore.html`), pagina unica con SheetJS dentro. Il suo handoff e' `schede/HANDOFF.md` |
 | `schede/ponte.js` | 250 | il legame generatore -> tracker: barra del sito, PDF con html2canvas + jsPDF (`schede/lib/`), consegna. #ANCHOR: ponte |

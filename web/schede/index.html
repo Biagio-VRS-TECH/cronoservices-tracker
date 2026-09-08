@@ -395,7 +395,7 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 .zoomrow .btn{margin-top:0;flex:1 1 auto;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em}
 .zoomrow .ico{height:auto;width:40px;font-size:19px;font-weight:700;line-height:1}
 
-#main{flex:1;padding:30px 20px 60px;overflow:auto;background:var(--ui-0)}
+#main{flex:1;padding:30px 20px 60px;overflow:auto;background:var(--ui-0);container-type:inline-size}
 
 /* le pagine sono l'unica superficie chiara: staccano dal banco di lavoro con
    un'ombra profonda e un filo di luce sul bordo. La regola sta in @media
@@ -875,39 +875,98 @@ table.xls.plain tbody tr:hover{background:transparent}
 #brandbar #themeSeg{margin-left:6px}
 
 /* ---------- PONTE col tracker (ponte.js) ----------
-   La striscia in testa all'anteprima: a quale sito di Crono Mappature e'
-   collegato il lavoro e cosa e' successo al PDF. Vive nei token dell'app (mai
-   del documento) e in stampa non esiste. */
-#ponte{position:sticky;top:0;z-index:30;margin:-30px -20px 24px;padding:9px 18px;
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  background:var(--ui-1);border-bottom:1px solid var(--ui-3);font-size:13px;color:var(--ui-tx2)}
+   Il DOCK: una lastra staccata dai bordi, sempre in vista sopra le pagine che
+   le scorrono sotto. Da sinistra: il ritorno al tracker, il "cavo" con il led
+   di stato, il sito collegato, l'esito, il bottone che consegna. Vive nei
+   token dell'app (mai del documento); in stampa non esiste. */
+#ponte{position:sticky;top:12px;z-index:30;margin:-14px auto 28px;width:min(100%,1040px);
+  display:flex;align-items:center;gap:14px;padding:10px 12px 10px 16px;border-radius:16px;
+  background:color-mix(in srgb,var(--ui-1) 84%,transparent);
+  border:1px solid color-mix(in srgb,var(--ui-3) 80%,var(--acc) 20%);
+  box-shadow:0 22px 50px -18px rgba(0,0,0,.65),0 1px 0 rgba(255,255,255,.05) inset;
+  font-size:13px;color:var(--ui-tx2);isolation:isolate}
+@supports (backdrop-filter:blur(1px)){#ponte{backdrop-filter:blur(14px) saturate(1.25)}}
+:root.lt #ponte{box-shadow:0 22px 50px -22px rgba(15,20,24,.35),0 1px 0 rgba(255,255,255,.7) inset}
 #ponte [hidden]{display:none!important}
-#ponte .ponte-back{color:var(--ui-tx);text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
-#ponte .ponte-back svg{width:15px;height:15px;color:var(--acc)}
+#ponte .ponte-back{color:var(--ui-tx);text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;letter-spacing:.01em}
+#ponte .ponte-back svg{width:15px;height:15px;color:var(--acc);transition:transform .2s var(--ease)}
+#ponte .ponte-back:hover svg{transform:translateX(-3px)}
 #ponte .ponte-back:hover{color:var(--acc)}
-#ponte .ponte-sep{width:1px;height:22px;background:var(--ui-3);flex:none}
-#ponte .ponte-sito{display:flex;flex-direction:column;min-width:0;line-height:1.3}
-#ponte .ponte-sito b{color:var(--ui-tx);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46ch}
-#ponte .ponte-sito span{color:var(--ui-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60ch}
-#ponte .ponte-sito i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ui-tx3)}
-#ponte input{background:var(--ui-2);border:1px solid var(--ui-3);color:var(--ui-tx);border-radius:var(--r1);
-  padding:7px 11px;min-width:min(360px,60vw);font-size:13px;font-family:inherit}
+/* il cavo: un filo con il led. E' il segnale del collegamento, l'unica cosa che si muove da sola */
+.ponte-cavo{flex:none;display:flex;align-items:center;gap:0;width:54px}
+.ponte-cavo::before,.ponte-cavo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--ui-4),var(--ui-3))}
+.ponte-led{width:11px;height:11px;border-radius:50%;flex:none;background:var(--ui-4);box-shadow:0 0 0 3px color-mix(in srgb,var(--ui-4) 25%,transparent);transition:background .3s,box-shadow .3s}
+.ponte-led.ok{background:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent),0 0 14px color-mix(in srgb,var(--acc) 55%,transparent)}
+.ponte-led.lavoro{background:var(--acc);animation:ponte-batte 1.1s ease-in-out infinite}
+.ponte-led.dubbio,.ponte-led.lista{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent)}
+.ponte-led.nessuno,.ponte-led.errore{background:#E5484D;box-shadow:0 0 0 3px rgba(229,72,77,.25)}
+@keyframes ponte-batte{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent)}50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--acc) 8%,transparent),0 0 18px var(--acc)}}
+/* il sito */
+.ponte-sito{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto}
+.ponte-sito .txt{display:flex;flex-direction:column;min-width:150px;flex:1 1 220px;line-height:1.28}
+.ponte-sito b{color:var(--ui-tx);font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ponte-sito .dest{color:var(--ui-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.ponte-sito i{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ponte-come{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;
+  color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);border:1px solid color-mix(in srgb,var(--acc) 30%,transparent)}
+.ponte-come.mano{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+#ponte .ponte-mini{background:none;border:0;color:var(--ui-tx3);cursor:pointer;font-size:12px;padding:0;font-family:inherit;white-space:nowrap}
+#ponte .ponte-mini:hover{color:var(--acc);text-decoration:underline}
+/* la ricerca, quando il sito non c'e' */
+#ponteCerca{flex:1 1 auto;min-width:0;display:flex}
+#ponte input{flex:1;background:var(--ui-2);border:1px solid var(--ui-3);color:var(--ui-tx);border-radius:10px;
+  padding:8px 12px;font-size:13px;font-family:inherit;min-width:0}
 #ponte input:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-lo)}
-#ponte .ponte-mini{background:none;border:0;color:var(--acc);cursor:pointer;font-size:12px;padding:0;font-family:inherit}
-#ponte .ponte-mini:hover{text-decoration:underline}
-#ponte .ponte-dx{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap;justify-content:flex-end}
-#ponte .ponte-stato{font-size:12.5px;padding:6px 11px;border-radius:999px;background:var(--ui-2);color:var(--ui-tx2);
-  display:inline-flex;align-items:center;max-width:60ch;line-height:1.35}
-#ponte .ponte-stato.ok{background:rgba(34,195,154,.16);color:#3FD0A3}
-:root.lt #ponte .ponte-stato.ok{background:#E3F6EF;color:#007A5C}
-#ponte .ponte-stato.errore{background:rgba(240,167,66,.16);color:var(--warn)}
-#ponte .ponte-stato.lavoro::before{content:"";width:10px;height:10px;flex:none;border:2px solid currentColor;
-  border-right-color:transparent;border-radius:50%;display:inline-block;margin-right:8px;animation:pgira .8s linear infinite}
-@keyframes pgira{to{transform:rotate(360deg)}}
-#ponte .btn{width:auto;margin:0;padding:8px 14px;font-size:13px;white-space:nowrap}
-#ponte .btn[disabled]{opacity:.45;cursor:default}
+/* l'esito */
+.ponte-stato{font-size:12.5px;line-height:1.35;color:var(--ui-tx2);max-width:34ch;min-width:14ch;flex:0 1 auto;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ponte-stato.entra{animation:ponte-entra .32s var(--ease) both}
+@keyframes ponte-entra{from{opacity:0;transform:translateY(4px)}}
+.ponte-stato.ok{color:#3FD0A3}
+:root.lt .ponte-stato.ok{color:#007A5C}
+.ponte-stato.dubbio,.ponte-stato.lista{color:var(--warn)}
+.ponte-stato.nessuno,.ponte-stato.errore{color:#F0767A}
+:root.lt .ponte-stato.nessuno,:root.lt .ponte-stato.errore{color:#C0392B}
+/* il bottone che consegna */
+#ponte .btn{width:auto;margin:0;padding:9px 16px 9px 13px;font-size:13px;white-space:nowrap;border-radius:11px;flex:none;
+  display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 20px -10px var(--acc)}
+#ponte .btn svg{width:15px;height:15px}
+#ponte .btn[disabled]{opacity:.4;cursor:default;box-shadow:none}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
-@media (max-width:900px){#ponte{margin:-18px -10px 18px}}
+/* la barra di avanzamento: il bordo basso del dock che si riempie */
+.ponte-prog{position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ui-3);overflow:hidden}
+.ponte-prog::after{content:"";position:absolute;inset:0;width:var(--p,0%);background:var(--acc);transition:width .25s var(--ease)}
+/* la lista dei probabili: cala da sotto il dock */
+.ponte-scelte{position:absolute;left:12px;right:12px;top:calc(100% + 8px);z-index:31;border-radius:14px;padding:10px 10px 8px;
+  background:color-mix(in srgb,var(--ui-1) 97%,transparent);border:1px solid var(--ui-3);
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.7);animation:ponte-entra .26s var(--ease) both}
+@supports (backdrop-filter:blur(1px)){.ponte-scelte{backdrop-filter:blur(16px)}}
+.ponte-scelte header{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-tx3);font-weight:700}
+.ponte-scelte ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.ponte-scelte li button{width:100%;display:grid;grid-template-columns:78px 1fr auto;align-items:center;gap:12px;text-align:left;
+  background:transparent;border:1px solid transparent;border-radius:10px;padding:8px 10px;color:var(--ui-tx);cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
+.ponte-scelte li button:hover,.ponte-scelte li button:focus-visible{background:var(--ui-2);border-color:var(--ui-3);outline:0}
+.sc-aff{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--ui-tx2)}
+.sc-aff i{flex:1;height:4px;border-radius:2px;background:var(--ui-3);position:relative;overflow:hidden}
+.sc-aff i::after{content:"";position:absolute;inset:0;width:var(--a);background:linear-gradient(90deg,var(--warn),var(--acc))}
+.sc-nome{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.sc-nome b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-nome span{font-size:12px;color:var(--ui-tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-meta{font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.ponte-led.lavoro,.ponte-stato.entra,.ponte-scelte{animation:none}}
+/* l'anteprima puo' essere stretta anche su uno schermo largo (i due pannelli
+   laterali): il dock va a capo guardando la SUA larghezza, non quella della
+   finestra. L'esito scende su una riga tutta sua, il cavo si accorcia. */
+@container (max-width:1000px){
+  #ponte{flex-wrap:wrap;row-gap:8px}
+  .ponte-cavo{width:26px}
+  .ponte-stato{order:9;flex:1 1 100%;max-width:none;-webkit-line-clamp:3;padding-left:2px}
+}
+@container (max-width:640px){
+  #ponte{margin:-8px auto 18px;top:6px;padding:10px 12px}
+  .ponte-cavo{display:none}
+  .ponte-come{display:none}
+}
 
 @media print{
   @page{size:A4 portrait;margin:0}
@@ -1087,20 +1146,28 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <a class="ponte-back" href="/" title="Torna a Crono Mappature">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
       Crono Mappature</a>
-    <span class="ponte-sep"></span>
-    <span class="ponte-sito" id="ponteSito" hidden><b id="ponteCliente"></b><span id="ponteDest"></span><i id="ponteMeta"></i></span>
+    <span class="ponte-cavo" aria-hidden="true"><span class="ponte-led idle" id="ponteLed"></span></span>
+    <span class="ponte-sito" id="ponteSito" hidden>
+      <span class="txt"><b id="ponteCliente"></b><span class="dest" id="ponteDest"></span><i id="ponteMeta"></i></span>
+      <span class="ponte-come" id="ponteCome" hidden></span>
+      <button type="button" class="ponte-mini" id="ponteCambia">cambia</button>
+    </span>
     <span id="ponteCerca">
       <input id="ponteQ" list="ponteLista" autocomplete="off"
-             placeholder="Collega a un sito del tracker: cliente, destinazione o #id…"
+             placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
              aria-label="Sito del tracker a cui collegare le schede">
       <datalist id="ponteLista"></datalist>
     </span>
-    <button type="button" class="ponte-mini" id="ponteCambia" hidden>cambia sito</button>
-    <span class="ponte-dx">
-      <span class="ponte-stato" id="ponteStato" hidden></span>
-      <button type="button" class="btn sec" id="ponteSalva" disabled
-              title="Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa">Salva nel tracker</button>
-    </span>
+    <span class="ponte-stato" id="ponteStato" role="status" hidden></span>
+    <button type="button" class="btn" id="ponteSalva" disabled
+            title="Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
+      <span>Salva nel tracker</span></button>
+    <span class="ponte-prog" id="ponteProg" hidden></span>
+    <div class="ponte-scelte" id="ponteScelte" hidden>
+      <header><span>Probabilmente e’ uno di questi</span><button type="button" class="ponte-mini" id="ponteChiudiScelte">chiudi</button></header>
+      <ul></ul>
+    </div>
   </div>
   <div id="empty-state">
     <div class="kick">Nessun file caricato</div>
