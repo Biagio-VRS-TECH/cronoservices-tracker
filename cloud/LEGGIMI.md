@@ -123,6 +123,45 @@ Per forzare un aggiornamento a mano in qualsiasi momento: `cloud/sync-cloud.cmd`
 
 Se cambi le variabili, rilancia il deploy: il file viene riscritto solo allora.
 
+### Provare online senza spendere crediti
+
+Netlify conta **15 crediti per ogni deploy di produzione**, cifra fissa: un
+build da tre secondi come quello di qui costa quanto uno da otto minuti. Il
+piano gratuito ne da' 300 al mese, cioe' una ventina di pubblicazioni. I
+**Deploy Preview** invece costano **0**.
+
+Quindi il lavoro non si prova mai pubblicando su `main`:
+
+```
+git checkout -b nome-parlante
+git add -A && git commit -m "..."
+git push -u origin nome-parlante
+```
+
+Il push stampa un indirizzo `.../pull/new/nome-parlante`: aprilo e premi
+**Create pull request** (la CLI `gh` su questa macchina non c'e', si fa dal
+sito).
+
+Netlify commenta la pull request con
+`https://deploy-preview-N--cronoservices-tracker.netlify.app`: e' il sito
+completo, collegato allo stesso Supabase di produzione. Ogni push successivo sul
+branch ricostruisce l'anteprima, sempre a costo zero: si puo' iterare quanto
+serve. Quando va bene, **Merge pull request** dalla pagina di GitHub: quello e'
+il solo momento in cui parte un deploy di produzione.
+
+Due avvertenze:
+
+- le due variabili d'ambiente devono valere per **tutti i deploy context**, non
+  solo "Production", altrimenti `netlify-build.sh` si ferma sul controllo di
+  `SUPABASE_URL` e l'anteprima non nasce;
+- l'indirizzo dell'anteprima e' **pubblico**: chi ha il link entra. Ci finisce
+  solo la chiave `anon`, che e' pubblica anche in produzione, ma vale sapere che
+  non c'e' una serratura davanti.
+
+**L'anteprima usa il database vero.** Le spunte messe provando restano nel
+Supabase di produzione: per provare i dati, non solo l'aspetto, cancella dopo o
+lavora su righe di prova.
+
 ---
 
 ## 6. Le schede tecnici e i loro PDF

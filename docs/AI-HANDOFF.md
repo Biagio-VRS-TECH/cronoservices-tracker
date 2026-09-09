@@ -2,11 +2,16 @@
 
 **Questo file e' l'unico da leggere all'inizio di una sessione pulita.**
 
-> **REGOLA: nessun deploy senza richiesta esplicita del committente.** Il deploy
-> e' `git push origin main` (Netlify pubblica da solo). A fine lavoro si fa il
-> commit locale e ci si ferma: si pubblica solo quando lui dice "fai deploy". Da qui si
-apre solo il file di `docs/ai/` che riguarda la modifica richiesta. Non leggere
-il codice a blocco: usa la mappa e le ancore qui sotto.
+> **REGOLA: si lavora su branch, `main` lo tocca solo il committente.** Ogni
+> lavoro nasce su un branch (`git checkout -b nome-parlante`) e finisce in un
+> commit su quel branch: su `main` non si committa e non si pusha mai, se non
+> dopo un "fai deploy" esplicito. Il perche' e' anche economico: `git push
+> origin main` e' il deploy vero e costa 15 crediti Netlify a colpo, mentre il
+> Deploy Preview che nasce da una pull request costa 0. Push del branch e
+> apertura della PR: solo se lui li chiede.
+
+Da qui si apre solo il file di `docs/ai/` che riguarda la modifica richiesta.
+Non leggere il codice a blocco: usa la mappa e le ancore qui sotto.
 
 ---
 
