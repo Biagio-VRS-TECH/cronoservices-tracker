@@ -90,8 +90,9 @@ CREATE TABLE IF NOT EXISTS ops (
   op_id TEXT PRIMARY KEY, ts TEXT, esito TEXT, rev INTEGER
 );
 
--- `ruolo`: 'admin' | 'tecnico' (#ANCHOR: ruoli). L'admin approva rapportino e
--- ricambi, fa le azioni di massa, sincronizza da Access e ripristina dal diario.
+-- `ruolo`: 'admin' | 'approvatore' | 'tecnico' (#ANCHOR: ruoli). L'admin approva
+-- rapportino e ricambi, fa le azioni di massa, sincronizza da Access e
+-- ripristina dal diario; l'approvatore approva quelle due spunte e basta.
 CREATE TABLE IF NOT EXISTS operatori (
   nome TEXT PRIMARY KEY, ultimo_accesso TEXT,
   ruolo TEXT NOT NULL DEFAULT 'tecnico'
@@ -195,11 +196,22 @@ def set_meta(c, k, v):
 
 
 # ------------------------------------------------------------------ ruoli ----
-# #ANCHOR: ruoli. Chi e' admin: i nomi in config.json["amministratori"] (il seme,
-# non si possono declassare dall'app) piu' chi ha ruolo='admin' in `operatori`
-# (nominato da un admin con /api/ruolo). In locale l'identita' e' un nome
-# scritto a mano, quindi il ruolo e' una convenzione fra colleghi; online e'
-# legato alla casella del login (cloud/02-funzioni.sql, e_admin()).
+# #ANCHOR: ruoli. Tre ruoli, due poteri diversi:
+#   'admin'       comanda: approva, azzera in blocco, sincronizza, cambia le
+#                 impostazioni, ripristina dal diario, butta i PDF di un anno
+#   'approvatore' approva rapportino e ricambi e NIENT'ALTRO: non azzera, non
+#                 ripristina, non entra nelle impostazioni
+#   'tecnico'     propone: quelle due spunte restano in attesa
+# Chi e' admin: i nomi in config.json["amministratori"] (il seme, non si possono
+# declassare dall'app) piu' chi ha quel ruolo in `operatori` (nominato da un
+# admin con /api/ruolo). In locale l'identita' e' un nome, online e' legato alla
+# casella del login (cloud/02-funzioni.sql, ruolo_corrente()).
+RUOLI = ("admin", "approvatore", "tecnico")
+# Chi puo' chiudere una proposta (0/1 su DA_APPROVARE). Il 2 - rimettere in
+# attesa - resta del solo admin.
+APPROVANO = ("admin", "approvatore")
+
+
 def ruolo_di(c, nome, cfg=None):
     nome = (nome or "").strip()
     if not nome:
@@ -207,16 +219,20 @@ def ruolo_di(c, nome, cfg=None):
     if nome in (cfg or {}).get("amministratori", []):
         return "admin"
     r = c.execute("SELECT ruolo FROM operatori WHERE nome=?", (nome,)).fetchone()
-    return r["ruolo"] if r and r["ruolo"] == "admin" else "tecnico"
+    return r["ruolo"] if r and r["ruolo"] in RUOLI else "tecnico"
 
 
 def e_admin(c, nome, cfg=None):
     return ruolo_di(c, nome, cfg) == "admin"
 
 
+def puo_approvare(c, nome, cfg=None):
+    return ruolo_di(c, nome, cfg) in APPROVANO
+
+
 def ruoli(c, cfg=None):
     """{nome: ruolo} per tutti gli operatori conosciuti, seme compreso."""
-    out = {r["nome"]: r["ruolo"] or "tecnico"
+    out = {r["nome"]: (r["ruolo"] if r["ruolo"] in RUOLI else "tecnico")
            for r in c.execute("SELECT nome, ruolo FROM operatori")}
     for n in (cfg or {}).get("amministratori", []):
         out[n] = "admin"

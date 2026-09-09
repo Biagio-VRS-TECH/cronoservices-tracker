@@ -4,7 +4,7 @@
 import { h, ICO, esc, quando, avviso } from './ui.js';
 import { chiama, segnalaFuoco } from './api.js';
 import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spunta, spuntaMolte, salvaNota,
-  doveFatto, prossimo, fatto, proposto, descriviEvento, ripristina, ripristinabile } from './stato.js';
+  doveFatto, prossimo, fatto, proposto, possoApprovare, descriviEvento, ripristina, ripristinabile } from './stato.js';
 
 let aperto = null;
 
@@ -46,12 +46,12 @@ function attiva(campo) {
    ereditato dove e' stato fatto. */
 function rigaPasso(campo, n, e) {
   const er = e.ered[campo];
-  const pr = !er && proposto(e.c, campo);          // in attesa dell'admin (#ANCHOR: ruoli)
+  const pr = !er && proposto(e.c, campo);          // in attesa di chi approva (#ANCHOR: ruoli)
   const on = fatto(e.c, campo) || !!er;
   return h('button.passo' + (er ? '.eredita' : '') + (pr ? '.proposto' : ''), {
     role: 'checkbox', 'aria-checked': pr ? 'mixed' : String(on), 'data-campo': campo,
     title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec`
-      : pr ? (sonoAdmin() ? 'Proposta dal tecnico: un clic la approva' : 'In attesa dell\u2019amministratore: un clic la ritira')
+      : pr ? (possoApprovare() ? 'Proposta dal tecnico: un clic la approva' : 'In attesa di chi approva: un clic la ritira')
       : null,
     onclick: () => attiva(campo),
   },

@@ -51,9 +51,13 @@ begin
                    from public.mappature m where m.anno = v_anno - 1),
     'operatori', (select coalesce(jsonb_agg(o.nome order by o.nome), '[]'::jsonb)
                   from public.operatori o),
-    -- {nome: 'admin'|'tecnico'} (#ANCHOR: ruoli)
+    -- {nome: 'admin'|'approvatore'|'tecnico'} (#ANCHOR: ruoli): serve solo a
+    -- disegnare l'elenco nelle impostazioni.
     'ruoli', (select coalesce(jsonb_object_agg(o.nome, o.ruolo), '{}'::jsonb)
               from public.operatori o),
+    -- Il MIO ruolo, deciso dalla casella del login. E' questo che il client
+    -- deve guardare per sapere cosa puo' fare: mai `ruoli[nome digitato]`.
+    'ruolo', public.ruolo_corrente(),
     'ultimo_sync', (select v from public.meta where k = 'ultimo_sync'),
     'inizio_tracciamento', (select v from public.meta where k = 'inizio_tracciamento'),
     'indirizzo_lan', null,
@@ -100,31 +104,51 @@ begin
 end $fn$;
 
 -- ------------------------------------------------------------ operatore ----
--- Online il nome non e' piu' libero: e' legato alla casella con cui hai fatto il
--- login. Si puo' cambiare come si scrive, non chi sei.
+-- Il nome NON si sceglie: e' ricavato dalla casella del login e serve solo a
+-- firmare le spunte. Questa funzione registra il primo accesso e poi si limita
+-- a segnare che sei passato.
+--
+-- Qui stava il difetto grave della 25a sessione (#ANCHOR: ruoli): il vecchio
+-- `on conflict (nome) do update set email = excluded.email, ruolo =
+-- excluded.ruolo` faceva si' che, scrivendo il nome di un collega, la riga di
+-- QUEL collega passasse alla tua casella e prendesse il tuo ruolo. Bastava
+-- rinominarsi per declassare l'amministratore e restare senza nessuno che
+-- approvasse. Ora la riga di un'altra casella non si tocca MAI: se il nome
+-- ricavato e' gia' di qualcun altro, il tuo viene disambiguato con la casella.
 create or replace function public.imposta_operatore(p_nome text)
 returns jsonb
 language plpgsql security definer set search_path = public as $fn$
 declare v_nome text := left(btrim(coalesce(p_nome, '')), 40);
         v_mail text := public.email_corrente();
+        v_mio  text;
         v_ruolo text;
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
-  if v_nome = '' then
-    return jsonb_build_object('http', 400, 'errore', 'nome mancante');
+  -- Il nome che conta e' quello gia' registrato per la mia casella: quello che
+  -- arriva dal client e' solo una proposta per il PRIMO accesso.
+  select o.nome, o.ruolo into v_mio, v_ruolo
+    from public.operatori o where o.email = v_mail limit 1;
+
+  if v_mio is not null then
+    update public.operatori set ultimo_accesso = public.ts_locale()
+     where email = v_mail;
+    v_nome := v_mio;
+  else
+    if v_nome = '' then v_nome := coalesce(public.operatore_corrente(), '?'); end if;
+    v_ruolo := 'tecnico';
+    -- omonimo gia' preso da un'altra casella: si allunga il mio, non si ruba il suo
+    if exists (select 1 from public.operatori o where o.nome = v_nome) then
+      v_nome := left(v_nome || ' (' || split_part(v_mail, '@', 1) || ')', 40);
+    end if;
+    if exists (select 1 from public.operatori o where o.nome = v_nome) then
+      v_nome := left(v_mail, 40);
+    end if;
+    insert into public.operatori(nome, email, ultimo_accesso, ruolo)
+    values (v_nome, v_mail, public.ts_locale(), v_ruolo);
   end if;
-  -- Un solo nome per casella: se cambia come si scrive, il vecchio se ne va,
-  -- ma il RUOLO resta attaccato alla casella (#ANCHOR: ruoli).
-  select coalesce((select o.ruolo from public.operatori o where o.email = v_mail limit 1),
-                  'tecnico') into v_ruolo;
-  delete from public.operatori o where o.email = v_mail and o.nome <> v_nome;
-  insert into public.operatori(nome, email, ultimo_accesso, ruolo)
-  values (v_nome, v_mail, public.ts_locale(), v_ruolo)
-  on conflict (nome) do update
-    set email = excluded.email, ultimo_accesso = excluded.ultimo_accesso,
-        ruolo = excluded.ruolo;
+
   return jsonb_build_object('http', 200, 'nome', v_nome, 'ruolo', v_ruolo,
     'ruoli', (select coalesce(jsonb_object_agg(o.nome, o.ruolo), '{}'::jsonb)
               from public.operatori o),
@@ -133,9 +157,13 @@ begin
 end $fn$;
 
 -- ---------------------------------------------------------------- ruoli ----
--- Un admin nomina (o declassa) un collega, per nome (#ANCHOR: ruoli). L'ultimo
--- admin non si declassa: nessuno approverebbe piu' niente. Il primo admin si
+-- Un admin nomina (o declassa) un collega, per nome (#ANCHOR: ruoli). I ruoli
+-- sono tre: 'admin' (tutto), 'approvatore' (approva rapportino e ricambi e
+-- nient'altro), 'tecnico' (propone). L'ultimo admin non si declassa: nessuno
+-- potrebbe piu' azzerare, sincronizzare o ripristinare. Il primo admin si
 -- nomina a mano con 07-ruoli.sql.
+-- Il ruolo si scrive sulla riga del NOME, ma chi conta e' la casella attaccata
+-- a quella riga: nessuno puo' spostarsi addosso la riga di un altro.
 create or replace function public.imposta_ruolo(p_nome text, p_ruolo text)
 returns jsonb
 language plpgsql security definer set search_path = public as $fn$
@@ -148,15 +176,16 @@ begin
   if not public.e_admin() then
     return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
   end if;
-  if v_nome = '' or p_ruolo not in ('admin', 'tecnico') then
-    return jsonb_build_object('http', 400, 'errore', 'servono nome e ruolo (admin|tecnico)');
+  if v_nome = '' or p_ruolo not in ('admin', 'approvatore', 'tecnico') then
+    return jsonb_build_object('http', 400, 'errore',
+      'servono nome e ruolo (admin|approvatore|tecnico)');
   end if;
   if not exists (select 1 from public.operatori o where o.nome = v_nome) then
     return jsonb_build_object('http', 400, 'errore',
       v_nome || ' non e'' ancora entrato: il ruolo si da'' dopo il primo accesso');
   end if;
   select count(*) into n_admin from public.operatori o where o.ruolo = 'admin';
-  if p_ruolo = 'tecnico' and n_admin <= 1
+  if p_ruolo <> 'admin' and n_admin <= 1
      and exists (select 1 from public.operatori o where o.nome = v_nome and o.ruolo = 'admin') then
     return jsonb_build_object('http', 400, 'errore',
       'e'' l''unico amministratore: nominane prima un altro');

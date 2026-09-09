@@ -17,3 +17,7 @@ update public.operatori
 
 -- Controllo: deve tornare almeno una riga.
 select nome, email, ruolo from public.operatori where ruolo = 'admin';
+
+-- Per nominare un APPROVATORE (approva rapportino e ricambi, non azzera nulla)
+-- si fa dall'app come per gli admin; a mano sarebbe:
+--   update public.operatori set ruolo = 'approvatore' where email = '...';

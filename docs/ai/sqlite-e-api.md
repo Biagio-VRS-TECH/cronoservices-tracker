@@ -33,12 +33,16 @@ e il contratto degli endpoint.
 - `eventi` — log append-only (chi, quando, campo, da, a, `op_id`, `origine`).
   Alimenta la storia della cella e il diario. Non si potano.
 - `ops` — `op_id` gia' applicati: e' l'idempotenza della coda offline.
-- `operatori` — nome + ultimo accesso + `ruolo` ('admin' | 'tecnico', #ANCHOR: ruoli).
+- `operatori` — nome + ultimo accesso + `ruolo` ('admin' | 'approvatore' |
+  'tecnico', #ANCHOR: ruoli). Il nome e' solo una firma e **dall'app non si
+  cambia**; l'identita' e' la casella del login, ed e' li' che sta il ruolo.
   Nessuna password (scelta del committente): in locale il ruolo e' una convenzione,
-  col seme `config.json["amministratori"]`; online e' legato alla casella del login.
+  col seme `config.json["amministratori"]`; online e' legato alla casella.
+  Due poteri distinti: `db.puo_approvare` (admin + approvatore) chiude le
+  proposte, `db.e_admin` fa tutto il resto.
 - `documenti`: `gruppo`, `fascicolo`, `fascicoli` legano gli N PDF di un documento diviso in fascicoli (NULL = PDF unico).
 - I quattro campi di `mappature` valgono 0/1, ma `corretta` e `ricambi` anche
-  **2 = proposta** di un tecnico in attesa dell'admin (`db.DA_APPROVARE`,
+  **2 = proposta** di un tecnico in attesa di chi approva (`db.DA_APPROVARE`,
   `db.PROPOSTA`). "Fatto" e' solo `== 1`.
 - `sync_log` — un record per sync con il diff.
 - `meta` — chiave/valore: `ultimo_sync` e `inizio_tracciamento` (`AAAA-MM`, il
@@ -64,6 +68,7 @@ scritto (esclusione per `client_id` nel body).
 | metodo | rotta | note |
 |---|---|---|
 | GET | `/api/bootstrap?anno=` | tutto in un colpo: clienti, service, celle dell'anno, operatori, presenze, ultimo sync, `inizio_tracciamento`, `indirizzo_lan`, `altri_server`. ~545 service = payload piccolo, cachato in `localStorage` |
+| GET | `/api/bootstrap` | tutto il necessario all'avvio. `?operatore=` per farsi dire il proprio `ruolo` (in locale; online lo decide la casella) |
 | POST | `/api/toggle` | una spunta. Body: `id_service, anno, mese, campo, valore, base_rev, base_valore, op_id, operatore, client_id` |
 | POST | `/api/bulk` | `celle: [...]`, una transazione; ogni voce ha il suo esito, un conflitto non blocca le altre |
 | POST | `/api/nota` | nota libera sulla cella (max 500) |
@@ -73,7 +78,7 @@ scritto (esclusione per `client_id` nel body).
 | GET | `/api/export.csv?anno&mese` | CSV `;` + BOM (Excel italiano), una colonna per passo, piu' `Ruolo` (`MAPPATURA` / `visita`) |
 | POST | `/api/operatore` | registra il nome, ritorna l'elenco, `ruoli` e il `ruolo` di chi chiama |
 | POST | `/api/ripristina` | `{op_id}`: l'admin rimette a `da` tutti gli eventi di quel blocco (`op_id` o `op_id:*`), come nuovo blocco `ripristino` (#ANCHOR: ripristino). Ritorna `celle` per anno |
-| POST | `/api/ruolo` | `{nome, ruolo}`: un admin nomina o declassa (#ANCHOR: ruoli). 403 se non e' admin, 400 sull'ultimo admin o sui nomi di config.json |
+| POST | `/api/ruolo` | `{nome, ruolo}` con ruolo `admin|approvatore|tecnico`: un admin nomina o declassa (#ANCHOR: ruoli). 403 se non e' admin, 400 sull'ultimo admin o sui nomi di config.json |
 | POST | `/api/ping` | presenza, TTL 45 s; ritorna chi e' collegato |
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |
 | POST | `/api/sync` | rilegge Access. Timeout client 300 s |

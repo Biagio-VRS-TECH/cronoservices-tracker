@@ -65,7 +65,8 @@ export const CAMPI = ['stampata', 'controllata', 'corretta', 'ricambi'];
 export const SIGLA = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
 export const PASSI = CAMPI.length;
 /* RUOLI E APPROVAZIONI (#ANCHOR: ruoli). Due passi non li chiude il tecnico:
-   li PROPONE, e l'amministratore li approva. Nel modello un passo vale 0 (da
+   li PROPONE, e chi ha il potere di approvare (amministratore o approvatore)
+   li chiude. Nel modello un passo vale 0 (da
    fare), 1 (fatto/approvato) o PROPOSTA = 2 (spuntato dal tecnico, in attesa
    dell'admin). Il 2 non conta come fatto da nessuna parte: `fatto()` e' l'unico
    modo giusto di chiedere "questo passo c'e'?". Le regole stanno in
@@ -110,7 +111,10 @@ export const st = {
   celle: new Map(),        // "idServ-mese" -> {s,c,k,r,rev,by,at,nota}
   cellePrec: new Map(),    // stesse chiavi, ANNO PRIMA: una mappatura rimasta aperta passa i passi all'anno dopo
   fuochi: new Map(),       // nome collega -> {cella, dove, ts}: la cella che ha aperta adesso (#ANCHOR: fuoco)
-  ruoli: {},               // nome -> 'admin' | 'tecnico' (#ANCHOR: ruoli)
+  ruoli: {},               // nome -> ruolo: SOLO per l'elenco nelle impostazioni
+  /* Il MIO ruolo, come lo dice il server (#ANCHOR: ruoli). Non si ricava dal
+     nome a schermo: il nome e' una firma, l'identita' e' la casella del login. */
+  ruolo: 'tecnico',
   documenti: new Map(),    // idServ -> [PDF delle schede tecnici], dal piu' recente
   sospese: new Set(),      // "idServ-mese-campo" in attesa di conferma
   chiusiCli: new Set(),    // clienti collassati
@@ -162,6 +166,7 @@ export function applica(d) {
   st.ultimoSync = d.ultimo_sync; st.sync = d.sync; st.online = d.online || [];
   st.operatori = d.operatori || [];
   st.ruoli = d.ruoli || {};
+  st.ruolo = d.ruolo || 'tecnico';
 
   st.clienti = new Map(d.clienti.map(c => [c.id, c]));
   st.perServ = new Map(d.services.map(s => [s.id, s]));
@@ -735,34 +740,49 @@ function cellaDalServer(id, mese, valore) {
 }
 
 /* ------------------------------------------------------------- ruoli ---- */
-/* #ANCHOR: ruoli */
-export const ruoloMio = () => st.ruoli[rete.operatore] || 'tecnico';
+/* #ANCHOR: ruoli. Tre ruoli e due poteri diversi:
+     admin        approva, azzera in blocco, sincronizza, cambia le impostazioni,
+                  ripristina dal diario, butta i PDF di un anno intero
+     approvatore  approva rapportino e ricambi e BASTA
+     tecnico      propone: quelle due spunte restano in attesa
+   `st.ruolo` arriva dal server col bootstrap ed e' l'unica fonte. Il ruolo NON
+   si ricava piu' da `st.ruoli[rete.operatore]`: quella riga era il difetto
+   della 25a sessione, perche' il nome a schermo e' solo una firma e bastava
+   cambiarlo per vedersi cambiare i permessi. */
+export const ruoloMio = () => st.ruolo || 'tecnico';
 export const sonoAdmin = () => ruoloMio() === 'admin';
-export const eAdmin = nome => st.ruoli[nome] === 'admin';
+/** Chi chiude le proposte: amministratore e approvatore. */
+export const possoApprovare = () => ['admin', 'approvatore'].includes(ruoloMio());
+export const ruoloDi = nome => st.ruoli[nome] || 'tecnico';
+export const eAdmin = nome => ruoloDi(nome) === 'admin';
+export const ETICHETTA_RUOLO = {
+  admin: 'amministratore', approvatore: 'approvatore', tecnico: 'tecnico',
+};
 
 /** Cosa succede DAVVERO se `campo`, che ora vale `attuale`, viene chiesto a
  *  `valore` da chi sta lavorando. Gemello di api._valore_per_ruolo: sui passi
  *  da approvare il tecnico propone (1 -> 2) e ritira (2 -> 0), ma non toglie
- *  un'approvazione (1 -> 0); l'admin approva, respinge, e rimette in attesa
- *  (2, solo dal ripristino). Ritorna { v, errore }. */
+ *  un'approvazione (1 -> 0); chi approva (admin o approvatore) approva e
+ *  respinge; rimettere in attesa (2, dal ripristino) e' del solo admin.
+ *  Ritorna { v, errore }. */
 export function effettivo(campo, attuale, valore) {
   let v = Number(valore) || 0;
   if (![0, 1, 2].includes(v)) v = v ? 1 : 0;
   if (!DA_APPROVARE.includes(campo)) return { v: v ? 1 : 0 };
-  if (sonoAdmin()) return { v };
-  if (v === 2) return { v, errore: 'Solo l\u2019amministratore rimette una spunta in attesa.' };
+  if (v === 2 && !sonoAdmin()) return { v, errore: 'Solo l\u2019amministratore rimette una spunta in attesa.' };
+  if (possoApprovare()) return { v };
   if (v === 1) return { v: attuale === 1 ? 1 : PROPOSTA };
   if (attuale === 1) {
-    return { v, errore: `${ETICHETTA[campo]}: approvata dall\u2019amministratore, solo lui pu\u00f2 toglierla.` };
+    return { v, errore: `${ETICHETTA[campo]}: gi\u00e0 approvata, la toglie solo chi approva.` };
   }
   return { v };
 }
 
 /** Il valore che un clic sul passo vuole ottenere: e' un interruttore, ma una
- *  proposta in attesa l'admin la APPROVA (-> 1) e il tecnico la RITIRA (-> 0). */
+ *  proposta in attesa chi approva la APPROVA (-> 1) e il tecnico la RITIRA (-> 0). */
 export function prossimo(id, mese, campo) {
   const a = cella(id, mese)[SIGLA[campo]];
-  if (a === PROPOSTA) return sonoAdmin() ? 1 : 0;
+  if (a === PROPOSTA) return possoApprovare() ? 1 : 0;
   return a === 1 ? 0 : 1;
 }
 
@@ -772,7 +792,7 @@ export function notaProposta(c, campo) {
   return `${BREVE[campo]}: proposta${c.by ? ' da ' + c.by : ''}, in attesa dell\u2019amministratore`;
 }
 
-/** Le proposte dell'anno in attesa dell'admin (#ANCHOR: ruoli), le piu' recenti
+/** Le proposte dell'anno in attesa di chi approva (#ANCHOR: ruoli), le piu' recenti
  *  prima: [{id, mese, campo, by, at}]. */
 export function proposte() {
   const out = [];
@@ -1051,7 +1071,12 @@ export const fuochiSu = (id, mese) =>
 
 export function eventoRemoto(ev) {
   if (ev.tipo === 'presenze') { aggiornaPresenze(ev.online); return; }
-  if (ev.tipo === 'ruoli') { st.ruoli = ev.ruoli || {}; emetti('ruoli'); return; }
+  if (ev.tipo === 'ruoli') {
+    st.ruoli = ev.ruoli || {};
+    /* Il mio ruolo lo dice il server: l'evento lo porta quando cambia. */
+    if (ev.ruolo) st.ruolo = ev.ruolo;
+    emetti('ruoli'); return;
+  }
   if (ev.tipo === 'fuoco') { segnaFuoco(ev.nome, ev.dove); return; }
   if (ev.tipo === 'sync') { emetti('sync-fatto', ev.riepilogo); return; }
   if (ev.tipo === 'impostazioni') {

@@ -3,6 +3,86 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (25a sessione) - la falla del cambio nome, e il terzo ruolo
+
+Branch `ruoli-falla-cambio-nome`. Due cose, una grave e una richiesta.
+
+### 1. Cambiare nome cambiava i permessi (difetto grave, online)
+
+Il racconto del committente: entrato da amministratore, cambiato il nome,
+permessi spariti; poi con un clic "sotto admin" se li e' ripresi. Sotto ci
+sono tre difetti diversi, tutti chiusi:
+
+- **`imposta_operatore` si portava via la riga di un collega**
+  (`cloud/03-letture.sql`). Era un `on conflict (nome) do update set email =
+  excluded.email, ruolo = excluded.ruolo`: scrivendo il nome di un altro, la
+  riga di QUEL nome passava alla tua casella e prendeva il tuo ruolo.
+  Bastava rinominarsi come l'amministratore per declassarlo e lasciare
+  l'azienda senza nessuno che approvasse. Ora la riga di un'altra casella non
+  si tocca mai: se il nome ricavato dalla posta e' gia' preso, il *proprio*
+  viene disambiguato (`Mario Rossi (mario.rossi2)`).
+- **Il client si fidava del nome digitato**: `sonoAdmin()` era
+  `st.ruoli[rete.operatore]`. Cambiando nome i permessi sparivano a schermo
+  prima ancora di parlare col server. Ora il ruolo di chi sta lavorando e'
+  `st.ruolo`, che arriva **dal server** col bootstrap (`ruolo_corrente()`
+  online, `db.ruolo_di` in locale). `st.ruoli` resta, ma serve solo a
+  disegnare l'elenco nelle impostazioni.
+- **Il campo per cambiare nome non c'e' piu'** (scelta del committente).
+  `#io` ora apre una scheda in sola lettura: chi sei, la casella, il ruolo e
+  cosa puoi fare. Il nome si chiede una volta sola, e solo al primissimo
+  avvio in locale (online lo da' il login e non si tocca).
+- In piu': la riga in `operatori` ora nasce **al login**
+  (`avviaSessione` chiama `/api/operatore`). Prima veniva scritta solo se si
+  apriva quella finestra, quindi chi non ci aveva mai cliccato non compariva
+  nell'elenco dei ruoli e non poteva essere nominato.
+
+### 2. Terzo ruolo: l'approvatore
+
+`operatori.ruolo` = `'admin' | 'approvatore' | 'tecnico'` (vincolo `check` in
+`01-tabelle.sql`). L'**approvatore** approva e respinge "Rapportino" e
+"Ricambi" - la pillola "N da approvare" e' anche sua - e **basta**: niente
+Completa/Azzera tutte, niente Sincronizza, niente Impostazioni, niente
+"Ripristina", niente cancellazione dei PDF di un anno.
+
+I due poteri sono ora due domande diverse, in tutti e tre i posti:
+
+| | online | locale | client |
+|---|---|---|---|
+| chi approva | `puo_approvare()` | `db.puo_approvare` | `possoApprovare()` |
+| chi comanda | `e_admin()` | `db.e_admin` | `sonoAdmin()` |
+
+`_valore_per_ruolo` e `_applica` portano i due booleani separati (`p_approva`,
+`p_admin`): rimettere una spunta *in attesa* (il 2, cioe' il ripristino) resta
+del solo amministratore. Le vecchie firme vengono droppate negli script.
+Nelle impostazioni la pillola di ogni collega gira in tondo: tecnico ->
+approvatore -> amministratore -> tecnico.
+
+**Da rieseguire su Supabase, in ordine: `01`, `02`, `03`, `04`.** Senza `03`
+la falla resta aperta. Service worker `crono-guscio-v17`.
+
+### Provato
+
+Su `data/prova.db` (porta 8775), matrice completa: tecnico che propone (2),
+approvatore che approva (1) e respinge (0), tecnico che prova a togliere
+un'approvazione (403), approvatore che prova a rimettere in attesa (403),
+azioni di massa negate a tecnico e approvatore e concesse all'admin,
+`/api/impostazioni`, `/api/sync`, `/api/ripristina` e `/api/ruolo` a 403 per
+chi non e' admin, l'ultimo admin che non si declassa, un ruolo inventato
+rifiutato. In browser: badge "approva", menu Azioni senza le voci dell'admin,
+"Approva tutte (3)" che svuota la coda, la scheda di `#io` senza campi.
+
+### Cosa manca / da decidere (25a)
+
+- **Il declassamento non arriva in diretta**: se un admin ti toglie il ruolo
+  mentre lavori, il tuo `st.ruolo` resta quello vecchio fino al prossimo
+  bootstrap. Il server rifiuta comunque (403), quindi e' solo cosmetico.
+  L'evento `ruoli` puo' gia' portare `ruolo`, basta che il server lo mandi
+  per-destinatario: online serve un canale per casella.
+- **Il nome non si cambia piu' da nessuna parte**, nemmeno dall'admin. Se
+  serve correggere un refuso, oggi si fa in `operatori` da Supabase.
+- **In locale l'identita' resta un nome** (vedi 22a): il committente ha detto
+  che in locale non lavorera' piu', quindi non e' stato messo nessun PIN.
+
 ## Fatto il 2026-09-09 (24a sessione) - cancellare i PDF in blocco, per fare spazio
 
 Nato da un "Non salvato: The object exceeded the maximum allowed size" del

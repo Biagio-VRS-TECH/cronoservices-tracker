@@ -66,27 +66,47 @@ Il controllo del dominio è doppio apposta: anche se le registrazioni venissero
 riaperte per sbaglio, `autorizzato()` in `02-funzioni.sql` non fa vedere niente
 a chi non ha un indirizzo `@vrs-tech.it`.
 
-> Il nome che firma le spunte non è più scritto a mano: è la casella con cui si
-> entra (`mario.rossi@vrs-tech.it` → *Mario Rossi*). Si può cambiare come si
-> scrive, non chi si è.
+> Il nome che firma le spunte non si scrive a mano: è la casella con cui si
+> entra (`mario.rossi@vrs-tech.it` → *Mario Rossi*), e **dall'app non si
+> cambia**. Il campo dove lo si poteva riscrivere è stato tolto: scrivendo il
+> nome di un collega si finiva sulla sua riga in `operatori`, cioè su quella che
+> porta il ruolo.
 
-### Chi è amministratore
+### Chi può fare cosa
 
-Da settembre 2026 ci sono due ruoli. I **tecnici** spuntano tutto, ma
-"Rapportino" e "Ricambi" restano *proposte* (a righe) finché un
-**amministratore** non le approva dalla pillola "N da approvare". Solo
-l'amministratore completa o azzera in blocco, cambia le impostazioni e ha
-"Ripristina" nel diario. Il ruolo è legato alla casella del login.
+Tre ruoli, legati alla **casella del login** (mai al nome):
+
+| ruolo | cosa può fare |
+|---|---|
+| **tecnico** | spunta tutto; "Rapportino" e "Ricambi" restano *proposte* (a righe) |
+| **approvatore** | approva o respinge quelle due proposte, dalla pillola "N da approvare". Nient'altro |
+| **amministratore** | approva, completa o azzera in blocco, rilegge Access, cambia le impostazioni, "Ripristina" nel diario, butta i PDF di un anno intero |
 
 Il primo amministratore si nomina una volta sola, dall'SQL Editor, con
 `07-ruoli.sql` (sostituire la casella): la persona deve essere entrata almeno
-una volta nel tracker. Da lì in avanti gli amministratori si nominano e si
-declassano dall'app: **Azioni → Impostazioni → Chi è amministratore**.
-L'ultimo amministratore non si può declassare.
+una volta nel tracker. Da lì in avanti i ruoli si girano dall'app: **Azioni →
+Impostazioni → Chi può fare cosa**, un clic per passare da tecnico ad
+approvatore ad amministratore e daccapo. L'ultimo amministratore non si può
+declassare (nemmeno ad approvatore): resterebbe un'azienda senza nessuno che
+azzera, sincronizza o ripristina.
 
 Se il progetto esisteva già, prima di `07` vanno rieseguiti nell'ordine `01`
-(aggiunge la colonna `ruolo`), `02`, `03`, `04` e `06` (i fascicoli dei PDF:
-`registra_documento` ha tre argomenti in più e la vecchia firma viene tolta).
+(la colonna `ruolo` e il suo vincolo), `02`, `03`, `04` e `06` (i fascicoli dei
+PDF: `registra_documento` ha tre argomenti in più e la vecchia firma viene
+tolta). `02` e `03` vanno rilanciati **anche su un progetto già aggiornato**:
+è lì che sta la correzione di `imposta_operatore` e il terzo ruolo.
+
+Subito dopo, dall'SQL Editor, **controllare che nessuna riga sia finita alla
+persona sbagliata** (era possibile finché il difetto era aperto):
+
+```sql
+select nome, email, ruolo, ultimo_accesso from public.operatori order by nome;
+```
+
+Ogni riga deve avere la casella di quella persona. Se una non torna — o se non
+compare più nessun amministratore — si sistema a mano: `delete` della riga
+sbagliata, poi la persona rientra nel tracker (la riga si ricrea da sola al
+login) e la si rinomina con `07-ruoli.sql`.
 
 ## 3. Il primo travaso dell'anagrafica
 

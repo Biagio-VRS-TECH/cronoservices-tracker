@@ -60,7 +60,9 @@ grant execute on function
   public.imposta_ruolo(text, text),
   public.ripristina_blocco(text),
   public.imposta_meta(text),
-  public.e_admin()
+  public.e_admin(),
+  public.puo_approvare(),
+  public.ruolo_corrente()
 to authenticated;
 
 -- I documenti (06-documenti.sql) nascono dopo questo file: se 04 viene

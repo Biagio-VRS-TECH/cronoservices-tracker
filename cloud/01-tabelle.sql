@@ -83,9 +83,14 @@ create table if not exists public.ops (
   op_id text primary key, ts text, esito text, rev integer
 );
 
--- `ruolo`: 'admin' | 'tecnico' (#ANCHOR: ruoli). L'admin approva rapportino e
--- ricambi, fa le azioni di massa e ripristina dal diario. Il primo admin si
--- nomina con 07-ruoli.sql, gli altri dall'app (imposta_ruolo).
+-- `ruolo`: 'admin' | 'approvatore' | 'tecnico' (#ANCHOR: ruoli). L'admin approva
+-- rapportino e ricambi, fa le azioni di massa, sincronizza, cambia le
+-- impostazioni e ripristina dal diario. L'APPROVATORE approva e basta: le
+-- proposte dei tecnici le chiude lui, ma non azzera niente e non tocca le
+-- impostazioni. Il tecnico propone. Il primo admin si nomina con 07-ruoli.sql,
+-- gli altri dall'app (imposta_ruolo).
+-- `email` e' l'identita' vera: il nome e' solo come lo si scrive, e non si
+-- cambia dall'app (il difetto della 25a sessione stava proprio li').
 create table if not exists public.operatori (
   nome text primary key,
   email text unique,
@@ -93,6 +98,13 @@ create table if not exists public.operatori (
   ruolo text not null default 'tecnico'
 );
 alter table public.operatori add column if not exists ruolo text not null default 'tecnico';
+-- Un ruolo scritto male non deve poter entrare: il vincolo vale anche per chi
+-- tocca la tabella a mano dal pannello di Supabase.
+alter table public.operatori drop constraint if exists operatori_ruolo_valido;
+update public.operatori set ruolo = 'tecnico'
+ where ruolo is null or ruolo not in ('admin', 'approvatore', 'tecnico');
+alter table public.operatori add constraint operatori_ruolo_valido
+  check (ruolo in ('admin', 'approvatore', 'tecnico'));
 
 -- Chi e' collegato adesso. Sostituisce il dizionario PRESENZE in memoria di
 -- api.py: online i client sono su macchine diverse, la memoria non basta piu'.

@@ -12,7 +12,8 @@ import {
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
   CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
-  sonoAdmin, eAdmin, proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
+  sonoAdmin, possoApprovare, ruoloMio, ruoloDi, ETICHETTA_RUOLO,
+  proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
   descriviEvento, spunta, BREVE,
 } from './stato.js';
 import * as vAnno from './anno.js';
@@ -67,7 +68,7 @@ async function avvia() {
 
   riflettiFiltri();
   riempiFiltri();
-  if (!rete.operatore) chiediOperatore(); else disegnaIo();
+  if (!rete.operatore) chiediNome(); else disegnaIo();
   bottoneEsci();
   disegna();
   statoCollegamento();
@@ -249,7 +250,7 @@ function collegaTesta() {
   $('#anno-su').onclick = () => vaiAnno(annoMirato() + 1);
   $('#oggi').onclick = vaiOggi;
   $('#tema').onclick = giraTema;
-  $('#io').onclick = chiediOperatore;
+  $('#io').onclick = mostraChiSono;
   $('#aiuto').onclick = mostraAiuto;
   $('#schede').onclick = () => open(urlGeneratore(null), '_blank');
   $('#azioni').onclick = e => apriAzioni(e.currentTarget);
@@ -400,19 +401,21 @@ function apriAzioni(bottone) {
 
 /* ------------------------------------------------------- approvazioni ---- */
 /* #ANCHOR: approvazioni. Rapportino e ricambi spuntati da un tecnico arrivano
-   qui come proposte: l'amministratore le approva o le respinge. La pillola in
-   barra c'e' solo per lui e solo se c'e' qualcosa in attesa. */
+   qui come proposte: chi approva - amministratore o APPROVATORE - le approva o
+   le respinge. La pillola in barra c'e' solo per loro e solo se c'e' qualcosa
+   in attesa. L'approvatore finisce qui e basta: le azioni di massa, il sync,
+   le impostazioni e i ripristini restano dell'amministratore. */
 function aggiornaApprova() {
   const b = $('#approva');
   if (!b) return;
-  const n = sonoAdmin() ? proposte().length : 0;
+  const n = possoApprovare() ? proposte().length : 0;
   b.hidden = n === 0;
   b.textContent = n === 1 ? '1 da approvare' : `${n} da approvare`;
   b.title = 'Spunte proposte dai tecnici, in attesa della tua approvazione';
 }
 
 function mostraApprovazioni() {
-  if (!sonoAdmin()) return;
+  if (!possoApprovare()) return;
   modale(chiudi => {
     const corpo = h('div');
     const testa = h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin:0 0 10px' });
@@ -571,10 +574,62 @@ function disegnaIo() {
       testo: iniziali(rete.operatore),
     }),
     h('b', { testo: rete.operatore || 'Chi sei?' }),
-    ...(sonoAdmin() ? [h('span.ruolo', { testo: 'admin', title: 'Amministratore: approvi rapportino e ricambi, azioni di massa, sync, ripristini' })] : []));
+    ...(ruoloMio() === 'tecnico' ? [] : [h('span.ruolo', {
+      testo: ruoloMio() === 'admin' ? 'admin' : 'approva',
+      title: ruoloMio() === 'admin'
+        ? 'Amministratore: approvi rapportino e ricambi, azioni di massa, sync, ripristini'
+        : 'Approvatore: approvi rapportino e ricambi. Le azioni di massa, il sync e i ripristini restano dell\u2019amministratore.',
+    })]));
 }
 
-function chiediOperatore() {
+/* CHI SONO (#ANCHOR: ruoli). Il nome NON si cambia dall'app.
+   Online e' ricavato dalla casella del login: cambiarlo non cambiava chi sei,
+   ma spostava la riga in `operatori` - e con quella il ruolo. Bastava scrivere
+   il nome di un collega per portargli via la riga e lasciare l'azienda senza
+   amministratori. Era il difetto della 25a sessione; ora quel campo non c'e'
+   piu' e la riga di un'altra casella il server non la tocca (imposta_operatore
+   in cloud/03-letture.sql).
+   Restano due cose: una scheda che dice chi sei e cosa puoi fare, e - solo al
+   PRIMISSIMO avvio in locale, dove non c'e' nessun login - la domanda del nome. */
+function mostraChiSono() {
+  const r = ruoloMio();
+  const cosaPuoi = {
+    admin: 'Approvi "Rapportino" e "Ricambi", completi o azzeri in blocco, ' +
+      'rileggi Access, cambi le impostazioni, ripristini dal diario e puoi ' +
+      'buttare i PDF di un anno intero.',
+    approvatore: 'Approvi "Rapportino" e "Ricambi": le proposte dei tecnici le ' +
+      'chiudi tu. Le azioni in blocco, la rilettura di Access, le impostazioni e ' +
+      'i ripristini restano dell\u2019amministratore.',
+    tecnico: 'Spunti tutto; "Rapportino" e "Ricambi" restano proposte finch\u00e9 non ' +
+      'le approva un amministratore.',
+  }[r];
+  modale(chiudi => [
+    h('h2', { testo: 'Chi sta lavorando' }),
+    h('div', { style: 'display:flex;align-items:center;gap:10px;margin:6px 0 12px' },
+      h('span.pallino', { style: 'background:' + tinta(rete.operatore),
+                          testo: iniziali(rete.operatore) }),
+      h('div', {},
+        h('b', { testo: rete.operatore || '?' }),
+        h('div.nota-t', { testo: emailSessione() || 'questo computer' }))),
+    h('p.nota-t', { style: 'margin:0 0 6px',
+      testo: 'Ruolo: ' + ETICHETTA_RUOLO[r] + '.' }),
+    h('p.sotto', { testo: cosaPuoi }),
+    h('p.sotto', { testo: inNuvola()
+      ? 'Il nome viene dalla tua casella aziendale e firma ogni spunta: non si ' +
+        'cambia da qui, perch\u00e9 \u00e8 anche quello che dice al server chi sei. ' +
+        'Per cambiare ruolo serve un amministratore.'
+      : 'Il nome resta su questo computer e firma ogni spunta: si scrive al ' +
+        'primo avvio e dall\u2019applicazione non si cambia. Per cambiare ' +
+        'ruolo serve un amministratore.' }),
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:14px' },
+      h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
+  ]);
+}
+
+/* Solo il primissimo avvio in locale: senza un nome non si firma niente. Dopo,
+   il nome non si tocca piu'. Online non compare mai: lo da' il login. */
+function chiediNome() {
+  if (inNuvola()) { disegnaIo(); return; }
   modale(chiudi => {
     const input = h('input.campo', {
       placeholder: 'Nome e cognome', value: rete.operatore, maxlength: 40,
@@ -591,22 +646,22 @@ function chiediOperatore() {
         const { dati } = await chiama('/api/operatore', { metodo: 'POST', body: { nome } });
         st.operatori = dati.operatori;
         if (dati.ruoli) st.ruoli = dati.ruoli;
+        if (dati.ruolo) st.ruolo = dati.ruolo;
         disegnaIo(); aggiornaApprova();
       } catch { }
     };
     return [
       h('h2', { testo: 'Chi sta lavorando?' }),
       h('p.sotto', {
-        testo: 'Il nome resta su questo computer e firma ogni spunta, così si sa ' +
-          'sempre chi ha fatto cosa quando siete in più di uno.'
+        testo: 'Il nome resta su questo computer e firma ogni spunta, cos\u00ec si sa ' +
+          'sempre chi ha fatto cosa quando siete in pi\u00f9 di uno. Si scrive una ' +
+          'volta sola: dopo non si cambia pi\u00f9.'
       }),
       input,
-      h('div.righe-scelta', {}, (st.operatori || []).map(n =>
-        h('button.pill', { testo: n + (eAdmin(n) ? ' \u00b7 admin' : ''), onclick: () => { input.value = n; conferma(); } }))),
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:8px' },
         h('button.bottone', { testo: 'Continua', onclick: conferma })),
     ];
-  }, { chiudibile: !!rete.operatore });
+  }, { chiudibile: false });
 }
 
 /* -------------------------------------------------- stato del collegamento */
@@ -770,7 +825,7 @@ function pannelloCollegamento() {
         ? h('ul.elenco-gente', {}, tutti.map(o =>
           h('li', {},
             h('span.pallino', { style: 'background:' + tinta(o.nome), testo: iniziali(o.nome) }),
-            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}${eAdmin(o.nome) ? ' · admin' : ''}` }),
+            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}${ruoloDi(o.nome) !== 'tecnico' ? ' · ' + ruoloDi(o.nome) : ''}` }),
             h('span.nota-t', { testo: doveSta(o).replace(/^ · /, '') }))))
         : h('p.nota-t', { style: 'margin-bottom:18px', testo: 'Solo tu, per ora.' }),
 
@@ -899,27 +954,35 @@ function mostraImpostazioni() {
   if (!sonoAdmin()) return avviso('Le impostazioni sono dell\u2019amministratore.');
   modale(chiudi => {
     const inp = h('input.campo', { type: 'month', value: st.inizioTracciamento });
-    /* RUOLI (#ANCHOR: ruoli): chi e' amministratore. I nomi di config.json
-       (locale) restano admin comunque; l'ultimo admin non si declassa. */
+    /* RUOLI (#ANCHOR: ruoli): il giro e' tecnico -> approvatore -> admin ->
+       tecnico. I nomi di config.json (locale) restano admin comunque; l'ultimo
+       admin non si declassa, altrimenti nessuno azzera piu' niente.
+       Il ruolo si scrive sulla riga del nome, ma online quella riga e' legata a
+       una casella: nessuno se la puo' spostare addosso. */
+    const GIRO = { tecnico: 'approvatore', approvatore: 'admin', admin: 'tecnico' };
+    const SIGLA_RUOLO = { admin: 'admin', approvatore: 'approva', tecnico: 'tecnico' };
     const ruoliBox = h('div.righe-scelta');
     const disegnaRuoli = () => {
       const nomi = [...new Set([...(st.operatori || []), ...Object.keys(st.ruoli || {})])]
         .sort((a, b) => a.localeCompare(b, 'it'));
-      ruoliBox.replaceChildren(...nomi.map(n => h('button.pill' + (eAdmin(n) ? '' : '.debole'), {
-        'aria-pressed': String(eAdmin(n)),
-        title: eAdmin(n) ? 'Amministratore: clic per renderlo tecnico' : 'Tecnico: clic per renderlo amministratore',
-        onclick: async () => {
-          const ruolo = eAdmin(n) ? 'tecnico' : 'admin';
-          try {
-            const { ok, dati } = await chiama('/api/ruolo', { metodo: 'POST',
-              body: { nome: n, ruolo, operatore: rete.operatore } });
-            if (!ok) return avviso(dati.errore || 'Non cambiato.', { tono: 'allerta' });
-            st.ruoli = dati.ruoli || st.ruoli;
-            disegnaRuoli(); disegnaIo(); aggiornaApprova();
-            avviso(`${n} ora \u00e8 ${ruolo === 'admin' ? 'amministratore' : 'tecnico'}.`, { tono: 'ok' });
-          } catch { avviso('Non cambiato: server non raggiungibile.', { tono: 'allerta' }); }
-        },
-      }, h('span', { testo: n }), h('span.ruolo', { testo: eAdmin(n) ? 'admin' : 'tecnico' }))));
+      ruoliBox.replaceChildren(...nomi.map(n => {
+        const r = ruoloDi(n);
+        const poi = GIRO[r];
+        return h('button.pill' + (r === 'tecnico' ? '.debole' : ''), {
+          'aria-pressed': String(r !== 'tecnico'),
+          title: `${n}: ${ETICHETTA_RUOLO[r]}. Un clic lo rende ${ETICHETTA_RUOLO[poi]}.`,
+          onclick: async () => {
+            try {
+              const { ok, dati } = await chiama('/api/ruolo', { metodo: 'POST',
+                body: { nome: n, ruolo: poi, operatore: rete.operatore } });
+              if (!ok) return avviso(dati.errore || 'Non cambiato.', { tono: 'allerta' });
+              st.ruoli = dati.ruoli || st.ruoli;
+              disegnaRuoli(); disegnaIo(); aggiornaApprova();
+              avviso(`${n} ora \u00e8 ${ETICHETTA_RUOLO[poi]}.`, { tono: 'ok' });
+            } catch { avviso('Non cambiato: server non raggiungibile.', { tono: 'allerta' }); }
+          },
+        }, h('span', { testo: n }), h('span.ruolo', { testo: SIGLA_RUOLO[r] }));
+      }));
     };
     disegnaRuoli();
 
@@ -978,12 +1041,14 @@ function mostraImpostazioni() {
 
     return [
       h('h2', { testo: 'Impostazioni' }),
-      h('h3.tit-p', { style: 'margin-top:14px', testo: 'Chi \u00e8 amministratore' }),
+      h('h3.tit-p', { style: 'margin-top:14px', testo: 'Chi pu\u00f2 fare cosa' }),
       h('p.nota-t', {
         style: 'margin-bottom:10px',
-        testo: 'L\u2019amministratore approva "Rapportino" e "Ricambi", completa o azzera ' +
-          'in blocco, rilegge Access e ripristina dal diario. I tecnici spuntano tutto, ' +
-          'ma quelle due spunte restano in attesa finch\u00e9 un amministratore non le approva.'
+        testo: 'Tre ruoli, un clic per girarli. Il TECNICO spunta tutto, ma ' +
+          '"Rapportino" e "Ricambi" restano proposte. L\u2019APPROVATORE chiude quelle ' +
+          'due proposte e basta. L\u2019AMMINISTRATORE, oltre ad approvare, completa o ' +
+          'azzera in blocco, rilegge Access, cambia queste impostazioni, ' +
+          'ripristina dal diario e pu\u00f2 buttare i PDF di un anno intero.'
       }),
       ruoliBox,
       h('h3.tit-p', { style: 'margin-top:14px', testo: 'Da quando registrate le spunte qui' }),

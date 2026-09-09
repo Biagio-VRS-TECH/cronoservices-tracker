@@ -95,11 +95,21 @@ export async function chiama(path, { metodo = 'GET', body, ms = 12000 } = {}) {
 export async function avviaSessione() {
   if (!nuvola.attiva()) return null;
   await nuvola.assicuraSessione();
-  // Online la firma non e' piu' un nome scritto a mano: e' la casella con cui si
-  // e' entrati. Si puo' cambiare come si scrive, non chi si e'.
-  if (!rete.operatore || rete.operatore !== nuvola.nomeDaEmail()) {
-    setOperatore(nuvola.nomeDaEmail());
-  }
+  // Online la firma NON e' un nome scritto a mano: e' la casella con cui si e'
+  // entrati, e non si cambia (#ANCHOR: ruoli). Il campo dove la si poteva
+  // riscrivere e' stato tolto alla 25a sessione: cambiando nome si finiva sulla
+  // riga di un collega e ci si portava dietro - o via - il ruolo.
+  setOperatore(nuvola.nomeDaEmail());
+  // Registra il passaggio in `operatori`: e' quella riga a portare il ruolo, ed
+  // e' li' che un amministratore ti trova per nominarti. Prima veniva scritta
+  // solo se si apriva la finestra del nome, quindi chi non ci aveva mai
+  // cliccato non compariva nell'elenco. Se il nome ricavato e' gia' di un
+  // collega, il server ne restituisce uno disambiguato: si tiene quello.
+  try {
+    const { ok, dati } = await chiama('/api/operatore',
+      { metodo: 'POST', body: { nome: rete.operatore } });
+    if (ok && dati && dati.nome) setOperatore(dati.nome);
+  } catch { /* offline: si firma col nome della casella, la riga arriva dopo */ }
   return nuvola.emailSessione();
 }
 
@@ -128,7 +138,12 @@ export async function esportaCsv(query) {
 /* ---------------------------------------------------------- bootstrap ---- */
 export async function bootstrap(anno) {
   try {
-    const r = await chiama('/api/bootstrap' + (anno ? '?anno=' + anno : ''));
+    // `operatore` serve solo al server locale per dire di che ruolo sei;
+    // online il ruolo lo decide la casella del login, non questo parametro.
+    const q = new URLSearchParams();
+    if (anno) q.set('anno', anno);
+    if (rete.operatore) q.set('operatore', rete.operatore);
+    const r = await chiama('/api/bootstrap' + (q.toString() ? '?' + q : ''));
     if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
     localStorage.setItem(K_CACHE, JSON.stringify({ salvato: Date.now(), dati: r.dati }));
     return { dati: r.dati, daCache: false };

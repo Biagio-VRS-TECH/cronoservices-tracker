@@ -32,21 +32,42 @@ language sql stable as $fn$
 $fn$;
 
 -- ------------------------------------------------------------- una cella ---
--- #ANCHOR: ruoli. Admin = la casella del login ha ruolo='admin' in operatori.
--- Online il ruolo e' legato all'email, non al nome: non si finge.
+-- #ANCHOR: ruoli. Il ruolo e' legato alla CASELLA del login, mai al nome: il
+-- nome e' solo come ti si scrive, e dall'app non si cambia piu'.
+-- Due domande diverse, due funzioni diverse:
+--   e_admin()       chi comanda: azioni di massa, sync, impostazioni, ripristino
+--   puo_approvare() chi chiude le proposte: admin E approvatore
+-- L'approvatore approva rapportino e ricambi e nient'altro: non azzera, non
+-- ripristina, non entra nelle impostazioni.
+create or replace function public.ruolo_corrente() returns text
+language sql stable security definer set search_path = public as $fn$
+  select coalesce((select o.ruolo from public.operatori o
+                    where o.email = public.email_corrente() limit 1), 'tecnico')
+$fn$;
+
 create or replace function public.e_admin() returns boolean
 language sql stable security definer set search_path = public as $fn$
-  select exists (select 1 from public.operatori o
-                 where o.email = public.email_corrente() and o.ruolo = 'admin')
+  select public.ruolo_corrente() = 'admin'
+$fn$;
+
+create or replace function public.puo_approvare() returns boolean
+language sql stable security definer set search_path = public as $fn$
+  select public.ruolo_corrente() in ('admin', 'approvatore')
 $fn$;
 
 -- Gemello di api._valore_per_ruolo (#ANCHOR: ruoli): l'INTENZIONE del client
 -- (0/1, o 2 solo da un admin che ripristina) diventa il valore scrivibile.
 -- Sui passi da approvare (corretta, ricambi) il tecnico propone (1 -> 2) e
--- ritira (2 -> 0), ma non toglie un'approvazione (1 -> 0); l'admin fa tutto.
+-- ritira (2 -> 0), ma non toglie un'approvazione (1 -> 0); chi puo' approvare
+-- (admin o approvatore) approva e respinge; rimettere in attesa (il 2 scritto
+-- a mano, cioe' il ripristino) resta del solo admin.
 -- Ritorna il valore, oppure -1 se la mossa e' vietata.
+-- La firma cambia (due booleani invece di uno): la vecchia va tolta, altrimenti
+-- restano due _valore_per_ruolo e la chiamata diventa ambigua.
+drop function if exists public._valore_per_ruolo(text, int, int, boolean);
 create or replace function public._valore_per_ruolo(
-  p_campo text, p_attuale int, p_valore int, p_admin boolean) returns int
+  p_campo text, p_attuale int, p_valore int,
+  p_approva boolean, p_admin boolean) returns int
 language plpgsql immutable as $fn$
 declare v int := coalesce(p_valore, 0);
 begin
@@ -54,8 +75,8 @@ begin
   if p_campo not in ('corretta', 'ricambi') then
     return case when v <> 0 then 1 else 0 end;
   end if;
-  if p_admin then return v; end if;
-  if v = 2 then return -1; end if;
+  if v = 2 then return case when p_admin then 2 else -1 end; end if;
+  if p_approva then return v; end if;
   if v = 1 then return case when p_attuale = 1 then 1 else 2 end; end if;
   if p_attuale = 1 then return -1; end if;
   return v;
@@ -84,13 +105,15 @@ $fn$;
 --   rev cambiata e anche il campo e' cambiato          -> 409, decide l'operatore
 -- Il lock in-process di SQLite (db.WRITE_LOCK) qui e' il SELECT ... FOR UPDATE:
 -- PostgREST esegue ogni chiamata dentro una transazione sua.
--- La firma ha un argomento in piu' (p_admin): la vecchia va tolta, altrimenti
--- restano due _applica e toggle_cella/bulk_celle diventano ambigue.
+-- La firma porta i due poteri separati (p_approva, p_admin): le vecchie vanno
+-- tolte, altrimenti restano piu' _applica e toggle_cella/bulk_celle diventano
+-- ambigue.
 drop function if exists public._applica(text, int, int, int, text, int, int, int, text, text);
+drop function if exists public._applica(text, int, int, int, text, int, int, int, text, text, boolean);
 create or replace function public._applica(
   p_operatore text, p_sid int, p_anno int, p_mese int, p_campo text,
   p_valore int, p_base_rev int, p_base_valore int, p_op_id text, p_origine text,
-  p_admin boolean default false)
+  p_approva boolean default false, p_admin boolean default false)
 returns jsonb
 language plpgsql as $fn$
 declare
@@ -115,12 +138,13 @@ begin
                   when p_campo = 'controllata' then r.controllata
                   when p_campo = 'corretta'    then r.corretta
                   else                              r.ricambi end;
-  v := public._valore_per_ruolo(p_campo, attuale, p_valore, coalesce(p_admin, false));
+  v := public._valore_per_ruolo(p_campo, attuale, p_valore,
+                                coalesce(p_approva, false), coalesce(p_admin, false));
   if v < 0 then
     return base || jsonb_build_object('http', 403, 'esito', 'vietato', 'campo', p_campo,
       'errore', case when coalesce(p_valore, 0) = 2
                      then 'solo l''amministratore puo'' rimettere in attesa'
-                     else 'spunta approvata dall''amministratore: solo lui la toglie' end,
+                     else 'spunta gia'' approvata: la toglie solo chi approva' end,
       'cella', case when r.id_service is null then null else public._cella_out(r) end);
   end if;
 
@@ -200,7 +224,8 @@ begin
   end if;
 
   ris := public._applica(op, p_id_service, p_anno, p_mese, p_campo, p_valore,
-                         p_base_rev, p_base_valore, p_op_id, p_origine, public.e_admin());
+                         p_base_rev, p_base_valore, p_op_id, p_origine,
+                         public.puo_approvare(), public.e_admin());
 
   if p_op_id is not null and (ris->>'http')::int = 200 then
     insert into public.ops(op_id, ts, esito, rev)
@@ -223,11 +248,14 @@ declare
   v jsonb; i int := 0; op text; oid text; ris jsonb;
   esiti jsonb := '[]'::jsonb;
   adm boolean := public.e_admin();
+  app boolean := public.puo_approvare();
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
-  -- "Completa/Azzera tutte" e' dell'amministratore (#ANCHOR: ruoli)
+  -- "Completa/Azzera tutte" e' del solo amministratore (#ANCHOR: ruoli):
+  -- l'approvatore chiude le proposte ("Approva tutte", origine 'approvazione'),
+  -- ma non azzera il lavoro di tutti in un clic.
   if p_origine = 'massa' and not adm then
     return jsonb_build_object('http', 403, 'errore', 'le azioni di massa sono dell''amministratore');
   end if;
@@ -247,7 +275,7 @@ begin
     ris := public._applica(op, (v->>'id_service')::int, p_anno, (v->>'mese')::int,
                            v->>'campo', (v->>'valore')::int,
                            (v->>'base_rev')::int, (v->>'base_valore')::int,
-                           oid, p_origine, adm);
+                           oid, p_origine, app, adm);
     ris := ris || jsonb_build_object('campo', v->>'campo');
 
     if oid is not null and (ris->>'http')::int = 200 then
@@ -295,7 +323,7 @@ begin
       continue;
     end if;
     ris := public._applica(op, e.id_service, e.anno, e.mese, e.campo, e.da,
-                           null, null, blocco || ':' || i, 'ripristino', true);
+                           null, null, blocco || ':' || i, 'ripristino', true, true);
     i := i + 1;
     esiti := esiti || jsonb_build_array(ris || jsonb_build_object('campo', e.campo));
     if (ris->>'http')::int = 200 and (ris->>'esito') in ('ok', 'merge') then

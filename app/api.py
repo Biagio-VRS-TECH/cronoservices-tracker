@@ -93,7 +93,11 @@ def bootstrap(ctx, q, body):
             "celle_prec": celle_prec,
             "operatori": [r["nome"] for r in
                           c.execute("SELECT nome FROM operatori ORDER BY nome")],
-            "ruoli": db.ruoli(c, ctx["cfg"]),          # {nome: 'admin'|'tecnico'} (#ANCHOR: ruoli)
+            # {nome: ruolo}: serve solo a disegnare l'elenco nelle impostazioni
+            "ruoli": db.ruoli(c, ctx["cfg"]),          # (#ANCHOR: ruoli)
+            # Il ruolo di CHI CHIEDE: e' questo che il client deve guardare per
+            # sapere cosa puo' fare, mai `ruoli[nome a schermo]`.
+            "ruolo": db.ruolo_di(c, q.get("operatore"), ctx["cfg"]),
             "ultimo_sync": db.get_meta(c, "ultimo_sync"),
             "inizio_tracciamento": db.get_meta(c, "inizio_tracciamento"),
             "indirizzo_lan": ctx.get("lan"),
@@ -107,16 +111,20 @@ def bootstrap(ctx, q, body):
 
 
 # ----------------------------------------------------------------- toggle ----
-def _valore_per_ruolo(campo, attuale, valore, admin):
+def _valore_per_ruolo(campo, attuale, valore, approva, admin=False):
     """Traduce l'INTENZIONE del client (0/1, o 2 solo da un admin che ripristina)
     nel valore che si puo' scrivere davvero, secondo il ruolo (#ANCHOR: ruoli).
     Ritorna (valore, errore): errore = (status, payload) se la mossa e' vietata.
 
+    Due poteri distinti: `approva` (admin o approvatore) chiude le proposte,
+    `admin` in piu' puo' rimetterle in attesa (il 2, cioe' il ripristino).
+
     Sui passi DA_APPROVARE (rapportino, ricambi):
-      - tecnico che mette 1  -> scrive PROPOSTA (2): la spunta va all'admin
+      - tecnico che mette 1  -> scrive PROPOSTA (2): la spunta va a chi approva
       - tecnico che mette 0  -> puo' ritirare la sua proposta (2 -> 0), ma non
                                 togliere una spunta approvata (1 -> 0): 403
-      - admin: 1 = approva, 0 = respinge/toglie, 2 = rimette in attesa (ripristino)
+      - chi approva: 1 = approva, 0 = respinge/toglie
+      - solo admin: 2 = rimette in attesa (ripristino)
     Sugli altri passi 2 non esiste: vale 1. Il gemello e' _applica in
     cloud/02-funzioni.sql."""
     try:
@@ -127,20 +135,20 @@ def _valore_per_ruolo(campo, attuale, valore, admin):
         v = 1 if v else 0
     if campo not in db.DA_APPROVARE:
         return (1 if v else 0), None
-    if admin:
-        return v, None
-    if v == 2:
+    if v == 2 and not admin:
         return v, (403, {"errore": "solo l'amministratore puo' rimettere in attesa"})
+    if approva:
+        return v, None
     if v == 1:
         return (1 if attuale == 1 else db.PROPOSTA), None
     if attuale == 1:
-        return v, (403, {"errore": "spunta approvata dall'amministratore: solo lui la toglie",
+        return v, (403, {"errore": "spunta gia' approvata: la toglie solo chi approva",
                          "approvata": True})
     return v, None
 
 
 def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore,
-             op_id, origine, admin=False):
+             op_id, origine, approva=False, admin=False):
     """Scrive un singolo campo di una cella con merge ottimistico per campo.
 
     Regole (#ANCHOR: merge):
@@ -158,7 +166,7 @@ def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore
 
     r = _cella(c, sid, anno, mese)
     attuale0 = r[campo] if r is not None else 0
-    valore, vietato = _valore_per_ruolo(campo, attuale0, valore, admin)
+    valore, vietato = _valore_per_ruolo(campo, attuale0, valore, approva, admin)
     if vietato:
         st, out = vietato
         out.update({"esito": "vietato", "campo": campo, "id_service": sid, "anno": anno,
@@ -222,6 +230,7 @@ def toggle(ctx, q, body):
                 int(body["anno"]), int(body["mese"]), body["campo"], body.get("valore"),
                 body.get("base_rev"), body.get("base_valore"), op_id,
                 body.get("origine") or "live",
+                approva=db.puo_approvare(c, operatore, ctx["cfg"]),
                 admin=db.e_admin(c, operatore, ctx["cfg"]))
             if op_id and st == 200:
                 c.execute("INSERT OR REPLACE INTO ops(op_id,ts,esito,rev) VALUES(?,?,?,?)",
@@ -252,8 +261,10 @@ def bulk(ctx, q, body):
         c = db.connect()
         try:
             admin = db.e_admin(c, operatore, ctx["cfg"])
-            # "Completa/Azzera tutte" (#ANCHOR: massa) e' dell'amministratore:
-            # un tecnico non azzera il lavoro di tutti in un clic (#ANCHOR: ruoli).
+            approva = db.puo_approvare(c, operatore, ctx["cfg"])
+            # "Completa/Azzera tutte" (#ANCHOR: massa) e' del solo amministratore:
+            # ne' un tecnico ne' un approvatore azzerano il lavoro di tutti in un
+            # clic (#ANCHOR: ruoli). "Approva tutte" e' origine 'approvazione'.
             if origine == "massa" and not admin:
                 c.close()
                 return 403, {"errore": "le azioni di massa sono dell'amministratore"}, None
@@ -269,7 +280,7 @@ def bulk(ctx, q, body):
                 st, out = _applica(c, operatore, int(v["id_service"]), anno,
                                    int(v["mese"]), v["campo"], v.get("valore"),
                                    v.get("base_rev"), v.get("base_valore"), op_id,
-                                   origine, admin=admin)
+                                   origine, approva=approva, admin=admin)
                 out["campo"] = v["campo"]
                 out["http"] = st
                 esiti.append(out)
@@ -466,7 +477,8 @@ def ripristina(ctx, q, body):
                     continue
                 st, out = _applica(c, operatore, e["id_service"], e["anno"], e["mese"],
                                    e["campo"], e["da"], None, None,
-                                   "%s:%d" % (blocco, i), "ripristino", admin=True)
+                                   "%s:%d" % (blocco, i), "ripristino",
+                                   approva=True, admin=True)
                 out["campo"] = e["campo"]
                 out["http"] = st
                 esiti.append(out)
@@ -499,13 +511,15 @@ def _solo_admin(c, body, ctx):
 
 
 def ruolo(ctx, q, body):
-    """Un admin nomina (o declassa) un collega. I nomi in config.json restano
-    admin comunque; l'ultimo admin non si puo' declassare, altrimenti nessuno
-    approverebbe piu' niente."""
+    """Un admin nomina (o declassa) un collega fra i tre ruoli (#ANCHOR: ruoli):
+    'admin' (tutto), 'approvatore' (approva rapportino e ricambi e basta),
+    'tecnico' (propone). I nomi in config.json restano admin comunque; l'ultimo
+    admin non si puo' declassare, altrimenti nessuno azzererebbe, sincronizzerebbe
+    o ripristinerebbe piu' niente."""
     nome = (body.get("nome") or "").strip()[:40]
     nuovo = body.get("ruolo")
-    if not nome or nuovo not in ("admin", "tecnico"):
-        return 400, {"errore": "servono nome e ruolo (admin|tecnico)"}, None
+    if not nome or nuovo not in db.RUOLI:
+        return 400, {"errore": "servono nome e ruolo (admin|approvatore|tecnico)"}, None
     with db.WRITE_LOCK, db.sess() as c:
         no = _solo_admin(c, body, ctx)
         if no:
@@ -513,7 +527,7 @@ def ruolo(ctx, q, body):
         if nome in ctx["cfg"].get("amministratori", []) and nuovo != "admin":
             return 400, {"errore": "%s e' amministratore per configurazione (config.json)" % nome}, None
         attuali = db.ruoli(c, ctx["cfg"])
-        if nuovo == "tecnico" and attuali.get(nome) == "admin" and \
+        if nuovo != "admin" and attuali.get(nome) == "admin" and \
                 sum(1 for r in attuali.values() if r == "admin") <= 1:
             return 400, {"errore": "e' l'unico amministratore: nominane prima un altro"}, None
         c.execute("""INSERT INTO operatori(nome,ultimo_accesso,ruolo) VALUES(?,NULL,?)

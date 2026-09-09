@@ -22,12 +22,15 @@ Ogni mappatura si chiude in quattro spunte: `stampata` -> `controllata` (dal
 tecnico) -> `corretta` ("mappatura completa rapportino") -> `ricambi`
 ("controllo ricambi e scadenze"). L'ordine e il numero stanno in un posto solo:
 `CAMPI` in `web/js/stato.js` e `db.CAMPI` in `app/db.py`. Tutto il resto conta
-`PASSI`, mai "tre". **Due ruoli** (#ANCHOR: ruoli): il tecnico spunta tutto,
-ma `corretta` e `ricambi` restano **proposte** (valore 2) finche' un
-**amministratore** non le approva; solo l'admin completa/azzera in blocco,
-sincronizza da Access, cambia le impostazioni, "Ripristina" dal diario e
-cancella i PDF di un anno intero (i PDF di un singolo sito li butta chiunque). Un
-passo e' fatto solo se vale 1: `fatto(c, campo)`, mai un truthy.
+`PASSI`, mai "tre". **Tre ruoli** (#ANCHOR: ruoli): il **tecnico** spunta tutto,
+ma `corretta` e `ricambi` restano **proposte** (valore 2); l'**approvatore** le
+approva o le respinge e nient'altro; l'**amministratore** in piu' completa/azzera
+in blocco, sincronizza da Access, cambia le impostazioni, "Ripristina" dal diario
+e cancella i PDF di un anno intero (i PDF di un singolo sito li butta chiunque).
+Due poteri, due domande distinte: `possoApprovare()`/`puo_approvare()` e
+`sonoAdmin()`/`e_admin()`. Il ruolo e' legato alla **casella del login**, mai al
+nome, e il **nome non si cambia dall'app**. Un passo e' fatto solo se vale 1:
+`fatto(c, campo)`, mai un truthy.
 
 **Il concetto meno ovvio e' il tempo**: i mesi in Access appartengono al
 contratto, non a un anno, e vanno calcolati per anno; `data_scadenza` non e' la
@@ -157,6 +160,23 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-09 (25a sessione)
+
+Branch `ruoli-falla-cambio-nome` (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-25a-sessione---la-falla-del-cambio-nome-e-il-terzo-ruolo),
+[ai/decisioni.md](ai/decisioni.md) 22). **Chiusa una falla nei permessi**
+(#ANCHOR: ruoli): `imposta_operatore` (`cloud/03-letture.sql`) si prendeva la
+riga di un collega omonimo con `on conflict (nome)`, quindi bastava rinominarsi
+come l'amministratore per declassarlo; e il client ricavava il proprio ruolo da
+`st.ruoli[rete.operatore]`, cioe' dal nome digitato. Ora il ruolo lo dice il
+server (`ruolo_corrente()` / `db.ruolo_di`, campo `ruolo` nel bootstrap), la
+riga di un'altra casella non si tocca mai, e **il campo per cambiare nome non
+c'e' piu'**: `#io` apre una scheda in sola lettura, la riga in `operatori` nasce
+al login. **Terzo ruolo `approvatore`**: approva `corretta`/`ricambi` e basta.
+`_valore_per_ruolo`/`_applica` portano `p_approva` e `p_admin` separati (vecchie
+firme droppate). **Da rieseguire su Supabase, in ordine: `01`, `02`, `03`,
+`04`.** Service worker `crono-guscio-v17`.
 
 ## Stato al 2026-09-09 (24a sessione)
 

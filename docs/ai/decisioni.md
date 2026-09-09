@@ -888,3 +888,44 @@ comunque a 50 MB per file, e un PDF da 60 MB e' lento da aprire per il
 tecnico e mangia il traffico incluso. La strada giusta, quando servira', e'
 la scala adattiva in `ponte.js` (288 dpi sui documenti corti, 192 sui
 lunghi), non un piano piu' caro per archiviare JPEG.
+
+## 22. Il ruolo sta sulla casella, non sul nome; e chi approva non e' chi comanda (25a sessione)
+
+Il nome che firma le spunte e il ruolo erano la stessa chiave: `operatori.nome`
+era la primary key, il ruolo una sua colonna, e il client chiedeva "sono
+admin?" con `st.ruoli[rete.operatore]`, cioe' col nome scritto nel campo
+"Chi sei?". Comodo finche' nessuno lo cambia. Cambiandolo succedeva questo:
+
+- online `imposta_operatore` faceva `on conflict (nome) do update set email =
+  excluded.email, ruolo = excluded.ruolo` - la riga del nome che scrivevi
+  diventava tua, con la tua casella e il tuo ruolo. Scrivere il nome
+  dell'amministratore lo cancellava di fatto: la sua casella spariva da
+  `operatori` e nessuno approvava piu' niente;
+- il client, appena rinominato, si vedeva togliere i permessi a schermo,
+  perche' `st.ruoli` non conosceva ancora il nome nuovo.
+
+**La decisione**: il nome e' *solo una firma*, l'identita' e' la casella del
+login. Da qui tre conseguenze, tutte nel codice:
+
+1. **Il nome non si cambia dall'app.** Il campo e' sparito; `#io` mostra una
+   scheda in sola lettura. Online il nome viene dalla posta; in locale si
+   scrive una volta al primissimo avvio. Non e' un ripiego: finche' quel campo
+   esiste, esiste un modo per scrivere sulla riga di un altro.
+2. **Nessuna scrittura tocca la riga di un'altra casella.** Un omonimo si
+   disambigua allungando il *proprio* nome, mai prendendo il suo.
+3. **Il ruolo di chi lavora lo dice il server** (`ruolo_corrente()` /
+   `db.ruolo_di`) e viaggia nel bootstrap come `ruolo`. La rubrica `ruoli`
+   resta, ma solo per disegnare l'elenco delle impostazioni: da un dizionario
+   indicizzato per nome non si decide piu' niente.
+
+L'altra meta' della sessione e' il terzo ruolo. La richiesta era precisa:
+"uno che approva ma non cancella tutte le spunte". Si poteva fare con un
+permesso per azione (una tabella di flag); si e' scelto **un terzo ruolo con un
+nome**, `approvatore`, perche' l'interfaccia deve poter dire in due parole cosa
+sei - la pillola accanto al nome, la riga nelle impostazioni - e perche' finora
+i poteri chiesti sono due soli: *approvare* e *comandare*. Il codice li tratta
+come due domande separate ovunque (`puo_approvare()` / `e_admin()`,
+`p_approva` / `p_admin`), quindi un quarto ruolo domani e' una riga, non una
+riscrittura. Rimettere una spunta *in attesa* (il valore 2, cioe' il
+ripristino) resta del solo amministratore: e' una macchina del tempo, non
+un'approvazione.
