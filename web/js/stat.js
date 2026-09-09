@@ -57,7 +57,7 @@ import { h, esc, modale } from './ui.js';
 import { apriCassetto } from './cassetto.js';
 import {
   st, cella, gruppiFiltrati, mappaturaSito,
-  CAMPI, SIGLA, PASSI, ETICHETTA,
+  CAMPI, SIGLA, PASSI, ETICHETTA, fatto,
 } from './stato.js';
 
 let radice = null;
@@ -139,7 +139,7 @@ function raccogli() {
          modello tiene in locale, e la carta lo dichiara. */
       for (let m = 1; m <= 12; m++) {
         const c = cella(s.id, m);
-        const n = c.s + c.c + c.k + c.r;
+        const n = CAMPI.filter(k => fatto(c, k)).length;   // una proposta (2) non e' un passo fatto
         if (!n) continue;
         r.spunte += n;
         for (let i = 0; i < n; i++) conta(c.by, 'spunte');
@@ -152,7 +152,7 @@ function raccogli() {
       else if (ma.ritardo) { r.ritardo++; arretrate++; }
       if (ma.n > 0) iniziate++;
       const c0 = cella(s.id, ma.mese);
-      for (const c of CAMPI) if (c0[SIGLA[c]]) passo[c]++;
+      for (const c of CAMPI) if (fatto(c0, c)) passo[c]++;
     }
     r.aperti += aperti;
     if (aperti) r.clienti++;

@@ -805,3 +805,42 @@ Costo: `celle_prec` nel bootstrap (l'anno prima, ~600 celle) e una ridipintura
 di tutta la riga a ogni spunta (undici nodi). Niente colonne nuove: il modello
 resta "un bit per campo per cella", e l'eredita' si ricalcola a ogni disegno
 come il ritardo.
+
+## 20. Due ruoli, e le due spunte che valgono solo col via dell'amministratore (22a sessione)
+
+Richiesta: *"separa la gestione dei ruoli [...] l'admin ha il ruolo di
+approvare le spunte di rapportino e ricambi [...] solo lui puo' azzerare o
+completare tutte le spunte [...] un tastino di reversibilita' [...] solo l'admin
+puo' sincronizzare da access"*.
+
+**La proposta e' un terzo valore nella stessa colonna, non una tabella a
+parte.** `corretta` e `ricambi` valgono 0, 1 o **2 = proposta in attesa**.
+L'alternativa - colonne `corretta_proposta_da/il` o una tabella `proposte` -
+avrebbe spezzato il merge per campo (decisione 7), che ragiona su un valore
+solo per campo, e la coda offline, che rimanda intenzioni. Col 2 tutto il
+giro (rev, base_valore, 409, replay, Realtime) resta com'e': cambia solo che
+il server traduce l'intenzione secondo il ruolo prima di scrivere
+(`_valore_per_ruolo`, gemello Python e SQL) e che "e' fatto?" si chiede con
+`=== 1`. Il prezzo e' aver dovuto trovare ogni `c[SIGLA[campo]]` truthy nel
+frontend: sono passati tutti per `fatto()`.
+
+**Il ruolo lo decide il server, il client nasconde le porte chiuse.** Menu e
+pillola cambiano faccia per il tecnico, ma i 403 su toggle, bulk `massa`,
+sync, impostazioni e ruolo scattano anche a chi forgia la richiesta. Con una
+differenza onesta fra i due mondi: online il ruolo e' attaccato alla casella
+del login (`e_admin()`), in locale a un nome scritto a mano piu' il seme di
+`config.json` - senza password (decisione 3) e' una convenzione fra colleghi,
+e la documentazione lo dice.
+
+**La reversibilita' e' nel diario, non un "undo" globale.** Ogni riga di
+`eventi` sa `da` e `a`: "Ripristina" rimette `da` con `origine:'ripristino'`,
+e la mossa finisce anch'essa nel diario. Vale su tutti, admin compreso, e
+vale sull'unico posto dove si vede la storia intera; un undo a pila per
+utente non avrebbe coperto le mosse degli altri.
+
+**Le azioni multiple restano ai tecnici, quelle di massa no.** "Completa
+tutte / Azzera tutte" (menu Azioni, `origine:'massa'`) sono dell'admin:
+azzerare il lavoro di tutti in un clic e' la cosa da proteggere. La selezione
+nella vista Mese e "Chiudi la mappatura" nel cassetto passano dallo stesso
+`spuntaMolte` ma senza quell'origine: sono lavoro ordinario, e sui due campi
+il tecnico propone come sempre.

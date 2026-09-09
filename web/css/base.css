@@ -130,6 +130,23 @@ button { background: none; border: 0; cursor: pointer; }
   border-radius: var(--r-tonda); transition: var(--rapido); }
 .io:hover { background: var(--fondo); }
 .io b { font-weight: 500; font-size: var(--t-mini); }
+/* il ruolo accanto al nome (#ANCHOR: ruoli): compare solo per l'amministratore */
+.ruolo {
+  font: 600 var(--t-micro)/1 var(--f-dato); text-transform: uppercase; letter-spacing: .05em;
+  color: var(--marchio); background: var(--marchio-tenue); border-radius: var(--r-tonda);
+  padding: 3px 6px 2px; flex: none;
+}
+.pill.debole .ruolo { color: var(--tenue); background: var(--superficie-2); }
+/* la coda delle approvazioni: ambra, come una cosa che aspetta */
+.pill.attesa {
+  color: var(--allerta); border-color: color-mix(in srgb, var(--allerta) 45%, transparent);
+  background: var(--allerta-tenue); font-weight: 600;
+}
+.pill.attesa:hover { color: var(--allerta); border-color: var(--allerta); background: var(--allerta-tenue); }
+.elenco-diario .ripristina, .storia .ripristina { margin-left: auto; flex: none; }
+.elenco-diario .azioni-riga { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.elenco-diario .d-chi.nudo { background: none; border: 0; padding: 0; font: inherit; color: var(--tenue); cursor: pointer; text-align: left; }
+.elenco-diario .d-chi.nudo:hover { color: var(--marchio); text-decoration: underline; }
 
 /* ------------------------------------------------------- barra strumenti -- */
 .strumenti {

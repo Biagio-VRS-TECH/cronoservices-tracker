@@ -262,6 +262,13 @@
 .cella[data-c="2"] .seg.c { background: color-mix(in srgb, var(--st-controllata) 40%, var(--superficie)); transform: none; }
 .cella[data-k="2"] .seg.k { background: color-mix(in srgb, var(--st-corretta) 40%, var(--superficie));    transform: none; }
 .cella[data-r="2"] .seg.r { background: color-mix(in srgb, var(--st-ricambi) 40%, var(--superficie));     transform: none; }
+/* PASSO PROPOSTO (data-x="3"): rapportino o ricambi spuntati da un tecnico e
+   in attesa dell'amministratore (#ANCHOR: ruoli in js/stato.js). A righe col
+   colore del passo: "qualcuno l'ha fatto, non vale ancora". */
+.cella[data-k="3"] .seg.k { background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, color-mix(in srgb, var(--st-corretta) 22%, var(--superficie)) 2px 5px); transform: none; }
+.cella[data-r="3"] .seg.r { background: repeating-linear-gradient(135deg, var(--st-ricambi) 0 2px, color-mix(in srgb, var(--st-ricambi) 22%, var(--superficie)) 2px 5px); transform: none; }
+.cella[data-s="3"] .seg.s { background: repeating-linear-gradient(135deg, var(--st-stampata) 0 2px, color-mix(in srgb, var(--st-stampata) 22%, var(--superficie)) 2px 5px); transform: none; }
+.cella[data-c="3"] .seg.c { background: repeating-linear-gradient(135deg, var(--st-controllata) 0 2px, color-mix(in srgb, var(--st-controllata) 22%, var(--superficie)) 2px 5px); transform: none; }
 /* MAPPATURA COMPLETA: la capsula intera si accende di verde, non solo un alone.
    E' il segnale piu' importante della griglia - "questo sito e' a posto per
    l'anno" - e si deve leggere da lontano, scorrendo 274 righe. I quattro
@@ -398,6 +405,12 @@
 .passo .et { flex: 1; font-size: var(--t-mini); font-weight: 500; }
 /* passo ereditato da una visita prima: spuntato ma tenue, con dove e' stato
    fatto; non e' un bottone che fa qualcosa qui (#ANCHOR: passi-cumulativi) */
+/* passo PROPOSTO, in attesa dell'admin (#ANCHOR: ruoli): casella a righe col
+   colore del passo, niente segno di spunta */
+.passo.proposto .box { background: repeating-linear-gradient(135deg, var(--bordo-forte) 0 2px, transparent 2px 5px); }
+.passo.proposto[data-campo="corretta"] .box { border-color: var(--st-corretta); background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, transparent 2px 5px); }
+.passo.proposto[data-campo="ricambi"] .box  { border-color: var(--st-ricambi);  background: repeating-linear-gradient(135deg, var(--st-ricambi) 0 2px, transparent 2px 5px); }
+.passo.proposto .et { font-style: italic; }
 .passo.eredita { color: var(--tenue); cursor: default; }
 .passo.eredita .box { opacity: .5; }
 .passo.eredita .et { font-weight: 400; }

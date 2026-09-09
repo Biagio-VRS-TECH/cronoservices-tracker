@@ -15,6 +15,7 @@ import {
 import {
   st, cella, statoCella, spunta, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE,
   mappaturaSito, scadEffettiva, on, doveFatto,
+  prossimo, fatto, proposto, notaProposta, descriviEvento, ripristina, sonoAdmin,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null;
@@ -45,8 +46,9 @@ export function apriCassetto(id) {
 
 /* Un passo ereditato da una visita prima (#ANCHOR: passi-cumulativi in
    stato.js) si vede spuntato ma tenue, e dice dove e' stato fatto. */
-const titoloPasso = (campo, er) => er
+const titoloPasso = (campo, er, c) => er
   ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  : (c && proposto(c, campo)) ? notaProposta(c, campo)
   : ETICHETTA[campo];
 
 function rigaMese(id, m, previsto) {
@@ -63,14 +65,16 @@ function rigaMese(id, m, previsto) {
       h('b', { testo: st.mesiNome[m - 1] }),
       h('div.meta', { html: dettagli })),
     h('div.passi-riga', {}, CAMPI.map(campo =>
-      h('button.passo' + (e.ered[campo] ? '.eredita' : ''), {
-        role: 'checkbox', 'aria-checked': String(!!c[SIGLA[campo]] || !!e.ered[campo]),
+      h('button.passo' + (e.ered[campo] ? '.eredita' : '') +
+        (!e.ered[campo] && proposto(c, campo) ? '.proposto' : ''), {
+        role: 'checkbox',
+        'aria-checked': (!e.ered[campo] && proposto(c, campo)) ? 'mixed' : String(fatto(c, campo) || !!e.ered[campo]),
         'data-campo': campo,
-        title: titoloPasso(campo, e.ered[campo]),
+        title: titoloPasso(campo, e.ered[campo], c),
         onclick: () => {
           const er = statoCella(id, m).ered[campo];
           if (er) return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}. Per toglierla vai su quel mese.`);
-          spunta(id, m, campo, !cella(id, m)[SIGLA[campo]]);
+          spunta(id, m, campo, prossimo(id, m, campo));
         },
       },
         h('span.box', { html: ICO.ok }),
@@ -147,7 +151,7 @@ function disegna() {
           onclick: () => {
             const m = ma.mese;
             if (!m) return avviso('Nessun mese di manutenzione su questo sito.');
-            const voci = CAMPI.filter(campo => !cella(s.id, m)[SIGLA[campo]])
+            const voci = CAMPI.filter(campo => !fatto(cella(s.id, m), campo))
               .map(campo => ({ id: s.id, mese: m, campo, valore: 1 }));
             if (!voci.length) return avviso('Mappatura già completa qui.');
             spuntaMolte(voci);
@@ -225,10 +229,11 @@ function rinfresca(mese) {
   riga.classList.toggle('finita', e.completa);
   riga.classList.toggle('ritardo', e.ritardo && !e.completa);
   for (const b of riga.querySelectorAll('.passo')) {
-    const er = e.ered[b.dataset.campo];
-    b.setAttribute('aria-checked', String(!!c[SIGLA[b.dataset.campo]] || !!er));
+    const campo = b.dataset.campo, er = e.ered[campo], pr = !er && proposto(c, campo);
+    b.setAttribute('aria-checked', pr ? 'mixed' : String(fatto(c, campo) || !!er));
     b.classList.toggle('eredita', !!er);
-    b.title = titoloPasso(b.dataset.campo, er);
+    b.classList.toggle('proposto', pr);
+    b.title = titoloPasso(campo, er, c);
   }
   const meta = riga.querySelector('.meta');
   if (meta) {
@@ -267,9 +272,19 @@ async function caricaStoria(id) {
     ? righe.map(e => h('li', {},
       h('time', { testo: quando(e.ts) }),
       h('span', {
-        html: `<b>${esc(e.operatore)}</b> · ${esc(st.mesiNome[(e.mese || 1) - 1])} · ` +
-          (e.campo === 'nota' ? 'nota' : `${e.a ? 'spuntato' : 'tolto'} <i>${esc(e.campo)}</i>`)
-      })))
+        html: `<b>${esc(e.operatore)}</b> · ${esc(st.mesiNome[(e.mese || 1) - 1])}${e.anno !== st.anno ? ' ' + e.anno : ''} · ` +
+          descriviEvento(e),
+      }),
+      /* il tastino di reversibilita' dell'admin (#ANCHOR: ruoli) */
+      sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
+        testo: 'Ripristina', title: 'Rimetti questo passo com\u2019era prima di questa modifica',
+        onclick: async ev => {
+          ev.currentTarget.disabled = true;
+          const ok = await ripristina(e);
+          avviso(ok ? 'Ripristinato.' : 'Non ripristinato: prova a ricaricare.', { tono: ok ? 'ok' : 'allerta' });
+          caricaStoria(id);
+        },
+      }) : null))
     : h('li', { testo: 'Nessuna modifica registrata.' }));
   (nodo.querySelector('.storia') || nodo.querySelector('.js-attesa'))?.replaceWith(ul);
 }

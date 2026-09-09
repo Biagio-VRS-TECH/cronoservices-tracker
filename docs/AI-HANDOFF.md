@@ -22,7 +22,11 @@ Ogni mappatura si chiude in quattro spunte: `stampata` -> `controllata` (dal
 tecnico) -> `corretta` ("mappatura completa rapportino") -> `ricambi`
 ("controllo ricambi e scadenze"). L'ordine e il numero stanno in un posto solo:
 `CAMPI` in `web/js/stato.js` e `db.CAMPI` in `app/db.py`. Tutto il resto conta
-`PASSI`, mai "tre".
+`PASSI`, mai "tre". **Due ruoli** (#ANCHOR: ruoli): il tecnico spunta tutto,
+ma `corretta` e `ricambi` restano **proposte** (valore 2) finche' un
+**amministratore** non le approva; solo l'admin completa/azzera in blocco,
+sincronizza da Access, cambia le impostazioni e "Ripristina" dal diario. Un
+passo e' fatto solo se vale 1: `fatto(c, campo)`, mai un truthy.
 
 **Il concetto meno ovvio e' il tempo**: i mesi in Access appartengono al
 contratto, non a un anno, e vanno calcolati per anno; `data_scadenza` non e' la
@@ -106,6 +110,7 @@ ogni sync (ne tiene 20).
 | `04-sicurezza.sql` | RLS, permessi, pubblicazione Realtime |
 | `05-sync.sql` | `sync_applica`: il gemello di `sync.esegui` |
 | `06-documenti.sql` | tabella `documenti`, bucket Storage, `registra_documento` (gemello di `api.salva_documento`) |
+| `07-ruoli.sql` | il primo amministratore (per casella). Gli altri si nominano dall'app |
 | `installa-sync-cloud.cmd` | crea l'operazione pianificata delle 06:00 |
 | `sync-cloud.cmd` | un travaso a mano |
 | `netlify-build.sh` | scrive `nuvola-config.js` in pubblicazione |
@@ -125,7 +130,7 @@ ogni sync (ne tiene 20).
    `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
    `mappatura-anno`, `classe-mese`, `passi`, `passi-cumulativi`, `fuoco`, `massa`,
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
-   `affinita`.
+   `affinita`, `ruoli`, `approvazioni`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -147,6 +152,33 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-09 (22a sessione)
+
+Una richiesta in quattro parti (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-22a-sessione---due-ruoli-lamministratore-approva-azzera-sincronizza-ripristina),
+[ai/decisioni.md](ai/decisioni.md) 20).
+
+**Ruoli** (#ANCHOR: ruoli): `operatori.ruolo` = 'admin' | 'tecnico'. Locale:
+seme in `config.json["amministratori"]` + `/api/ruolo`; online: legato alla
+casella (`e_admin()`), primo admin con `cloud/07-ruoli.sql`, poi Azioni >
+Impostazioni > *Chi e' amministratore*. Il bootstrap porta `ruoli`;
+`sonoAdmin()` in `stato.js`. **Approvazioni**: `corretta`/`ricambi`
+(`DA_APPROVARE`) valgono 0/1/**2 = proposta**; la traduzione intenzione ->
+valore e' `_valore_per_ruolo` (api.py, 02-funzioni.sql) e `effettivo()`
+(stato.js); un tecnico non toglie un 1 su quei campi (403 `vietato`). A
+schermo: segmento a righe `data-x="3"`, `.passo.proposto` /
+`aria-checked="mixed"`, pillola ambra `#approva` -> modale *Da approvare*
+(#ANCHOR: approvazioni in `app.js`). **Solo admin**: Completa/Azzera tutte
+(`origine:'massa'`), Sincronizza, Impostazioni, e **Ripristina** su ogni riga
+del diario/storia (`ripristina(e)`, `origine:'ripristino'`); `storia` e
+`attivita` portano `da` e `origine`, `descriviEvento(e)` li racconta.
+
+**Da rieseguire su Supabase, in ordine**: `01`, `02` (drop della vecchia
+`_applica`), `03`, `04`, poi `07-ruoli.sql` con la casella dell'admin.
+Provato in browser su `data/prova.db` (porta 8775). Service worker
+`crono-guscio-v14`. Le cose lasciate fuori (identita' locale senza password,
+ripristino della nota, undo di un blocco intero) sono in da-fare.md.
 
 ## Stato al 2026-09-09 (20a sessione)
 

@@ -7,5 +7,6 @@
   "port": 8770,
   "anno_default": null,
   "sync_all_avvio": true,
+  "amministratori": [],
   "backup_da_tenere": 20
 }

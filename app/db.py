@@ -17,6 +17,11 @@ MESI_NOME = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
 # I quattro passi di una mappatura, in ordine. L'ordine conta: e' quello dei
 # segmenti della cella e dei tasti 1..4.  "ricambi" = controllo ricambi e scadenze.
 CAMPI = ("stampata", "controllata", "corretta", "ricambi")
+# I due passi che il tecnico PROPONE e l'amministratore APPROVA (#ANCHOR: ruoli).
+# Un tecnico che li spunta li porta a 2 = "proposta, in attesa"; solo un admin
+# li porta a 1 (approvata) e solo lui toglie una spunta approvata.
+DA_APPROVARE = ("corretta", "ricambi")
+PROPOSTA = 2
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -85,8 +90,11 @@ CREATE TABLE IF NOT EXISTS ops (
   op_id TEXT PRIMARY KEY, ts TEXT, esito TEXT, rev INTEGER
 );
 
+-- `ruolo`: 'admin' | 'tecnico' (#ANCHOR: ruoli). L'admin approva rapportino e
+-- ricambi, fa le azioni di massa, sincronizza da Access e ripristina dal diario.
 CREATE TABLE IF NOT EXISTS operatori (
-  nome TEXT PRIMARY KEY, ultimo_accesso TEXT
+  nome TEXT PRIMARY KEY, ultimo_accesso TEXT,
+  ruolo TEXT NOT NULL DEFAULT 'tecnico'
 );
 
 CREATE TABLE IF NOT EXISTS sync_log (
@@ -124,6 +132,7 @@ AGGIUNTE = [
     ("services", "causale_rinnovo", "TEXT"),
     ("services", "rinnovo_auto", "INTEGER NOT NULL DEFAULT 0"),
     ("mappature", "ricambi", "INTEGER NOT NULL DEFAULT 0"),
+    ("operatori", "ruolo", "TEXT NOT NULL DEFAULT 'tecnico'"),
 ]
 
 
@@ -175,3 +184,32 @@ def get_meta(c, k, default=None):
 def set_meta(c, k, v):
     c.execute("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
               (k, str(v)))
+
+
+# ------------------------------------------------------------------ ruoli ----
+# #ANCHOR: ruoli. Chi e' admin: i nomi in config.json["amministratori"] (il seme,
+# non si possono declassare dall'app) piu' chi ha ruolo='admin' in `operatori`
+# (nominato da un admin con /api/ruolo). In locale l'identita' e' un nome
+# scritto a mano, quindi il ruolo e' una convenzione fra colleghi; online e'
+# legato alla casella del login (cloud/02-funzioni.sql, e_admin()).
+def ruolo_di(c, nome, cfg=None):
+    nome = (nome or "").strip()
+    if not nome:
+        return "tecnico"
+    if nome in (cfg or {}).get("amministratori", []):
+        return "admin"
+    r = c.execute("SELECT ruolo FROM operatori WHERE nome=?", (nome,)).fetchone()
+    return r["ruolo"] if r and r["ruolo"] == "admin" else "tecnico"
+
+
+def e_admin(c, nome, cfg=None):
+    return ruolo_di(c, nome, cfg) == "admin"
+
+
+def ruoli(c, cfg=None):
+    """{nome: ruolo} per tutti gli operatori conosciuti, seme compreso."""
+    out = {r["nome"]: r["ruolo"] or "tecnico"
+           for r in c.execute("SELECT nome, ruolo FROM operatori")}
+    for n in (cfg or {}).get("amministratori", []):
+        out[n] = "admin"
+    return out

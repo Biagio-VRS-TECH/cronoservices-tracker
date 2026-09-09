@@ -33,7 +33,12 @@ e il contratto degli endpoint.
 - `eventi` — log append-only (chi, quando, campo, da, a, `op_id`, `origine`).
   Alimenta la storia della cella e il diario. Non si potano.
 - `ops` — `op_id` gia' applicati: e' l'idempotenza della coda offline.
-- `operatori` — solo nome + ultimo accesso (nessuna password, scelta del committente).
+- `operatori` — nome + ultimo accesso + `ruolo` ('admin' | 'tecnico', #ANCHOR: ruoli).
+  Nessuna password (scelta del committente): in locale il ruolo e' una convenzione,
+  col seme `config.json["amministratori"]`; online e' legato alla casella del login.
+- I quattro campi di `mappature` valgono 0/1, ma `corretta` e `ricambi` anche
+  **2 = proposta** di un tecnico in attesa dell'admin (`db.DA_APPROVARE`,
+  `db.PROPOSTA`). "Fatto" e' solo `== 1`.
 - `sync_log` — un record per sync con il diff.
 - `meta` — chiave/valore: `ultimo_sync` e `inizio_tracciamento` (`AAAA-MM`, il
   mese da cui l'azienda registra le spunte qui).
@@ -65,7 +70,8 @@ scritto (esclusione per `client_id` nel body).
 | GET | `/api/attivita?limit=` | diario globale con ragione sociale |
 | GET | `/api/incongruenze?anno=` | aperti senza mesi, mesi != QVA, spunte orfane. **Nessuna vista lo chiama piu'** dalla 7a sessione (i tre pannelli sono stati rimossi, vedi decisioni.md 15b): resta perche' rimetterlo a schermo e' quindici righe |
 | GET | `/api/export.csv?anno&mese` | CSV `;` + BOM (Excel italiano), una colonna per passo, piu' `Ruolo` (`MAPPATURA` / `visita`) |
-| POST | `/api/operatore` | registra il nome, ritorna l'elenco |
+| POST | `/api/operatore` | registra il nome, ritorna l'elenco, `ruoli` e il `ruolo` di chi chiama |
+| POST | `/api/ruolo` | `{nome, ruolo}`: un admin nomina o declassa (#ANCHOR: ruoli). 403 se non e' admin, 400 sull'ultimo admin o sui nomi di config.json |
 | POST | `/api/ping` | presenza, TTL 45 s; ritorna chi e' collegato |
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |
 | POST | `/api/sync` | rilegge Access. Timeout client 300 s |

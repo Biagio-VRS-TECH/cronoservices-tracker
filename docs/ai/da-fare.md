@@ -3,6 +3,86 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (22a sessione) - due ruoli: l'amministratore approva, azzera, sincronizza, ripristina
+
+*"separa la gestione dei ruoli, gli utenti normali e l'utente admin: l'admin
+approva le spunte di rapportino e ricambi [...] solo lui azzera o completa
+tutte le spunte [...] solo lui ha un tastino di reversibilita' nelle azioni
+degli utenti, comprese le sue [...] solo l'admin puo' sincronizzare da access"*.
+Decisione 20 in [decisioni.md](decisioni.md), #ANCHOR: ruoli e approvazioni.
+
+- **Il ruolo** sta in `operatori.ruolo` ('admin' | 'tecnico'), SQLite e
+  Postgres. In locale il seme e' `config.json["amministratori"]` (nomi che
+  restano admin comunque); online il ruolo e' legato alla **casella** del
+  login (`e_admin()`), il primo si nomina con `cloud/07-ruoli.sql`, gli altri
+  dall'app (Azioni > Impostazioni > Chi e' amministratore -> `/api/ruolo` /
+  `imposta_ruolo`). L'ultimo admin non si declassa. Il bootstrap porta
+  `ruoli`; `st.ruoli`, `sonoAdmin()`, `eAdmin(nome)` in `stato.js`.
+- **Le due spunte da approvare** (`DA_APPROVARE` = corretta, ricambi) hanno un
+  terzo valore nella stessa colonna: **2 = proposta**. Il tecnico che le
+  spunta scrive 2 (e puo' ritirarlo, 2 -> 0); l'admin le porta a 1 (approva),
+  a 0 (respinge) o, dal ripristino, di nuovo a 2. Un tecnico **non toglie un
+  1** su quei campi: 403 `vietato`, e il client rimette la cella com'e'
+  (`esitoFallita` ora riceve la cella del server). La traduzione
+  intenzione -> valore e' in un posto per lato: `api._valore_per_ruolo` /
+  `_valore_per_ruolo` SQL / `effettivo()` in `stato.js`. `spunta()` e
+  `spuntaMolte()` la applicano; `prossimo(id, mese, campo)` e' il valore che
+  un clic vuole (2 -> 1 per l'admin, 2 -> 0 per il tecnico).
+- **Il 2 non conta mai come fatto**: `fatto(c, campo)` (=== 1) sostituisce
+  ogni `c[SIGLA[campo]]` truthy - passi cumulativi, `statoCella.mie`, stat,
+  CSV (Python `== 1`, SQL era gia' `= 1`). `statoCella().attesa` elenca i
+  passi proposti. A schermo: segmento **a righe** (`data-x="3"`,
+  `.cella.attesa`), `.passo.proposto` con `aria-checked="mixed"` in Mese,
+  cassetto e popover, tooltip "proposta da X, in attesa dell'amministratore".
+- **La coda dell'admin**: pillola ambra `#approva` ("3 da approvare"), solo
+  per lui e solo se c'e' qualcosa, apre *Da approvare* (#ANCHOR: approvazioni
+  in `app.js`): chi, mese, passo, sito (clic -> cassetto), Approva / Respingi
+  per riga, Approva tutte con Annulla. Le origini `approvazione`, `respinta`,
+  `ripristino`, `massa`, `annulla` finiscono in `eventi.origine`.
+- **Solo admin**: Completa/Azzera tutte (menu nascosto + `/api/bulk` con
+  `origine:'massa'` -> 403), Sincronizza da Access (`/api/sync` 403; online
+  il sync e' del PC dell'ufficio comunque), Impostazioni (`/api/impostazioni`
+  / `imposta_meta` 403). Il tecnico nel menu Azioni vede: Stampa, CSV, Diario,
+  Doppioni. Le azioni multiple della vista Mese (selezione + "tutte") e
+  "Chiudi la mappatura" del cassetto **restano a tutti**: passano da
+  `spuntaMolte` senza `origine:'massa'`, e sui due campi il tecnico propone.
+- **Ripristina** (il tastino di reversibilita'): nel Diario, nella storia del
+  popover e nelle ultime modifiche del cassetto, solo per l'admin, su ogni
+  riga di spunta di chiunque (sue comprese): rimette il campo a `da`, con
+  `origine:'ripristino'` (`ripristina(e)` in `stato.js`; su un altro anno va
+  dritto al server e aggiorna `cellePrec` se e' l'anno prima). `storia` e
+  `attivita` portano ora `da` e `origine`; `descriviEvento(e)` scrive "ha
+  proposto / approvato / respinto / ritirato / ripristinato".
+- Postgres: `01` (colonna `ruolo`), `02` (`e_admin`, `_valore_per_ruolo`,
+  `_applica` con `p_admin` - **drop della vecchia firma**), `03` (`ruoli` nel
+  bootstrap, `imposta_operatore` conserva il ruolo, `imposta_ruolo`,
+  `imposta_meta` solo admin, `da`/`origine` in storia e attivita), `04`
+  (grant `imposta_ruolo`, `e_admin`), nuovo `07-ruoli.sql`. **Da rieseguire
+  su Supabase nell'ordine 01, 02, 03, 04, poi 07 con la casella dell'admin.**
+- Provato in browser sulla copia `data/prova.db` (porta 8775) con due nomi:
+  tecnico propone/ritira e prende 403 sull'approvata; admin approva dalla coda,
+  ripristina dal diario (1 -> 2), nomina e declassa dalle Impostazioni, l'unico
+  admin non si declassa. Service worker a `crono-guscio-v14`.
+
+### Cosa manca / da decidere (ruoli)
+
+- **In locale l'identita' e' un nome scritto a mano**: chi scrive il nome
+  dell'admin nel "Chi sei?" e' admin. Non c'e' password (scelta del
+  committente, decisione 3). Online invece e' il login, e non si finge. Se
+  serve anche in locale, la strada e' un PIN in `config.json` chiesto dal
+  server a ogni scrittura admin: non fatto perche' non chiesto.
+- **Chi propone non e' tracciato nella cella**: `by` e' l'ultimo che l'ha
+  toccata. La coda mostra quello; il diario ha la verita' riga per riga.
+- **Il ripristino della nota** non c'e': `eventi` non conserva il testo
+  precedente (`da`/`a` sono interi). Servirebbe una colonna.
+- **Ripristino di un'azione di massa** e' riga per riga (una per spunta): un
+  "annulla tutto il blocco" dovrebbe raggruppare per `op_id`.
+- **Eliminare un PDF** (`/api/documento_elimina`) resta di tutti: non chiesto.
+- **Nessun avviso in diretta all'admin** quando arriva una proposta: la
+  pillola si aggiorna da sola, ma non suona.
+- **Il 2 in un anno "chiuso a dicembre"**: una proposta rimasta in attesa a
+  dicembre non si eredita nell'anno dopo (si eredita solo l'1). Voluto.
+
 ## Fatto il 2026-09-09 (21a sessione) - la barra del generatore durante il salvataggio
 
 - *"durante l'attivita' di salvataggio nella scheda generatore, la barra in

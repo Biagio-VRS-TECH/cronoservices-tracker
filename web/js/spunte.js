@@ -4,7 +4,7 @@
 import { h, ICO, esc, quando, avviso } from './ui.js';
 import { chiama, segnalaFuoco } from './api.js';
 import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spunta, spuntaMolte, salvaNota,
-  doveFatto } from './stato.js';
+  doveFatto, prossimo, fatto, proposto, descriviEvento, ripristina, sonoAdmin } from './stato.js';
 
 let aperto = null;
 
@@ -38,7 +38,7 @@ function attiva(campo) {
     return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. ` +
       'Per toglierla vai su quel mese.');
   }
-  spunta(id, mese, campo, !cella(id, mese)[SIGLA[campo]]);
+  spunta(id, mese, campo, prossimo(id, mese, campo));
   disegnaPassi();
 }
 
@@ -46,16 +46,20 @@ function attiva(campo) {
    ereditato dove e' stato fatto. */
 function rigaPasso(campo, n, e) {
   const er = e.ered[campo];
-  const on = !!e.c[SIGLA[campo]] || !!er;
-  return h('button.passo' + (er ? '.eredita' : ''), {
-    role: 'checkbox', 'aria-checked': String(on), 'data-campo': campo,
-    title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec` : null,
+  const pr = !er && proposto(e.c, campo);          // in attesa dell'admin (#ANCHOR: ruoli)
+  const on = fatto(e.c, campo) || !!er;
+  return h('button.passo' + (er ? '.eredita' : '') + (pr ? '.proposto' : ''), {
+    role: 'checkbox', 'aria-checked': pr ? 'mixed' : String(on), 'data-campo': campo,
+    title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec`
+      : pr ? (sonoAdmin() ? 'Proposta dal tecnico: un clic la approva' : 'In attesa dell\u2019amministratore: un clic la ritira')
+      : null,
     onclick: () => attiva(campo),
   },
     h('span.n-passo', { testo: n + '.' }),
     h('span.box', { html: ICO.ok }),
     h('span.et', { testo: ETICHETTA[campo] }),
     er ? h('span.chi', { testo: doveFatto(er) + (er.by ? ' \u00b7 ' + er.by : '') }) : null,
+    pr ? h('span.chi', { testo: 'in attesa' + (e.c.by ? ' \u00b7 ' + e.c.by : '') }) : null,
   );
 }
 
@@ -121,7 +125,7 @@ export function apriPop(bersaglio, id, mese) {
           const v = e.n !== PASSI;
           // si mettono solo i passi che mancano davvero (non gli ereditati) e
           // si tolgono solo quelli messi in questo mese
-          const voci = CAMPI.filter(k => v ? (!e.c[SIGLA[k]] && !e.ered[k]) : !!e.c[SIGLA[k]])
+          const voci = CAMPI.filter(k => v ? (!fatto(e.c, k) && !e.ered[k]) : e.c[SIGLA[k]] !== 0)
             .map(campo => ({ id, mese, campo, valore: v }));
           if (voci.length) spuntaMolte(voci);
           disegnaPassi();
@@ -164,7 +168,18 @@ async function mostraStoria(id, mese) {
   }
   const righe = (dati.storia || []).map(e => h('li', {},
     h('time', { testo: quando(e.ts) }),
-    h('span', { html: `<b>${esc(e.operatore)}</b> ${e.campo === 'nota' ? 'ha scritto una nota' : (e.a ? 'ha spuntato' : 'ha tolto') + ' <i>' + esc(e.campo) + '</i>'}` }),
+    h('span', { html: `<b>${esc(e.operatore)}</b> ${descriviEvento(e)}` }),
+    /* il tastino di reversibilita' dell'admin (#ANCHOR: ruoli): rimette il
+       passo com'era prima di quella riga, sue mosse comprese */
+    sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
+      testo: 'Ripristina', title: 'Rimetti com\u2019era prima di questa modifica',
+      onclick: async ev => {
+        ev.currentTarget.disabled = true;
+        await ripristina({ ...e, id_service: id, anno: st.anno, mese });
+        disegnaPassi();
+        mostraStoria(id, mese);
+      },
+    }) : null,
   ));
   const box = h('ul.storia', {}, righe.length ? righe :
     h('li', { testo: 'Nessuna modifica registrata.' }));

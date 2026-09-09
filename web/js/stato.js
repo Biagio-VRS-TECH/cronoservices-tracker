@@ -64,6 +64,16 @@ export const CAMPI = ['stampata', 'controllata', 'corretta', 'ricambi'];
    era gia' occupato da "controllata"; 'r' per "ricambi". */
 export const SIGLA = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
 export const PASSI = CAMPI.length;
+/* RUOLI E APPROVAZIONI (#ANCHOR: ruoli). Due passi non li chiude il tecnico:
+   li PROPONE, e l'amministratore li approva. Nel modello un passo vale 0 (da
+   fare), 1 (fatto/approvato) o PROPOSTA = 2 (spuntato dal tecnico, in attesa
+   dell'admin). Il 2 non conta come fatto da nessuna parte: `fatto()` e' l'unico
+   modo giusto di chiedere "questo passo c'e'?". Le regole stanno in
+   `effettivo()` qui sotto e nel gemello `_valore_per_ruolo` di app/api.py. */
+export const DA_APPROVARE = ['corretta', 'ricambi'];
+export const PROPOSTA = 2;
+export const fatto = (c, campo) => c[SIGLA[campo]] === 1;
+export const proposto = (c, campo) => c[SIGLA[campo]] === PROPOSTA;
 export const ETICHETTA = {
   stampata: 'Mappatura stampata',
   controllata: 'Controllata dal tecnico',
@@ -100,6 +110,7 @@ export const st = {
   celle: new Map(),        // "idServ-mese" -> {s,c,k,r,rev,by,at,nota}
   cellePrec: new Map(),    // stesse chiavi, ANNO PRIMA: una mappatura rimasta aperta passa i passi all'anno dopo
   fuochi: new Map(),       // nome collega -> {cella, dove, ts}: la cella che ha aperta adesso (#ANCHOR: fuoco)
+  ruoli: {},               // nome -> 'admin' | 'tecnico' (#ANCHOR: ruoli)
   documenti: new Map(),    // idServ -> [PDF delle schede tecnici], dal piu' recente
   sospese: new Set(),      // "idServ-mese-campo" in attesa di conferma
   chiusiCli: new Set(),    // clienti collassati
@@ -150,6 +161,7 @@ export function applica(d) {
   st.altriServer = d.altri_server || [];
   st.ultimoSync = d.ultimo_sync; st.sync = d.sync; st.online = d.online || [];
   st.operatori = d.operatori || [];
+  st.ruoli = d.ruoli || {};
 
   st.clienti = new Map(d.clienti.map(c => [c.id, c]));
   st.perServ = new Map(d.services.map(s => [s.id, s]));
@@ -188,10 +200,12 @@ function riapplicaCoda() {
     const c = op.corpo || {};
     if (c.anno !== st.anno) continue;
     if (c.campo && c.id_service) {
-      scriviLocale(c.id_service, c.mese, { [SIGLA[c.campo]]: c.valore ? 1 : 0 });
+      const { v } = effettivo(c.campo, cella(c.id_service, c.mese)[SIGLA[c.campo]], c.valore);
+      scriviLocale(c.id_service, c.mese, { [SIGLA[c.campo]]: v });
     }
-    for (const v of c.celle || []) {
-      scriviLocale(v.id_service, v.mese, { [SIGLA[v.campo]]: v.valore ? 1 : 0 });
+    for (const x of c.celle || []) {
+      const { v } = effettivo(x.campo, cella(x.id_service, x.mese)[SIGLA[x.campo]], x.valore);
+      scriviLocale(x.id_service, x.mese, { [SIGLA[x.campo]]: v });
     }
   }
 }
@@ -397,7 +411,7 @@ function passiAnno(id, celleDi) {
   for (let m = 1; m <= 12; m++) {
     const c = celleDi(id, m);
     for (const campo of CAMPI) {
-      if (c[SIGLA[campo]] && !out[campo]) out[campo] = { mese: m, by: c.by, at: c.at };
+      if (fatto(c, campo) && !out[campo]) out[campo] = { mese: m, by: c.by, at: c.at };
     }
   }
   return out;
@@ -432,7 +446,7 @@ export function classeMese(s, mese) {
 export function statoCella(id, mese) {
   const s = st.perServ.get(id);
   const c = cella(id, mese);
-  const mie = c.s + c.c + c.k + c.r;
+  const mie = CAMPI.filter(k => fatto(c, k)).length;      // il 2 (proposta) non conta
   const classe = s ? classeMese(s, mese) : 'non-previsto';
   const passato = ym(st.anno, mese) < st.ymOggi;
   const spuntabile = classe !== 'non-previsto' && classe !== 'prima-contratto';
@@ -446,12 +460,13 @@ export function statoCella(id, mese) {
     const tutti = mappaturaSito(s).passi;
     for (const campo of CAMPI) {
       const p = tutti[campo];
-      if (!c[SIGLA[campo]] && p && (p.anno < st.anno || p.mese < mese)) ered[campo] = p;
+      if (!fatto(c, campo) && p && (p.anno < st.anno || p.mese < mese)) ered[campo] = p;
     }
   }
   const n = mie + Object.keys(ered).length;
   return {
     c, n, mie, ered, classe,
+    attesa: CAMPI.filter(k => proposto(c, k) && !ered[k]),   // passi proposti, in mano all'admin
     completa: n === PASSI,
     /* In ritardo solo la cella di scadenza, e solo se la mappatura del sito non
        e' chiusa in nessun mese: farla a una visita mette a posto l'anno. */
@@ -719,14 +734,70 @@ function cellaDalServer(id, mese, valore) {
   tocca(id);
 }
 
-/** Unico varco per cambiare una spunta. Ottimistica + coda. #ANCHOR: toggle */
-export function spunta(id, mese, campo, valore, senzaUndo) {
+/* ------------------------------------------------------------- ruoli ---- */
+/* #ANCHOR: ruoli */
+export const ruoloMio = () => st.ruoli[rete.operatore] || 'tecnico';
+export const sonoAdmin = () => ruoloMio() === 'admin';
+export const eAdmin = nome => st.ruoli[nome] === 'admin';
+
+/** Cosa succede DAVVERO se `campo`, che ora vale `attuale`, viene chiesto a
+ *  `valore` da chi sta lavorando. Gemello di api._valore_per_ruolo: sui passi
+ *  da approvare il tecnico propone (1 -> 2) e ritira (2 -> 0), ma non toglie
+ *  un'approvazione (1 -> 0); l'admin approva, respinge, e rimette in attesa
+ *  (2, solo dal ripristino). Ritorna { v, errore }. */
+export function effettivo(campo, attuale, valore) {
+  let v = Number(valore) || 0;
+  if (![0, 1, 2].includes(v)) v = v ? 1 : 0;
+  if (!DA_APPROVARE.includes(campo)) return { v: v ? 1 : 0 };
+  if (sonoAdmin()) return { v };
+  if (v === 2) return { v, errore: 'Solo l\u2019amministratore rimette una spunta in attesa.' };
+  if (v === 1) return { v: attuale === 1 ? 1 : PROPOSTA };
+  if (attuale === 1) {
+    return { v, errore: `${ETICHETTA[campo]}: approvata dall\u2019amministratore, solo lui pu\u00f2 toglierla.` };
+  }
+  return { v };
+}
+
+/** Il valore che un clic sul passo vuole ottenere: e' un interruttore, ma una
+ *  proposta in attesa l'admin la APPROVA (-> 1) e il tecnico la RITIRA (-> 0). */
+export function prossimo(id, mese, campo) {
+  const a = cella(id, mese)[SIGLA[campo]];
+  if (a === PROPOSTA) return sonoAdmin() ? 1 : 0;
+  return a === 1 ? 0 : 1;
+}
+
+/** Cosa manda a schermo un passo proposto: chi e da quando. */
+export function notaProposta(c, campo) {
+  if (!proposto(c, campo)) return '';
+  return `${BREVE[campo]}: proposta${c.by ? ' da ' + c.by : ''}, in attesa dell\u2019amministratore`;
+}
+
+/** Le proposte dell'anno in attesa dell'admin (#ANCHOR: ruoli), le piu' recenti
+ *  prima: [{id, mese, campo, by, at}]. */
+export function proposte() {
+  const out = [];
+  for (const [k, c] of st.celle) {
+    for (const campo of DA_APPROVARE) {
+      if (c[SIGLA[campo]] !== PROPOSTA) continue;
+      const [id, mese] = k.split('-').map(Number);
+      out.push({ id, mese, campo, by: c.by || '', at: c.at || '' });
+    }
+  }
+  return out.sort((x, y) => (y.at || '').localeCompare(x.at || ''));
+}
+
+/** Unico varco per cambiare una spunta. Ottimistica + coda. #ANCHOR: toggle
+ *  `valore` e' l'INTENZIONE (0/1; 2 solo dall'admin che ripristina): quello
+ *  che si scrive lo decide `effettivo()` secondo il ruolo. */
+export function spunta(id, mese, campo, valore, senzaUndo, origine) {
   const prima = cella(id, mese);
   const sig = SIGLA[campo];
-  if (prima[sig] === (valore ? 1 : 0)) return;
+  const { v, errore } = effettivo(campo, prima[sig], valore);
+  if (errore) { avviso(errore, { tono: 'allerta' }); return; }
+  if (prima[sig] === v) return;
   const sosp = `${id}-${mese}-${campo}`;
   st.sospese.add(sosp);
-  scriviLocale(id, mese, { [sig]: valore ? 1 : 0, by: rete.operatore, at: new Date().toISOString() });
+  scriviLocale(id, mese, { [sig]: v, by: rete.operatore, at: new Date().toISOString() });
   if (!senzaUndo) {
     st.ultimaAzione = {
       et: `${ETICHETTA[campo]} su #${id}`,
@@ -738,26 +809,35 @@ export function spunta(id, mese, campo, valore, senzaUndo) {
   accoda({
     rotta: '/api/toggle',
     corpo: {
-      id_service: id, anno: st.anno, mese, campo, valore: valore ? 1 : 0,
+      id_service: id, anno: st.anno, mese, campo, valore: Number(valore) || 0,
       base_rev: prima.rev || null, base_valore: prima[sig],
+      ...(origine ? { origine } : {}),
     },
     meta: { id, mese, campo, sosp },
   });
 }
 
-/** N spunte in una volta. `voci` = [{id, mese, campo, valore}]. */
-export function spuntaMolte(voci, etichetta) {
+/** N spunte in una volta. `voci` = [{id, mese, campo, valore}]. `origine`
+ *  'massa' e' riservata a Completa/Azzera tutte: il server la accetta solo da
+ *  un admin. */
+export function spuntaMolte(voci, etichetta, origine) {
   const celle = [], inverse = [];
+  let vietate = 0;
   for (const { id, mese, campo, valore } of voci) {
     const prima = cella(id, mese);
-    const v = valore ? 1 : 0;
+    const { v, errore } = effettivo(campo, prima[SIGLA[campo]], valore);
+    if (errore) { vietate++; continue; }
     if (prima[SIGLA[campo]] === v) continue;
     inverse.push({ id, mese, campo, valore: prima[SIGLA[campo]] });
     scriviLocale(id, mese, { [SIGLA[campo]]: v, by: rete.operatore, at: new Date().toISOString() });
     celle.push({
-      id_service: id, mese, campo, valore: v,
+      id_service: id, mese, campo, valore: Number(valore) || 0,
       base_rev: prima.rev || null, base_valore: prima[SIGLA[campo]],
     });
+  }
+  if (vietate) {
+    avviso(`${vietate} ${vietate === 1 ? 'spunta approvata lasciata' : 'spunte approvate lasciate'} ` +
+      'com\u2019era: le toglie solo l\u2019amministratore.', { tono: 'allerta' });
   }
   if (!celle.length) return 0;
   if (etichetta) st.ultimaAzione = { et: etichetta, inverse };
@@ -766,7 +846,7 @@ export function spuntaMolte(voci, etichetta) {
   for (let i = 0; i < celle.length; i += 250) {
     accoda({
       rotta: '/api/bulk',
-      corpo: { anno: st.anno, celle: celle.slice(i, i + 250) },
+      corpo: { anno: st.anno, celle: celle.slice(i, i + 250), ...(origine ? { origine } : {}) },
       meta: { massa: true },
     });
   }
@@ -777,9 +857,47 @@ export function annullaUltima() {
   const a = st.ultimaAzione;
   if (!a) return 0;
   st.ultimaAzione = null;
-  const n = spuntaMolte(a.inverse, null);
+  const n = spuntaMolte(a.inverse, null, 'annulla');
   emetti('rilegge');
   return n;
+}
+
+/* ------------------------------------------------------- diario e ritorni */
+/** Una riga di diario/storia in parole: "ha proposto", "ha approvato"... */
+export function descriviEvento(e) {
+  if (e.campo === 'nota') return 'ha scritto una nota';
+  const rip = e.origine === 'ripristino' ? 'ha ripristinato: ' : '';
+  const da = Number(e.da), a = Number(e.a);
+  let verbo;
+  if (a === PROPOSTA) verbo = 'ha proposto';
+  else if (a === 1 && da === PROPOSTA) verbo = 'ha approvato';
+  else if (a === 0 && da === PROPOSTA) verbo = e.origine === 'respinta' ? 'ha respinto' : 'ha ritirato';
+  else verbo = a ? 'ha spuntato' : 'ha tolto';
+  return `${rip}${verbo} <i>${e.campo}</i>`;
+}
+
+/** L'admin rimette un passo com'era PRIMA di quell'evento (#ANCHOR: ruoli): il
+ *  tastino di reversibilita' del diario, che vale anche sulle sue mosse. Un
+ *  evento di un altro anno passa dritto al server, senza toccare il modello
+ *  (l'anno prima si aggiorna, perche' i passi si ereditano). */
+export async function ripristina(e) {
+  if (!sonoAdmin() || e.campo === 'nota' || e.da == null) return false;
+  const valore = Number(e.da);
+  if (e.anno === st.anno) {
+    spunta(e.id_service, e.mese, e.campo, valore, false, 'ripristino');
+    return true;
+  }
+  const { ok, dati } = await chiama('/api/toggle', {
+    metodo: 'POST',
+    body: { id_service: e.id_service, anno: e.anno, mese: e.mese, campo: e.campo,
+            valore, operatore: rete.operatore, origine: 'ripristino' },
+  });
+  if (ok && dati?.cella && e.anno === st.anno - 1) {
+    st.cellePrec.set(chiave(e.id_service, e.mese), dati.cella);
+    tocca(e.id_service);
+    emetti('rilegge');
+  }
+  return !!ok;
 }
 
 /** La nota della cella. A differenza dei quattro passi la nota e' testo libero:
@@ -829,9 +947,12 @@ export function esitoConferma(op, risposta) {
  *  Senza questo restava per sempre in `st.sospese` - una cella perennemente in
  *  attesa nella vista Anno, e ora anche un campo che ignora gli aggiornamenti
  *  del server. */
-export function esitoFallita(op) {
+export function esitoFallita(op, server) {
   if (op?.meta?.sosp) st.sospese.delete(op.meta.sosp);
   const { id, mese } = op?.meta || {};
+  /* un "vietato" dal server (#ANCHOR: ruoli) porta la cella com'e' davvero:
+     la scrittura ottimistica va rimessa a posto, non lasciata a schermo */
+  if (server?.cella && server.id_service) cellaDalServer(server.id_service, server.mese, server.cella);
   if (id) emetti('cella', { id, mese });
 }
 
@@ -905,6 +1026,7 @@ export const fuochiSu = (id, mese) =>
 
 export function eventoRemoto(ev) {
   if (ev.tipo === 'presenze') { aggiornaPresenze(ev.online); return; }
+  if (ev.tipo === 'ruoli') { st.ruoli = ev.ruoli || {}; emetti('ruoli'); return; }
   if (ev.tipo === 'fuoco') { segnaFuoco(ev.nome, ev.dove); return; }
   if (ev.tipo === 'sync') { emetti('sync-fatto', ev.riepilogo); return; }
   if (ev.tipo === 'impostazioni') {

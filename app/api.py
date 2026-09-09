@@ -93,6 +93,7 @@ def bootstrap(ctx, q, body):
             "celle_prec": celle_prec,
             "operatori": [r["nome"] for r in
                           c.execute("SELECT nome FROM operatori ORDER BY nome")],
+            "ruoli": db.ruoli(c, ctx["cfg"]),          # {nome: 'admin'|'tecnico'} (#ANCHOR: ruoli)
             "ultimo_sync": db.get_meta(c, "ultimo_sync"),
             "inizio_tracciamento": db.get_meta(c, "inizio_tracciamento"),
             "indirizzo_lan": ctx.get("lan"),
@@ -106,8 +107,40 @@ def bootstrap(ctx, q, body):
 
 
 # ----------------------------------------------------------------- toggle ----
+def _valore_per_ruolo(campo, attuale, valore, admin):
+    """Traduce l'INTENZIONE del client (0/1, o 2 solo da un admin che ripristina)
+    nel valore che si puo' scrivere davvero, secondo il ruolo (#ANCHOR: ruoli).
+    Ritorna (valore, errore): errore = (status, payload) se la mossa e' vietata.
+
+    Sui passi DA_APPROVARE (rapportino, ricambi):
+      - tecnico che mette 1  -> scrive PROPOSTA (2): la spunta va all'admin
+      - tecnico che mette 0  -> puo' ritirare la sua proposta (2 -> 0), ma non
+                                togliere una spunta approvata (1 -> 0): 403
+      - admin: 1 = approva, 0 = respinge/toglie, 2 = rimette in attesa (ripristino)
+    Sugli altri passi 2 non esiste: vale 1. Il gemello e' _applica in
+    cloud/02-funzioni.sql."""
+    try:
+        v = int(valore or 0)
+    except (TypeError, ValueError):
+        v = 1
+    if v not in (0, 1, 2):
+        v = 1 if v else 0
+    if campo not in db.DA_APPROVARE:
+        return (1 if v else 0), None
+    if admin:
+        return v, None
+    if v == 2:
+        return v, (403, {"errore": "solo l'amministratore puo' rimettere in attesa"})
+    if v == 1:
+        return (1 if attuale == 1 else db.PROPOSTA), None
+    if attuale == 1:
+        return v, (403, {"errore": "spunta approvata dall'amministratore: solo lui la toglie",
+                         "approvata": True})
+    return v, None
+
+
 def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore,
-             op_id, origine):
+             op_id, origine, admin=False):
     """Scrive un singolo campo di una cella con merge ottimistico per campo.
 
     Regole (#ANCHOR: merge):
@@ -117,12 +150,20 @@ def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore
       - rev cambiata, valore attuale del campo == base_valore del client
                                  -> il conflitto era su un ALTRO campo: merge silenzioso
       - rev cambiata e anche il campo e' cambiato -> 409, il client mostra il confronto
+    Prima del merge il valore passa da _valore_per_ruolo (#ANCHOR: ruoli): i
+    valori nel database sono 0, 1 e, sui passi da approvare, 2 = proposta.
     """
     if campo not in CAMPI:
         return 400, {"errore": "campo non valido: %s" % campo}
-    valore = 1 if valore else 0
 
     r = _cella(c, sid, anno, mese)
+    attuale0 = r[campo] if r is not None else 0
+    valore, vietato = _valore_per_ruolo(campo, attuale0, valore, admin)
+    if vietato:
+        st, out = vietato
+        out.update({"esito": "vietato", "campo": campo, "id_service": sid, "anno": anno,
+                    "mese": mese, "cella": _cella_out(r) if r is not None else None})
+        return st, out
     if r is None:
         # Niente riga e niente da scrivere: non si crea spazzatura a zero.
         if not valore:
@@ -138,7 +179,7 @@ def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore
         if attuale == valore:
             return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
                          "id_service": sid, "anno": anno, "mese": mese}
-        if base_valore is not None and attuale != int(bool(base_valore)):
+        if base_valore is not None and attuale != int(base_valore):
             return 409, {"esito": "conflitto", "cella": _cella_out(r), "campo": campo,
                          "tuo": valore, "id_service": sid, "anno": anno, "mese": mese}
         esito = "merge"
@@ -175,11 +216,13 @@ def toggle(ctx, q, body):
                                  "cella": _cella_out(r) if r else None,
                                  "id_service": int(body["id_service"]),
                                  "anno": int(body["anno"]), "mese": int(body["mese"])}, None
+            operatore = body.get("operatore") or "?"
             st, out = _applica(
-                c, body.get("operatore") or "?", int(body["id_service"]),
+                c, operatore, int(body["id_service"]),
                 int(body["anno"]), int(body["mese"]), body["campo"], body.get("valore"),
                 body.get("base_rev"), body.get("base_valore"), op_id,
-                body.get("origine") or "live")
+                body.get("origine") or "live",
+                admin=db.e_admin(c, operatore, ctx["cfg"]))
             if op_id and st == 200:
                 c.execute("INSERT OR REPLACE INTO ops(op_id,ts,esito,rev) VALUES(?,?,?,?)",
                           (op_id, db.now(), out.get("esito"),
@@ -203,10 +246,17 @@ def bulk(ctx, q, body):
     offline. Ogni voce riporta il proprio esito; i conflitti non bloccano le altre."""
     anno = int(body["anno"])
     operatore = body.get("operatore") or "?"
+    origine = body.get("origine") or "bulk"
     esiti, celle = [], []
     with db.WRITE_LOCK:
         c = db.connect()
         try:
+            admin = db.e_admin(c, operatore, ctx["cfg"])
+            # "Completa/Azzera tutte" (#ANCHOR: massa) e' dell'amministratore:
+            # un tecnico non azzera il lavoro di tutti in un clic (#ANCHOR: ruoli).
+            if origine == "massa" and not admin:
+                c.close()
+                return 403, {"errore": "le azioni di massa sono dell'amministratore"}, None
             c.execute("BEGIN IMMEDIATE")
             for i, v in enumerate(body.get("celle") or []):
                 op_id = v.get("op_id") or (body.get("op_id") and
@@ -219,7 +269,7 @@ def bulk(ctx, q, body):
                 st, out = _applica(c, operatore, int(v["id_service"]), anno,
                                    int(v["mese"]), v["campo"], v.get("valore"),
                                    v.get("base_rev"), v.get("base_valore"), op_id,
-                                   body.get("origine") or "bulk")
+                                   origine, admin=admin)
                 out["campo"] = v["campo"]
                 out["http"] = st
                 esiti.append(out)
@@ -316,7 +366,7 @@ def nota(ctx, q, body):
 # ------------------------------------------------------------- letture ------
 def storia(ctx, q, body):
     with db.sess() as c:
-        rows = c.execute("""SELECT ts,operatore,campo,da,a FROM eventi
+        rows = c.execute("""SELECT ts,operatore,campo,da,a,origine FROM eventi
                             WHERE id_service=? AND anno=? AND mese=?
                             ORDER BY id DESC LIMIT 50""",
                          (int(q["id_service"]), int(q["anno"]), int(q["mese"]))).fetchall()
@@ -327,7 +377,7 @@ def attivita(ctx, q, body):
     lim = min(int(q.get("limit", 60)), 300)
     with db.sess() as c:
         rows = c.execute("""SELECT e.ts,e.operatore,e.id_service,e.anno,e.mese,e.campo,
-                                   e.a, s.destinazione, c.rag_soc
+                                   e.da, e.a, e.origine, s.destinazione, c.rag_soc
                             FROM eventi e
                             LEFT JOIN services s ON s.id_service=e.id_service
                             LEFT JOIN clienti  c ON c.id_cliente=s.id_cliente
@@ -375,8 +425,41 @@ def operatore(ctx, q, body):
                      ON CONFLICT(nome) DO UPDATE SET ultimo_accesso=excluded.ultimo_accesso""",
                   (nome, db.now()))
         elenco = [r["nome"] for r in c.execute("SELECT nome FROM operatori ORDER BY nome")]
-    return 200, {"nome": nome, "operatori": elenco}, {"tipo": "presenze",
-                                                      "online": _online()}
+        ruoli = db.ruoli(c, ctx["cfg"])
+    return 200, {"nome": nome, "operatori": elenco, "ruoli": ruoli,
+                 "ruolo": ruoli.get(nome, "tecnico")}, {"tipo": "presenze",
+                                                        "online": _online()}
+
+
+def _solo_admin(c, body, ctx):
+    """None se chi chiama e' admin, altrimenti la risposta 403 (#ANCHOR: ruoli)."""
+    if db.e_admin(c, body.get("operatore"), ctx["cfg"]):
+        return None
+    return 403, {"errore": "questa azione e' dell'amministratore"}, None
+
+
+def ruolo(ctx, q, body):
+    """Un admin nomina (o declassa) un collega. I nomi in config.json restano
+    admin comunque; l'ultimo admin non si puo' declassare, altrimenti nessuno
+    approverebbe piu' niente."""
+    nome = (body.get("nome") or "").strip()[:40]
+    nuovo = body.get("ruolo")
+    if not nome or nuovo not in ("admin", "tecnico"):
+        return 400, {"errore": "servono nome e ruolo (admin|tecnico)"}, None
+    with db.WRITE_LOCK, db.sess() as c:
+        no = _solo_admin(c, body, ctx)
+        if no:
+            return no
+        if nome in ctx["cfg"].get("amministratori", []) and nuovo != "admin":
+            return 400, {"errore": "%s e' amministratore per configurazione (config.json)" % nome}, None
+        attuali = db.ruoli(c, ctx["cfg"])
+        if nuovo == "tecnico" and attuali.get(nome) == "admin" and \
+                sum(1 for r in attuali.values() if r == "admin") <= 1:
+            return 400, {"errore": "e' l'unico amministratore: nominane prima un altro"}, None
+        c.execute("""INSERT INTO operatori(nome,ultimo_accesso,ruolo) VALUES(?,NULL,?)
+                     ON CONFLICT(nome) DO UPDATE SET ruolo=excluded.ruolo""", (nome, nuovo))
+        ruoli = db.ruoli(c, ctx["cfg"])
+    return 200, {"ruoli": ruoli}, {"tipo": "ruoli", "ruoli": ruoli}
 
 
 def impostazioni(ctx, q, body):
@@ -387,6 +470,9 @@ def impostazioni(ctx, q, body):
     if not re.fullmatch(r"\d{4}-\d{2}", v):
         return 400, {"errore": "formato atteso AAAA-MM"}, None
     with db.WRITE_LOCK, db.sess() as c:
+        no = _solo_admin(c, body, ctx)
+        if no:
+            return no
         db.set_meta(c, "inizio_tracciamento", v)
     return 200, {"inizio_tracciamento": v}, {"tipo": "impostazioni",
                                              "inizio_tracciamento": v}
@@ -407,6 +493,12 @@ def ping(ctx, q, body):
 
 
 def fai_sync(ctx, q, body):
+    """Solo l'amministratore rilegge Access (#ANCHOR: ruoli): il sync riscrive
+    l'anagrafica di tutti e chiude/riapre service."""
+    with db.sess() as c:
+        no = _solo_admin(c, body, ctx)
+    if no:
+        return no
     try:
         r = sync.esegui(ctx["cfg"], ctx["base"])
     except Exception as e:
@@ -498,10 +590,10 @@ def esporta_csv(ctx, q, body):
                             s["id_service"], s["rag_soc"],
                             s["destinazione"], s["localita"], s["provincia"], s["tipo"],
                             s["cadenza"],
-                            "X" if cel and cel["stampata"] else "",
-                            "X" if cel and cel["controllata"] else "",
-                            "X" if cel and cel["corretta"] else "",
-                            "X" if cel and cel["ricambi"] else "",
+                            "X" if cel and cel["stampata"] == 1 else "",
+                            "X" if cel and cel["controllata"] == 1 else "",
+                            "X" if cel and cel["corretta"] == 1 else "",
+                            "X" if cel and cel["ricambi"] == 1 else "",
                             (cel["nota"] if cel else "") or "",
                             (cel["updated_at"] if cel else "") or "",
                             (cel["updated_by"] if cel else "") or ""])
@@ -662,6 +754,7 @@ ROUTE = {
     ("POST", "/api/bulk"): bulk,
     ("POST", "/api/nota"): nota,
     ("POST", "/api/operatore"): operatore,
+    ("POST", "/api/ruolo"): ruolo,
     ("POST", "/api/ping"): ping,
     ("POST", "/api/impostazioni"): impostazioni,
     ("POST", "/api/sync"): fai_sync,

@@ -70,6 +70,23 @@ a chi non ha un indirizzo `@vrs-tech.it`.
 > entra (`mario.rossi@vrs-tech.it` → *Mario Rossi*). Si può cambiare come si
 > scrive, non chi si è.
 
+### Chi è amministratore
+
+Da settembre 2026 ci sono due ruoli. I **tecnici** spuntano tutto, ma
+"Rapportino" e "Ricambi" restano *proposte* (a righe) finché un
+**amministratore** non le approva dalla pillola "N da approvare". Solo
+l'amministratore completa o azzera in blocco, cambia le impostazioni e ha
+"Ripristina" nel diario. Il ruolo è legato alla casella del login.
+
+Il primo amministratore si nomina una volta sola, dall'SQL Editor, con
+`07-ruoli.sql` (sostituire la casella): la persona deve essere entrata almeno
+una volta nel tracker. Da lì in avanti gli amministratori si nominano e si
+declassano dall'app: **Azioni → Impostazioni → Chi è amministratore**.
+L'ultimo amministratore non si può declassare.
+
+Se il progetto esisteva già, prima di `07` vanno rieseguiti nell'ordine `01`
+(aggiunge la colonna `ruolo`), `02`, `03` e `04`.
+
 ## 3. Il primo travaso dell'anagrafica
 
 Sul PC dell'ufficio, crea `app/cloud.json`:

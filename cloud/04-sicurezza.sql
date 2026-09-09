@@ -57,7 +57,9 @@ grant execute on function
   public.bulk_celle(int, jsonb, text, text),
   public.imposta_nota(int, int, int, text, int, text),
   public.imposta_operatore(text),
-  public.imposta_meta(text)
+  public.imposta_ruolo(text, text),
+  public.imposta_meta(text),
+  public.e_admin()
 to authenticated;
 
 -- I documenti (06-documenti.sql) nascono dopo questo file: se 04 viene

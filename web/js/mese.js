@@ -13,6 +13,7 @@
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito,
+  prossimo, fatto, proposto, notaProposta,
   filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
   CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
@@ -24,8 +25,9 @@ let radice = null;
 /* Un passo EREDITATO (fatto in una visita prima, o l'anno prima: #ANCHOR:
    passi-cumulativi in stato.js) si vede spuntato ma tenue, e dice dove e' stato
    fatto. Non si toglie da qui: si toglie da dove e' stato messo. */
-const titoloPasso = (campo, i, er) => er
+const titoloPasso = (campo, i, er, c) => er
   ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  : (c && proposto(c, campo)) ? notaProposta(c, campo)
   : `${ETICHETTA[campo]} (tasto ${i + 1})`;
 const avvisoEredita = (campo, er) =>
   avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. Per toglierla vai su quel mese.`);
@@ -33,11 +35,12 @@ const avvisoEredita = (campo, er) =>
 function htmlPassi(id, mese) {
   const e = statoCella(id, mese), c = e.c;
   return `<div class="passi-riga">${CAMPI.map((campo, i) => {
-    const er = e.ered[campo];
+    const er = e.ered[campo], pr = !er && proposto(c, campo);
     return `
-    <button class="passo${er ? ' eredita' : ''}" role="checkbox" aria-checked="${!!c[SIGLA[campo]] || !!er}"
+    <button class="passo${er ? ' eredita' : ''}${pr ? ' proposto' : ''}" role="checkbox"
+            aria-checked="${pr ? 'mixed' : String(fatto(c, campo) || !!er)}"
             data-campo="${campo}" data-cella="${id}-${mese}"
-            title="${esc(titoloPasso(campo, i, er))}">
+            title="${esc(titoloPasso(campo, i, er, c))}">
       <span class="box">${ICO.ok}</span>
       <span class="et">${BREVE[campo]}</span>
     </button>`; }).join('')}</div>`;
@@ -232,7 +235,7 @@ function collega(r) {
       const campo = p.dataset.campo;
       const er = statoCella(id, mese).ered[campo];
       if (er) return avvisoEredita(campo, er);
-      spunta(id, mese, campo, !cella(id, mese)[SIGLA[campo]]);
+      spunta(id, mese, campo, prossimo(id, mese, campo));
       return;
     }
     const b = e.target.closest('.info b');
@@ -257,7 +260,7 @@ function collega(r) {
       const id = Number(sch.dataset.srv), campo = CAMPI[i];
       const er = statoCella(id, st.mese).ered[campo];
       if (er) return avvisoEredita(campo, er);
-      return spunta(id, st.mese, campo, !cella(id, st.mese)[SIGLA[campo]]);
+      return spunta(id, st.mese, campo, prossimo(id, st.mese, campo));
     }
     if (e.key === '0') {                // tutti insieme, come il clic sul pallino
       e.preventDefault();
@@ -304,10 +307,11 @@ export function aggiornaCella(id, mese) {
   sch.classList.toggle('finita', e.completa);
   sch.classList.toggle('ritardo', e.ritardo && !e.completa);
   [...sch.querySelectorAll('.passo')].forEach((p, i) => {
-    const er = e.ered[p.dataset.campo];
-    p.setAttribute('aria-checked', String(!!c[SIGLA[p.dataset.campo]] || !!er));
+    const campo = p.dataset.campo, er = e.ered[campo], pr = !er && proposto(c, campo);
+    p.setAttribute('aria-checked', pr ? 'mixed' : String(fatto(c, campo) || !!er));
     p.classList.toggle('eredita', !!er);
-    p.title = titoloPasso(p.dataset.campo, i, er);
+    p.classList.toggle('proposto', pr);          // in attesa dell'admin (#ANCHOR: ruoli)
+    p.title = titoloPasso(campo, i, er, c);
   });
   // la nota "2 passi gia' fatti a maggio" segue il modello
   const er = notaEredita(e);
@@ -364,7 +368,10 @@ function completaScheda(id) {
   let toccati = 0;
   for (const campo of CAMPI) {
     if (valore && e.ered[campo]) continue;          // gia' fatto in una visita prima
-    if (!!c[SIGLA[campo]] === !!valore) continue;
+    /* una proposta (2) si tocca in entrambi i versi: l'admin la approva, il
+       tecnico la ritira; `spunta` decide secondo il ruolo */
+    const a = c[SIGLA[campo]];
+    if (valore ? a === 1 : a === 0) continue;
     spunta(id, st.mese, campo, valore);
     toccati++;
   }
@@ -431,7 +438,7 @@ function barraMassa() {
     for (const id of st.selezione) {
       const e = statoCella(id, st.mese);
       for (const campo of campi) {
-        if (!e.c[SIGLA[campo]] && !e.ered[campo]) voci.push({ id, mese: st.mese, campo, valore: 1 });
+        if (!fatto(e.c, campo) && !e.ered[campo]) voci.push({ id, mese: st.mese, campo, valore: 1 });
       }
     }
     if (!voci.length) return avviso('Erano già tutte spuntate.');

@@ -12,6 +12,7 @@ import {
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
   CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
+  sonoAdmin, eAdmin, proposte, ripristina, descriviEvento, spunta, BREVE,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -80,7 +81,7 @@ async function avvia() {
     statoCollegamento();
     if (ev?.confermata) esitoConferma(ev.confermata.op, ev.confermata.risposta);
     if (ev?.conflitto) esitoConflitto(ev.conflitto.op, ev.conflitto.server);
-    if (ev?.fallita) esitoFallita(ev.fallita.op);
+    if (ev?.fallita) esitoFallita(ev.fallita.op, ev.fallita.server);
   });
 
   on('cella', d => {
@@ -91,7 +92,11 @@ async function avvia() {
     else if (st.vista === 'mese') vMese.aggiornaCella(d.id, st.mese);
     else if (st.vista === 'stat') vStat.aggiorna();
     aggiornaTestaPresto();
+    aggiornaApprova();
   });
+  /* un admin ha nominato o declassato qualcuno: la pillola, il menu Azioni e
+     la coda delle approvazioni cambiano faccia (#ANCHOR: ruoli) */
+  on('ruoli', () => { disegnaIo(); aggiornaApprova(); });
   on('fuoco', d => {
     if (st.vista === 'anno') vAnno.aggiornaFuoco(d.prima, d.dopo);
     else if (st.vista === 'mese') vMese.aggiornaFuoco(d.prima, d.dopo);
@@ -123,6 +128,7 @@ async function avvia() {
 /* ------------------------------------------------------------- disegno --- */
 function disegna() {
   chiudiPop();
+  aggiornaApprova();
   vMese.pulisci();
   vStat.pulisci();
   if (st.vista === 'mese') vMese.disegna(area);
@@ -244,6 +250,7 @@ function collegaTesta() {
   $('#aiuto').onclick = mostraAiuto;
   $('#schede').onclick = () => open(urlGeneratore(null), '_blank');
   $('#azioni').onclick = e => apriAzioni(e.currentTarget);
+  $('#approva').onclick = mostraApprovazioni;
   $('#collegamento').onclick = pannelloCollegamento;
 
   const q = $('#q');
@@ -357,27 +364,99 @@ async function vaiOggi() {
 function apriAzioni(bottone) {
   const inAnno = st.vista === 'anno';
   const soloAnno = () => avviso('Le azioni di massa si usano dalla vista Anno.');
+  /* Le voci dell'amministratore (#ANCHOR: ruoli) a un tecnico non compaiono:
+     completare/azzerare tutto, rileggere Access, le impostazioni. Il server le
+     rifiuta comunque (403), qui si evita di mostrare porte chiuse. */
+  const admin = sonoAdmin();
   menu(bottone, [
-    {
-      et: 'Completa tutte le spunte', ico: ICO.ok,
-      nota: inAnno ? 'anno filtrato' : 'vista Anno',
-      fn: () => inAnno ? massa('completa') : soloAnno(),
-    },
-    {
-      et: 'Azzera tutte le spunte', ico: ICO.ics, tono: 'pericolo',
-      nota: inAnno ? 'anno filtrato' : 'vista Anno',
-      fn: () => inAnno ? massa('azzera') : soloAnno(),
-    },
-    null,
+    ...(admin ? [
+      {
+        et: 'Completa tutte le spunte', ico: ICO.ok,
+        nota: inAnno ? 'anno filtrato' : 'vista Anno',
+        fn: () => inAnno ? massa('completa') : soloAnno(),
+      },
+      {
+        et: 'Azzera tutte le spunte', ico: ICO.ics, tono: 'pericolo',
+        nota: inAnno ? 'anno filtrato' : 'vista Anno',
+        fn: () => inAnno ? massa('azzera') : soloAnno(),
+      },
+      null,
+    ] : []),
     { et: 'Stampa il foglio del mese', ico: ICO.stampa, fn: stampa },
     { et: 'Scarica CSV', ico: ICO.giu, fn: scaricaCsv },
     null,
     { et: 'Diario attività', ico: ICO.gente, nota: 'chi ha fatto cosa', fn: mostraDiario },
     { et: 'Possibili doppioni', ico: ICO.cerca, nota: 'nomi che si somigliano', fn: mostraDoppioni },
-    null,
-    { et: 'Sincronizza da Access', ico: ICO.sync, fn: sincronizza },
-    { et: 'Impostazioni', fn: mostraImpostazioni },
+    ...(admin ? [
+      null,
+      { et: 'Sincronizza da Access', ico: ICO.sync, fn: sincronizza },
+      { et: 'Impostazioni', nota: 'tracciamento, ruoli', fn: mostraImpostazioni },
+    ] : []),
   ]);
+}
+
+/* ------------------------------------------------------- approvazioni ---- */
+/* #ANCHOR: approvazioni. Rapportino e ricambi spuntati da un tecnico arrivano
+   qui come proposte: l'amministratore le approva o le respinge. La pillola in
+   barra c'e' solo per lui e solo se c'e' qualcosa in attesa. */
+function aggiornaApprova() {
+  const b = $('#approva');
+  if (!b) return;
+  const n = sonoAdmin() ? proposte().length : 0;
+  b.hidden = n === 0;
+  b.textContent = n === 1 ? '1 da approvare' : `${n} da approvare`;
+  b.title = 'Spunte proposte dai tecnici, in attesa della tua approvazione';
+}
+
+function mostraApprovazioni() {
+  if (!sonoAdmin()) return;
+  modale(chiudi => {
+    const corpo = h('div');
+    const testa = h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin:0 0 10px' });
+    const ridisegna = () => {
+      const lista = proposte();
+      testa.replaceChildren(
+        h('p.nota-t', { style: 'margin:0', testo: lista.length
+          ? `${lista.length} ${lista.length === 1 ? 'spunta proposta' : 'spunte proposte'} nell\u2019anno ${st.anno}.`
+          : `Niente in attesa nell\u2019anno ${st.anno}.` }),
+        ...(lista.length > 1 ? [h('button.pill', {
+          testo: `Approva tutte (${lista.length})`,
+          onclick: () => {
+            spuntaMolte(lista.map(v => ({ ...v, valore: 1 })), 'Approvazione di tutte le proposte', 'approvazione');
+            avviso(`${lista.length} spunte approvate.`, { tono: 'ok', durata: 15000, azione: {
+              et: 'Annulla', fn: () => { const m = annullaUltima(); disegna(); avviso(`Annullato: ${m} spunte di nuovo in attesa.`); } } });
+            ridisegna();
+          },
+        })] : []));
+      corpo.replaceChildren(...(lista.length ? [h('ul.elenco-diario', {}, lista.map(v => {
+        const s = st.perServ.get(v.id), cli = s ? st.clienti.get(s.cli) : null;
+        return h('li', {},
+          h('time.dato', { testo: v.at ? quando(v.at) : '' }),
+          h('span.d-txt', {},
+            h('b', { testo: v.by || '\u2014' }),
+            h('span', { testo: ` \u00b7 ${st.mesi[v.mese - 1]} \u00b7 ${BREVE[v.campo]}` }),
+            h('button.d-chi.nudo', {
+              testo: (cli?.rs || '') + (s?.dest ? ' \u2013 ' + s.dest : '') || `#${v.id}`,
+              title: 'Apri il sito', onclick: () => { chiudi(); apriCassetto(v.id); },
+            })),
+          h('span.azioni-riga', {},
+            h('button.pill.mini', { testo: 'Approva', onclick: () => { spunta(v.id, v.mese, v.campo, 1, false, 'approvazione'); ridisegna(); } }),
+            h('button.pill.mini.debole', { testo: 'Respingi', title: 'Torna "da fare": il tecnico lo vede',
+              onclick: () => { spunta(v.id, v.mese, v.campo, 0, false, 'respinta'); ridisegna(); } })));
+      }))] : []));
+      if (!lista.length) aggiornaApprova();
+    };
+    ridisegna();
+    return [
+      h('h2', { testo: 'Da approvare' }),
+      h('p.sotto', { testo: 'I tecnici spuntano "Rapportino" e "Ricambi", ma quelle due spunte valgono ' +
+        'solo dopo il tuo via. Approvare le rende fatte; respingere le rimette da fare. ' +
+        'Ogni mossa resta nel diario col tuo nome.' }),
+      testa, corpo,
+      h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },
+        h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
+    ];
+  });
 }
 
 const ET_FILTRO = {
@@ -419,7 +498,7 @@ function massa(modo) {
       bottone.onclick = () => {
         chiudi();
         if (!voci.length) return;
-        const n = spuntaMolte(voci, completa ? 'Completamento di massa' : 'Azzeramento di massa');
+        const n = spuntaMolte(voci, completa ? 'Completamento di massa' : 'Azzeramento di massa', 'massa');
         disegna();
         const uno = n === 1;
         const detto = completa ? (uno ? 'messa' : 'messe') : (uno ? 'rimossa' : 'rimosse');
@@ -488,7 +567,8 @@ function disegnaIo() {
       style: 'background:' + tinta(rete.operatore),
       testo: iniziali(rete.operatore),
     }),
-    h('b', { testo: rete.operatore || 'Chi sei?' }));
+    h('b', { testo: rete.operatore || 'Chi sei?' }),
+    ...(sonoAdmin() ? [h('span.ruolo', { testo: 'admin', title: 'Amministratore: approvi rapportino e ricambi, azioni di massa, sync, ripristini' })] : []));
 }
 
 function chiediOperatore() {
@@ -507,6 +587,8 @@ function chiediOperatore() {
       try {
         const { dati } = await chiama('/api/operatore', { metodo: 'POST', body: { nome } });
         st.operatori = dati.operatori;
+        if (dati.ruoli) st.ruoli = dati.ruoli;
+        disegnaIo(); aggiornaApprova();
       } catch { }
     };
     return [
@@ -517,7 +599,7 @@ function chiediOperatore() {
       }),
       input,
       h('div.righe-scelta', {}, (st.operatori || []).map(n =>
-        h('button.pill', { testo: n, onclick: () => { input.value = n; conferma(); } }))),
+        h('button.pill', { testo: n + (eAdmin(n) ? ' \u00b7 admin' : ''), onclick: () => { input.value = n; conferma(); } }))),
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:8px' },
         h('button.bottone', { testo: 'Continua', onclick: conferma })),
     ];
@@ -639,8 +721,7 @@ function pannelloCollegamento() {
           h('time', { testo: quando(e.ts) }),
           h('span', {
             html: `<b>${esc(e.operatore)}</b> · ${esc(st.mesi[(e.mese || 1) - 1] || '')} · ` +
-              (e.campo === 'nota' ? 'nota' : `${e.a ? 'spuntato' : 'tolto'} ${esc(e.campo)}`) +
-              ` · ${esc(e.rag_soc || '')}`
+              descriviEvento(e) + ` · ${esc(e.rag_soc || '')}`
           })))
         : h('li', { testo: 'Nessuna modifica ancora.' })));
     }).catch(() => box.replaceChildren(h('p', {
@@ -686,7 +767,7 @@ function pannelloCollegamento() {
         ? h('ul.elenco-gente', {}, tutti.map(o =>
           h('li', {},
             h('span.pallino', { style: 'background:' + tinta(o.nome), testo: iniziali(o.nome) }),
-            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}` }),
+            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}${eAdmin(o.nome) ? ' · admin' : ''}` }),
             h('span.nota-t', { testo: doveSta(o).replace(/^ · /, '') }))))
         : h('p.nota-t', { style: 'margin-bottom:18px', testo: 'Solo tu, per ora.' }),
 
@@ -724,7 +805,7 @@ const riassuntoSync = r => `Access letto: ${r.services} service, ${r.clienti} cl
 async function sincronizza() {
   const stop = avviso('Lettura del database Access…', { durata: 0 });
   try {
-    const { dati, ok } = await chiama('/api/sync', { metodo: 'POST', body: {}, ms: 300000 });
+    const { dati, ok } = await chiama('/api/sync', { metodo: 'POST', body: { operatore: rete.operatore }, ms: 300000 });
     stop();
     if (!ok) avviso('Sync non riuscito: ' + (dati.errore || ''), { tono: 'allerta', durata: 10000 });
     // in caso di successo ci pensa l'evento SSE 'sync', che arriva a tutti
@@ -748,19 +829,29 @@ function mostraDiario() {
           h('time.dato', { testo: quando(e.ts) }),
           h('span.d-txt', {},
             h('b', { testo: e.operatore || '—' }),
-            h('span', {
-              testo: ` · ${st.mesi[(e.mese || 1) - 1]} ${e.anno} · ` +
-                (e.campo === 'nota' ? 'nota'
-                  : `${e.a ? 'spuntato' : 'tolto'} ${e.campo}`),
-            }),
-            h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })))))
+            h('span', { html: ` · ${st.mesi[(e.mese || 1) - 1]} ${e.anno} · ` + descriviEvento(e) }),
+            h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })),
+          /* il tastino di reversibilita' (#ANCHOR: ruoli): solo l'admin, su
+             ogni mossa di chiunque, sue comprese. Rimette il passo com'era
+             PRIMA di quella riga; la riga nuova finisce anch'essa nel diario. */
+          sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
+            testo: 'Ripristina',
+            title: `Rimetti "${e.campo}" com\u2019era prima di questa modifica`,
+            onclick: async ev => {
+              ev.currentTarget.disabled = true;
+              const ok = await ripristina(e);
+              avviso(ok ? `Ripristinato: ${e.campo} di ${e.rag_soc || '#' + e.id_service} com\u2019era prima.`
+                        : 'Non ripristinato: il server non ha risposto.', { tono: ok ? 'ok' : 'allerta' });
+            },
+          }) : null)))
         : h('p.nota-t', { testo: 'Nessuna modifica registrata: il diario parte dalla prima spunta.' }));
     }).catch(() => corpo.replaceChildren(h('p.nota-t', {
       testo: `Diario non disponibile: ${DOVE_VIVE} non risponde.`,
     })));
     return [
       h('h2', { testo: 'Diario attività' }),
-      h('p.sotto', { testo: 'Le ultime 120 modifiche, di tutti gli operatori e di tutti gli anni.' }),
+      h('p.sotto', { testo: 'Le ultime 120 modifiche, di tutti gli operatori e di tutti gli anni.' +
+        (sonoAdmin() ? ' Con "Ripristina" rimetti un passo com\u2019era prima di quella riga.' : '') }),
       corpo,
       h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },
         h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
@@ -770,10 +861,42 @@ function mostraDiario() {
 
 /* ------------------------------------------------------ impostazioni ----- */
 function mostraImpostazioni() {
+  if (!sonoAdmin()) return avviso('Le impostazioni sono dell\u2019amministratore.');
   modale(chiudi => {
     const inp = h('input.campo', { type: 'month', value: st.inizioTracciamento });
+    /* RUOLI (#ANCHOR: ruoli): chi e' amministratore. I nomi di config.json
+       (locale) restano admin comunque; l'ultimo admin non si declassa. */
+    const ruoliBox = h('div.righe-scelta');
+    const disegnaRuoli = () => {
+      const nomi = [...new Set([...(st.operatori || []), ...Object.keys(st.ruoli || {})])]
+        .sort((a, b) => a.localeCompare(b, 'it'));
+      ruoliBox.replaceChildren(...nomi.map(n => h('button.pill' + (eAdmin(n) ? '' : '.debole'), {
+        'aria-pressed': String(eAdmin(n)),
+        title: eAdmin(n) ? 'Amministratore: clic per renderlo tecnico' : 'Tecnico: clic per renderlo amministratore',
+        onclick: async () => {
+          const ruolo = eAdmin(n) ? 'tecnico' : 'admin';
+          try {
+            const { ok, dati } = await chiama('/api/ruolo', { metodo: 'POST',
+              body: { nome: n, ruolo, operatore: rete.operatore } });
+            if (!ok) return avviso(dati.errore || 'Non cambiato.', { tono: 'allerta' });
+            st.ruoli = dati.ruoli || st.ruoli;
+            disegnaRuoli(); disegnaIo(); aggiornaApprova();
+            avviso(`${n} ora \u00e8 ${ruolo === 'admin' ? 'amministratore' : 'tecnico'}.`, { tono: 'ok' });
+          } catch { avviso('Non cambiato: server non raggiungibile.', { tono: 'allerta' }); }
+        },
+      }, h('span', { testo: n }), h('span.ruolo', { testo: eAdmin(n) ? 'admin' : 'tecnico' }))));
+    };
+    disegnaRuoli();
     return [
       h('h2', { testo: 'Impostazioni' }),
+      h('h3.tit-p', { style: 'margin-top:14px', testo: 'Chi \u00e8 amministratore' }),
+      h('p.nota-t', {
+        style: 'margin-bottom:10px',
+        testo: 'L\u2019amministratore approva "Rapportino" e "Ricambi", completa o azzera ' +
+          'in blocco, rilegge Access e ripristina dal diario. I tecnici spuntano tutto, ' +
+          'ma quelle due spunte restano in attesa finch\u00e9 un amministratore non le approva.'
+      }),
+      ruoliBox,
       h('h3.tit-p', { style: 'margin-top:14px', testo: 'Da quando registrate le spunte qui' }),
       h('p.nota-t', {
         style: 'margin-bottom:10px',
@@ -792,7 +915,7 @@ function mostraImpostazioni() {
             chiudi();
             try {
               await chiama('/api/impostazioni', {
-                metodo: 'POST', body: { inizio_tracciamento: v },
+                metodo: 'POST', body: { inizio_tracciamento: v, operatore: rete.operatore },
               });
               st.inizioTracciamento = v;
               disegna();

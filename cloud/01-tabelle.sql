@@ -83,11 +83,16 @@ create table if not exists public.ops (
   op_id text primary key, ts text, esito text, rev integer
 );
 
+-- `ruolo`: 'admin' | 'tecnico' (#ANCHOR: ruoli). L'admin approva rapportino e
+-- ricambi, fa le azioni di massa e ripristina dal diario. Il primo admin si
+-- nomina con 07-ruoli.sql, gli altri dall'app (imposta_ruolo).
 create table if not exists public.operatori (
   nome text primary key,
   email text unique,
-  ultimo_accesso text
+  ultimo_accesso text,
+  ruolo text not null default 'tecnico'
 );
+alter table public.operatori add column if not exists ruolo text not null default 'tecnico';
 
 -- Chi e' collegato adesso. Sostituisce il dizionario PRESENZE in memoria di
 -- api.py: online i client sono su macchine diverse, la memoria non basta piu'.

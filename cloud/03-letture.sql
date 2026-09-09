@@ -51,6 +51,9 @@ begin
                    from public.mappature m where m.anno = v_anno - 1),
     'operatori', (select coalesce(jsonb_agg(o.nome order by o.nome), '[]'::jsonb)
                   from public.operatori o),
+    -- {nome: 'admin'|'tecnico'} (#ANCHOR: ruoli)
+    'ruoli', (select coalesce(jsonb_object_agg(o.nome, o.ruolo), '{}'::jsonb)
+              from public.operatori o),
     'ultimo_sync', (select v from public.meta where k = 'ultimo_sync'),
     'inizio_tracciamento', (select v from public.meta where k = 'inizio_tracciamento'),
     'indirizzo_lan', null,
@@ -104,6 +107,7 @@ returns jsonb
 language plpgsql security definer set search_path = public as $fn$
 declare v_nome text := left(btrim(coalesce(p_nome, '')), 40);
         v_mail text := public.email_corrente();
+        v_ruolo text;
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
@@ -111,15 +115,56 @@ begin
   if v_nome = '' then
     return jsonb_build_object('http', 400, 'errore', 'nome mancante');
   end if;
-  -- Un solo nome per casella: se cambia come si scrive, il vecchio se ne va.
+  -- Un solo nome per casella: se cambia come si scrive, il vecchio se ne va,
+  -- ma il RUOLO resta attaccato alla casella (#ANCHOR: ruoli).
+  select coalesce((select o.ruolo from public.operatori o where o.email = v_mail limit 1),
+                  'tecnico') into v_ruolo;
   delete from public.operatori o where o.email = v_mail and o.nome <> v_nome;
-  insert into public.operatori(nome, email, ultimo_accesso)
-  values (v_nome, v_mail, public.ts_locale())
+  insert into public.operatori(nome, email, ultimo_accesso, ruolo)
+  values (v_nome, v_mail, public.ts_locale(), v_ruolo)
   on conflict (nome) do update
-    set email = excluded.email, ultimo_accesso = excluded.ultimo_accesso;
-  return jsonb_build_object('http', 200, 'nome', v_nome,
+    set email = excluded.email, ultimo_accesso = excluded.ultimo_accesso,
+        ruolo = excluded.ruolo;
+  return jsonb_build_object('http', 200, 'nome', v_nome, 'ruolo', v_ruolo,
+    'ruoli', (select coalesce(jsonb_object_agg(o.nome, o.ruolo), '{}'::jsonb)
+              from public.operatori o),
     'operatori', (select coalesce(jsonb_agg(o.nome order by o.nome), '[]'::jsonb)
                   from public.operatori o));
+end $fn$;
+
+-- ---------------------------------------------------------------- ruoli ----
+-- Un admin nomina (o declassa) un collega, per nome (#ANCHOR: ruoli). L'ultimo
+-- admin non si declassa: nessuno approverebbe piu' niente. Il primo admin si
+-- nomina a mano con 07-ruoli.sql.
+create or replace function public.imposta_ruolo(p_nome text, p_ruolo text)
+returns jsonb
+language plpgsql security definer set search_path = public as $fn$
+declare v_nome text := left(btrim(coalesce(p_nome, '')), 40);
+        n_admin int;
+begin
+  if not public.autorizzato() then
+    raise exception 'non autorizzato' using errcode = '42501';
+  end if;
+  if not public.e_admin() then
+    return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
+  end if;
+  if v_nome = '' or p_ruolo not in ('admin', 'tecnico') then
+    return jsonb_build_object('http', 400, 'errore', 'servono nome e ruolo (admin|tecnico)');
+  end if;
+  if not exists (select 1 from public.operatori o where o.nome = v_nome) then
+    return jsonb_build_object('http', 400, 'errore',
+      v_nome || ' non e'' ancora entrato: il ruolo si da'' dopo il primo accesso');
+  end if;
+  select count(*) into n_admin from public.operatori o where o.ruolo = 'admin';
+  if p_ruolo = 'tecnico' and n_admin <= 1
+     and exists (select 1 from public.operatori o where o.nome = v_nome and o.ruolo = 'admin') then
+    return jsonb_build_object('http', 400, 'errore',
+      'e'' l''unico amministratore: nominane prima un altro');
+  end if;
+  update public.operatori set ruolo = p_ruolo where nome = v_nome;
+  return jsonb_build_object('http', 200,
+    'ruoli', (select coalesce(jsonb_object_agg(o.nome, o.ruolo), '{}'::jsonb)
+              from public.operatori o));
 end $fn$;
 
 -- --------------------------------------------------------- impostazioni ----
@@ -130,6 +175,9 @@ declare v text := btrim(coalesce(p_inizio_tracciamento, ''));
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
+  end if;
+  if not public.e_admin() then
+    return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
   end if;
   if v !~ '^\d{4}-\d{2}$' then
     return jsonb_build_object('http', 400, 'errore', 'formato atteso AAAA-MM');
@@ -151,7 +199,7 @@ begin
   select jsonb_build_object('http', 200, 'storia', coalesce(jsonb_agg(x), '[]'::jsonb))
   from (
     select jsonb_build_object('ts', e.ts, 'operatore', e.operatore,
-                              'campo', e.campo, 'da', e.da, 'a', e.a) as x
+                              'campo', e.campo, 'da', e.da, 'a', e.a, 'origine', e.origine) as x
     from public.eventi e
     where e.id_service = p_id_service and e.anno = p_anno and e.mese = p_mese
     order by e.id desc limit 50
@@ -170,7 +218,8 @@ begin
   from (
     select jsonb_build_object('ts', e.ts, 'operatore', e.operatore,
                               'id_service', e.id_service, 'anno', e.anno,
-                              'mese', e.mese, 'campo', e.campo, 'a', e.a,
+                              'mese', e.mese, 'campo', e.campo, 'da', e.da, 'a', e.a,
+                              'origine', e.origine,
                               'destinazione', s.destinazione, 'rag_soc', c.rag_soc) as x
     from public.eventi e
     left join public.services s on s.id_service = e.id_service

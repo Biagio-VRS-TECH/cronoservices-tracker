@@ -676,3 +676,18 @@ fa leggere come VRS e non come un tema generico.
 
 Lo snippet per ricalcolare i rapporti e' in
 [da-fare.md](da-fare.md#manutenzione).
+
+## Ruoli e proposte a schermo (#ANCHOR: ruoli, 22a sessione)
+
+Un passo proposto (valore 2, solo `corretta`/`ricambi`) si disegna **a righe**
+col colore del passo: nella cella `data-x="3"` (e classe `.attesa` sulla
+capsula), nei bottoni `.passo.proposto` con `aria-checked="mixed"` (Mese,
+cassetto, popover), tooltip "proposta da X, in attesa dell'amministratore".
+Il clic passa sempre da `prossimo(id, mese, campo)`: su un 2 l'admin approva
+(-> 1), il tecnico ritira (-> 0). Ogni "e' fatto?" e' `fatto(c, campo)`.
+
+Per l'admin compaiono: il badge `.ruolo` nella pillola `#io`, la pillola ambra
+`#approva` (`.pill.attesa`, nascosta a zero) che apre *Da approvare*, le voci
+Completa/Azzera/Sincronizza/Impostazioni nel menu Azioni, e il bottone
+`.pill.mini.ripristina` su ogni riga di diario, storia del popover e ultime
+modifiche del cassetto. Il tecnico non vede niente di tutto questo.

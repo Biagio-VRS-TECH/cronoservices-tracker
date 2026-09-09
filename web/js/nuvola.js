@@ -184,6 +184,8 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
                                    p_base_nota: b.base_nota ?? null }, ms);
     case '/api/operatore':
       return rpc('imposta_operatore', { p_nome: b.nome }, ms);
+    case '/api/ruolo':                     // (#ANCHOR: ruoli) solo un admin passa
+      return rpc('imposta_ruolo', { p_nome: b.nome, p_ruolo: b.ruolo }, ms);
     case '/api/ping':
       return rpc('app_ping', { p_dove: b.dove || null }, ms);
     case '/api/impostazioni':

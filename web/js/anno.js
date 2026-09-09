@@ -22,6 +22,7 @@ import { htmlChipDocumento } from './documenti.js';
 import {
   st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
   mappaturaSito, meseScadenza, scadEffettiva, statoMappatura, notaEredita, fuochiSu,
+  PROPOSTA, notaProposta, prossimo, fatto,
   CAMPI, SIGLA, PASSI, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriPop, chiudiPop, popAperto } from './spunte.js';
@@ -43,7 +44,7 @@ const htmlPunto = s => {
    l'anno prima e ancora valido (#ANCHOR: passi-cumulativi in stato.js). Il
    CSS disegna il 2 con lo stesso colore, tenue. */
 const segAttr = e => CAMPI.map(k =>
-  `data-${SIGLA[k]}="${e.c[SIGLA[k]] ? 1 : e.ered?.[k] ? 2 : 0}"`).join(' ');
+  `data-${SIGLA[k]}="${e.c[SIGLA[k]] === 1 ? 1 : e.c[SIGLA[k]] === PROPOSTA ? 3 : e.ered?.[k] ? 2 : 0}"`).join(' ');
 /* Un collega ha questa cella aperta adesso (#ANCHOR: fuoco): le sue iniziali
    nel suo colore, sopra la cella. Leggero di proposito: e' un avviso, non un
    blocco. */
@@ -86,9 +87,11 @@ function htmlCella(s, m) {
   }
 
   const chi = fuochiSu(s.id, m);
-  const er = notaEredita(e);
+  const pr = e.attesa.map(k => notaProposta(e.c, k)).join(' · ');
+  const er = [notaEredita(e), pr].filter(Boolean).join(' · ');
   const cl = ['cella', CSS_CLASSE[e.classe], e.completa && 'completa',
-    e.ritardo && 'ritardo', e.c.nota && 'con-nota', chi.length && 'altrui'].filter(Boolean).join(' ');
+    e.ritardo && 'ritardo', e.c.nota && 'con-nota', chi.length && 'altrui',
+    e.attesa.length && 'attesa'].filter(Boolean).join(' ');
   return `<div class="q${oggiCl(m)}"><button class="${cl}" data-cella="${s.id}-${m}"
     tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}${er ? ' ' + esc(er) + '.' : ''}"
     data-tip="${esc(tip)}" title="${esc(tip)}${er ? ' \u00b7 ' + esc(er) : ''}"${chi.length ? ` style="--tinta:${tinta(chi[0])}"` : ''}
@@ -331,7 +334,7 @@ function collega(r) {
     const i = '1234'.indexOf(e.key);
     if (i >= 0) {
       e.preventDefault();
-      return spunta(id, m, CAMPI[i], !cella(id, m)[SIGLA[CAMPI[i]]]);
+      return spunta(id, m, CAMPI[i], prossimo(id, m, CAMPI[i]));
     }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return apriPop(cel, id, m); }
     const dx = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && FRECCE[e.key];
@@ -401,14 +404,21 @@ export function aggiornaCella(id, mese, remoto) {
  *  intorno (fuoco della tastiera, chip del collega). */
 function dipingi(n, id, mese) {
   const e = statoCella(id, mese);
-  for (const k of CAMPI) n.setAttribute('data-' + SIGLA[k], e.c[SIGLA[k]] ? 1 : e.ered[k] ? 2 : 0);
+  /* 1 fatto, 2 ereditato (tenue), 3 PROPOSTO dal tecnico e in attesa dell'admin
+     (a righe, #ANCHOR: ruoli), 0 niente */
+  for (const k of CAMPI) {
+    const v = e.c[SIGLA[k]];
+    n.setAttribute('data-' + SIGLA[k], v === 1 ? 1 : v === PROPOSTA ? 3 : e.ered[k] ? 2 : 0);
+  }
+  n.classList.toggle('attesa', e.attesa.length > 0);
   n.classList.toggle('completa', e.completa);
   n.classList.toggle('ritardo', e.ritardo);
   n.classList.toggle('con-nota', !!e.c.nota);
   n.classList.toggle('sospesa', CAMPI.some(x => st.sospese.has(`${id}-${mese}-${x}`)));
   const er = notaEredita(e);
+  const pr = e.attesa.map(k => notaProposta(e.c, k)).join(' \u00b7 ');
   const tip = n.dataset.tip ?? (CLASSE_ET[e.classe] || '');
-  n.title = tip + (er ? ' \u00b7 ' + er : '');
+  n.title = tip + (er ? ' \u00b7 ' + er : '') + (pr ? ' \u00b7 ' + pr : '');
   n.setAttribute('aria-label',
     `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}${er ? ' ' + er + '.' : ''}`);
 }
@@ -526,7 +536,7 @@ export function passiMancanti(soloReali = true) {
         if (soloReali ? !e.reale : !e.spuntabile) continue;
         for (const campo of CAMPI) {
           // un passo ereditato da una visita prima e' gia' fatto: non si rimette
-          if (!e.c[SIGLA[campo]] && !e.ered[campo]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
+          if (!fatto(e.c, campo) && !e.ered[campo]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
         }
       }
     }
@@ -544,7 +554,7 @@ export function passiPresenti() {
         const e = statoCella(s.id, m);
         if (!e.spuntabile) continue;
         for (const campo of CAMPI) {
-          if (e.c[SIGLA[campo]]) voci.push({ id: s.id, mese: m, campo, valore: 0 });
+          if (e.c[SIGLA[campo]] !== 0) voci.push({ id: s.id, mese: m, campo, valore: 0 });   // anche le proposte
         }
       }
     }
