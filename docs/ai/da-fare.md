@@ -3,6 +3,63 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (19a sessione) - il login che rifiutava una password giusta
+
+Il committente: *"c'e' un bug, non mi fa accedere mi chiede sempre autenticazione
+e me la da pure sbagliata"*, e poi il dettaglio che ha risolto il caso:
+*"all'inizio fa entrare, poi la richiede dopo che vado su generatore fogli"*.
+La scritta rossa era "Questa casella non e' abilitata: serve un indirizzo
+@vrs-tech.it", con `helpdesk@vrs-tech.it`.
+
+**Come si e' chiuso senza indovinare.** Dalla API di amministrazione di Supabase
+(chiave in `app/cloud.json`, sola lettura): l'utente esiste, e' confermato, non
+e' bloccato e ha un accesso **riuscito** quel giorno. Quindi il login funziona e
+il 403 arriva da una RPC, dopo. E siccome `app_bootstrap` gira (si entra) e usa
+lo **stesso** `autorizzato()` di `app_documenti`, il 403 non poteva essere
+"casella non abilitata": era `permission denied for function`.
+
+**Difetto 1, SQL.** `04-sicurezza.sql` fa `revoke execute on all functions ...
+from authenticated` e poi rida' l'EXECUTE a una lista **scritta prima che
+esistessero i documenti**: `app_documenti`, `registra_documento` e
+`elimina_documento` stanno in `06-documenti.sql`. Rilanciato `04` dopo `06` -
+cosa normale quando si ripassano gli script - le tre funzioni restano senza
+permesso e il tracker prende 403 appena tocca le schede tecnici (il giro che
+parte andando sul generatore, e `ricaricaDocumenti()` al ritorno di visibilita'
+in `app.js`). **Sistemato**: in fondo ai grant di `04` c'e' ora un blocco `do`
+che rida' l'EXECUTE alle tre, ma solo se esistono (`to_regprocedure`), cosi' su
+un progetto nuovo - dove `06` non e' ancora passato - non fa niente e non ferma
+lo script.
+
+**Difetto 2, client (quello che faceva il muro).** In `rpc()` di
+[nuvola.js](../../web/js/nuvola.js) il 403 era trattato come il 401: sessione
+buttata via e ritorno alla maschera d'accesso, con un messaggio **indovinato**
+("casella non abilitata") che copriva quello vero di Postgres. Risultato: un
+permesso mancante su una funzione qualsiasi diventava un login che si ripresenta
+all'infinito e sembra rifiutare una password giusta. **Sistemato**: il 401 resta
+l'unico caso che butta la sessione; il 403 la lascia stare e riporta il motivo
+vero e **il nome della funzione** che ha detto di no ("Il database ha negato
+app_documenti: permission denied for function app_documenti"). La scritta
+"casella non abilitata" compare ancora, ma solo quando il motivo di Postgres e'
+davvero il nostro `non autorizzato`.
+
+Lezione, la stessa della 11a sessione: un messaggio d'errore inventato dal
+client costa piu' del silenzio. Se il server dice perche', si mostra quello.
+
+**Da fare sul progetto Supabase** (il repo e' a posto, il database no): in SQL
+Editor rilanciare `cloud/06-documenti.sql` - e' idempotente e rimette i tre
+grant. In alternativa il solo pezzo che serve:
+
+    grant execute on function public.app_documenti(int),
+      public.registra_documento(int, int, int, text, text, int, int, text),
+      public.elimina_documento(text) to authenticated;
+
+Se `06` non fosse mai stato eseguito, il rilancio crea anche tabella, policy e
+bucket: e' la strada buona in tutti e due i casi.
+
+Verificato qui: l'applicazione locale carica tutto il grafo dei moduli senza
+errori di sintassi e arriva al suo ramo normale (`attiva() === false`, il modo
+locale non cambia). Il giro online va provato dal committente.
+
 ## Fatto il 2026-09-08 (18a sessione) - la testata del ponte, il titolo dal sito, i conflitti sulla nota
 
 Cinque richieste in una volta: *"il dock nuovo del generatore e' fissato in

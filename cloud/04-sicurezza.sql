@@ -60,6 +60,24 @@ grant execute on function
   public.imposta_meta(text)
 to authenticated;
 
+-- I documenti (06-documenti.sql) nascono dopo questo file: se 04 viene
+-- rilanciato da solo, il revoke qui sopra toglierebbe l'EXECUTE anche a loro e
+-- il tracker risponderebbe 403 sulle schede tecnici (era il difetto della 19a
+-- sessione). Si ridanno qui, ma solo se esistono: su un progetto nuovo, dove 06
+-- non e' ancora passato, il blocco non fa niente e non ferma lo script.
+do $blocco$
+declare f text;
+begin
+  foreach f in array array['app_documenti(int)',
+                           'registra_documento(int, int, int, text, text, int, int, text)',
+                           'elimina_documento(text)']
+  loop
+    if to_regprocedure('public.' || f) is not null then
+      execute format('grant execute on function public.%s to authenticated', f);
+    end if;
+  end loop;
+end $blocco$;
+
 -- Queste due le chiama la policy RLS, cioe' vengono valutate con i permessi di
 -- chi ascolta Realtime: senza EXECUTE la diretta non arriverebbe a nessuno.
 grant execute on function public.autorizzato(), public.email_corrente()

@@ -108,19 +108,29 @@ async function rpc(nome, args, ms = 20000) {
     });
     const testo = await r.text();
     const dati = testo ? JSON.parse(testo) : {};
-    if (r.status === 401 || r.status === 403) {
-      // 403 = token buono ma casella non abilitata (vedi autorizzato() in
-      // cloud/02-funzioni.sql). Si torna alla maschera dicendo perche', invece
-      // di lasciare una pagina vuota senza spiegazione.
-      ultimoErrore = r.status === 403
-        ? 'Questa casella non e\' abilitata: serve un indirizzo @vrs-tech.it.'
-        : 'Sessione scaduta: rientra.';
+    const motivo = dati.message || dati.hint || dati.error_description || '';
+    if (r.status === 401) {
+      // 401 = il token non vale piu'. Questa e' l'UNICA ragione per cui si
+      // butta la sessione e si torna alla maschera d'accesso.
+      ultimoErrore = 'Sessione scaduta: rientra.';
       salvaSessione(null);
       return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
     }
+    if (r.status === 403) {
+      // 403 = il token e' buono, ha risposto Postgres di no. Due cause diverse
+      // che si somigliano: la casella non e' abilitata (autorizzato() in
+      // cloud/02-funzioni.sql) oppure a QUESTA funzione manca il grant execute
+      // di cloud/04-sicurezza.sql. La sessione NON si tocca: buttarla rimandava
+      // al login a ogni chiamata, e una password giusta sembrava sbagliata. Si
+      // riporta il motivo vero e il nome della funzione, cosi' si vede subito
+      // quale dei due casi e'.
+      return { ok: false, stato: 403, dati: { errore: /autorizzat/i.test(motivo)
+        ? 'Questa casella non e\' abilitata: serve un indirizzo @vrs-tech.it.'
+        : 'Il database ha negato ' + nome + ': ' + (motivo || 'permesso mancante') + '.' } };
+    }
     if (!r.ok) {
       return { ok: false, stato: r.status,
-               dati: { errore: dati.message || dati.hint || ('errore ' + r.status) } };
+               dati: { errore: motivo || ('errore ' + r.status) } };
     }
     // Postgres risponde sempre 200: lo stato vero viaggia dentro il JSON.
     const stato = Number(dati?.http) || 200;
