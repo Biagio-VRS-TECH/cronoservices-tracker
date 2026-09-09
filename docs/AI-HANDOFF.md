@@ -168,9 +168,10 @@ Branch `anteprima-rete-blocchi-pdf` (dettaglio in
 blocco come una riga con *Ripristina il blocco*. **PDF a scala 3** (288 dpi,
 ~300 KB/pagina, tempo uguale) e **un PDF per fascicolo** con lo stesso
 `gruppo` (`documenti.gruppo/fascicolo/fascicoli`): il cassetto li mostra come
-un documento in N parti (`gruppiDocumenti` in `documenti.js`). **Da rieseguire
-su Supabase: 01, 02, 03, 04, 06, poi 07.** Service worker `crono-guscio-v15`.
-Non provato online: serve l'SQL eseguito e un account di prova.
+un documento in N parti (`gruppiDocumenti` in `documenti.js`). SQL 01-04, 06 e
+07 **eseguiti** su Supabase dal committente; tutto **verificato online** in
+produzione (deploy `0b8ad52`). Sincronia Access -> Supabase alle **08:15** dal
+PC dell'ufficio. Service worker `crono-guscio-v15`.
 
 ## Stato al 2026-09-09 (22a sessione)
 

@@ -54,12 +54,20 @@ Quattro richieste, sul branch `anteprima-rete-blocchi-pdf` (deploy preview, non 
   casella dell'admin. Service worker `crono-guscio-v15`. Provato in browser su
   `data/prova.db` (porta 8775).
 
+### Verificato online il 2026-09-09 (produzione, dopo il deploy `0b8ad52`)
+
+Con l'SQL eseguito dal committente (01-04, 06, 07; `administrator@vrs-tech.it`
+e' admin) e il suo login nel riquadro browser: proposta (valore 2) -> pillola
+"1 da approvare" via Realtime -> Approva -> 1 -> Ripristina dal diario -> 2 ->
+seconda proposta -> Approva tutte -> riga di blocco -> Ripristina il blocco ->
+entrambe in attesa -> Respingi -> 0. Generatore online: 24 pagine, 2
+fascicoli, 7,4 MB in 5,2 s, due oggetti nello Storage con lo stesso `gruppo`,
+cassetto con la scheda a fascicoli, Elimina toglie oggetti e righe. Tutto
+rimesso com'era (cella 519-7, documenti). La **sincronia verso Supabase gira
+alle 08:15** (operazione pianificata registrata su questo PC, `cloud/installa-sync-cloud.*`).
+
 ### Da decidere / resta fuori (23a)
 
-- Il test **online** (Supabase) non l'ho potuto fare: serve prima l'SQL
-  eseguito, poi un account di prova. Il committente ha offerto un account
-  dedicato: con quello si verifica ruoli, approvazioni, ripristino a blocchi e
-  fascicoli nello Storage.
 - Download multipli: Chrome chiede una volta il permesso "scaricare piu' file";
   se negato arriva solo il primo fascicolo, ma nel tracker arrivano tutti.
 - Il ripristino della nota resta fuori (il diario non ha il testo precedente).
