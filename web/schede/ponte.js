@@ -293,7 +293,11 @@ function collegaDock() {
 
   $('#ponteSalva').onclick = salvaNelTracker;
   guarda();
-  new MutationObserver(() => disegna()).observe($('#pages'), { childList: true });
+  /* le pagine cambiate dal generatore: cambia "quante pagine ci sono", quindi
+     il bottone si accende o si spegne. Non durante la resa del PDF: quelle
+     mutazioni sono le nostre (generaPdf sposta le pagine di lotto in lotto in
+     un contenitore d'appoggio) e `progresso` ridisegna gia' per conto suo. */
+  new MutationObserver(() => { if (!inCorso) disegna(); }).observe($('#pages'), { childList: true });
   addEventListener('keydown', e => { if (e.key === 'Escape' && esitoCorrente?.cand) { chiudiLista(); disegna(); } });
 }
 
@@ -339,9 +343,24 @@ function guarda() {
   const misuraPillola = () => {
     if (dock.hidden || inMisura) return;
     inMisura = true;
+    /* La misura porta `--r` a 1 e lo rimette a posto nello stesso giro di JS.
+       Il browser pero' non vede due valori nello stesso fotogramma: vede solo
+       il ritorno, e sul ritorno accende la transizione di `--r` (0,18 s).
+       Quella transizione nasce "in attesa": il valore che mostra finche' non
+       parte e' quello di PARTENZA, cioe' 1 - la testata schiacciata a pillola
+       larga quanto la colonna. Parte al fotogramma dopo... se un fotogramma
+       arriva. Mentre si prepara il PDF html2canvas tiene il filo occupato per
+       secondi interi, e in quei secondi la testata resta schiacciata: e' il
+       "crash" della barra durante il salvataggio, uno per lotto di pagine.
+       Percio' la misura si fa a transizioni spente e con un ricalcolo forzato
+       (`offsetWidth`) prima di riaccenderle: il ritorno a `--r` e' immediato e
+       non lascia niente in attesa. */
+    dock.style.transition = 'none';
     dock.classList.add('misura');
     const r = dock.getBoundingClientRect();
     dock.classList.remove('misura');
+    void dock.offsetWidth;
+    dock.style.removeProperty('transition');
     inMisura = false;
     if (r.width < 40) return;
     larghezzaMisurata = dock.parentElement.clientWidth;
@@ -356,12 +375,29 @@ function guarda() {
      torna a guardarla */
   let inCoda = false;
   rimisura = () => {
-    if (inCoda) return;
+    /* mentre si prepara il PDF la pillola non puo' comparire (puoStringersi e'
+       falso), quindi la sua misura non serve a nessuno: misurarla a ogni
+       avanzamento e' solo un ricalcolo di stile in mezzo alla resa. Si rifa'
+       alla fine, quando `esportaESalva` ridisegna a lavoro finito. */
+    if (inCorso || inCoda) return;
     inCoda = true;
     setTimeout(() => { inCoda = false; misuraPillola(); }, 0);
   };
 
-  aggiorna = () => {
+  /* `immediato` salta la transizione di `--r`. Serve quando il filo sta per
+     essere occupato: una transizione appena nata mostra il valore di PARTENZA
+     finche' non arriva un fotogramma, e se il fotogramma tarda due secondi
+     (html2canvas) la testata resta ferma nella forma sbagliata. Scritta
+     d'imperio non c'e' niente da aspettare. */
+  const scriviR = (r, immediato) => {
+    if (r === stretta) return;
+    stretta = r;
+    if (immediato) dock.style.transition = 'none';
+    dock.style.setProperty('--r', r.toFixed(3));
+    if (immediato) { void dock.offsetWidth; dock.style.removeProperty('transition'); }
+  };
+
+  aggiorna = (immediato = false) => {
     /* la colonna si e' allargata (finestra ridimensionata, maniglie dei
        pannelli trascinate)? allora la pillola ha un'altra misura. Il confronto
        e' qui e non in un ResizeObserver di proposito: vedi il commento di
@@ -371,9 +407,7 @@ function guarda() {
 
     let r = puoStringersi() ? Math.min(1, Math.max(0, quantoGiu() / CORSA)) : 0;
     r = secco ? (r > .5 ? 1 : 0) : morbida(r);
-    if (r === stretta) return;
-    stretta = r;
-    dock.style.setProperty('--r', r.toFixed(3));
+    scriviR(r, immediato);
   };
 
   /* in cattura su window: a scorrere e' #banco, e lo scroll di un elemento non
@@ -509,6 +543,10 @@ async function esportaESalva({ scarica = true } = {}) {
   }
   inCorso = true;
   document.body.classList.add('ponte-lavora');
+  /* la testata si riapre SUBITO, senza transizione: da qui in avanti il filo
+     e' di html2canvas e un'animazione appena avviata resterebbe al primo
+     fotogramma - cioe' alla forma di prima */
+  aggiorna(true);
   const t0 = performance.now();
   try {
     const { blob, pagine, anteprima } = await generaPdf(progresso);

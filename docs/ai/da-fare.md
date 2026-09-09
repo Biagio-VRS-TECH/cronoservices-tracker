@@ -3,6 +3,34 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (21a sessione) - la barra del generatore durante il salvataggio
+
+- *"durante l'attivita' di salvataggio nella scheda generatore, la barra in
+  alto continua a crashare"* -> era la **transizione di `--r`** (`ponte.js`,
+  #ANCHOR: ponte). `misuraPillola` porta la testata a `--r:1` e la rimette a
+  posto nello stesso giro di JS: il browser non vede due valori in un
+  fotogramma, vede solo il ritorno, e sul ritorno accende
+  `transition:--r .18s`. Una transizione appena nata mostra il valore di
+  **partenza** — 1, cioe' la testata schiacciata a pillola ma larga quanto la
+  colonna — finche' non arriva un fotogramma; e mentre html2canvas prepara il
+  PDF il filo e' occupato per secondi interi. Risultato: la barra si
+  accartocciava e tornava a posto un colpo per lotto di pagine, cioe'
+  "continua a crashare". Tre correzioni:
+  - la misura si fa a **transizioni spente**, con `void dock.offsetWidth`
+    prima di riaccenderle: il ritorno a `--r` e' immediato e non lascia
+    niente in attesa;
+  - `aggiorna(immediato)` -> `scriviR(r, immediato)`: all'inizio del
+    salvataggio la testata si riapre **d'imperio** (`aggiorna(true)` in
+    `esportaESalva`), senza animazione, perche' da li' in avanti il filo non
+    e' piu' suo. Sullo scorrimento a mano la transizione resta;
+  - `rimisura` non misura mentre `inCorso` (la pillola non puo' comparire, la
+    sua misura non serve a nessuno) e il `MutationObserver` su `#pages` non
+    ridisegna mentre `inCorso`: quelle mutazioni sono di `generaPdf`, che
+    sposta le pagine di lotto in lotto, e `progresso` ridisegna gia' da se'.
+  Misurato sull'esempio della guida (24 pagine, 4,0 MB in 2,4 s): prima
+  `--r` restava a 1 con una transizione in attesa a `currentTime 0`; ora resta
+  a 0 per tutta la resa e torna alla pillola a lavoro finito.
+
 ## Fatto il 2026-09-09 (20a sessione) - i passi si accumulano, chi ha aperto cosa, Esporta e salva
 
 Nove richieste in una volta, quattro sul generatore e cinque sul tracker

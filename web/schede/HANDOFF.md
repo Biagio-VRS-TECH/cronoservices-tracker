@@ -71,7 +71,7 @@ toglie quel che avanza — a `--r:1` la banda vale zero e le pagine passano sott
 la pillola. Cosi' l'anteprima si riprende l'altezza a poco a poco invece di
 ereditarla di colpo.
 
-Tre trappole, tutte gia' pagate:
+Quattro trappole, tutte gia' pagate:
 
 - **niente ResizeObserver per misurare.** Il primo giro ne aveva uno su
   `#banco`: misurare cambia per un attimo la testata → cambia l'altezza del
@@ -87,6 +87,18 @@ Tre trappole, tutte gia' pagate:
   il bottone "cambia sito" tenevano la rotta alta 30px e la pillola restava un
   rettangolo. Dentro `.pn-rotta` tutto e' in `em` e a chiudersi e' il **corpo
   del testo**;
+- **la transizione di `--r` non si aspetta.** `transition:--r .18s` e' comoda
+  a mano libera e velenosa a filo occupato: una transizione appena nata mostra
+  il valore di **partenza** finche' non arriva un fotogramma, e mentre
+  html2canvas prepara il PDF il fotogramma tarda secondi. Due conseguenze,
+  tutte e due sistemate nella 21a sessione: `misuraPillola` faceva partire una
+  transizione 1 -> 0 (la misura porta `--r` a 1 e lo rimette a posto nello
+  stesso giro di JS, e il browser vede solo il ritorno) e la testata restava
+  schiacciata a ogni lotto di pagine — la misura ora si fa a transizioni
+  spente, con un `offsetWidth` prima di riaccenderle; e l'apertura della
+  testata all'inizio del salvataggio si scrive d'imperio (`aggiorna(true)` ->
+  `scriviR(r, immediato)`), non si anima. Regola: **quando il filo sta per
+  essere occupato, `--r` si scrive senza transizione**;
 - **l'ordine nel foglio conta.** Le interpolazioni della fascia stanno nella
   regola base di `.pn-strip`, che viene dopo: scritte prima, il suo `padding`
   fisso le scavalcava e la pillola restava alta 14px di troppo.
