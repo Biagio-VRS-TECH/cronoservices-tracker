@@ -123,8 +123,9 @@ ogni sync (ne tiene 20).
    `sse`, `api-client`, `stato`, `toggle`, `ui`, `popover`, `cassetto`,
    `vista-anno`, `vista-mese`, `vista-stat`, `app`, `sw`, `rinnovo`,
    `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
-   `mappatura-anno`, `classe-mese`, `passi`, `massa`, `stato-collegamento`,
-   `scoperta`, `nuvola`, `push-cloud`.
+   `mappatura-anno`, `classe-mese`, `passi`, `passi-cumulativi`, `fuoco`, `massa`,
+   `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
+   `affinita`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -146,6 +147,44 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-09 (20a sessione)
+
+Nove richieste (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-20a-sessione---i-passi-si-accumulano-chi-ha-aperto-cosa-esporta-e-salva),
+[ai/decisioni.md](ai/decisioni.md) 19 e 15l).
+
+**I passi si accumulano** (#ANCHOR: passi-cumulativi in `web/js/stato.js`): un
+passo messo a maggio vale anche alla visita di settembre, e una mappatura
+rimasta aperta a dicembre porta i suoi passi nell'anno dopo (se era chiusa si
+riparte). `mappaturaSito().passi` e' l'unione per campo; `statoCella()` da'
+`ered`, `mie`, `n`. La cella disegna l'ereditato con `data-x="2"` (tenue), il
+popover/Mese/cassetto lo mostrano spuntato-tenue con dove e' stato fatto, e da
+li' non si toglie. Il bootstrap porta `celle_prec` (l'anno prima). Leggere
+[ai/anno-e-tempo.md](ai/anno-e-tempo.md) prima di toccare i conteggi.
+
+**Chi ha aperto cosa** (#ANCHOR: fuoco): il `dove` della presenza porta la cella
+aperta (`"2026-09 @22-12"`); in locale il ping la diffonde via SSE quando
+cambia, online viaggia anche in broadcast Realtime (`nuvola.trasmetti`). A
+schermo: anello del colore del collega + iniziali sulla cella (Anno) e sulla
+scheda (Mese). La pillola bianca era `.eco-nome` col testo bianco su inchiostro
+chiaro nel tema scuro. **Esci** (`#esci`) accanto a "collegato", solo online.
+
+**Lo storico dei PDF non ha anno**: bootstrap e `/api/documenti` portano tutti
+i documenti; chip tenue (`.altro-anno`) se l'ultimo e' di un altro anno.
+
+**Generatore**: in modalita' libro il pareggio delle pagine iniziali e' una
+pagina bianca dichiarata, non da compilare. Il bottone e' **Esporta e salva**:
+PDF con jsPDF, scaricato e consegnato al tracker; la finestra di stampa del
+browser (che metteva l'indirizzo netlify.app su ogni foglio) resta su Ctrl+P.
+Scala 2 / JPEG 0,74: risoluzione +33% a tempo uguale, ~230 KB a pagina.
+
+**Da rieseguire su Supabase**: `cloud/03-letture.sql` e `cloud/06-documenti.sql`.
+Provato in browser su una **copia** del `.db` (`server.py --db`, configurazione
+`crono-prova`, porta 8775). Il service worker passa a `crono-guscio-v13`.
+Attenzione: con `core.autocrlf=true` alcuni file della copia di lavoro sono
+CRLF (`web/js/api.js`, `docs/ai/frontend.md`, `docs/ai/decisioni.md`) e gli
+altri LF: guardare il fine riga prima di patchare per sostituzione esatta.
 
 ## Stato al 2026-09-08 (18a sessione)
 

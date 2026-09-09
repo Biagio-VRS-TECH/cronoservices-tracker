@@ -63,21 +63,21 @@ language sql immutable as $fn$
     'anteprima', d.anteprima, 'creato_il', d.creato_il, 'creato_da', d.creato_da)
 $fn$;
 
+-- Senza anno (null) tutti i documenti: lo storico dei PDF non scade con l'anno.
 create or replace function public._documenti_json(p_anno int) returns jsonb
 language sql stable as $fn$
   select coalesce(jsonb_agg(public._doc_out(d) order by d.creato_il), '[]'::jsonb)
-    from public.documenti d where d.anno = p_anno
+    from public.documenti d where p_anno is null or d.anno = p_anno
 $fn$;
 
 create or replace function public.app_documenti(p_anno int default null)
 returns jsonb
 language plpgsql stable security definer set search_path = public as $fn$
-declare v_anno int := coalesce(p_anno, extract(year from (now() at time zone 'Europe/Rome'))::int);
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
   end if;
-  return jsonb_build_object('anno', v_anno, 'documenti', public._documenti_json(v_anno));
+  return jsonb_build_object('anno', p_anno, 'documenti', public._documenti_json(p_anno));
 end $fn$;
 
 -- Il client ha gia' caricato il PDF nel bucket: qui si registra la riga e si

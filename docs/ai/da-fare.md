@@ -3,6 +3,110 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (20a sessione) - i passi si accumulano, chi ha aperto cosa, Esporta e salva
+
+Nove richieste in una volta, quattro sul generatore e cinque sul tracker
+(dettaglio in [decisioni.md](decisioni.md) 19 e 15l; il modello dei passi in
+[anno-e-tempo.md](anno-e-tempo.md#i-passi-si-accumulano-non-si-rifanno-anchor-passi-cumulativi)).
+
+**Tracker**
+
+- *"se un sito ha visite in piu' mesi e ho delle spunte gia' segnate il primo
+  mese, quelle valgono anche per i successivi [...] anche per l'anno"* -> **i
+  passi si accumulano** (#ANCHOR: passi-cumulativi in `stato.js`).
+  `mappaturaSito(s).passi` e' l'unione per campo di tutti i mesi dell'anno
+  (prima era il mese "migliore"), piu' i passi dell'anno prima **se quella
+  mappatura era rimasta aperta** (0 < n < PASSI); se era chiusa l'anno dopo si
+  riparte. Il bootstrap porta `celle_prec` (l'anno prima) da tutti e due i
+  backend. `statoCella` ritorna `ered` (campo -> {anno, mese, by, at}), `mie`
+  (i suoi) e `n` = suoi + ereditati. La cella li disegna con `data-x="2"`
+  (segmento tenue), il popover, il foglio del Mese e il cassetto li mostrano
+  spuntati-tenui con "gia' fatta a maggio da X · si toglie da li'": **da una
+  cella non si toglie un passo fatto altrove**, e "Completa i passi mancanti"
+  mette solo quelli che mancano davvero. Una spunta in un mese ridipinge
+  tutte le capsule della riga (`aggiornaCella` in `anno.js`), e la scheda del
+  Mese si aggiorna anche per spunte messe in altri mesi dello stesso sito.
+  **Limite scelto**: la mappatura dell'anno prima resta segnata incompleta
+  anche se il quarto passo arriva a marzo dell'anno dopo (servirebbero le
+  celle dell'anno DOPO, e una regola circolare). Si guarda un anno indietro,
+  non due.
+- *"lo storico dei pdf sarebbe meglio se rimane anche per gli anni dopo"* ->
+  il bootstrap e `/api/documenti` (senza `anno`) portano **tutti** i documenti;
+  `documenti.js` non filtra piu' per anno; il chip e' tenue (`.altro-anno`)
+  quando l'ultimo PDF non e' di quest'anno e il suggerimento dice di che anno
+  e'. `06-documenti.sql`: `_documenti_json(null)` = tutti.
+- *"un tastino per il logout"* -> `#esci` accanto al segnale "collegato", solo
+  online (`bottoneEsci` in `app.js`), con conferma che ricorda le spunte in
+  coda; la stessa uscita sta nel pannello *Lavorare in piu' persone*, sezione
+  "La tua sessione" con la casella.
+- *"vedere che click sta facendo l'altro operatore, senza risultare pesante"*
+  -> **il fuoco** (#ANCHOR: fuoco in `stato.js`). Il `dove` della presenza
+  porta la cella aperta: `"2026-09 @22-12"`. La manda `segnalaFuoco()` in
+  `api.js` (popover aperto/chiuso in `spunte.js`), con un battito subito
+  (250 ms) invece di aspettare i 20 s. In locale `api.ping` diffonde
+  `presenze` via SSE quando il `dove` cambia; online lo stesso valore viaggia
+  anche in **broadcast Realtime** (`nuvola.trasmetti`, evento `fuoco`), oltre
+  che nella tabella `presenze` per chi arriva dopo. A schermo: anello del
+  colore del collega (`outline`, cosi' non litiga con i box-shadow) + iniziali
+  (`.fuoco-nome`) sulla cella nell'Anno, bordo + iniziali sulla scheda nel
+  Mese; il pallino in testa dice "ha aperto <sito> (Dic)". Nessuna riga SQL
+  nuova: il broadcast non tocca il database.
+- *"non si legge il nome, appare solo una pillola bianca"* -> `.eco-nome` aveva
+  `color:#fff` su `background: var(--inchiostro)`: nel tema scuro l'inchiostro
+  e' quasi bianco. Ora il testo e' `var(--superficie)`.
+
+**Generatore**
+
+- *"in modalita' libro la quarta pagina spunta come scheda vuota da compilare,
+  dovrebbe essere intenzionalmente bianca"* -> il pareggio delle pagine
+  iniziali (`fmPad`) e' `{t:'void'}`, come il rovescio della copertina; le
+  pagine da compilare restano solo in fondo. Conteggi: `nVoid` lo comprende,
+  `nFree`/`nBlank` no. UMBERTO I a documento unico: 96 pagine, bianche 2-4-96,
+  "1 pagina da compilare · 3 pagine bianche".
+- *"quando esporto lo salva con netlify"* e *"il tasto stampa e' inutile,
+  sostituiscilo con Esporta e salva (e salva anche nel tracker)"* -> un solo
+  bottone **Esporta e salva** (`esportaESalva` in `ponte.js`): produce il PDF
+  con jsPDF UNA volta, lo scarica (`scaricaFile`) e lo consegna al tracker. La
+  finestra di stampa del browser non c'e' piu' in mezzo - era lei a mettere
+  titolo e indirizzo del sito (netlify.app) in testa e in fondo a ogni foglio -
+  e resta su **Ctrl+P** (`stampaBrowser` in index.html). Senza sito o senza
+  sessione il file si scarica comunque e la fascia dice perche' non e' stato
+  archiviato. Il bottone del dock resta "Salva nel tracker" (solo consegna).
+- *"la qualita' del file mi sembra bassina, si puo' alzare senza rallentare il
+  download?"* -> scala **1,5 -> 2** (~192 dpi), JPEG 0,8 -> 0,74. Misurato: il
+  tempo di resa non dipende dalla scala (html2canvas paga il clone del DOM,
+  non i pixel), quindi la risoluzione e' gratis in tempo; i byte no: 171 ->
+  ~230 KB a pagina (UMBERTO I 96 pagine: 22,3 MB in 25 s). Il PNG sarebbe
+  piu' piccolo e senza perdita ma jsPDF lo ricomprime in JS (+0,4 s a pagina):
+  scartato, i numeri sono nel commento sopra `SCALA`. **La velocita' del
+  download non e' di Netlify**: i PDF stanno nello Storage di Supabase,
+  Netlify serve solo l'applicazione. Pagare Netlify non cambierebbe niente.
+
+**Da fare sul progetto Supabase**: rieseguire `cloud/03-letture.sql`
+(`celle_prec`, documenti di tutti gli anni) e `cloud/06-documenti.sql`
+(`_documenti_json(null)`, e i grant della 19a sessione). Finche' non si fa,
+online i passi si accumulano solo dentro l'anno e i PDF restano quelli
+dell'anno: il client tollera la mancanza di `celle_prec`.
+
+**Come e' stato provato**: `server.py --db ../data/prova.db` (argomento nuovo)
+su una copia dell'archivio, configurazione `crono-prova` in
+`.claude/launch.json` sulla porta 8775 - `data/` e' ignorata da git, la copia
+va rifatta a ogni sessione. Casi seminati: #12 con 3 passi a novembre 2025
+(ereditati a maggio 2026, "3 passi gia' fatti nel 2025"), #22 con 2 passi ad
+aprile 2026 (agosto e dicembre `2200`, poi `2220` dopo un passo ad agosto,
+riga 3/4), #23 chiusa nel 2025 (niente ereditato). Secondo operatore simulato
+con `curl` su `/api/ping` (`dove: "2026-09 @22-12"`): anello e iniziali sulla
+cella entro un secondo via SSE; `/api/toggle` da un altro `client_id`:
+capsula `remota`, etichetta leggibile nel tema scuro (testo #16181B su
+#EDEEF0). Il generatore ha consegnato 96 pagine al tracker di prova con la
+spunta su dicembre. **L'archivio vero non e' stato toccato.** Il broadcast
+Realtime e il bottone Esci vanno provati online dal committente.
+
+**Trappola della copia di lavoro, scoperta qui**: git ha `core.autocrlf=true`,
+quindi i file che ha toccato lui sono CRLF su disco (`api.js`, `frontend.md`,
+`decisioni.md`) e quelli riscritti dagli strumenti sono LF. Nel repo sono tutti
+LF. Chi patcha per sostituzione esatta deve guardare il fine riga file per file.
+
 ## Fatto il 2026-09-09 (19a sessione) - il login che rifiutava una password giusta
 
 Il committente: *"c'e' un bug, non mi fa accedere mi chiede sempre autenticazione

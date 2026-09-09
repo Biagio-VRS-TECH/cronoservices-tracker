@@ -254,6 +254,14 @@
 .cella[data-c="1"] .seg.c { background: var(--st-controllata); transform: none; }
 .cella[data-k="1"] .seg.k { background: var(--st-corretta);    transform: none; }
 .cella[data-r="1"] .seg.r { background: var(--st-ricambi);     transform: none; }
+/* PASSO EREDITATO (data-x="2"): fatto in un mese prima, o l'anno prima, e
+   ancora valido (#ANCHOR: passi-cumulativi in js/stato.js). Stesso colore del
+   passo, ma tenue: "c'e', non e' di qui". Sta PRIMA delle regole della
+   mappatura completa, che hanno la stessa specificita' e devono vincere. */
+.cella[data-s="2"] .seg.s { background: color-mix(in srgb, var(--st-stampata) 40%, var(--superficie));    transform: none; }
+.cella[data-c="2"] .seg.c { background: color-mix(in srgb, var(--st-controllata) 40%, var(--superficie)); transform: none; }
+.cella[data-k="2"] .seg.k { background: color-mix(in srgb, var(--st-corretta) 40%, var(--superficie));    transform: none; }
+.cella[data-r="2"] .seg.r { background: color-mix(in srgb, var(--st-ricambi) 40%, var(--superficie));     transform: none; }
 /* MAPPATURA COMPLETA: la capsula intera si accende di verde, non solo un alone.
    E' il segnale piu' importante della griglia - "questo sito e' a posto per
    l'anno" - e si deve leggere da lontano, scorrendo 274 righe. I quattro
@@ -323,6 +331,20 @@
   background: var(--bordo);
 }
 
+/* Un collega ha questa cella APERTA adesso (#ANCHOR: fuoco in js/stato.js):
+   anello del suo colore e le sue iniziali. Si vede prima di cliccarci sopra
+   anche tu; e' un avviso, quindi resta leggero. L'anello e' un outline e non
+   un box-shadow: non litiga con quelli delle classi temporali. */
+.mesi > .q { position: relative; }
+.cella.altrui { outline: 2px solid var(--tinta, var(--marchio)); outline-offset: 1.5px; }
+.fuoco-nome {
+  position: absolute; top: -7px; right: 0; z-index: 4; pointer-events: none;
+  font: 700 8px/1 var(--f-ui); letter-spacing: .02em; color: #fff;
+  background: var(--tinta, var(--marchio)); padding: 2px 3px;
+  border-radius: var(--r-tonda); border: 1.5px solid var(--superficie);
+  animation: entra 180ms var(--molla) both;
+}
+
 /* Modifica arrivata da un altro operatore: anello che pulsa una volta sola.
    E' la concorrenza resa visibile, non una decorazione. */
 .cella.remota { animation: eco 1100ms var(--molla) both; }
@@ -333,7 +355,9 @@
 }
 .eco-nome {
   position: absolute; bottom: 100%; left: 50%; translate: -50% -2px; z-index: 5;
-  font: 600 9px/1 var(--f-ui); color: #fff; background: var(--inchiostro);
+  /* testo del colore della superficie, non bianco fisso: nel tema scuro
+     l'inchiostro e' quasi bianco e l'etichetta era una pillola vuota */
+  font: 600 9px/1 var(--f-ui); color: var(--superficie); background: var(--inchiostro);
   padding: 3px 5px; border-radius: var(--r-tonda); white-space: nowrap;
   animation: eco-via 1600ms both;
 }
@@ -372,6 +396,12 @@
 .passo[data-campo="corretta"][aria-checked="true"] .box    { background: var(--st-corretta);    border-color: var(--st-corretta); }
 .passo[data-campo="ricambi"][aria-checked="true"] .box     { background: var(--st-ricambi);     border-color: var(--st-ricambi); }
 .passo .et { flex: 1; font-size: var(--t-mini); font-weight: 500; }
+/* passo ereditato da una visita prima: spuntato ma tenue, con dove e' stato
+   fatto; non e' un bottone che fa qualcosa qui (#ANCHOR: passi-cumulativi) */
+.passo.eredita { color: var(--tenue); cursor: default; }
+.passo.eredita .box { opacity: .5; }
+.passo.eredita .et { font-weight: 400; }
+.passo.eredita .chi { white-space: nowrap; }
 .passo .chi { font: var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); }
 .passo .n-passo { font: 600 var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); flex: none; }
 
@@ -439,6 +469,16 @@
   transition: border-color var(--rapido), box-shadow var(--rapido), background var(--rapido);
 }
 .scheda:hover { box-shadow: var(--ombra-2); }
+/* un collega ha questa scheda aperta (#ANCHOR: fuoco): bordo del suo colore e
+   le sue iniziali all'angolo */
+.scheda.altrui { border-color: var(--tinta, var(--marchio)); }
+.scheda.altrui::after {
+  content: attr(data-altrui); position: absolute; top: -7px; left: 12px;
+  font: 700 8px/1 var(--f-ui); letter-spacing: .02em; color: #fff;
+  background: var(--tinta, var(--marchio)); padding: 2px 4px;
+  border-radius: var(--r-tonda); border: 1.5px solid var(--superficie);
+}
+.scheda .meta .eredita-nota { color: var(--tenue); }
 /* SCHEDA FINITA: la spina verde a sinistra (ombra interna, segue il raggio),
    il fondo appena tinto e l'etichetta "a posto" nella riga dei dati. */
 .scheda.finita {
@@ -493,6 +533,8 @@
 .passi-riga .passo .box { width: 16px; height: 16px; border-radius: var(--r-tonda);
   border-color: color-mix(in srgb, var(--bordo-forte) 80%, transparent); }
 .passi-riga .passo .et { font-size: var(--t-micro); font-weight: 600; }
+.passi-riga .passo.eredita[aria-checked="true"] { background: transparent; color: var(--tenue);
+  box-shadow: inset 0 0 0 1px var(--bordo); }
 .passi-riga .passo[aria-checked="true"] { background: var(--superficie); color: var(--inchiostro);
   box-shadow: 0 0 0 1px var(--bordo), var(--ombra-1); }
 .scheda.finita .passi-riga { background: color-mix(in srgb, var(--completa) 18%, transparent);

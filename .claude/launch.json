@@ -28,6 +28,23 @@
       "port": 8771,
       "url": "http://localhost:8771",
       "autoPort": false
+    },
+    {
+      "name": "crono-prova",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server.py",
+        "--no-sync",
+        "--verbose",
+        "--porta",
+        "8775",
+        "--db",
+        "../data/prova.db"
+      ],
+      "cwd": "app",
+      "port": 8775,
+      "url": "http://localhost:8775",
+      "autoPort": false
     }
   ]
 }

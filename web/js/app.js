@@ -5,12 +5,13 @@ import {
 } from './ui.js';
 import {
   rete, bootstrap, onCambio, setOperatore, apriStream, avviaPresenza, chiama, svuota,
-  avviaSessione, esportaCsv, inNuvola,
+  avviaSessione, esportaCsv, inNuvola, esci, emailSessione, fuocoMioAttuale,
 } from './api.js';
 import {
   st, on, applica, cambiaAnno, elencoProv, riepilogoAnno, contaStato, filtraStato,
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
-  caricaFiltri, salvaFiltri, CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
+  caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
+  CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -64,13 +65,16 @@ async function avvia() {
   riflettiFiltri();
   riempiFiltri();
   if (!rete.operatore) chiediOperatore(); else disegnaIo();
+  bottoneEsci();
   disegna();
   statoCollegamento();
 
   apriStream(eventoRemoto);
+  /* "dove sono" porta anche la cella che ho aperta adesso, cosi' i colleghi la
+     vedono col mio colore (#ANCHOR: fuoco in stato.js) */
   avviaPresenza(
-    () => st.anno + '-' + String(st.mese).padStart(2, '0'),
-    d => { st.online = d.online || []; statoCollegamento(); });
+    () => componiDove(st.anno + '-' + String(st.mese).padStart(2, '0'), fuocoMioAttuale()),
+    d => aggiornaPresenze(d.online));
 
   onCambio((_, ev) => {
     statoCollegamento();
@@ -82,9 +86,15 @@ async function avvia() {
   on('cella', d => {
     rinfrescaPop(d.id, d.mese);   // il popover aperto su quella cella
     if (st.vista === 'anno') vAnno.aggiornaCella(d.id, d.mese, d.remoto);
-    else if (st.vista === 'mese') vMese.aggiornaCella(d.id, d.mese);
+    /* nel foglio del Mese la scheda di QUESTO mese puo' cambiare anche per una
+       spunta messa in un altro mese dello stesso sito: i passi si ereditano */
+    else if (st.vista === 'mese') vMese.aggiornaCella(d.id, st.mese);
     else if (st.vista === 'stat') vStat.aggiorna();
     aggiornaTestaPresto();
+  });
+  on('fuoco', d => {
+    if (st.vista === 'anno') vAnno.aggiornaFuoco(d.prima, d.dopo);
+    else if (st.vista === 'mese') vMese.aggiornaFuoco(d.prima, d.dopo);
   });
   on('rilegge', d => {
     disegna();
@@ -526,7 +536,7 @@ function statoCollegamento() {
   $('#presenze').replaceChildren(...altri.slice(0, 4).map(o =>
     h('span.pallino.piccolo', {
       style: 'background:' + tinta(o.nome), testo: iniziali(o.nome),
-      title: o.nome + (o.dove ? ' · sta guardando ' + o.dove : ''),
+      title: o.nome + doveSta(o),
     })));
   $('#collegamento-et').textContent = giu
     ? (n ? `${n} in coda · offline` : 'offline')
@@ -562,6 +572,50 @@ function statoCollegamento() {
     banner.hidden = true;
     banner.innerHTML = '';
   }
+}
+
+/** "sta guardando settembre 2026 · ha aperto #123 (Set)": dal `dove` della
+ *  presenza, che porta anche la cella aperta (#ANCHOR: fuoco). */
+function doveSta(o) {
+  const { dove, cella } = spezzaDove(o.dove);
+  let t = '';
+  if (dove) {
+    const [a, m] = dove.split('-').map(Number);
+    t += ' · sta guardando ' + (m ? `${(st.mesiNome[m - 1] || '').toLowerCase()} ${a}` : dove);
+  }
+  if (cella) {
+    const [id, m] = cella.split('-').map(Number);
+    const s = st.perServ.get(id);
+    t += ` · ha aperto ${s?.dest || '#' + id} (${st.mesi[m - 1] || m})`;
+  }
+  return t;
+}
+
+/* ------------------------------------------------------------- uscita ---- */
+/* Solo online: in locale non c'e' nessun login da cui uscire. Il tastino sta
+   accanto al segnale "collegato", e chiede conferma perche' dopo si torna alla
+   maschera d'accesso. */
+function bottoneEsci() {
+  const b = $('#esci');
+  if (!b) return;
+  if (!inNuvola()) { b.hidden = true; return; }
+  b.hidden = false;
+  b.innerHTML = ICO.esci;
+  b.onclick = confermaUscita;
+}
+function confermaUscita() {
+  modale(chiudi => [
+    h('h2', { testo: 'Uscire?' }),
+    h('p.sotto', { testo: `Sei dentro come ${emailSessione() || rete.operatore || '?'}. ` +
+      'Uscendo torni alla maschera di accesso; le spunte gi\u00e0 confermate restano online.' }),
+    rete.coda.length
+      ? h('p.nota-t', { testo: `Attenzione: ${rete.coda.length} spunte sono ancora in coda su questo computer e ` +
+          'partiranno al prossimo accesso.' })
+      : null,
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:8px' },
+      h('button.pill', { testo: 'Resta', onclick: chiudi }),
+      h('button.bottone', { testo: 'Esci', onclick: () => esci() })),
+  ]);
 }
 
 /* Come si chiama, per chi legge, il posto dove le spunte vanno a finire. In
@@ -633,8 +687,15 @@ function pannelloCollegamento() {
           h('li', {},
             h('span.pallino', { style: 'background:' + tinta(o.nome), testo: iniziali(o.nome) }),
             h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}` }),
-            h('span.nota-t', { testo: o.dove ? 'su ' + o.dove : '' }))))
+            h('span.nota-t', { testo: doveSta(o).replace(/^ · /, '') }))))
         : h('p.nota-t', { style: 'margin-bottom:18px', testo: 'Solo tu, per ora.' }),
+
+      ...(inNuvola() ? [
+        h('h3.tit-p', { testo: 'La tua sessione' }),
+        h('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:18px' },
+          h('code.lan', { testo: emailSessione() || '?' }),
+          h('button.pill', { html: ICO.esci + '<span>Esci</span>', onclick: () => { chiudi(); confermaUscita(); } })),
+      ] : []),
 
       h('h3.tit-p', { testo: 'Le tue spunte' }),
       h('p', {

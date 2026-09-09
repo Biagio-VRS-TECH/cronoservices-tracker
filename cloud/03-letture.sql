@@ -44,6 +44,11 @@ begin
     'celle', (select coalesce(jsonb_object_agg(m.id_service || '-' || m.mese,
                                                public._cella_out(m)), '{}'::jsonb)
               from public.mappature m where m.anno = v_anno),
+    -- l'anno prima: una mappatura rimasta aperta a dicembre passa i suoi passi
+    -- all'anno dopo (#ANCHOR: passi-cumulativi in web/js/stato.js)
+    'celle_prec', (select coalesce(jsonb_object_agg(m.id_service || '-' || m.mese,
+                                                    public._cella_out(m)), '{}'::jsonb)
+                   from public.mappature m where m.anno = v_anno - 1),
     'operatori', (select coalesce(jsonb_agg(o.nome order by o.nome), '[]'::jsonb)
                   from public.operatori o),
     'ultimo_sync', (select v from public.meta where k = 'ultimo_sync'),
@@ -51,8 +56,9 @@ begin
     'indirizzo_lan', null,
     'altri_server', '[]'::jsonb,
     'sync', (select to_jsonb(sl) from public.sync_log sl order by sl.id desc limit 1),
-    -- i PDF delle schede tecnici dell'anno (06-documenti.sql)
-    'documenti', public._documenti_json(v_anno),
+    -- i PDF delle schede tecnici di TUTTI gli anni (06-documenti.sql): e' uno
+    -- storico, guardando il 2027 si vedono anche le schede stampate nel 2026
+    'documenti', public._documenti_json(null),
     'online', public._presenti(),
     'mesi', to_jsonb(array['Gen','Feb','Mar','Apr','Mag','Giu',
                            'Lug','Ago','Set','Ott','Nov','Dic']),

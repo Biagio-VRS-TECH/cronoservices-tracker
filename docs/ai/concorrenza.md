@@ -134,6 +134,44 @@ nessun merge potrebbe piu' rimediare. Tre difese, dalla piu' forte alla piu' deb
    automatica del PC scelto come server. Cosi' non c'e' motivo per cui un altro
    ne apra uno suo.
 
+## Chi ha aperto cosa (#ANCHOR: fuoco)
+
+Il committente alla 20a sessione: *"in una sessione concorrente non si
+visualizza chi seleziona la casella: sarebbe bene vedere che click sta facendo
+l'altro operatore, senza risultare troppo pesante"*. Il lampo `remota` arriva
+DOPO la spunta; qui si vede PRIMA, mentre il collega ha il popover aperto.
+
+Un canale solo, quello che c'era: il **`dove` della presenza** porta anche la
+cella aperta, `"2026-09 @22-12"` (`componiDove`/`spezzaDove` in `stato.js`).
+`segnalaFuoco('id-mese')` in `api.js` la cambia (la chiamano `apriPop` e
+`chiudiPop` in `spunte.js`) e fa partire un battito dopo 250 ms invece di
+aspettare i 20 s. Poi:
+
+- **locale**: `api.ping` salva il `dove` e, se e' cambiato, ritorna un evento
+  `presenze` che l'hub SSE diffonde a tutti. Chi lo riceve passa da
+  `aggiornaPresenze(online)` -> `segnaFuoco(nome, dove)` -> evento `fuoco`;
+- **online**: la tabella `presenze` la leggono gli altri al LORO ping (fino a
+  20 s dopo), quindi lo stesso `{nome, dove}` viaggia anche in **broadcast
+  Realtime** sul canale gia' aperto (`nuvola.trasmetti('fuoco', ...)`, ricevuto
+  in `apriStream` come `m.event === 'broadcast'`). Niente SQL: il broadcast non
+  tocca il database. Chi arriva dopo lo vede comunque dalla tabella.
+
+`st.fuochi` e' nome -> {cella, dove, ts}; chi sparisce dall'elenco dei
+collegati viene tolto. A schermo (`aggiornaFuoco` in `anno.js` e `mese.js`):
+anello del colore del collega (`outline`, che non litiga con i `box-shadow`
+delle classi temporali) e le sue iniziali in un chip sopra la cella; nel Mese
+bordo della scheda e iniziali all'angolo (`data-altrui`). Il pallino in testa e
+il pannello dicono "sta guardando settembre 2026 · ha aperto <sito> (Dic)".
+Il proprio nome e' escluso ovunque (`segnaFuoco` ignora `rete.operatore`).
+
+**La pillola bianca** (stessa sessione): `.eco-nome` aveva `color:#fff` su
+`background: var(--inchiostro)`, e nel tema scuro l'inchiostro e' #EDEEF0. Il
+testo ora e' `var(--superficie)`: si inverte col tema.
+
+**Esci**: solo online c'e' un login da cui uscire; `#esci` sta accanto a
+"collegato" (`bottoneEsci`/`confermaUscita` in `app.js`) e nel pannello, e la
+conferma dice quante spunte sono ancora in coda su quel computer.
+
 ## Cosa vede l'operatore
 
 La concorrenza non serve a niente se e' invisibile. In testa c'e' un solo

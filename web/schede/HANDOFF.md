@@ -192,14 +192,17 @@ corpo = pagine di schede + pagine extra vuote chieste
 coda  = pagine di pareggio (schede vuote) + 1 pagina bianca
 ```
 
-**Il pareggio si fa con pagine intere di schede vuote, non con pagine bianche.**
-Bianca (`voidHTML`, `.page.void`, "pagina lasciata intenzionalmente bianca")
-sono **due per fascicolo**: il rovescio della copertina (subito dopo, se c'è
-una copertina — sempre, senza il suffisso "fine del...") e l'ultima pagina
-(con "· fine del fascicolo k di N" / "· fine del documento", il segnale che il
-fascicolo finisce lì). Solo il pareggio delle pagine iniziali (`fmPad`) resta
-`{t:'free'}`: occupa lo stesso posto nel foglio piegato ma si può riempire.
-Sulle pagine pari il numero passa al margine esterno (`.p-foot.rev`).
+**Il pareggio in fondo si fa con pagine intere di schede vuote; quello delle
+pagine iniziali con una pagina bianca.** Bianca (`voidHTML`, `.page.void`,
+"pagina lasciata intenzionalmente bianca") sono il rovescio della copertina
+(subito dopo, se c'è una copertina — sempre, senza il suffisso "fine del..."),
+il pareggio delle iniziali (`fmPad`, quando copertina+rovescio+indice sono in
+numero dispari: dal 2026-09-09 è `{t:'void'}`, prima era una pagina da
+compilare in mezzo alle iniziali, e il committente la voleva bianca) e
+l'ultima pagina (con "· fine del fascicolo k di N" / "· fine del documento",
+il segnale che il fascicolo finisce lì). Le pagine da compilare stanno **solo
+in fondo** (`tailFree`). Sulle pagine pari il numero passa al margine esterno
+(`.p-foot.rev`).
 
 **Il giro fra numeri e pagine**: quante pagine occupa l'indice dipende dalle
 voci, i numeri stampati dipendono dalle pagine iniziali, che dipendono
@@ -221,6 +224,14 @@ colloca.
 `#side`: **1 File** (drag&drop; sotto i conteggi, note cliccabili → elenco
 note, righe ignorate cliccabili) · **2 Intestazione** · **3 Impostazioni
 stampa** · **Esporta** (`#exportGrp`, `position:sticky;bottom:0`).
+
+**Il bottone `#print` si chiama "Esporta e salva"** e lo prende in mano
+`ponte.js` (`esportaESalva`): PDF con jsPDF, scaricato sul computer e
+consegnato al tracker se c'è un sito collegato. La stampa del browser
+(`stampaBrowser()`, in questo file) resta su **Ctrl+P** ed è il ripiego se il
+ponte non parte: era il vecchio comportamento del bottone, e metteva titolo e
+indirizzo del sito su ogni foglio. La tendina `#printPart` vale per tutti e
+due.
 
 Sotto i conteggi, **`#dropFile`** ("togli il file", `.xrow`) chiama
 `unloadFile()`: rimette la schermata dell'apertura. Non basta `FULL=null` —
@@ -472,6 +483,18 @@ le miniature — la barra no, quindi non lo paga nemmeno per il numero.
 ---
 
 # Registro (dal più recente, solo cosa è cambiato)
+
+### 2026-09-09 — pareggio bianco, Esporta e salva, scala 2
+- Modalità libro: il pareggio delle pagine iniziali (`fmPad`) è `{t:'void'}`
+  (pagina bianca dichiarata) invece di `{t:'free'}` (schede da compilare).
+  `nVoid` lo conta, `nFree` e `nBlank` no. UMBERTO I a documento unico: 96
+  pagine, bianche 2-4-96, "1 pagina da compilare · 3 pagine bianche"; a 6
+  fascicoli 128 pagine, 18 bianche
+- `#print` → "Esporta e salva" (etichetta, `title`, passo della guida, riga
+  `#printPartRow` "Esporta"). Il vecchio gestore è `stampaBrowser()` su Ctrl+P;
+  `ponte.js` sostituisce `onclick` con `esportaESalva()`
+- `ponte.js`: `SCALA` 1,5 → 2, `QUALITA` 0,8 → 0,74 (misure nel commento).
+  96 pagine: 22,3 MB in 25 s
 
 ### 2026-09-04 — barra di scorrimento al posto della mappa, margini scambiati
 - **Via la mappa a miniature** (`#miniMap`, `buildMiniMap`/`mmFit`/`mmSpace`/

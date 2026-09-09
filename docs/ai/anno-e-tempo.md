@@ -70,10 +70,12 @@ con la sua destinazione:
   errore di conteggio segnalato dal committente: un contratto marzo+settembre si
   vedeva assegnare la scadenza a settembre, cioe' **una visita contata come
   mappatura** (regola della 5a sessione, [decisioni.md](decisioni.md) 10e);
-- `mappaturaSito(s)` = `{scad, mese, n, completa, motivo, prevista, preTrac,
-  ritardo}`:
-  `mese` e' dove sta il lavoro (dove e' stata chiusa, se c'e', altrimenti la
-  cella piu' avanti) fra i mesi di QUEL sito. **Chiudere la mappatura alla visita
+- `mappaturaSito(s)` = `{scad, mese, n, completa, passi, motivo, prevista,
+  preTrac, ritardo}`:
+  `passi` e' l'unione per campo di dove ogni passo e' stato fatto (vedi
+  #ANCHOR: passi-cumulativi piu' sotto), `n` quanti sono; `mese` e' l'ultimo
+  mese di quest'anno con un passo suo (dove e' stata chiusa, se e' chiusa),
+  altrimenti il primo mese utile del calendario. **Chiudere la mappatura alla visita
   di novembre toglie il ritardo alla scadenza di marzo dello stesso sito, e solo
   di quello.** Memoizzato su `id:anno` (`memoMap`) e invalidato da `tocca(id)` a
   ogni scrittura su quel sito: ogni scrittura di cella passa da `scriviLocale` o
@@ -236,6 +238,47 @@ slittare al primo mese tracciato; **30** i siti dovuti con
 tornati a contare i clienti invece dei siti; se riappare 266, la scadenza
 effettiva del rinnovo automatico non c'e' piu'.
 
+## I passi si accumulano, non si rifanno (#ANCHOR: passi-cumulativi)
+
+Il committente alla 20a sessione: *"se un sito ha visite in piu' mesi e ho
+delle spunte gia' segnate il primo mese, quelle valgono anche per i
+successivi, non si resetta cio' che e' stato fatto, e' un tracciamento [...]
+anche per l'anno: 3 spunte a novembre e a marzo una visita, non devo farle
+tutte e quattro da capo, ci manca la quarta"*.
+
+Regola, in `passiSito(s)` (`web/js/stato.js`):
+
+- **dentro l'anno**: per ogni passo, il primo mese in cui e' stato messo. La
+  mappatura del sito e' l'**unione** dei mesi (prima era il mese "migliore":
+  s+c a maggio e k a settembre contavano 2, oggi 3). `mese` e' l'ultimo mese
+  con un passo suo, cioe' dove e' stata chiusa se e' chiusa;
+- **a cavallo dell'anno**: se la mappatura dell'anno prima e' rimasta APERTA
+  (0 < passi < PASSI) i suoi passi valgono anche quest'anno, per tutti i mesi.
+  Se era chiusa, si riparte: la mappatura resta una per sito per anno. Si
+  guarda solo l'anno prima (`st.cellePrec`, chiavi `id-mese` come `st.celle`,
+  dal bootstrap `celle_prec`), non due;
+- **per la cella** (`statoCella`): `ered[campo]` = passo fatto PRIMA di questo
+  mese (mese precedente dello stesso anno, o l'anno prima) e non messo qui;
+  `mie` i suoi; `n` = `mie` + ereditati, ed e' `n` che decide `completa`,
+  `ritardo` e i conteggi del Mese. Solo le celle spuntabili ereditano: un mese
+  fuori calendario resta un puntino. Marzo non eredita da maggio: il tempo va
+  in una direzione sola.
+
+Conseguenze: chiudere il quarto passo a settembre rende **verde la cella di
+settembre** (4 = 1 suo + 3 ereditati) e la riga 4/4; la cella di maggio resta
+a 3. Un passo ereditato **non si toglie dalla cella che lo eredita**: popover,
+Mese e cassetto lo mostrano spuntato-tenue con "gia' fatta a maggio da X · si
+toglie da li'", e "Completa i passi mancanti" mette solo quelli che mancano
+davvero (anche `passiMancanti` per le azioni di massa). Ogni spunta ridipinge
+tutte le capsule della riga: cambia anche settembre quando si tocca maggio.
+
+**Limite scelto**: la mappatura dell'anno prima resta segnata aperta (e in
+ritardo, se dovuta) anche quando il quarto passo arriva a marzo dell'anno
+dopo. Chiuderla retroattivamente vorrebbe le celle dell'anno DOPO e una regola
+che si morde la coda (Y eredita da Y-1 se Y-1 e' aperta; Y-1 e' chiusa grazie
+a Y). Se un giorno servisse, la strada e' contare solo i passi PROPRI di ogni
+anno in tutte e due le direzioni, e caricare `celle_succ`.
+
 ## Cosa NON fare
 
 - Non scrivere l'anno in Access, e non inventare una tabella "mesi per anno":
@@ -243,6 +286,9 @@ effettiva del rinnovo automatico non c'e' piu'.
 - Non memorizzare "in ritardo" da nessuna parte.
 - Non far entrare stime e non tracciati nei denominatori: e' esattamente il
   difetto che si e' corretto.
+- Non contare i passi di una cella con `c.s + c.c + c.k + c.r` quando serve lo
+  stato del mese: quello e' `mie`. Lo stato e' `statoCella(id, m).n`, che
+  comprende gli ereditati.
 - Non trattare `data_scadenza` come la fine del contratto quando
   `rinnovo_auto = 1` e il service e' aperto: e' la fine del termine in corso, e
   il termine dopo parte da solo. E' il difetto LASERJET.

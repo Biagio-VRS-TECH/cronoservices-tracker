@@ -2,9 +2,9 @@
    Usato dalla vista Anno; la vista Mese ha i passi in linea.
    #ANCHOR: popover */
 import { h, ICO, esc, quando, avviso } from './ui.js';
-import { chiama } from './api.js';
-import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, spunta, spuntaMolte, salvaNota }
-  from './stato.js';
+import { chiama, segnalaFuoco } from './api.js';
+import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spunta, spuntaMolte, salvaNota,
+  doveFatto } from './stato.js';
 
 let aperto = null;
 
@@ -14,6 +14,7 @@ export const popAperto = () => !!aperto;
 
 export function chiudiPop() {
   aperto?.nodo.remove();
+  if (aperto) segnalaFuoco('');       // i colleghi vedono che ho lasciato la cella
   aperto = null;
   document.removeEventListener('pointerdown', fuori, true);
   document.removeEventListener('keydown', tasti, true);
@@ -29,31 +30,44 @@ const tasti = e => {
 
 function attiva(campo) {
   const { id, mese } = aperto;
+  const er = statoCella(id, mese).ered[campo];
+  /* un passo ereditato (#ANCHOR: passi-cumulativi) e' fatto altrove: da qui
+     non si tocca, altrimenti lo si rimetterebbe due volte o lo si toglierebbe
+     nel mese sbagliato */
+  if (er) {
+    return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. ` +
+      'Per toglierla vai su quel mese.');
+  }
   spunta(id, mese, campo, !cella(id, mese)[SIGLA[campo]]);
   disegnaPassi();
 }
 
-/* Costruisce la riga di un passo: numero, casella, etichetta, chi/quando. */
-function rigaPasso(campo, n, c) {
-  const on = !!c[SIGLA[campo]];
-  return h('button.passo', {
+/* Costruisce la riga di un passo: numero, casella, etichetta, e per un passo
+   ereditato dove e' stato fatto. */
+function rigaPasso(campo, n, e) {
+  const er = e.ered[campo];
+  const on = !!e.c[SIGLA[campo]] || !!er;
+  return h('button.passo' + (er ? '.eredita' : ''), {
     role: 'checkbox', 'aria-checked': String(on), 'data-campo': campo,
+    title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec` : null,
     onclick: () => attiva(campo),
   },
     h('span.n-passo', { testo: n + '.' }),
     h('span.box', { html: ICO.ok }),
     h('span.et', { testo: ETICHETTA[campo] }),
+    er ? h('span.chi', { testo: doveFatto(er) + (er.by ? ' \u00b7 ' + er.by : '') }) : null,
   );
 }
 
 function disegnaPassi() {
   if (!aperto) return;
-  const c = cella(aperto.id, aperto.mese);
+  const e = statoCella(aperto.id, aperto.mese), c = e.c;
   const cont = aperto.nodo.querySelector('.passi');
-  cont.replaceChildren(...CAMPI.map((campo, i) => rigaPasso(campo, i + 1, c)));
-  const tutte = CAMPI.every(k => c[SIGLA[k]]);
-  aperto.nodo.querySelector('.js-tutte').textContent =
-    tutte ? `Azzera i ${PASSI} passi` : `Completa i ${PASSI} passi`;
+  cont.replaceChildren(...CAMPI.map((campo, i) => rigaPasso(campo, i + 1, e)));
+  const tutte = e.n === PASSI;
+  const b = aperto.nodo.querySelector('.js-tutte');
+  b.textContent = tutte ? 'Azzera i passi di questo mese' : 'Completa i passi mancanti';
+  b.disabled = tutte && e.mie === 0;      // sono tutti ereditati: qui non c'e' niente da togliere
   const firma = aperto.nodo.querySelector('.js-firma');
   firma.textContent = c.at ? `ultima modifica ${quando(c.at)} · ${c.by || '?'}` : 'nessuna modifica';
 }
@@ -103,9 +117,13 @@ export function apriPop(bersaglio, id, mese) {
     h('div.pop-piede', {},
       h('button.js-tutte', {
         onclick: () => {
-          const cc = cella(id, mese);
-          const v = !CAMPI.every(k => cc[SIGLA[k]]);
-          spuntaMolte(CAMPI.filter(k => !!cc[SIGLA[k]] !== v).map(campo => ({ id, mese, campo, valore: v })));
+          const e = statoCella(id, mese);
+          const v = e.n !== PASSI;
+          // si mettono solo i passi che mancano davvero (non gli ereditati) e
+          // si tolgono solo quelli messi in questo mese
+          const voci = CAMPI.filter(k => v ? (!e.c[SIGLA[k]] && !e.ered[k]) : !!e.c[SIGLA[k]])
+            .map(campo => ({ id, mese, campo, valore: v }));
+          if (voci.length) spuntaMolte(voci);
           disegnaPassi();
         }
       }),
@@ -126,6 +144,7 @@ export function apriPop(bersaglio, id, mese) {
   nodo.style.top = y + 'px';
 
   aperto = { nodo, id, mese, bersaglio, notaVista: c.nota || '', notaRev: c.rev };
+  segnalaFuoco(`${id}-${mese}`);      // i colleghi vedono che sono qui (#ANCHOR: fuoco)
   disegnaPassi();
   // la tastiera si collega subito (un Esc immediato andava perso); il
   // pointerdown al giro dopo, per non farsi chiudere dal clic che ha aperto

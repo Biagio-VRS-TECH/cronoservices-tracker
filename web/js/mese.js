@@ -10,26 +10,37 @@
    una per visita. Il numero delle schede a schermo lo dice la voce "a schermo",
    e solo quando un filtro ne nasconde qualcuna.
    #ANCHOR: vista-mese */
-import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano } from './ui.js';
+import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito,
-  filtraStato, statoMappatura, CAMPI, SIGLA, PASSI, ETICHETTA, BREVE,
-  CLASSE_ET, ET_STATO,
+  filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
+  CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriCassetto } from './cassetto.js';
 import { htmlChipDocumento } from './documenti.js';
 
 let radice = null;
 
+/* Un passo EREDITATO (fatto in una visita prima, o l'anno prima: #ANCHOR:
+   passi-cumulativi in stato.js) si vede spuntato ma tenue, e dice dove e' stato
+   fatto. Non si toglie da qui: si toglie da dove e' stato messo. */
+const titoloPasso = (campo, i, er) => er
+  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  : `${ETICHETTA[campo]} (tasto ${i + 1})`;
+const avvisoEredita = (campo, er) =>
+  avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. Per toglierla vai su quel mese.`);
+
 function htmlPassi(id, mese) {
-  const c = cella(id, mese);
-  return `<div class="passi-riga">${CAMPI.map((campo, i) => `
-    <button class="passo" role="checkbox" aria-checked="${!!c[SIGLA[campo]]}"
+  const e = statoCella(id, mese), c = e.c;
+  return `<div class="passi-riga">${CAMPI.map((campo, i) => {
+    const er = e.ered[campo];
+    return `
+    <button class="passo${er ? ' eredita' : ''}" role="checkbox" aria-checked="${!!c[SIGLA[campo]] || !!er}"
             data-campo="${campo}" data-cella="${id}-${mese}"
-            title="${ETICHETTA[campo]} (tasto ${i + 1})">
+            title="${esc(titoloPasso(campo, i, er))}">
       <span class="box">${ICO.ok}</span>
       <span class="et">${BREVE[campo]}</span>
-    </button>`).join('')}</div>`;
+    </button>`; }).join('')}</div>`;
 }
 
 /* I bolli dicono a che titolo la scheda e' in elenco quando NON e' un impegno
@@ -70,10 +81,13 @@ function htmlSelez(s) {
 
 function htmlScheda(v) {
   const e = statoCella(v.s.id, st.mese);
+  const chi = fuochiSu(v.s.id, st.mese);
   const cl = ['scheda', e.completa && 'finita', e.ritardo && 'ritardo',
-    !e.reale && 'previsione'].filter(Boolean).join(' ');
+    !e.reale && 'previsione', chi.length && 'altrui'].filter(Boolean).join(' ');
   const bollo = BOLLO[e.classe];
-  return `<div class="${cl}" data-srv="${v.s.id}" tabindex="-1"
+  const er = notaEredita(e);
+  return `<div class="${cl}" data-srv="${v.s.id}" tabindex="-1"${chi.length
+      ? ` style="--tinta:${tinta(chi[0])}" data-altrui="${esc(iniziali(chi[0]))}"` : ''}
     aria-label="${esc(String(v.s.dest || '#' + v.s.id).replace(/\s+/g, ' '))}: ${e.n} di ${PASSI} passi">
     ${htmlSelez(v.s)}
     <div class="info">
@@ -87,6 +101,7 @@ function htmlScheda(v) {
         ${bollo ? `<span class="bollo ${bollo[0]}" title="${esc(CLASSE_ET[e.classe])}">${bollo[1]}</span>` : ''}
         ${e.c.nota ? `<span title="${esc(e.c.nota)}">&#9679; nota</span>` : ''}
         ${e.c.at ? `<span class="dato">${esc(e.c.by || '')} ${quando(e.c.at)}</span>` : ''}
+        ${er ? `<span class="eredita-nota" title="Passi fatti in una visita precedente: valgono anche qui">${esc(er)}</span>` : ''}
         <span class="tag completo" title="I ${PASSI} passi sono fatti">a posto</span>
       </div>
     </div>
@@ -215,6 +230,8 @@ function collega(r) {
     if (p) {
       const [id, mese] = p.dataset.cella.split('-').map(Number);
       const campo = p.dataset.campo;
+      const er = statoCella(id, mese).ered[campo];
+      if (er) return avvisoEredita(campo, er);
       spunta(id, mese, campo, !cella(id, mese)[SIGLA[campo]]);
       return;
     }
@@ -238,6 +255,8 @@ function collega(r) {
     if (i >= 0) {                       // il fuoco non si sposta: resta la scheda
       e.preventDefault();
       const id = Number(sch.dataset.srv), campo = CAMPI[i];
+      const er = statoCella(id, st.mese).ered[campo];
+      if (er) return avvisoEredita(campo, er);
       return spunta(id, st.mese, campo, !cella(id, st.mese)[SIGLA[campo]]);
     }
     if (e.key === '0') {                // tutti insieme, come il clic sul pallino
@@ -284,8 +303,25 @@ export function aggiornaCella(id, mese) {
   const c = cella(id, mese), e = statoCella(id, mese);
   sch.classList.toggle('finita', e.completa);
   sch.classList.toggle('ritardo', e.ritardo && !e.completa);
-  for (const p of sch.querySelectorAll('.passo')) {
-    p.setAttribute('aria-checked', String(!!c[SIGLA[p.dataset.campo]]));
+  [...sch.querySelectorAll('.passo')].forEach((p, i) => {
+    const er = e.ered[p.dataset.campo];
+    p.setAttribute('aria-checked', String(!!c[SIGLA[p.dataset.campo]] || !!er));
+    p.classList.toggle('eredita', !!er);
+    p.title = titoloPasso(p.dataset.campo, i, er);
+  });
+  // la nota "2 passi gia' fatti a maggio" segue il modello
+  const er = notaEredita(e);
+  let ns = sch.querySelector('.eredita-nota');
+  if (er) {
+    if (!ns) {
+      ns = document.createElement('span');
+      ns.className = 'eredita-nota';
+      ns.title = 'Passi fatti in una visita precedente: valgono anche qui';
+      sch.querySelector('.meta .tag.completo').before(ns);
+    }
+    ns.textContent = er;
+  } else {
+    ns?.remove();
   }
   // il pallino guarda l'anno, non il mese: cambia anche spuntando altrove
   const srv = st.perServ.get(id), bot = sch.querySelector('.selez');
@@ -323,16 +359,42 @@ function aggiornaConteggi() {
  *  ma quel verso cancella lavoro, quindi lo dice. Passa dallo stesso `spunta()`
  *  dei bottoni: coda offline, diario e conflitti restano quelli. */
 function completaScheda(id) {
-  const c = cella(id, st.mese);
-  const valore = statoCella(id, st.mese).n === PASSI ? 0 : 1;
+  const e = statoCella(id, st.mese), c = e.c;
+  const valore = e.n === PASSI ? 0 : 1;
+  let toccati = 0;
   for (const campo of CAMPI) {
+    if (valore && e.ered[campo]) continue;          // gia' fatto in una visita prima
     if (!!c[SIGLA[campo]] === !!valore) continue;
     spunta(id, st.mese, campo, valore);
+    toccati++;
   }
-  if (!valore) {
-    const s = st.perServ.get(id);
-    avviso(`Tolti i ${PASSI} passi di ${s?.dest || '#' + id}: riclicca il pallino ` +
-      'per rimetterli.', { tono: 'allerta' });
+  const s = st.perServ.get(id);
+  if (!valore && toccati) {
+    avviso(`Tolti i ${toccati} passi di ${s?.dest || '#' + id} messi in questo mese: ` +
+      'riclicca il pallino per rimetterli.', { tono: 'allerta' });
+  } else if (!valore) {
+    avviso(`I passi di ${s?.dest || '#' + id} vengono da visite precedenti: si tolgono da l\u00ec.`);
+  }
+}
+
+/** Un collega ha aperto (o lasciato) una scheda di questo mese (#ANCHOR: fuoco). */
+export function aggiornaFuoco(prima, dopo) {
+  if (!radice) return;
+  for (const k of new Set([prima, dopo])) {
+    if (!k) continue;
+    const [id, mese] = k.split('-').map(Number);
+    if (mese !== st.mese) continue;
+    const sch = radice.querySelector(`.scheda[data-srv="${id}"]`);
+    if (!sch) continue;
+    const chi = fuochiSu(id, mese);
+    sch.classList.toggle('altrui', chi.length > 0);
+    if (chi.length) {
+      sch.style.setProperty('--tinta', tinta(chi[0]));
+      sch.dataset.altrui = iniziali(chi[0]);
+    } else {
+      sch.style.removeProperty('--tinta');
+      delete sch.dataset.altrui;
+    }
   }
 }
 
@@ -367,8 +429,9 @@ function barraMassa() {
     const campi = az === 'tutte' ? CAMPI : [az];
     const voci = [];
     for (const id of st.selezione) {
+      const e = statoCella(id, st.mese);
       for (const campo of campi) {
-        if (!cella(id, st.mese)[SIGLA[campo]]) voci.push({ id, mese: st.mese, campo, valore: 1 });
+        if (!e.c[SIGLA[campo]] && !e.ered[campo]) voci.push({ id, mese: st.mese, campo, valore: 1 });
       }
     }
     if (!voci.length) return avviso('Erano già tutte spuntate.');

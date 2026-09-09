@@ -98,6 +98,8 @@ export const st = {
   mesi: [], mesiNome: [],
   clienti: new Map(), perServ: new Map(), gruppi: [],
   celle: new Map(),        // "idServ-mese" -> {s,c,k,r,rev,by,at,nota}
+  cellePrec: new Map(),    // stesse chiavi, ANNO PRIMA: una mappatura rimasta aperta passa i passi all'anno dopo
+  fuochi: new Map(),       // nome collega -> {cella, dove, ts}: la cella che ha aperta adesso (#ANCHOR: fuoco)
   documenti: new Map(),    // idServ -> [PDF delle schede tecnici], dal piu' recente
   sospese: new Set(),      // "idServ-mese-campo" in attesa di conferma
   chiusiCli: new Set(),    // clienti collassati
@@ -152,6 +154,7 @@ export function applica(d) {
   st.clienti = new Map(d.clienti.map(c => [c.id, c]));
   st.perServ = new Map(d.services.map(s => [s.id, s]));
   st.celle = new Map(Object.entries(d.celle));
+  st.cellePrec = new Map(Object.entries(d.celle_prec || {}));
   st.documenti = mappaDocumenti(d.documenti);
   riapplicaCoda();
 
@@ -207,6 +210,7 @@ export const chiave = (id, mese) => id + '-' + mese;
 export const ym = (a, m) => a + '-' + String(m).padStart(2, '0');
 export const VUOTA = { s: 0, c: 0, k: 0, r: 0, rev: 0, by: null, at: null, nota: '' };
 export const cella = (id, mese) => st.celle.get(chiave(id, mese)) || VUOTA;
+export const cellaPrec = (id, mese) => st.cellePrec.get(chiave(id, mese)) || VUOTA;
 
 /* IL RINNOVO AUTOMATICO NON E' UNA SCADENZA (#ANCHOR: rinnovo)
    Un service ancora APERTO con `RinnovoAutomatico` non finisce alla sua
@@ -355,23 +359,65 @@ function calcolaMappatura(s) {
      chiuso. Era il difetto di "Da fare adesso" segnalato alla 13a sessione.
      I mesi del calendario servono ancora, ma solo come RIPIEGO per dire dove
      starebbe il lavoro quando non ce n'e' ancora nessuno. */
-  let mese = 0, n = 0, completa = false, ripiego = 0;
-  for (let m = 1; m <= 12; m++) {
+  let ripiego = 0;
+  for (let m = 1; m <= 12 && !ripiego; m++) {
     const b = classeBase(s, m);
-    if (!ripiego && b !== 'non-previsto' && b !== 'prima-contratto') ripiego = m;
-    const c = cella(s.id, m);
-    const k = c.s + c.c + c.k + c.r;
-    if (!k) continue;
-    if (k === PASSI) { mese = m; n = k; completa = true; break; }
-    if (k > n) { mese = m; n = k; }
+    if (b !== 'non-previsto' && b !== 'prima-contratto') ripiego = m;
   }
+  /* I passi si SOMMANO fra i mesi (e dall'anno prima, se quella mappatura e'
+     rimasta aperta): vedi passiSito. `mese` e' dove sta il lavoro piu'
+     recente di quest'anno, cioe' dove e' stata chiusa se e' chiusa. */
+  const passi = passiSito(s);
+  const n = Object.keys(passi).length;
+  const completa = n === PASSI;
+  let mese = 0;
+  for (const p of Object.values(passi)) if (p.anno === st.anno && p.mese > mese) mese = p.mese;
   if (!mese) mese = ripiego;
   const passato = !!scad && ym(st.anno, scad) < st.ymOggi;
   return {
-    scad, mese: mese || scad, n, completa, motivo,
+    scad, mese: mese || scad, n, completa, passi, motivo,
     prevista: !!scad && !pre, preTrac: pre,
     ritardo: !!scad && !pre && passato && !completa,
   };
+}
+
+/* I PASSI SI ACCUMULANO, NON SI RIFANNO (#ANCHOR: passi-cumulativi).
+   E' un tracciamento: quello che e' stato fatto resta fatto. Se a maggio si sono
+   messe "stampata" e "controllata" e a settembre c'e' un'altra visita, a
+   settembre mancano solo gli altri due passi, non si riparte da zero. Vale
+   dentro l'anno (i mesi dopo ereditano dai mesi prima) e a cavallo dell'anno:
+   una mappatura rimasta APERTA a dicembre (qualche passo fatto, non tutti)
+   porta i suoi passi nell'anno dopo; se era chiusa, l'anno dopo si riparte,
+   perche' la mappatura e' una per sito per anno. Si guarda solo l'anno prima
+   (`st.cellePrec`), non piu' indietro: una mappatura aperta da due anni non e'
+   un caso da coprire. Il passo ereditato si vede nella cella (segmento tenue)
+   e nel popover con dove e' stato fatto, ma si toglie solo la'. */
+function passiAnno(id, celleDi) {
+  const out = {};
+  for (let m = 1; m <= 12; m++) {
+    const c = celleDi(id, m);
+    for (const campo of CAMPI) {
+      if (c[SIGLA[campo]] && !out[campo]) out[campo] = { mese: m, by: c.by, at: c.at };
+    }
+  }
+  return out;
+}
+/** Per ogni passo della mappatura del sito, DOVE e' stato fatto la prima volta:
+ *  {anno, mese, by, at}. Quelli dell'anno prima solo se quella era aperta. */
+export function passiSito(s) {
+  const miei = passiAnno(s.id, cella);
+  const out = {};
+  for (const campo of CAMPI) if (miei[campo]) out[campo] = { anno: st.anno, ...miei[campo] };
+  if (Object.keys(out).length < PASSI && st.cellePrec.size) {
+    const prima = passiAnno(s.id, cellaPrec);
+    const k = Object.keys(prima).length;
+    if (k > 0 && k < PASSI) {
+      for (const campo of CAMPI) {
+        if (!out[campo] && prima[campo]) out[campo] = { anno: st.anno - 1, ...prima[campo] };
+      }
+    }
+  }
+  return out;
 }
 
 /** Classe temporale di (service, st.anno, mese). Una sola cella per SITO e'
@@ -386,20 +432,52 @@ export function classeMese(s, mese) {
 export function statoCella(id, mese) {
   const s = st.perServ.get(id);
   const c = cella(id, mese);
-  const n = c.s + c.c + c.k + c.r;
+  const mie = c.s + c.c + c.k + c.r;
   const classe = s ? classeMese(s, mese) : 'non-previsto';
   const passato = ym(st.anno, mese) < st.ymOggi;
+  const spuntabile = classe !== 'non-previsto' && classe !== 'prima-contratto';
+  /* I passi EREDITATI da questa cella: fatti prima di questo mese, in un mese
+     precedente dello stesso anno o l'anno prima (#ANCHOR: passi-cumulativi).
+     Solo sulle celle spuntabili: un mese fuori calendario non eredita niente,
+     altrimenti ogni puntino della riga diventerebbe una capsula. `n` e' quel
+     che conta per la cella (suoi + ereditati), `mie` solo i suoi. */
+  const ered = {};
+  if (s && spuntabile && mie < PASSI) {
+    const tutti = mappaturaSito(s).passi;
+    for (const campo of CAMPI) {
+      const p = tutti[campo];
+      if (!c[SIGLA[campo]] && p && (p.anno < st.anno || p.mese < mese)) ered[campo] = p;
+    }
+  }
+  const n = mie + Object.keys(ered).length;
   return {
-    c, n, classe,
+    c, n, mie, ered, classe,
     completa: n === PASSI,
     /* In ritardo solo la cella di scadenza, e solo se la mappatura del sito non
        e' chiusa in nessun mese: farla a una visita mette a posto l'anno. */
     ritardo: classe === 'previsto' && passato && n < PASSI &&
       !(s && mappaturaSito(s).completa),
     vuota: n === 0,
-    spuntabile: classe !== 'non-previsto' && classe !== 'prima-contratto',
+    spuntabile,
     reale: classe === 'previsto',
   };
+}
+
+/** Dove e' stato fatto un passo ereditato, in parole: "a maggio", "nel 2025". */
+export function doveFatto(p) {
+  if (!p) return '';
+  const mese = (st.mesiNome[p.mese - 1] || '').toLowerCase();
+  if (p.anno === st.anno) return (/^[aeiou]/.test(mese) ? 'ad ' : 'a ') + mese;
+  return `nel ${p.anno} (${mese})`;
+}
+/** Riassunto dei passi ereditati di una cella per il suggerimento: "2 passi
+ *  gia' fatti a maggio". Vuoto se non ne eredita. */
+export function notaEredita(e) {
+  const v = Object.values(e.ered || {});
+  if (!v.length) return '';
+  const posti = [...new Set(v.map(p => doveFatto(p)))];
+  return `${v.length} ${v.length === 1 ? 'passo gi\u00e0 fatto' : 'passi gi\u00e0 fatti'} ` +
+    (posti.length === 1 ? posti[0] : 'prima');
 }
 
 /** Avanzamento da mostrare sulla RIGA di un sito: la sua mappatura dell'anno,
@@ -793,8 +871,41 @@ export function esitoConflitto(op, server) {
     });
 }
 
+/* CHI HA APERTO COSA (#ANCHOR: fuoco). `dove` viaggia dentro la presenza come
+   "AAAA-MM @id-mese": dopo la chiocciola c'e' la cella che quel collega ha
+   aperta adesso (popover nella vista Anno, scheda nella vista Mese). Sullo
+   schermo degli altri e' un anello del suo colore con le iniziali: si vede che
+   e' li' PRIMA di cliccarci sopra anche tu. Un solo canale (la presenza), sia
+   in locale (ping + SSE) che online (ping + broadcast Realtime). */
+export const componiDove = (dove, cellaAperta) => cellaAperta ? `${dove} @${cellaAperta}` : dove;
+export function spezzaDove(dove) {
+  const m = /^(.*?)\s*@(\d+-\d+)$/.exec(dove || '');
+  return m ? { dove: m[1], cella: m[2] } : { dove: dove || '', cella: '' };
+}
+export function segnaFuoco(nome, dove) {
+  if (!nome || nome === rete.operatore) return;
+  const sp = spezzaDove(dove);
+  const prima = st.fuochi.get(nome)?.cella || '';
+  if (sp.cella) st.fuochi.set(nome, { cella: sp.cella, dove: sp.dove, ts: Date.now() });
+  else st.fuochi.delete(nome);
+  if (prima !== sp.cella) emetti('fuoco', { nome, prima, dopo: sp.cella });
+}
+/** L'elenco dei collegati e' arrivato (ping o flusso): aggiorna anche i fuochi,
+ *  compresi quelli di chi non c'e' piu'. */
+export function aggiornaPresenze(online) {
+  st.online = online || [];
+  const nomi = new Set();
+  for (const o of st.online) if (o.nome) { nomi.add(o.nome); segnaFuoco(o.nome, o.dove); }
+  for (const nome of [...st.fuochi.keys()]) if (!nomi.has(nome)) segnaFuoco(nome, '');
+  emetti('presenze');
+}
+/** Chi (oltre a me) ha aperta questa cella adesso. */
+export const fuochiSu = (id, mese) =>
+  [...st.fuochi.entries()].filter(([, f]) => f.cella === `${id}-${mese}`).map(([nome]) => nome);
+
 export function eventoRemoto(ev) {
-  if (ev.tipo === 'presenze') { st.online = ev.online; emetti('presenze'); return; }
+  if (ev.tipo === 'presenze') { aggiornaPresenze(ev.online); return; }
+  if (ev.tipo === 'fuoco') { segnaFuoco(ev.nome, ev.dove); return; }
   if (ev.tipo === 'sync') { emetti('sync-fatto', ev.riepilogo); return; }
   if (ev.tipo === 'impostazioni') {
     st.inizioTracciamento = ev.inizio_tracciamento;
@@ -802,16 +913,27 @@ export function eventoRemoto(ev) {
     emetti('rilegge');
     return;
   }
-  if (ev.anno !== st.anno) return;
   if (ev.tipo === 'documento') {
-    // un PDF delle schede tecnici: porta con se' la spunta "stampata" che ha messo
-    if (ev.cella) {
+    // un PDF delle schede tecnici: si tiene di qualunque anno (lo storico non
+    // scade), la spunta "stampata" che porta con se' solo se e' di quest'anno
+    if (ev.cella && ev.anno === st.anno) {
       cellaDalServer(ev.id_service, ev.mese, ev.cella);
       emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
     }
     emetti('documento-remoto', ev);
     return;
   }
+  /* L'anno prima cambia sotto i piedi (un collega recupera dello storico): le
+     celle di quest'anno di quel sito possono aver ereditato qualcosa. */
+  if (ev.anno === st.anno - 1 && (ev.tipo === 'cella' || ev.tipo === 'celle')) {
+    const lista = ev.tipo === 'cella'
+      ? [{ id_service: ev.id_service, mese: ev.mese, cella: ev.cella }] : ev.celle;
+    for (const c of lista) { st.cellePrec.set(chiave(c.id_service, c.mese), c.cella); tocca(c.id_service); }
+    if (ev.tipo === 'cella') emetti('cella', { id: ev.id_service, mese: 0 });
+    else emetti('rilegge');
+    return;
+  }
+  if (ev.anno !== st.anno) return;
   if (ev.tipo === 'cella') {
     cellaDalServer(ev.id_service, ev.mese, ev.cella);
     emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });

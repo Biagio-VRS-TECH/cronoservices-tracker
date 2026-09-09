@@ -77,6 +77,11 @@ def bootstrap(ctx, q, body):
         celle = {}
         for r in c.execute("SELECT * FROM mappature WHERE anno=?", (anno,)):
             celle["%d-%d" % (r["id_service"], r["mese"])] = _cella_out(r)
+        # L'anno prima: una mappatura rimasta aperta a dicembre passa i suoi
+        # passi all'anno dopo (#ANCHOR: passi-cumulativi in web/js/stato.js).
+        celle_prec = {}
+        for r in c.execute("SELECT * FROM mappature WHERE anno=?", (anno - 1,)):
+            celle_prec["%d-%d" % (r["id_service"], r["mese"])] = _cella_out(r)
         ultimo = c.execute("SELECT * FROM sync_log ORDER BY id DESC LIMIT 1").fetchone()
         return 200, {
             "anno": anno,
@@ -85,6 +90,7 @@ def bootstrap(ctx, q, body):
             "clienti": clienti,
             "services": services,
             "celle": celle,
+            "celle_prec": celle_prec,
             "operatori": [r["nome"] for r in
                           c.execute("SELECT nome FROM operatori ORDER BY nome")],
             "ultimo_sync": db.get_meta(c, "ultimo_sync"),
@@ -92,7 +98,7 @@ def bootstrap(ctx, q, body):
             "indirizzo_lan": ctx.get("lan"),
             "altri_server": ctx.get("altri_server") or [],
             "sync": dict(ultimo) if ultimo else None,
-            "documenti": _documenti(c, anno),
+            "documenti": _documenti(c),        # di tutti gli anni: e' uno storico
             "online": _online(),
             "mesi": db.MESI_ABBR,
             "mesi_nome": db.MESI_NOME,
@@ -388,9 +394,16 @@ def impostazioni(ctx, q, body):
 
 def ping(ctx, q, body):
     nome = (body.get("operatore") or "").strip()
+    ev = None
     if nome:
+        prima = PRESENZE.get(nome, {}).get("dove")
         PRESENZE[nome] = {"ts": time.time(), "dove": body.get("dove")}
-    return 200, {"online": _online(), "ora": db.now()}, None
+        # "dove" porta anche la cella che l'operatore ha aperta (#ANCHOR: fuoco
+        # in web/js/stato.js): se e' cambiata, gli altri lo sanno subito via
+        # SSE, non al loro prossimo battito venti secondi dopo.
+        if prima != body.get("dove"):
+            ev = {"tipo": "presenze", "online": _online()}
+    return 200, {"online": _online(), "ora": db.now()}, ev
 
 
 def fai_sync(ctx, q, body):
@@ -514,14 +527,18 @@ def _doc_out(r):
                 creato_da=r["creato_da"])
 
 
-def _documenti(c, anno):
+def _documenti(c, anno=None):
+    """Senza anno, tutti: lo storico dei PDF non scade con l'anno."""
+    if anno is None:
+        return [_doc_out(r) for r in c.execute("SELECT * FROM documenti ORDER BY creato_il")]
     return [_doc_out(r) for r in c.execute(
         "SELECT * FROM documenti WHERE anno=? ORDER BY creato_il", (anno,))]
 
 
 def documenti(ctx, q, body):
     with db.sess() as c:
-        anno = _anno(q, c)
+        a = str(q.get("anno") or "")
+        anno = int(a) if a.isdigit() else None
         return 200, {"anno": anno, "documenti": _documenti(c, anno)}, None
 
 

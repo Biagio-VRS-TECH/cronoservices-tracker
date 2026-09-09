@@ -175,6 +175,15 @@ PDF fino a 40 MB. I file si leggono con indirizzi firmati che durano un'ora.
 Finche' il 06 non e' eseguito, il tracker online funziona come prima e il
 generatore dice "Non salvato" quando prova a consegnare.
 
+**Dopo la 20a sessione (2026-09-09) vanno rieseguiti tutti e due**, `06` e poi
+`03`: il bootstrap porta `celle_prec` (le celle dell'anno prima, per i passi
+che si accumulano) e i documenti di **tutti** gli anni (`_documenti_json(null)`);
+`06` porta anche i grant delle tre funzioni dei documenti che la 19a sessione
+aveva trovato mancanti. Finche' non si fa, online i passi si accumulano solo
+dentro l'anno e i PDF restano quelli dell'anno: il client tollera l'assenza
+di `celle_prec`. "Chi ha aperto cosa" (l'anello col colore del collega) viaggia
+in broadcast Realtime sul canale gia' aperto e non chiede SQL.
+
 ## Cosa cambia, usandola online
 
 | | locale | online |

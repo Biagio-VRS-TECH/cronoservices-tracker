@@ -14,7 +14,7 @@ import {
 } from './documenti.js';
 import {
   st, cella, statoCella, spunta, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE,
-  mappaturaSito, scadEffettiva, on,
+  mappaturaSito, scadEffettiva, on, doveFatto,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null;
@@ -43,6 +43,12 @@ export function apriCassetto(id) {
   caricaStoria(id);
 }
 
+/* Un passo ereditato da una visita prima (#ANCHOR: passi-cumulativi in
+   stato.js) si vede spuntato ma tenue, e dice dove e' stato fatto. */
+const titoloPasso = (campo, er) => er
+  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  : ETICHETTA[campo];
+
 function rigaMese(id, m, previsto) {
   const c = cella(id, m), e = statoCella(id, m);
   const cls = ['scheda', e.completa && 'finita',
@@ -57,10 +63,15 @@ function rigaMese(id, m, previsto) {
       h('b', { testo: st.mesiNome[m - 1] }),
       h('div.meta', { html: dettagli })),
     h('div.passi-riga', {}, CAMPI.map(campo =>
-      h('button.passo', {
-        role: 'checkbox', 'aria-checked': String(!!c[SIGLA[campo]]), 'data-campo': campo,
-        title: ETICHETTA[campo],
-        onclick: () => spunta(id, m, campo, !cella(id, m)[SIGLA[campo]]),
+      h('button.passo' + (e.ered[campo] ? '.eredita' : ''), {
+        role: 'checkbox', 'aria-checked': String(!!c[SIGLA[campo]] || !!e.ered[campo]),
+        'data-campo': campo,
+        title: titoloPasso(campo, e.ered[campo]),
+        onclick: () => {
+          const er = statoCella(id, m).ered[campo];
+          if (er) return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}. Per toglierla vai su quel mese.`);
+          spunta(id, m, campo, !cella(id, m)[SIGLA[campo]]);
+        },
       },
         h('span.box', { html: ICO.ok }),
         h('span.et', { testo: BREVE[campo] }),
@@ -83,7 +94,7 @@ function disegna() {
   for (let m = 1; m <= 12; m++) {
     const prev = s.mesi[m - 1] === '1';
     const e = statoCella(s.id, m);
-    if (prev || e.n) mesi.push(rigaMese(s.id, m, prev));
+    if (prev || e.mie) mesi.push(rigaMese(s.id, m, prev));
   }
   const storia = nodo.querySelector('.storia');   // conservo la storia già caricata
 
@@ -214,7 +225,10 @@ function rinfresca(mese) {
   riga.classList.toggle('finita', e.completa);
   riga.classList.toggle('ritardo', e.ritardo && !e.completa);
   for (const b of riga.querySelectorAll('.passo')) {
-    b.setAttribute('aria-checked', String(!!c[SIGLA[b.dataset.campo]]));
+    const er = e.ered[b.dataset.campo];
+    b.setAttribute('aria-checked', String(!!c[SIGLA[b.dataset.campo]] || !!er));
+    b.classList.toggle('eredita', !!er);
+    b.title = titoloPasso(b.dataset.campo, er);
   }
   const meta = riga.querySelector('.meta');
   if (meta) {

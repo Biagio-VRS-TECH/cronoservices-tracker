@@ -262,6 +262,19 @@ const cellaDa = r => ({
   rev: r.rev, by: r.updated_by, at: r.updated_at, nota: r.nota || '',
 });
 
+/* Il canale aperto da apriStream, per parlare agli altri client senza passare
+   dal database: e' il broadcast di Realtime, gratis e immediato. Lo usa la
+   presenza per dire quale cella ho aperta (#ANCHOR: fuoco in stato.js). */
+let wsAttivo = null, rifBroadcast = 1000;
+export function trasmetti(evento, payload) {
+  if (!wsAttivo || wsAttivo.readyState !== 1) return false;
+  wsAttivo.send(JSON.stringify({
+    topic: 'realtime:crono', event: 'broadcast', ref: String(++rifBroadcast), join_ref: '1',
+    payload: { type: 'broadcast', event: evento, payload },
+  }));
+  return true;
+}
+
 /** Sostituisce l'hub SSE. `mio()` dice il nome di chi sta a questo schermo: le
  *  proprie modifiche si applicano lo stesso ma senza il lampo "l'ha fatto un
  *  altro". Ritorna la funzione per chiudere. */
@@ -303,6 +316,7 @@ export function apriStream(onEvento, mio = () => '') {
 
     ws.onopen = () => {
       tentativi = 0;
+      wsAttivo = ws;
       fermaSonda();
       ws.send(JSON.stringify({
         topic: TOPIC, event: 'phx_join', ref: '1', join_ref: '1',
@@ -329,6 +343,13 @@ export function apriStream(onEvento, mio = () => '') {
     ws.onmessage = e => {
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event === 'broadcast') {
+        const p = m.payload || {};
+        if (p.event === 'fuoco' && p.payload?.nome && p.payload.nome !== mio()) {
+          onEvento({ tipo: 'fuoco', nome: p.payload.nome, dove: p.payload.dove || '' });
+        }
+        return;
+      }
       if (m.event !== 'postgres_changes') return;
       const d = m.payload?.data || m.payload || {};
       const r = d.record || d.new || {};
@@ -356,6 +377,7 @@ export function apriStream(onEvento, mio = () => '') {
 
     ws.onclose = () => {
       clearInterval(batti);
+      if (wsAttivo === ws) wsAttivo = null;
       if (chiuso) return;
       if (++tentativi >= 4) avviaSonda();   // il WebSocket non passa: si ripiega
       setTimeout(apri, Math.min(1000 * 2 ** tentativi, 20000));

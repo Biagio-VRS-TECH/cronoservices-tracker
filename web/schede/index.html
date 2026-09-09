@@ -1299,10 +1299,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   <div class="grp" id="exportGrp">
     <h2>Esporta</h2>
-    <label class="row" id="printPartRow" hidden>Stampa
+    <label class="row" id="printPartRow" hidden>Esporta
       <select id="printPart"><option value="">tutto il documento</option></select>
     </label>
-    <button class="btn" id="print" disabled>Stampa / Salva PDF</button>
+    <button class="btn" id="print" disabled title="Produce il PDF, lo scarica e lo salva nel tracker sul sito collegato. Per la stampa diretta del browser: Ctrl+P">Esporta e salva</button>
     <div class="zoomrow">
       <button type="button" class="ico" id="zoomOut" title="Riduci anteprima" aria-label="Riduci anteprima">&#8722;</button>
       <button type="button" class="btn sec" id="zoomVal" title="Clicca per tornare al 100%">Zoom 100%</button>
@@ -2328,11 +2328,10 @@ function planDocument(o){
     var tailFree=o.bookMode?(4-((fmTot+body+tail)%4))%4:0;
     po.plan=plan; po.nToc=nToc; po.wantCover=wantCover;
     po.fm=fmTot; po.lead=lead; po.fmPad=fmPad; po.tail=tail; po.tailFree=tailFree;
-    /* il pareggio delle pagine iniziali e' anch'esso una pagina con schede
-       vuote: conta fra le schede libere che la copertina dichiara. Il
-       rovescio della copertina invece resta bianco per davvero, niente
-       schede da contare li' */
-    po.nBlank=sc.nBlank+(sp.free+fmPad+tailFree)*o.freeCap;
+    /* il rovescio della copertina e il pareggio delle pagine iniziali sono
+       bianchi per davvero: niente schede da contare li'. Le schede vuote
+       stanno nelle pagine extra chieste e nel pareggio in fondo */
+    po.nBlank=sc.nBlank+(sp.free+tailFree)*o.freeCap;
     po.len=body+tailFree;
     po.start=pos; po.end=pos+fmTot+body+tailFree+tail-1;
     parts.push(po); pos=po.end+1;
@@ -2349,7 +2348,10 @@ function planDocument(o){
     if(p.plan) p.plan.pages.forEach(function(cols,i){
       seq.push({t:'idx',p:p,plan:p.plan,cols:cols,ci:i,pno:pno++,first:!p.wantCover&&i===0});
     });
-    for(q=0;q<p.fmPad;q++) seq.push({t:'free',p:p,pno:pno++});
+    /* pareggio delle pagine iniziali (indice su una pagina sola): bianca
+       dichiarata, come il rovescio della copertina. Le pagine da compilare
+       stanno tutte in fondo al fascicolo, non in mezzo alle iniziali */
+    for(q=0;q<p.fmPad;q++) seq.push({t:'void',p:p,pno:pno++});
     var openNext=!p.wantCover&&!p.nToc;
     for(var i=p.from;i<=p.to;i++) seq.push({t:'schede',p:p,i:i,pno:pno++,first:openNext&&i===p.from});
     for(q=0;q<p.free;q++) seq.push({t:'free',p:p,pno:pno++,first:openNext&&p.to<p.from&&q===0});
@@ -2943,22 +2945,23 @@ function render(){
 
   updateSplitInfo(L);
   /* pagine intere con schede vuote: quelle chieste a spunta piu' quelle che
-     pareggiano la modalita' libro (pareggio delle pagine iniziali, multiplo di
-     4). Sono tutte da compilare a penna, quindi si contano insieme. Il
-     rovescio della copertina non c'e': quello resta bianco, non da compilare */
-  var nFree=L.parts.reduce(function(a,p){return a+p.free+p.fmPad+p.tailFree;},0);
+     pareggiano la modalita' libro in FONDO al fascicolo (multiplo di 4). Sono
+     tutte da compilare a penna, quindi si contano insieme. Il rovescio della
+     copertina e il pareggio delle iniziali non ci sono: quelli restano
+     bianchi, non da compilare */
+  var nFree=L.parts.reduce(function(a,p){return a+p.free+p.tailFree;},0);
   var nBlank=pages.reduce(function(a,pg){return a+pg.blocks.filter(function(b){return b.t==='blank';}).length;},0)
     +nFree*freeCap;
   var nCards=blocks.filter(function(b){return b.t==='card';}).length;
   var nShoe=blocks.filter(function(b){return b.t==='card'&&isShoe(b.it);}).length;
   /* pagine iniziali e pagine bianche si contano a parte: sommarle farebbe
      leggere "45 pagine iniziali" su un documento che ne ha sei. Le bianche
-     sono due per fascicolo - il rovescio della copertina e l'ultima - e il
-     resto del pareggio sono pagine intere con schede vuote, contate in
-     nFree. Il rovescio conta anche fra le iniziali: e' bianco, ma resta
-     posizionato prima dell'indice */
+     sono il rovescio della copertina, l'eventuale pareggio delle iniziali e
+     l'ultima del fascicolo; il pareggio in fondo sono pagine intere con
+     schede vuote, contate in nFree. Rovescio e pareggio contano anche fra le
+     iniziali: sono bianchi, ma stanno prima delle schede */
   var nFront=L.parts.reduce(function(a,p){return a+(p.wantCover?1:0)+p.lead+p.nToc+p.fmPad;},0);
-  var nVoid=L.parts.reduce(function(a,p){return a+p.lead+p.tail;},0);
+  var nVoid=L.parts.reduce(function(a,p){return a+p.lead+p.fmPad+p.tail;},0);
   document.getElementById('stat').innerHTML='<b>'+nCards+'</b> componenti \u00b7 <b>'+nBlank+'</b> schede vuote \u00b7 <b>'+L.total+'</b> pagine A4'
     +(nFront?' \u00b7 <b>'+nFront+'</b> '+(nFront===1?'pagina iniziale':'pagine iniziali'):'')
     +(nFree?' \u00b7 <b>'+nFree+'</b> '+(nFree===1?'pagina da compilare':'pagine da compilare'):'')
@@ -3606,7 +3609,10 @@ setAllSubs(false); /* mette l'icona giusta nel tastino */
 /* stampare una parte sola: le pagine delle altre parti vengono nascoste solo
    per la durata della stampa. L'ultima pagina rimasta visibile non deve portare
    il salto pagina, altrimenti esce un foglio bianco in fondo */
-document.getElementById('print').onclick=function(){
+/* Il bottone #print lo prende in mano ponte.js (Esporta e salva: PDF con jsPDF,
+   scaricato e consegnato al tracker). Questa e' la stampa del browser: resta
+   per Ctrl+P e come ripiego se il ponte non parte. */
+function stampaBrowser(){
   var k=document.getElementById('printPart').value;
   var pgs=Array.prototype.slice.call(document.querySelectorAll('#pages .page'));
   var keep=pgs;
@@ -3619,7 +3625,13 @@ document.getElementById('print').onclick=function(){
   if(keep.length) keep[keep.length-1].classList.add('lastpr');
   window.print();
   pgs.forEach(function(p){ p.classList.remove('nopr'); p.classList.remove('lastpr'); });
-};
+}
+window.stampaBrowser=stampaBrowser;
+document.getElementById('print').onclick=stampaBrowser;
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='p'
+     &&document.querySelectorAll('#pages .page').length){ e.preventDefault(); stampaBrowser(); }
+});
 
 /* ---- zoom anteprima: passi fissi dal 40% al 200% ----
    la scala e' una trasformazione (non tocca il layout, quindi non falsa le
@@ -3822,9 +3834,9 @@ var TOUR_STEPS=[
      +"<p>Il collegamento qui sotto torna alle impostazioni <b>di fabbrica</b>.</p>",
    note:"L'aspetto giorno/notte e questa guida hanno una memoria propria: il ripristino delle impostazioni non li tocca."},
 
-  {sel:'#exportGrp',title:"Stampare o salvare in PDF",place:'right',
-   tx:"<p><b>Stampa / Salva PDF</b> apre la stampa del browser. Nella finestra della stampante servono tre cose: <b>A4</b>, <b>margini: nessuno</b>, <b>grafica di sfondo attiva</b>.</p>"
-     +"<p>A stampa divisa, la tendina <b>Stampa</b> manda in macchina un fascicolo solo. Sotto ci sono lo <b>zoom</b> dell'anteprima e il riepilogo di pagine, schede e pagine bianche.</p>"},
+  {sel:'#exportGrp',title:"Esportare e salvare",place:'right',
+   tx:"<p><b>Esporta e salva</b> produce il PDF, lo <b>scarica</b> sul computer e lo <b>salva nel tracker</b> sul sito collegato, mettendo la spunta \u201cstampata\u201d. Nessuna finestra di stampa in mezzo; per la carta diretta c'\u00e8 sempre <b>Ctrl+P</b>.</p>"
+     +"<p>A stampa divisa, la tendina <b>Esporta</b> produce un fascicolo solo. Sotto ci sono lo <b>zoom</b> dell'anteprima e il riepilogo di pagine, schede e pagine bianche.</p>"},
 
   {sel:'#sidegrip',title:"Le colonne si allargano",place:'right',pad:4,
    tx:"<p>Trascina questa maniglia per allargare o stringere il pannello; il <b>doppio clic</b> torna alla misura di fabbrica. La colonna di destra ha la sua, identica.</p>"

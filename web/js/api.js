@@ -105,6 +105,7 @@ export async function avviaSessione() {
 
 export const inNuvola = nuvola.attiva;
 export const esci = nuvola.esci;
+export const emailSessione = nuvola.emailSessione;
 
 /** Il CSV: in locale e' un download del server, online lo componiamo qui. */
 export async function esportaCsv(query) {
@@ -209,17 +210,37 @@ export function apriStream(onEvento) {
 }
 
 /* -------------------------------------------------------------- presenza - */
+/* La cella che ho aperta adesso ("id-mese", vuota = nessuna). Cambiarla fa
+   partire un battito subito, con un piccolo respiro per non mitragliare il
+   server girando col popover a colpi di freccia: al prossimo battito regolare
+   il collega la vedrebbe venti secondi dopo, cioe' troppo tardi. */
+let fuocoMio = '', batteFn = null, fuocoTimer = null;
+export function segnalaFuoco(cellaAperta) {
+  cellaAperta = cellaAperta || '';
+  if (cellaAperta === fuocoMio) return;
+  fuocoMio = cellaAperta;
+  clearTimeout(fuocoTimer);
+  fuocoTimer = setTimeout(() => batteFn?.(), 250);
+}
+export const fuocoMioAttuale = () => fuocoMio;
+
 export function avviaPresenza(dove, onRisposta) {
   // Il battito serve a due cose: dire agli altri che ci sei, e accorgersi che il
   // server e' caduto anche quando non stai scrivendo niente.
   const batti = async () => {
+    const dv = dove();
+    /* online il ping finisce in una tabella e gli altri lo leggono al LORO
+       battito, fino a 20 s dopo: la cella aperta si annuncia anche in diretta
+       sul canale Realtime (#ANCHOR: fuoco in stato.js) */
+    if (nuvola.attiva()) nuvola.trasmetti('fuoco', { nome: rete.operatore || '', dove: dv });
     try {
       const { dati } = await chiama('/api/ping', {
-        metodo: 'POST', body: { operatore: rete.operatore || '', dove: dove() }, ms: 6000 });
+        metodo: 'POST', body: { operatore: rete.operatore || '', dove: dv }, ms: 6000 });
       rete.ultimoContatto = Date.now();
       onRisposta?.(dati);
     } catch { }
   };
+  batteFn = batti;
   batti();
   return setInterval(batti, 20000);
 }

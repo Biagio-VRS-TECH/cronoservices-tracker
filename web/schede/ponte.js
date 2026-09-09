@@ -15,15 +15,19 @@ legame col tracker, che vive nella stessa origine:
      ricerca del tracker (js/affinita.js): corrispondenza netta e un solo sito
      -> collegato da solo; piu' siti o corrispondenza parziale -> lista dei
      probabili; niente -> avviso, e si sceglie a mano (segnato come tale);
-  2. alla STAMPA, oltre alla finestra di stampa del browser (che resta com'era),
-     le pagine diventano un PDF (html2canvas + jsPDF, in lib/) consegnato al
-     tracker: file archiviato, riga in `documenti`, spunta "stampata" sul mese
-     della mappatura. Il tracker mostra l'icona accanto al nome del sito;
+  2. "ESPORTA E SALVA" (il bottone del generatore) e "Salva nel tracker" (nel
+     dock) producono lo stesso PDF (html2canvas + jsPDF, in lib/): il primo lo
+     scarica anche sul computer, tutti e due lo consegnano al tracker - file
+     archiviato, riga in `documenti`, spunta "stampata" sul mese della
+     mappatura. Il tracker mostra l'icona accanto al nome del sito. La
+     finestra di stampa del browser non c'e' piu' in mezzo: scrivendo il PDF
+     da li' ogni foglio portava in testa e in fondo il titolo della pagina e
+     l'indirizzo del sito (quello di Netlify), e il file era quello che il
+     browser voleva, non il nostro. Resta raggiungibile con Ctrl+P;
   3. il tema segue quello scelto nel tracker.
 
-Nessuna verifica e' possibile su cosa succede DENTRO la finestra di stampa di
-Windows (il browser non lo dice a nessuno): il fatto certo che il tracker
-registra e' "il PDF esiste", ed e' quello che mette la spunta. */
+Il fatto certo che il tracker registra e' "il PDF esiste", ed e' quello che
+mette la spunta. */
 import { chiama, avviaSessione, inNuvola } from '../js/api.js';
 import * as nuvola from '../js/nuvola.js';
 import { st, applica, mappaturaSito } from '../js/stato.js';
@@ -390,9 +394,18 @@ function guarda() {
 /** Le pagine a schermo diventano un PDF A4. html2canvas clona l'intero
  *  documento a OGNI chiamata: chiamarlo pagina per pagina costava ~1 s a
  *  pagina. Qui si catturano LOTTI di pagine in una passata sola (una tela alta
- *  fino a ~14000 px) e poi si ritaglia: ~0,2 s a pagina. Scala 1,5 (~145 dpi)
- *  in JPEG 0,8: ~100 KB a pagina, leggibile anche a 8 schede per foglio. */
-const SCALA = 1.5, LOTTO = 8, QUALITA = 0.8;
+ *  fino a ~18000 px) e poi si ritaglia: ~0,2 s a pagina.
+ *
+ *  Scala 2 (~192 dpi) in JPEG 0,74. Misurato sulle pagine a 8 schede di
+ *  UMBERTO I (20a sessione): il tempo di resa NON dipende dalla scala (e' il
+ *  clone del DOM a costare, 1,5 / 2 / 2,5 danno gli stessi ~2 s per lotto),
+ *  quindi alzare la risoluzione e' gratis in tempo e costa solo byte: 171 KB
+ *  a pagina a 1,5/0,8 -> ~225 KB a 2/0,74. Il PNG (senza perdita) sarebbe
+ *  persino piu' piccolo nel PDF (136 KB) ma jsPDF lo decodifica in JS per
+ *  ricomprimerlo, +0,4 s a pagina: su 128 pagine raddoppia l'attesa. Chrome
+ *  scrive i PNG del canvas sempre in RGBA (colorType 6), anche con
+ *  {alpha:false}, quindi non c'e' scorciatoia senza scriversi un encoder. */
+const SCALA = 2, LOTTO = 8, QUALITA = 0.74;
 
 async function generaPdf(avanza) {
   if (!window.html2canvas || !window.jspdf) throw new Error('librerie PDF non caricate');
@@ -478,27 +491,42 @@ function progresso(fatte, totale) {
   $('#ponteStato').style.setProperty('--p', totale ? (fatte / totale * 100).toFixed(1) + '%' : '0%');
 }
 
-/** Il giro completo: PDF -> tracker -> esito nel dock. */
-async function salvaNelTracker() {
+/** Il bottone del dock: solo la consegna al tracker. */
+const salvaNelTracker = () => esportaESalva({ scarica: false });
+
+/** Il PDF si produce UNA volta; poi si scarica sul computer (`scarica`) e, se
+ *  c'e' un sito collegato e una sessione buona, si consegna al tracker. Se una
+ *  delle due meta' non si puo' fare, l'altra si fa comunque e la fascia dice
+ *  cosa e' successo: un PDF scaricato e non archiviato e' un esito, non un
+ *  errore. */
+async function esportaESalva({ scarica = true } = {}) {
   if (inCorso) return;
-  if (!ctx.id) { esito('errore', 'Collega prima un sito.'); $('#ponteQ')?.focus(); return; }
-  if (inNuvola() && !nuvola.haSessione()) {
-    return esito('errore', 'Sessione del tracker non trovata: entra nel tracker e riprova.');
+  const collegato = !!ctx.id;
+  const sessione = !(inNuvola() && !nuvola.haSessione());
+  if (!scarica) {
+    if (!collegato) { esito('errore', 'Collega prima un sito.'); $('#ponteQ')?.focus(); return; }
+    if (!sessione) return esito('errore', 'Sessione del tracker non trovata: entra nel tracker e riprova.');
   }
   inCorso = true;
   document.body.classList.add('ponte-lavora');
   const t0 = performance.now();
   try {
     const { blob, pagine, anteprima } = await generaPdf(progresso);
+    const nome = nomeFile();
+    if (scarica) scaricaFile(blob, nome);
+    const mb = (blob.size / 1048576).toFixed(1).replace('.', ',');
+    if (!collegato || !sessione) {
+      return esito('dubbio', `Scaricato “${nome}” (${pagine} pag., ${mb} MB), ma non salvato nel tracker: ` +
+        (collegato ? 'entra nel tracker e riprova.' : 'nessun sito collegato.'));
+    }
     esitoCorrente = { tono: 'lavoro', testo: 'Consegno al tracker…' }; disegna();
     const r = await salvaDocumento({
       id_service: ctx.id, anno: ctx.anno, mese: ctx.mese || null,
-      nome: nomeFile(), pdf: blob, pagine, anteprima,
+      nome, pdf: blob, pagine, anteprima,
     });
     const mese = r.mese ? MESI[r.mese - 1] : '';
     const sec = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',');
-    const mb = (blob.size / 1048576).toFixed(1).replace('.', ',');
-    esito('ok', `Salvato nel tracker · ${pagine} pag., ${mb} MB in ${sec} s` +
+    esito('ok', `${scarica ? 'Scaricato e salvato' : 'Salvato'} nel tracker · ${pagine} pag., ${mb} MB in ${sec} s` +
       (mese ? (r.cella?.esito === 'gia-cosi' ? ` · “stampata” era gia’ su ${mese}`
                                             : ` · spunta “stampata” su ${mese}`)
             : ' · nessuna spunta: mappatura non dovuta quest’anno'));
@@ -511,16 +539,21 @@ async function salvaNelTracker() {
   }
 }
 
+/** Il PDF sul computer, col nome con cui il tracker lo archivia. */
+function scaricaFile(blob, nome) {
+  const u = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: u, download: nome });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+
 /* ---------------------------------------------- gli agganci al generatore -- */
 function agganci() {
-  // la stampa del browser resta quella di sempre; dopo, il PDF al tracker
-  const btn = $('#print');
-  const stampaOriginale = btn.onclick;
-  btn.onclick = function (e) {
-    stampaOriginale?.call(this, e);
-    if (ctx.id) salvaNelTracker();
-    else esito('dubbio', 'Stampato, ma non salvato nel tracker: nessun sito collegato.');
-  };
+  // il bottone del generatore: PDF scaricato + consegnato al tracker. La stampa
+  // del browser resta su Ctrl+P (stampaBrowser in index.html)
+  $('#print').onclick = () => esportaESalva();
   // il caricamento di un file: loadRows e' una funzione globale del generatore,
   // riassegnarla su window vale anche per le chiamate interne. Con `label`
   // e' l'esempio della guida: quello non si riconosce.

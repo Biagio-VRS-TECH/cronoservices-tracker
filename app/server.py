@@ -249,6 +249,9 @@ def main():
     ap.add_argument("--porta", type=int, default=CFG.get("port", 8770))
     ap.add_argument("--no-sync", action="store_true")
     ap.add_argument("--verbose", action="store_true")
+    # un archivio diverso da quello di config.json: serve a provare l'app su
+    # una COPIA del .db senza toccare quello vero
+    ap.add_argument("--db", default=None)
     a, _ = ap.parse_known_args()
 
     if porta_occupata(a.porta):
@@ -275,7 +278,7 @@ def main():
         print("  Se ne usate due, le spunte finiscono in DUE archivi separati.")
         print("  Chiudi questa finestra e apri l'indirizzo qui sopra nel browser.")
         print("")
-    db.init(os.path.join(BASE, CFG["sqlite_path"]))
+    db.init(os.path.abspath(a.db) if a.db else os.path.join(BASE, CFG["sqlite_path"]))
     if CFG.get("sync_all_avvio") and not a.no_sync:
         try:
             r = sync.esegui(CFG, BASE)

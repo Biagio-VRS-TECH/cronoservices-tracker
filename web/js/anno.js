@@ -17,11 +17,11 @@
    cui mappatura *scade* in quel mese, non le celle; la riga cliente somma i
    suoi impianti.
    #ANCHOR: vista-anno */
-import { esc, ICO, FRECCE, fuoco, frecceEntrano } from './ui.js';
+import { esc, ICO, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import { htmlChipDocumento } from './documenti.js';
 import {
   st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
-  mappaturaSito, meseScadenza, scadEffettiva, statoMappatura,
+  mappaturaSito, meseScadenza, scadEffettiva, statoMappatura, notaEredita, fuochiSu,
   CAMPI, SIGLA, PASSI, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriPop, chiudiPop, popAperto } from './spunte.js';
@@ -39,7 +39,17 @@ const htmlPunto = s => {
   const k = statoMappatura(s);
   return `<span class="punto-stato ${k}" title="${esc(titoloPunto(s, k))}"></span>`;
 };
-const segAttr = c => `data-s="${c.s}" data-c="${c.c}" data-k="${c.k}" data-r="${c.r}"`;
+/* data-x: 0 niente, 1 fatto QUI, 2 EREDITATO, cioe' fatto in un mese prima o
+   l'anno prima e ancora valido (#ANCHOR: passi-cumulativi in stato.js). Il
+   CSS disegna il 2 con lo stesso colore, tenue. */
+const segAttr = e => CAMPI.map(k =>
+  `data-${SIGLA[k]}="${e.c[SIGLA[k]] ? 1 : e.ered?.[k] ? 2 : 0}"`).join(' ');
+/* Un collega ha questa cella aperta adesso (#ANCHOR: fuoco): le sue iniziali
+   nel suo colore, sopra la cella. Leggero di proposito: e' un avviso, non un
+   blocco. */
+const chipFuoco = chi => chi.length
+  ? `<span class="fuoco-nome" style="--tinta:${tinta(chi[0])}" title="${esc(chi.join(', '))} ha aperto questa cella">${esc(iniziali(chi[0]))}</span>`
+  : '';
 const SEG = '<i class="seg s"></i><i class="seg c"></i><i class="seg k"></i>' +
   '<i class="seg r"></i>';
 const oggiCl = m => (m === st.meseOggi && st.anno === st.annoOggi) ? ' mese-oggi' : '';
@@ -66,20 +76,23 @@ function htmlCella(s, m) {
 
   if (e.classe === 'non-previsto' || e.classe === 'prima-contratto') {
     // spunte su un mese non previsto: si mostrano comunque, marcate orfane
-    if (e.n > 0) {
+    if (e.mie > 0) {
       return `<div class="q${oggiCl(m)}"><button class="cella orfana" data-cella="${s.id}-${m}"
-        tabindex="-1" ${segAttr(e.c)}
+        tabindex="-1" ${segAttr(e)}
         title="Mese non previsto, ma con spunte registrate">${SEG}</button></div>`;
     }
     const cl = e.classe === 'prima-contratto' ? 'q fuori-contratto' : 'q non-previsto';
     return `<div class="${cl}${oggiCl(m)}" title="${esc(tip)}"></div>`;
   }
 
+  const chi = fuochiSu(s.id, m);
+  const er = notaEredita(e);
   const cl = ['cella', CSS_CLASSE[e.classe], e.completa && 'completa',
-    e.ritardo && 'ritardo', e.c.nota && 'con-nota'].filter(Boolean).join(' ');
+    e.ritardo && 'ritardo', e.c.nota && 'con-nota', chi.length && 'altrui'].filter(Boolean).join(' ');
   return `<div class="q${oggiCl(m)}"><button class="${cl}" data-cella="${s.id}-${m}"
-    tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}"
-    title="${esc(tip)}" ${segAttr(e.c)}>${SEG}</button></div>`;
+    tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}${er ? ' ' + esc(er) + '.' : ''}"
+    data-tip="${esc(tip)}" title="${esc(tip)}${er ? ' \u00b7 ' + esc(er) : ''}"${chi.length ? ` style="--tinta:${tinta(chi[0])}"` : ''}
+    ${segAttr(e)}>${SEG}</button>${chipFuoco(chi)}</div>`;
 }
 
 function htmlRigaSrv(s, rit) {
@@ -373,19 +386,51 @@ export function aggiornaCella(id, mese, remoto) {
     aggiornaTotali(id);
     return;
   }
+  dipingi(n, id, mese);
+  if (remoto) eco(n, remoto);
+  /* I passi si ereditano fra i mesi (#ANCHOR: passi-cumulativi): una spunta
+     messa o tolta a maggio cambia anche le capsule di settembre e novembre
+     della stessa riga. Sono al massimo undici nodi. */
+  for (const altra of radice.querySelectorAll(`.cella[data-cella^="${id}-"]`)) {
+    if (altra !== n) dipingi(altra, id, Number(altra.dataset.cella.split('-')[1]));
+  }
+  aggiornaTotali(id);
+}
+
+/** Riscrive attributi e classi di una capsula dal modello, senza toccare il DOM
+ *  intorno (fuoco della tastiera, chip del collega). */
+function dipingi(n, id, mese) {
   const e = statoCella(id, mese);
-  n.setAttribute('data-s', e.c.s);
-  n.setAttribute('data-c', e.c.c);
-  n.setAttribute('data-k', e.c.k);
-  n.setAttribute('data-r', e.c.r);
+  for (const k of CAMPI) n.setAttribute('data-' + SIGLA[k], e.c[SIGLA[k]] ? 1 : e.ered[k] ? 2 : 0);
   n.classList.toggle('completa', e.completa);
   n.classList.toggle('ritardo', e.ritardo);
   n.classList.toggle('con-nota', !!e.c.nota);
   n.classList.toggle('sospesa', CAMPI.some(x => st.sospese.has(`${id}-${mese}-${x}`)));
+  const er = notaEredita(e);
+  const tip = n.dataset.tip ?? (CLASSE_ET[e.classe] || '');
+  n.title = tip + (er ? ' \u00b7 ' + er : '');
   n.setAttribute('aria-label',
-    `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}`);
-  if (remoto) eco(n, remoto);
-  aggiornaTotali(id);
+    `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}${er ? ' ' + er + '.' : ''}`);
+}
+
+/** Un collega ha aperto (o lasciato) una cella (#ANCHOR: fuoco): anello del suo
+ *  colore e iniziali. `prima`/`dopo` sono chiavi "id-mese", anche vuote. */
+export function aggiornaFuoco(prima, dopo) {
+  if (!radice) return;
+  for (const k of new Set([prima, dopo])) {
+    if (!k) continue;
+    const n = radice.querySelector(`.cella[data-cella="${k}"]`);
+    if (!n) continue;
+    const chi = fuochiSu(...k.split('-').map(Number));
+    n.classList.toggle('altrui', chi.length > 0);
+    n.parentElement.querySelector('.fuoco-nome')?.remove();
+    if (chi.length) {
+      n.style.setProperty('--tinta', tinta(chi[0]));
+      n.parentElement.insertAdjacentHTML('beforeend', chipFuoco(chi));
+    } else {
+      n.style.removeProperty('--tinta');
+    }
+  }
 }
 
 /* La modifica di un collega si annuncia una volta: anello + nome. */
@@ -480,7 +525,8 @@ export function passiMancanti(soloReali = true) {
         const e = statoCella(s.id, m);
         if (soloReali ? !e.reale : !e.spuntabile) continue;
         for (const campo of CAMPI) {
-          if (!e.c[SIGLA[campo]]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
+          // un passo ereditato da una visita prima e' gia' fatto: non si rimette
+          if (!e.c[SIGLA[campo]] && !e.ered[campo]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
         }
       }
     }

@@ -45,13 +45,18 @@ onclick}, ...figli)`.
 <button class="cella [visita|stima|darinnovare|nontracciato]
                      [completa|ritardo|orfana|con-nota|sospesa|remota]"
         data-cella="idService-mese"     <!-- chiave -->
-        data-s="0|1" data-c="0|1" data-k="0|1" data-r="0|1">  <!-- i 4 passi -->
+        data-s="0|1|2" data-c="0|1|2" data-k="0|1|2" data-r="0|1|2">  <!-- i 4 passi -->
   <i class="seg s"></i><i class="seg c"></i><i class="seg k"></i><i class="seg r"></i>
 </button>
 ```
 
 I segmenti sono pilotati **dal CSS** (`.cella[data-s="1"] .seg.s { transform:none }`):
-il JS cambia solo gli attributi, l'animazione e' gratis.
+il JS cambia solo gli attributi, l'animazione e' gratis. `2` = passo
+**ereditato** (fatto in un mese prima o l'anno prima, #ANCHOR: passi-cumulativi
+in `stato.js`): stesso colore, tenue. La classe `altrui` + `--tinta` e il chip
+`.fuoco-nome` nel `.q` dicono che un collega ha la cella aperta (#ANCHOR:
+fuoco); `data-tip` conserva il suggerimento base, a cui `dipingi()` aggiunge
+"N passi gia' fatti a maggio".
 `s` = stampata, `c` = controllata, `k` = corretta / "completa rapportino"
 (`k` perche' `c` era occupato), `r` = ricambi (`stato.SIGLA`).
 **Il numero dei passi non e' cablato da nessuna parte**: viene da

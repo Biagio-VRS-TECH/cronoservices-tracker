@@ -411,6 +411,7 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   background: color-mix(in srgb, var(--marchio) 22%, var(--superficie)); }
 .doc-chip i { font-style: normal; padding-left: 1px; }
 .doc-chip.vuoto { display: none; }
+.doc-chip.altro-anno { opacity: .55; }    /* l'ultimo PDF e' di un altro anno */
 .doc-anteprima {
   position: fixed; z-index: 120; pointer-events: none; opacity: 0;
   transform: translateY(-4px) scale(.98); transition: var(--rapido);

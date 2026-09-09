@@ -693,6 +693,26 @@ per lo stesso motivo `nomeFile()` non premette piu' il cliente a un titolo che
 lo contiene gia' (si otteneva
 `CASA DI RIPOSO UMBERTO I - CASA DI RIPOSO UMBERTO I - 2026.pdf`).
 
+## 15l. Esporta e salva: il PDF lo fa jsPDF, non la stampante del browser (20a sessione)
+
+Il committente: *"quando esporto lo salva con netlify [...] quando invece clicco
+salva nel tracker non compare il powered by netlify"* e *"il tasto stampa a
+questo punto e' inutile, sostituiscilo con Esporta e salva"*. Erano due strade
+per lo stesso documento: "Stampa / Salva PDF" apriva la finestra di stampa del
+browser, che scrive titolo della pagina e indirizzo del sito
+(cronoservices-tracker.netlify.app) in testa e in fondo a ogni foglio e produce
+il PDF che vuole lei; "Salva nel tracker" usava jsPDF. Ora un bottone solo
+produce il PDF UNA volta, lo scarica e lo consegna. La stampa del browser resta
+su Ctrl+P per chi vuole la carta subito. Quello che non si puo' fare e' sapere
+cosa succede DENTRO la finestra di stampa: per questo la spunta "stampata" la
+mette solo il PDF che esiste.
+
+Sulla qualita': la scala e' passata da 1,5 a 2 perche' misurando si e' visto che
+html2canvas paga il clone del DOM e non i pixel (stesso tempo a 1,5, 2 e 2,5),
+quindi la risoluzione e' gratis in tempo e costa solo byte (+35%). Il PNG
+sarebbe stato meglio su tutto tranne il tempo (jsPDF lo ricomprime in JS,
++0,4 s a pagina) ed e' stato scartato con i numeri scritti sopra `SCALA`.
+
 ## 16. Un solo perimetro per le azioni di massa: i filtri
 Non esistono "completa per cliente", "completa per mese", "completa per tipo":
 esiste "completa quello che stai vedendo". Cercare il cliente e ripetere l'azione
@@ -751,3 +771,37 @@ coi permessi di chi ascolta.
 **La firma non e' piu' un nome scritto a mano**: online e' la casella del login.
 Era l'unico modo per rispondere davvero a "chi ha fatto cosa" su una pagina
 raggiungibile da internet.
+
+## 19. I passi si accumulano: un tracciamento non si azzera (20a sessione)
+
+Il committente: *"se un sito ha visite in piu' mesi e ho delle spunte gia'
+segnate il primo mese, quelle valgono anche per i successivi, non si resetta
+cio' che e' stato fatto, e' un tracciamento [...] anche per l'anno"*.
+
+Fino alla 19a sessione la mappatura del sito era il mese "migliore": tre passi
+a maggio e uno a settembre facevano 3, non 4, e la cella di settembre partiva
+vuota. Ora e' l'**unione per campo** dei mesi dell'anno, piu' i passi dell'anno
+prima se quella mappatura era rimasta aperta (#ANCHOR: passi-cumulativi in
+`web/js/stato.js`, regola completa in
+[anno-e-tempo.md](anno-e-tempo.md#i-passi-si-accumulano-non-si-rifanno-anchor-passi-cumulativi)).
+
+Tre scelte dentro la scelta:
+
+- **il tempo va in una direzione**: settembre eredita da maggio, non il
+  contrario. Cosi' la cella dove si chiude il quarto passo diventa verde e le
+  precedenti restano com'erano: si legge dove e' stato fatto cosa;
+- **l'ereditato non si tocca dalla cella che lo eredita**: e' spuntato, tenue,
+  con "gia' fatta a maggio da X · si toglie da li'". Un clic che rimettesse lo
+  stesso passo due volte o lo togliesse nel mese sbagliato farebbe piu' danno
+  del viaggio a maggio;
+- **a cavallo dell'anno si eredita solo da una mappatura aperta**, e solo
+  dall'anno prima. Se era chiusa si riparte, perche' la mappatura resta una
+  per sito per anno. Il prezzo e' che la mappatura dell'anno prima resta
+  segnata aperta anche quando la si finisce a marzo: chiuderla a ritroso
+  chiede le celle dell'anno dopo e una regola circolare, e non e' stato
+  chiesto.
+
+Costo: `celle_prec` nel bootstrap (l'anno prima, ~600 celle) e una ridipintura
+di tutta la riga a ogni spunta (undici nodi). Niente colonne nuove: il modello
+resta "un bit per campo per cella", e l'eredita' si ricalcola a ogni disegno
+come il ritardo.

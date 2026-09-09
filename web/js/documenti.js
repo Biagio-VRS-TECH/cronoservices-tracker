@@ -21,8 +21,10 @@ export function applicaDocumenti(lista) {
   emetti('documenti');
 }
 
+/* Lo storico dei PDF non ha anno: guardando il 2027 si vedono anche le schede
+   stampate nel 2026 (il chip lo dice). Il modello tiene tutto, senza filtro. */
 function aggiungi(d, notifica = true) {
-  if (!d || d.anno !== st.anno) return;
+  if (!d) return;
   const l = st.documenti.get(d.id_service) || [];
   if (!l.some(x => x.id === d.id)) {
     l.push(d);
@@ -42,7 +44,6 @@ export const documentiDi = id => st.documenti.get(id) || [];
 
 /** Evento dal flusso (SSE / Realtime / altra scheda del browser). */
 export function eventoDocumento(ev) {
-  if (ev.anno !== st.anno) return;
   if (ev.documento) aggiungi(ev.documento);
   else if (ev.eliminato) togli(ev.eliminato, ev.id_service);
   if (ev.operatore && ev.documento) {
@@ -51,11 +52,12 @@ export function eventoDocumento(ev) {
   }
 }
 
-/** Rilegge l'elenco dell'anno dal server (dopo un cambio anno o al ritorno). */
+/** Rilegge l'elenco completo dal server (al ritorno di visibilita'). Senza
+ *  `anno`: tutti gli anni, e' lo storico. */
 export async function ricaricaDocumenti() {
   try {
-    const { ok, dati } = await chiama('/api/documenti?anno=' + st.anno);
-    if (ok && dati.anno === st.anno) applicaDocumenti(dati.documenti);
+    const { ok, dati } = await chiama('/api/documenti');
+    if (ok && dati?.documenti) applicaDocumenti(dati.documenti);
   } catch { }
 }
 
@@ -102,10 +104,13 @@ export function htmlChipDocumento(id) {
   if (!l.length) return `<span class="doc-chip vuoto" data-doc-srv="${id}" hidden></span>`;
   const d = l[0];
   const pag = d.pagine ? `${d.pagine} pag.` : '';
+  const altroAnno = d.anno !== st.anno;      // l'ultimo PDF e' di un altro anno: chip tenue
+  const anni = [...new Set(l.map(x => x.anno))].sort();
   const titolo = `Schede tecnici · ${esc(d.nome)}${pag ? ' · ' + pag : ''}` +
+    (altroAnno ? ` · del ${d.anno}` : '') +
     ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
-    (l.length > 1 ? ` · ${l.length} documenti` : '');
-  return `<button type="button" class="doc-chip" data-doc-srv="${id}" data-doc="${d.id}"
+    (l.length > 1 ? ` · ${l.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
+  return `<button type="button" class="doc-chip${altroAnno ? ' altro-anno' : ''}" data-doc-srv="${id}" data-doc="${d.id}"
       title="${titolo}" aria-label="Apri il PDF delle schede tecnici">
       ${ICO_PDF}${l.length > 1 ? `<i>${l.length}</i>` : ''}
     </button>`;
