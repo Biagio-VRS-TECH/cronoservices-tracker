@@ -115,7 +115,7 @@ ogni sync (ne tiene 20).
 | `05-sync.sql` | `sync_applica`: il gemello di `sync.esegui` |
 | `06-documenti.sql` | tabella `documenti`, bucket Storage, `registra_documento` (gemello di `api.salva_documento`) |
 | `07-ruoli.sql` | il primo amministratore (per casella). Gli altri si nominano dall'app |
-| `installa-sync-cloud.cmd` | crea l'operazione pianificata delle 06:00 |
+| `installa-sync-cloud.cmd` | crea l'operazione pianificata delle 08:15 |
 | `sync-cloud.cmd` | un travaso a mano |
 | `netlify-build.sh` | scrive `nuvola-config.js` in pubblicazione |
 

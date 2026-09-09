@@ -6,13 +6,13 @@
    - LogonType Interactive: gira come l'utente collegato, quindi NON serve
      salvare nessuna password e il driver ACE.OLEDB trova l'ambiente che si
      aspetta. Prezzo: il PC deve essere acceso e l'utente collegato.
-   - StartWhenAvailable: se alle 06:00 il PC era spento, il travaso parte
+   - StartWhenAvailable: se alle 08:15 il PC era spento, il travaso parte
      appena si accende invece di saltare il giorno.
    - RunOnlyIfNetworkAvailable: senza rete non ha senso provarci.
 #>
 param(
   [string]$Nome = 'CronoServices - sync verso Supabase',
-  [string]$Ora  = '06:00'
+  [string]$Ora  = '08:15'
 )
 $ErrorActionPreference = 'Stop'
 

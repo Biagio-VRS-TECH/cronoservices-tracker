@@ -10,7 +10,7 @@ clic. Sono la stessa applicazione con due trasporti diversi.
       |                                   |  login @vrs-tech.it
    server.py  ---> SQLite              Supabase (Postgres + Realtime)
       |                                   ^
-   .accdb (lettura)                       |  una volta al giorno, alle 06:00
+   .accdb (lettura)                       |  una volta al giorno, alle 08:15
                                     push_cloud.py sul PC dell'ufficio
                                           |
                                     .accdb (lettura)
@@ -115,10 +115,10 @@ Per vedere cosa manderebbe senza mandare niente: `python app/push_cloud.py --pro
 
 Sul PC dell'ufficio, doppio clic su **`cloud/installa-sync-cloud.cmd`**.
 
-Crea un'operazione pianificata di Windows che ogni mattina alle **06:00** legge
+Crea un'operazione pianificata di Windows che ogni mattina alle **08:15** legge
 il `.accdb` e manda clienti e service a Supabase. Non serve essere
 amministratore e non serve salvare nessuna password: gira come l'utente
-collegato. Se alle 06:00 il PC era spento, parte appena si accende invece di
+collegato. Se alle 08:15 il PC era spento, parte appena si accende invece di
 saltare il giorno.
 
 Lo stesso file, rilanciato, propone di **togliere** la sincronia.

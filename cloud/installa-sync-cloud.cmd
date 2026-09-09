@@ -7,7 +7,7 @@ rem  corrente e parte quando questo utente e' collegato a Windows.
 rem ============================================================================
 setlocal
 set "NOME=CronoServices - sync verso Supabase"
-set "ORA=06:00"
+set "ORA=08:15"
 
 echo.
 echo   Crono Mappature - sincronia giornaliera verso il cloud
