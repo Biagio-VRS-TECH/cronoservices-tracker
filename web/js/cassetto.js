@@ -11,6 +11,7 @@ import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
 import { chiama } from './api.js';
 import {
   documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
+  eliminaDocumenti,
   urlGeneratore, dimensione, ICO_PDF,
 } from './documenti.js';
 import {
@@ -228,7 +229,35 @@ function sezDocumenti() {
       : h('p', {
           testo: 'Nessun PDF ancora: dal generatore, alla stampa, il documento arriva qui da solo.',
           style: 'color:var(--tenue);font-size:var(--t-mini);margin:0',
-        }));
+        }),
+    /* Rifare le schede di un impianto lascia dietro le versioni vecchie, e a
+       288 dpi ognuna pesa: da due documenti in su si buttano tutti in un clic
+       invece di N. Non serve essere amministratore - e' lo stesso potere che
+       l'Elimina di ogni riga da' gia' a tutti (l'anno intero, quello si',
+       e' dell'admin: sta nelle Impostazioni). Le spunte restano. */
+    docs.length > 1 ? h('div', { style: 'display:flex;justify-content:flex-end;margin-top:8px' },
+      h('button.pill.mini.debole', {
+        testo: `Elimina tutti (${docs.length})`,
+        title: 'Toglie tutti i PDF di questo sito, di ogni anno. Le spunte ' +
+          '"stampata" restano.',
+        onclick: async e => {
+          const b = e.currentTarget;
+          if (b.dataset.conferma !== '1') {
+            b.dataset.conferma = '1'; b.textContent = `Sicuro? ${docs.length} PDF`;
+            setTimeout(() => {
+              b.dataset.conferma = ''; b.textContent = `Elimina tutti (${docs.length})`;
+            }, 4000);
+            return;
+          }
+          b.disabled = true; b.textContent = 'Elimino…';
+          try {
+            const { n, bytes } = await eliminaDocumenti({ id_service: idAperto });
+            avviso(`${n} PDF eliminati: ${dimensione(bytes)} liberati.`, { tono: 'ok' });
+          } catch (ex) {
+            avviso('Non riesco a eliminarli: ' + (ex.message || ex), { tono: 'allerta' });
+          }
+        },
+      })) : null);
 }
 
 /** Una spunta e' arrivata: si ritoccano SOLO le caselle di quel mese, la sua

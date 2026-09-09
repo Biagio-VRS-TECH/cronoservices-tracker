@@ -21,8 +21,9 @@ import * as vStat from './stat.js';
 import { chiudiPop, rinfrescaPop } from './spunte.js';
 import { chiudiCassetto } from './cassetto.js';
 import {
-  eventoDocumento, ricaricaDocumenti, ascoltaAltreSchede, collegaChip, rinfrescaChip,
-  urlGeneratore, ICO_PDF,
+  eventoDocumento, eventoDocumentiEliminati, ricaricaDocumenti, ascoltaAltreSchede,
+  collegaChip, rinfrescaChip, urlGeneratore, ICO_PDF,
+  riepilogoDocumenti, eliminaDocumenti, dimensione,
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
@@ -110,6 +111,7 @@ async function avvia() {
   /* I PDF delle schede tecnici: arrivano dal flusso (o da un'altra scheda del
      browser) e toccano solo l'icona accanto al nome del sito. */
   on('documento-remoto', eventoDocumento);
+  on('documenti-remoti', eventoDocumentiEliminati);
   on('documenti', d => d?.id ? rinfrescaChip(area, d.id) : disegna());
   collegaChip();
   ascoltaAltreSchede();
@@ -920,6 +922,60 @@ function mostraImpostazioni() {
       }, h('span', { testo: n }), h('span.ruolo', { testo: eAdmin(n) ? 'admin' : 'tecnico' }))));
     };
     disegnaRuoli();
+
+    /* SPAZIO DEI PDF (#ANCHOR: documenti). Lo Storage online non e' infinito e
+       un documento a 288 dpi pesa: qui si vede quanto occupa ogni anno e si
+       pota un anno chiuso in un clic. Le spunte "stampata" non si toccano -
+       si butta il PDF, non il lavoro. Conferma in due tempi come nel cassetto:
+       il bottone diventa "Sicuro?" e torna com'era da solo. */
+    const pdfBox = h('div', { style: 'display:grid;gap:6px' });
+    const disegnaPdf = () => {
+      const r = riepilogoDocumenti();
+      if (!r.n) {
+        pdfBox.replaceChildren(h('p.nota-t', { style: 'margin:0',
+          testo: 'Nessun PDF archiviato.' }));
+        return;
+      }
+      pdfBox.replaceChildren(...r.anni.map(a => {
+        const eCorrente = a.anno === st.anno;
+        const bott = h('button.pill.mini.debole', {
+          testo: 'Cancella',
+          title: `Toglie i ${a.n} PDF del ${a.anno} (${dimensione(a.bytes)})` +
+            (eCorrente ? ' — è l’anno in corso' : '') +
+            '. Le spunte "stampata" restano.',
+          onclick: async e => {
+            const b = e.currentTarget;
+            if (b.dataset.conferma !== '1') {
+              b.dataset.conferma = '1';
+              b.textContent = `Sicuro? ${a.n} PDF`;
+              setTimeout(() => {
+                b.dataset.conferma = ''; b.textContent = 'Cancella';
+              }, 4000);
+              return;
+            }
+            b.disabled = true; b.textContent = 'Cancello…';
+            try {
+              const { n, bytes } = await eliminaDocumenti({ anno: a.anno });
+              disegnaPdf();
+              avviso(`${n} PDF del ${a.anno} eliminati: ${dimensione(bytes)} liberati.`,
+                     { tono: 'ok' });
+            } catch (ex) {
+              b.disabled = false; b.dataset.conferma = ''; b.textContent = 'Cancella';
+              avviso('Non cancellati: ' + (ex.message || ex), { tono: 'allerta' });
+            }
+          },
+        });
+        return h('div', { style: 'display:flex;align-items:center;gap:10px;' +
+                                 'justify-content:space-between' },
+          h('span', { html: `<b>${a.anno}</b>${eCorrente ? ' · in corso' : ''}` +
+            `<br><span class="dato">${a.n} PDF · ${dimensione(a.bytes)}</span>`,
+            style: 'font-size:var(--t-mini)' }),
+          bott);
+      }), h('p.nota-t', { style: 'margin:4px 0 0',
+        testo: `In tutto ${r.n} PDF, ${dimensione(r.bytes)}.` }));
+    };
+    disegnaPdf();
+
     return [
       h('h2', { testo: 'Impostazioni' }),
       h('h3.tit-p', { style: 'margin-top:14px', testo: 'Chi \u00e8 amministratore' }),
@@ -939,6 +995,16 @@ function mostraImpostazioni() {
           'arretrato solo perché l\'applicazione non esisteva ancora.'
       }),
       inp,
+      h('h3.tit-p', { style: 'margin-top:18px', testo: 'Spazio dei PDF' }),
+      h('p.nota-t', {
+        style: 'margin-bottom:10px',
+        testo: 'I PDF delle schede tecnici restano per sempre, e un documento ' +
+          'lungo pesa decine di mega: online lo spazio e il traffico si pagano. ' +
+          'Cancellare un anno chiuso libera posto e non tocca nessuna spunta: ' +
+          'resta scritto che quelle schede sono state stampate, sparisce solo ' +
+          'il file. Non si torna indietro.'
+      }),
+      pdfBox,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:18px' },
         h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
         h('button.bottone', {

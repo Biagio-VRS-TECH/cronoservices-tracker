@@ -163,11 +163,58 @@ begin
   return jsonb_build_object('http', 200, 'eliminato', d.id, 'percorso', d.percorso);
 end $fn$;
 
+-- CANCELLAZIONE IN BLOCCO, per liberare spazio (#ANCHOR: documenti).
+-- Due perimetri, mai insieme: un ANNO intero (potatura d'archivio, solo
+-- l'amministratore, come `ripristina_blocco`) oppure un SITO, tutti i suoi
+-- anni (chiunque: e' lo stesso potere di `elimina_documento`, in un clic
+-- invece di N). Le spunte "stampata" restano.
+--
+-- Gli oggetti nel bucket li cancella il CLIENT, prima di chiamare, con la
+-- lista che ha in memoria (`st.documenti` e' lo specchio di questa tabella).
+-- Qui si tolgono le righe secondo il criterio e si restituiscono i `percorsi`
+-- effettivamente cancellati: se il client aveva la lista vecchia, ci trova
+-- quello che gli era sfuggito e ripulisce anche quello.
+create or replace function public.elimina_documenti(
+  p_anno int default null, p_id_service int default null)
+returns jsonb
+language plpgsql security definer set search_path = public as $fn$
+declare via jsonb; peso bigint;
+begin
+  if not public.autorizzato() then
+    raise exception 'non autorizzato' using errcode = '42501';
+  end if;
+  if (p_anno is null) = (p_id_service is null) then
+    return jsonb_build_object('http', 400, 'errore',
+                              'serve anno OPPURE id_service, non entrambi');
+  end if;
+  if p_anno is not null and not public.e_admin() then
+    return jsonb_build_object('http', 403, 'errore',
+                              'questa azione e'' dell''amministratore');
+  end if;
+
+  with tolti as (
+    delete from public.documenti d
+     where (p_anno is not null and d.anno = p_anno)
+        or (p_id_service is not null and d.id_service = p_id_service)
+    returning d.*
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', id, 'id_service', id_service, 'anno', anno,
+           'percorso', percorso) order by creato_il), '[]'::jsonb),
+         coalesce(sum(coalesce(bytes, 0)), 0)
+    into via, peso
+    from tolti;
+
+  return jsonb_build_object('http', 200, 'eliminati', via,
+                            'n', jsonb_array_length(via), 'bytes', peso);
+end $fn$;
+
 -- ----------------------------------------------------------------- grant ---
 grant execute on function
   public.app_documenti(int),
   public.registra_documento(int, int, int, text, text, int, int, text, text, int, int),
-  public.elimina_documento(text)
+  public.elimina_documento(text),
+  public.elimina_documenti(int, int)
 to authenticated;
 
 -- -------------------------------------------------------------- realtime ---

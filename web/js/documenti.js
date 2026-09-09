@@ -40,7 +40,40 @@ function togli(id, id_service) {
   emetti('documenti', { id: id_service });
 }
 
+/** Come `togli`, ma per una cancellazione in blocco: si tocca il modello una
+ *  volta e si avvisa una volta sola, senza id, cosi' la vista si ridisegna
+ *  intera invece di rinfrescare N chip uno per uno. */
+function togliMolti(eliminati) {
+  const per = new Map();
+  for (const e of eliminati || []) {
+    if (!per.has(e.id_service)) per.set(e.id_service, new Set());
+    per.get(e.id_service).add(e.id);
+  }
+  for (const [sid, ids] of per) {
+    const l = (st.documenti.get(sid) || []).filter(x => !ids.has(x.id));
+    if (l.length) st.documenti.set(sid, l); else st.documenti.delete(sid);
+  }
+  if (per.size) emetti('documenti');
+}
+
 export const documentiDi = id => st.documenti.get(id) || [];
+
+/** Quanto spazio si stanno mangiando i PDF, anno per anno: [{anno, n, bytes}]
+ *  dal piu' recente, piu' il totale. E' il numero su cui l'amministratore
+ *  decide cosa potare (lo Storage online non e' infinito). */
+export function riepilogoDocumenti() {
+  const per = new Map();
+  for (const l of st.documenti.values()) {
+    for (const d of l) {
+      const a = per.get(d.anno) || { anno: d.anno, n: 0, bytes: 0 };
+      a.n++; a.bytes += d.bytes || 0;
+      per.set(d.anno, a);
+    }
+  }
+  const anni = [...per.values()].sort((x, y) => y.anno - x.anno);
+  return { anni, n: anni.reduce((n, a) => n + a.n, 0),
+           bytes: anni.reduce((n, a) => n + a.bytes, 0) };
+}
 
 /* FASCICOLI. Un documento diviso in fascicoli e' arrivato come N PDF con lo
    stesso `gruppo`: il tracker li mostra come UN documento con N parti. Qui i
@@ -97,7 +130,10 @@ const CANALE = 'crono-documenti';
 export function ascoltaAltreSchede() {
   if (!('BroadcastChannel' in self)) return;
   const bc = new BroadcastChannel(CANALE);
-  bc.onmessage = e => { if (e.data?.tipo === 'documento') eventoDocumento(e.data); };
+  bc.onmessage = e => {
+    if (e.data?.tipo === 'documento') eventoDocumento(e.data);
+    else if (e.data?.tipo === 'documenti') eventoDocumentiEliminati(e.data);
+  };
 }
 export function annunciaAltreSchede(ev) {
   try { new BroadcastChannel(CANALE).postMessage(ev); } catch { }
@@ -265,6 +301,49 @@ export async function eliminaDocumento(d) {
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
   togli(d.id, d.id_service);
   annunciaAltreSchede({ tipo: 'documento', anno: d.anno, id_service: d.id_service, eliminato: d.id });
+}
+
+/** Cancellazione in BLOCCO, per liberare spazio (#ANCHOR: documenti).
+ *  Perimetro: `{anno}` (tutto un anno, solo l'amministratore) oppure
+ *  `{id_service}` (tutti i PDF di un sito, di qualunque anno). Le spunte
+ *  "stampata" restano: il PDF si butta per fare posto, il lavoro fatto no.
+ *
+ *  Online l'ordine e' quello di sempre - prima gli oggetti nel bucket, poi le
+ *  righe - perche' un file orfano nello Storage e' proprio lo spazio che si
+ *  vuole liberare. La lista dei percorsi la da' il modello, ma il server
+ *  cancella per criterio e risponde con quello che ha davvero tolto: se il
+ *  modello era vecchio, i percorsi in piu' si ripuliscono subito dopo.
+ *  Ritorna {n, bytes}. */
+export async function eliminaDocumenti({ anno = null, id_service = null } = {}) {
+  const online = nuvola.attiva();
+  const noti = (anno != null
+    ? [...st.documenti.values()].flat().filter(d => d.anno === anno)
+    : documentiDi(id_service)).map(percorsoDi);
+  if (online && noti.length) await nuvola.eliminaOggetti('documenti', noti);
+
+  const r = await chiama('/api/documenti_elimina', {
+    metodo: 'POST', ms: 120000,
+    body: { anno, id_service, operatore: rete.operatore } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const eliminati = r.dati?.eliminati || [];
+
+  if (online) {
+    const visti = new Set(noti);
+    const restanti = eliminati.map(e => e.percorso).filter(x => x && !visti.has(x));
+    // uno strascico non deve far sembrare fallita un'operazione riuscita
+    if (restanti.length) {
+      try { await nuvola.eliminaOggetti('documenti', restanti); } catch { }
+    }
+  }
+  togliMolti(eliminati);
+  annunciaAltreSchede({ tipo: 'documenti', eliminati, n: eliminati.length });
+  return { n: eliminati.length, bytes: r.dati?.bytes || 0 };
+}
+
+/** L'eco di una cancellazione in blocco fatta da un altro (flusso o altra
+ *  scheda del browser): si toglie dal modello, senza avvisi rumorosi. */
+export function eventoDocumentiEliminati(ev) {
+  togliMolti(ev?.eliminati);
 }
 
 const blobBase64 = b => new Promise((ok, ko) => {

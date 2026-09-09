@@ -844,3 +844,47 @@ azzerare il lavoro di tutti in un clic e' la cosa da proteggere. La selezione
 nella vista Mese e "Chiudi la mappatura" nel cassetto passano dallo stesso
 `spuntaMolte` ma senza quell'origine: sono lavoro ordinario, e sui due campi
 il tecnico propone come sempre.
+
+## 21. I PDF si cancellano in blocco, e chi puo' farlo dipende dal perimetro (24a sessione)
+
+Richiesta, dopo un "Non salvato: The object exceeded the maximum allowed size":
+*"allora servirebbe una funzione che cancella tutti i pdf"*. Scelti da lui due
+perimetri su tre: **per anno** e **per sito**; scartato il pulsante unico che
+svuota tutto l'archivio in un colpo.
+
+**"Tutti i PDF" non e' un perimetro, e' due.** Un anno intero e' potatura
+d'archivio: si fa una volta a gennaio, riguarda il lavoro di tutti, ed e'
+dell'**amministratore**, accanto alle altre azioni di massa (decisione 20).
+Un sito e' lavoro ordinario - si rifanno le schede di un impianto e le
+versioni vecchie restano li' a pesare - e resta di **chiunque**: e' lo stesso
+potere che l'Elimina di ogni riga del cassetto da' gia' a tutti, in un clic
+invece di N. Proteggere il secondo avrebbe solo insegnato ai tecnici a
+cliccare Elimina otto volte di fila.
+
+**Le spunte non si toccano.** Come per il documento singolo: `stampata` resta
+1. Cancellare il PDF non e' dire "non l'ho stampato", e' dire "il file non mi
+serve piu'". Portarsi dietro le spunte avrebbe fatto sembrare arretrato un
+anno chiuso, per aver liberato spazio.
+
+**Prima i file, poi le righe.** Vale locale e online. Se qualcosa si spezza a
+meta' restano righe senza file - visibili ("file mancante"), e ridare lo
+stesso comando le trova ancora e finisce il lavoro. Nell'ordine opposto
+resterebbero file orfani nello Storage: spazio pagato che nessuna schermata
+mostra piu', cioe' esattamente il problema da cui si e' partiti. Online la
+lista dei percorsi la da' il modello (`st.documenti` e' lo specchio della
+tabella), ma il server cancella **per criterio** e risponde con i percorsi
+che ha davvero tolto: se il client aveva la lista vecchia, ci trova lo
+strascico e lo ripulisce.
+
+**Il numero prima del bottone.** *Spazio dei PDF* mostra anno, quanti PDF e
+quanti mega, presi dal modello senza una chiamata in piu': si decide cosa
+potare guardando il peso, non a memoria. La conferma e' quella di sempre -
+il bottone diventa "Sicuro? N PDF" e torna com'era da solo (decisione 15) -
+perche' qui il numero **e'** l'avvertimento.
+
+**Il tetto dei 40 MB resta dov'e'.** Non e' di Supabase: e' scritto da noi nel
+bucket e in `api.py`. Alzarlo si puo', ma sul piano Free il progetto si ferma
+comunque a 50 MB per file, e un PDF da 60 MB e' lento da aprire per il
+tecnico e mangia il traffico incluso. La strada giusta, quando servira', e'
+la scala adattiva in `ponte.js` (288 dpi sui documenti corti, 192 sui
+lunghi), non un piano piu' caro per archiviare JPEG.

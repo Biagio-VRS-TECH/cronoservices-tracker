@@ -3,6 +3,53 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (24a sessione) - cancellare i PDF in blocco, per fare spazio
+
+Nato da un "Non salvato: The object exceeded the maximum allowed size" del
+committente: il tetto e' **nostro**, 40 MB per PDF (`file_size_limit` del
+bucket in `cloud/06-documenti.sql`, `40 * 1024 * 1024` in `api.py`), e a
+scala 3 (~300 KB/pagina) un documento lungo lo sfonda. Il piano Supabase non
+c'entra: sul Free il tetto di progetto e' 50 MB **per file** (lo spazio totale
+e' ~1 GB, il traffico ~5 GB/mese), sul Pro il limite si alza ma i PDF pesanti
+restano lenti da aprire e mangiano traffico. Chiesto e scelto da lui:
+**una funzione che cancella i PDF in blocco**, per anno e per sito.
+
+- **`/api/documenti_elimina`** (`api.py`, `elimina_documenti`) e
+  **`elimina_documenti(p_anno, p_id_service)`** (`06-documenti.sql`). Due
+  perimetri, mai insieme: `{anno}` = tutto un anno, **solo amministratore**
+  (e' potatura d'archivio, come azzerare in blocco); `{id_service}` = tutti i
+  PDF di un sito, di ogni anno, **per chiunque** (e' lo stesso potere che
+  l'Elimina di ogni riga da' gia' a tutti, in un clic invece di N).
+- **Le spunte "stampata" restano**, come per il documento singolo: si butta il
+  file, non il lavoro. Provato: sito 556 svuotato, `stampata` di maggio
+  ancora 1.
+- **Ordine: prima i file, poi le righe**, uguale locale e online (online gli
+  oggetti li cancella il client con la lista del modello, poi il server
+  cancella per criterio e risponde con i `percorsi` che ha davvero tolto -
+  se il modello era vecchio, lo strascico si ripulisce subito dopo). Se si
+  spezza a meta' restano righe senza file e ridare lo stesso comando finisce
+  il lavoro; nell'ordine opposto resterebbero file orfani, cioe' lo spazio
+  che si voleva liberare. In locale si buttano anche le cartelle dell'anno
+  rimaste vuote.
+- **UI**: Azioni > Impostazioni > **Spazio dei PDF** (solo admin, come tutte
+  le impostazioni): un rigo per anno con `n PDF · peso`, il totale, e
+  *Cancella* con conferma in due tempi ("Sicuro? N PDF", torna da solo dopo
+  4 s). Nel cassetto, sotto la lista delle schede, **Elimina tutti (N)**
+  compare da due documenti in su. I numeri vengono da `riepilogoDocumenti()`
+  in `documenti.js`, cioe' dal modello: nessuna chiamata in piu'.
+- **Nuovo in `nuvola.js`**: `eliminaOggetti(bucket, percorsi)`, una DELETE
+  sola con `prefixes` a lotti di 100. Evento in blocco `{tipo:'documenti',
+  eliminati:[...]}` -> `emetti('documenti-remoti')` in `stato.js` ->
+  `eventoDocumentiEliminati` (`togliMolti`, un solo ridisegno). Online l'eco
+  arriva gia' da Realtime, una DELETE per riga.
+- Provato in browser su `data/prova.db` (porta 8775) con due anni finti:
+  2024 cancellato (2 PDF, righe + file + cartella via), 403 a un tecnico che
+  chiede un anno, 400 se arrivano anno e sito insieme, 200 con 0 se non c'e'
+  niente. **Da rieseguire su Supabase: `06`** (vedi `cloud/LEGGIMI.md` 6).
+- **Lasciato fuori**: alzare i 40 MB (serve il peso vero del PDF che gli da'
+  errore) e la scala adattiva in `ponte.js` (288 dpi sui documenti corti,
+  192 sui lunghi), che e' l'altra strada per non sfondare il tetto.
+
 ## Fatto il 2026-09-09 (23a sessione) - Access dalla rete, ripristino a blocchi, PDF a 288 dpi e in fascicoli
 
 Quattro richieste, sul branch `anteprima-rete-blocchi-pdf` (deploy preview, non main).

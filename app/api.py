@@ -816,6 +816,69 @@ def elimina_documento(ctx, q, body):
     return 200, {"eliminato": doc_id}, ev
 
 
+def elimina_documenti(ctx, q, body):
+    """Cancellazione in BLOCCO dei PDF, per liberare spazio (#ANCHOR: documenti).
+
+    Due perimetri, mai insieme:
+      - {"anno": 2024}       tutti i PDF di quell'anno. Solo l'amministratore:
+                             e' potatura d'archivio, come azzerare in blocco.
+      - {"id_service": 812}  tutti i PDF di quel sito, di qualunque anno. La
+                             puo' fare chiunque: e' lo stesso potere che ha
+                             gia' con Elimina su ogni singolo documento, in un
+                             clic invece di N.
+
+    Le spunte "stampata" restano, come per il documento singolo: il PDF si
+    butta per fare posto, il lavoro fatto resta scritto.
+    """
+    a = str(body.get("anno") or "")
+    sid = str(body.get("id_service") or "")
+    per_anno = a.isdigit()
+    if per_anno == sid.isdigit():
+        return 400, {"errore": "serve anno OPPURE id_service, non entrambi"}, None
+    operatore = body.get("operatore") or "?"
+    dove, val = ("anno", int(a)) if per_anno else ("id_service", int(sid))
+
+    with db.WRITE_LOCK:
+        with db.sess() as c:
+            if per_anno:
+                no = _solo_admin(c, body, ctx)
+                if no:
+                    return no
+            righe = c.execute("SELECT id,id_service,anno,percorso,bytes FROM documenti "
+                              "WHERE %s=?" % dove, (val,)).fetchall()
+            if not righe:
+                return 200, {"eliminati": [], "n": 0, "bytes": 0}, None
+
+            # Prima i file, poi le righe - lo stesso ordine del giro online
+            # (cloud/06-documenti.sql): se qualcosa si spezza a meta' restano
+            # righe senza file, e ridare lo stesso comando le trova ancora e
+            # finisce il lavoro. Nell'ordine opposto i file resterebbero
+            # orfani per sempre, che e' esattamente lo spazio che qui si
+            # vuole liberare.
+            base = _cartella_documenti()
+            for r in righe:
+                try:
+                    os.remove(os.path.join(base, r["percorso"]))
+                except OSError:
+                    pass
+            c.executemany("DELETE FROM documenti WHERE id=?", [(r["id"],) for r in righe])
+
+    for cartella, _, _ in os.walk(base, topdown=False):
+        if cartella == base:
+            continue
+        try:
+            os.rmdir(cartella)          # solo se e' rimasta vuota
+        except OSError:
+            pass
+
+    eliminati = [{"id": r["id"], "id_service": r["id_service"], "anno": r["anno"]}
+                 for r in righe]
+    peso = sum(r["bytes"] or 0 for r in righe)
+    ev = {"tipo": "documenti", "eliminati": eliminati, "n": len(eliminati),
+          "bytes": peso, "ambito": dove, "valore": val, "operatore": operatore}
+    return 200, {"eliminati": eliminati, "n": len(eliminati), "bytes": peso}, ev
+
+
 ROUTE = {
     ("GET", "/api/bootstrap"): bootstrap,
     ("GET", "/api/storia"): storia,
@@ -835,4 +898,5 @@ ROUTE = {
     ("GET", "/api/documento"): scarica_documento,
     ("POST", "/api/documento"): salva_documento,
     ("POST", "/api/documento_elimina"): elimina_documento,
+    ("POST", "/api/documenti_elimina"): elimina_documenti,
 }

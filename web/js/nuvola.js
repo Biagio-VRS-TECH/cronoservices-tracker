@@ -206,6 +206,10 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       }, ms);
     case '/api/documento_elimina':
       return rpc('elimina_documento', { p_id: b.id }, ms);
+    case '/api/documenti_elimina':         // in blocco: un anno (solo admin) o un sito
+      return rpc('elimina_documenti', { p_anno: num(b.anno) || null,
+                                        p_id_service: num(b.id_service) || null },
+                 Math.max(ms, 60000));
 
     case '/api/sync':
       // Il .accdb sta sul PC dell'ufficio e da qui non si raggiunge: e' quel PC
@@ -245,6 +249,28 @@ export async function eliminaOggetto(bucket, percorso) {
   const r = await fetch(`${ORIGINE}/storage/v1/object/${bucket}/${percorso}`, {
     method: 'DELETE', headers: await intestazioni() });
   if (!r.ok && r.status !== 404) throw new Error('eliminazione rifiutata (' + r.status + ')');
+}
+
+/* Molti oggetti in un colpo: lo Storage prende una lista di percorsi
+   (`prefixes`) in una DELETE sola. A lotti di 100 per non spedire richieste
+   smisurate quando si pota un anno intero. Ritorna quanti ne ha cancellati
+   davvero; i mancanti (gia' spariti) non sono un errore. */
+export async function eliminaOggetti(bucket, percorsi) {
+  let n = 0;
+  for (let i = 0; i < percorsi.length; i += 100) {
+    const lotto = percorsi.slice(i, i + 100);
+    const r = await fetch(`${ORIGINE}/storage/v1/object/${bucket}`, {
+      method: 'DELETE', body: JSON.stringify({ prefixes: lotto }),
+      headers: { ...await intestazioni(), 'Content-Type': 'application/json' },
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.message || d.error || ('eliminazione rifiutata (' + r.status + ')'));
+    }
+    const d = await r.json().catch(() => []);
+    n += Array.isArray(d) ? d.length : lotto.length;
+  }
+  return n;
 }
 
 export async function urlFirmato(bucket, percorso, secondi = 3600) {

@@ -25,7 +25,8 @@ tecnico) -> `corretta` ("mappatura completa rapportino") -> `ricambi`
 `PASSI`, mai "tre". **Due ruoli** (#ANCHOR: ruoli): il tecnico spunta tutto,
 ma `corretta` e `ricambi` restano **proposte** (valore 2) finche' un
 **amministratore** non le approva; solo l'admin completa/azzera in blocco,
-sincronizza da Access, cambia le impostazioni e "Ripristina" dal diario. Un
+sincronizza da Access, cambia le impostazioni, "Ripristina" dal diario e
+cancella i PDF di un anno intero (i PDF di un singolo sito li butta chiunque). Un
 passo e' fatto solo se vale 1: `fatto(c, campo)`, mai un truthy.
 
 **Il concetto meno ovvio e' il tempo**: i mesi in Access appartengono al
@@ -156,6 +157,20 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-09 (24a sessione)
+
+Branch `cancella-pdf-in-blocco` (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-24a-sessione---cancellare-i-pdf-in-blocco-per-fare-spazio),
+[ai/decisioni.md](ai/decisioni.md) 21). **Cancellazione dei PDF in blocco**
+per fare spazio (#ANCHOR: documenti): `/api/documenti_elimina` /
+`elimina_documenti(p_anno, p_id_service)` - un **anno** intero solo per
+l'amministratore (Azioni > Impostazioni > *Spazio dei PDF*, con quanti PDF e
+quanti mega per anno), un **sito** per chiunque (*Elimina tutti* nel
+cassetto). Le spunte "stampata" restano. Prima i file, poi le righe;
+`nuvola.eliminaOggetti` cancella gli oggetti del bucket a lotti di 100.
+**Da rieseguire su Supabase: `06-documenti.sql`.** Il tetto dei 40 MB per PDF
+e' nostro (bucket + `api.py`), non del piano Supabase: vedi decisione 21.
 
 ## Stato al 2026-09-09 (23a sessione)
 

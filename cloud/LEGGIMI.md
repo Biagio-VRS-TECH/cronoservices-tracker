@@ -193,6 +193,22 @@ PDF fino a 40 MB. I file si leggono con indirizzi firmati che durano un'ora.
 Finche' il 06 non e' eseguito, il tracker online funziona come prima e il
 generatore dice "Non salvato" quando prova a consegnare.
 
+**Dopo la 24a sessione (2026-09-09) va rieseguito `06`**: aggiunge
+`elimina_documenti(p_anno, p_id_service)`, la cancellazione in blocco dei PDF
+per liberare spazio (un anno intero solo per l'amministratore, un sito per
+chiunque). Finche' non si fa, i due bottoni nuovi - *Spazio dei PDF* nelle
+Impostazioni e *Elimina tutti* nel cassetto - rispondono "rotta sconosciuta"
+online, mentre in locale funzionano subito. Gli oggetti nel bucket li cancella
+il client prima della chiamata: e' lo stesso ordine di `elimina_documento`, e
+serve a non lasciare file orfani, che sono proprio lo spazio da liberare.
+
+**Il tetto dei 40 MB per PDF** e' nostro, non di Supabase: sta in
+`06-documenti.sql` (`file_size_limit`) e in `app/api.py`. Sul piano Free il
+tetto del progetto e' comunque 50 MB per file, quindi alzare il nostro oltre
+non serve senza passare al Pro; e prima di pagare conviene guardare quanto
+pesa il PDF, perche' a scala 3 un documento lungo li sfonda (vedi `ponte.js`,
+`SCALA`).
+
 **Dopo la 20a sessione (2026-09-09) vanno rieseguiti tutti e due**, `06` e poi
 `03`: il bootstrap porta `celle_prec` (le celle dell'anno prima, per i passi
 che si accumulano) e i documenti di **tutti** gli anni (`_documenti_json(null)`);

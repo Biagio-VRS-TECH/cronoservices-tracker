@@ -1070,6 +1070,12 @@ export function eventoRemoto(ev) {
     emetti('documento-remoto', ev);
     return;
   }
+  if (ev.tipo === 'documenti') {
+    // una potatura in blocco (un anno, o un sito): le spunte non le tocca,
+    // quindi non c'e' niente da riapplicare, solo documenti da togliere
+    emetti('documenti-remoti', ev);
+    return;
+  }
   /* L'anno prima cambia sotto i piedi (un collega recupera dello storico): le
      celle di quest'anno di quel sito possono aver ereditato qualcosa. */
   if (ev.anno === st.anno - 1 && (ev.tipo === 'cella' || ev.tipo === 'celle')) {
