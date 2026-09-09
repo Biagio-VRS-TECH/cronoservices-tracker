@@ -96,6 +96,11 @@ PDF: `registra_documento` ha tre argomenti in più e la vecchia firma viene
 tolta). `02` e `03` vanno rilanciati **anche su un progetto già aggiornato**:
 è lì che sta la correzione di `imposta_operatore` e il terzo ruolo.
 
+> Sul progetto in produzione questo è **già stato fatto** il 2026-09-09
+> (migrazioni `ruoli_25a_*`). Quanto segue serve solo a un progetto nuovo, o se
+> si rilanciano gli script da capo — cosa sempre possibile: sono tutti
+> `create or replace`.
+
 Subito dopo, dall'SQL Editor, **controllare che nessuna riga sia finita alla
 persona sbagliata** (era possibile finché il difetto era aperto):
 

@@ -75,7 +75,8 @@ declare f text;
 begin
   foreach f in array array['app_documenti(int)',
                            'registra_documento(int, int, int, text, text, int, int, text, text, int, int)',
-                           'elimina_documento(text)']
+                           'elimina_documento(text)',
+                           'elimina_documenti(int, int)']
   loop
     if to_regprocedure('public.' || f) is not null then
       execute format('grant execute on function public.%s to authenticated', f);

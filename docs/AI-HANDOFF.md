@@ -175,8 +175,10 @@ riga di un'altra casella non si tocca mai, e **il campo per cambiare nome non
 c'e' piu'**: `#io` apre una scheda in sola lettura, la riga in `operatori` nasce
 al login. **Terzo ruolo `approvatore`**: approva `corretta`/`ricambi` e basta.
 `_valore_per_ruolo`/`_applica` portano `p_approva` e `p_admin` separati (vecchie
-firme droppate). **Da rieseguire su Supabase, in ordine: `01`, `02`, `03`,
-`04`.** Service worker `crono-guscio-v17`.
+firme droppate). **SQL gia' applicato su Supabase** in questa sessione
+(migrazioni `ruoli_25a_*`) e verificato in produzione con una prova che rifa'
+l'attacco e si annulla da sola. Il `web/` invece e' ancora da deployare.
+Service worker `crono-guscio-v17`.
 
 ## Stato al 2026-09-09 (24a sessione)
 

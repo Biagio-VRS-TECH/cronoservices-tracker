@@ -57,10 +57,34 @@ del solo amministratore. Le vecchie firme vengono droppate negli script.
 Nelle impostazioni la pillola di ogni collega gira in tondo: tecnico ->
 approvatore -> amministratore -> tecnico.
 
-**Da rieseguire su Supabase, in ordine: `01`, `02`, `03`, `04`.** Senza `03`
-la falla resta aperta. Service worker `crono-guscio-v17`.
+**SQL applicato su Supabase in questa sessione**, come migrazioni
+`ruoli_25a_01_vincolo_ruolo`, `..._02a/b/c/d`, `..._03a/b`, `..._04_permessi`
+(il delta di `01`, `02`, `03`, `04`: tutti `create or replace`, quindi
+rilanciare i file interi da capo resta possibile e innocuo). Il `web/` e'
+ancora da deployare. Service worker `crono-guscio-v17`.
+
+In `04` e' stato aggiunto `elimina_documenti(int, int)` al ri-grant dei
+documenti: era stato dimenticato alla 24a sessione, e rilanciare `04` da solo
+avrebbe revocato l'EXECUTE facendo tornare 403 la cancellazione dei PDF in
+blocco - lo stesso difetto della 19a sessione, un anno dopo.
 
 ### Provato
+
+**In produzione, su Supabase** (tutto dentro transazioni che si annullano da
+sole, database pulito prima e dopo):
+- l'attacco rifatto: un tecnico entra, poi si rinomina "Admin". Prima gli
+  avrebbe portato via la riga; ora resta "Tecnico Finto / tecnico", la riga
+  dell'amministratore non e' toccata, e `imposta_ruolo` gli risponde 403;
+- il ciclo completo: tecnico che propone (k=2), approvatore che approva (k=1);
+- all'approvatore rispondono 403 "Azzera tutte", "Ripristina", Impostazioni,
+  la nomina di un admin e la cancellazione dei PDF di un anno; "Approva tutte"
+  (origine `approvazione`) invece passa;
+- al tecnico risponde 403 il tentativo di togliere una spunta approvata;
+- la matrice di `_valore_per_ruolo` per i tre ruoli, valore per valore;
+- una firma sola per `_applica` e `_valore_per_ruolo` (nessun sovraccarico
+  ambiguo rimasto), e i grant giusti: le RPC aperte a `authenticated`, gli
+  interni (`_applica`, `_valore_per_ruolo`, `operatore_corrente`) chiusi,
+  niente ad `anon`. Advisor di sicurezza: nessun ERROR.
 
 Su `data/prova.db` (porta 8775), matrice completa: tecnico che propone (2),
 approvatore che approva (1) e respinge (0), tecnico che prova a togliere
