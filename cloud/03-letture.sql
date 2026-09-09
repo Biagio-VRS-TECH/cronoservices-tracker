@@ -199,7 +199,8 @@ begin
   select jsonb_build_object('http', 200, 'storia', coalesce(jsonb_agg(x), '[]'::jsonb))
   from (
     select jsonb_build_object('ts', e.ts, 'operatore', e.operatore,
-                              'campo', e.campo, 'da', e.da, 'a', e.a, 'origine', e.origine) as x
+                              'campo', e.campo, 'da', e.da, 'a', e.a, 'origine', e.origine,
+                              'op_id', e.op_id) as x
     from public.eventi e
     where e.id_service = p_id_service and e.anno = p_anno and e.mese = p_mese
     order by e.id desc limit 50
@@ -219,7 +220,7 @@ begin
     select jsonb_build_object('ts', e.ts, 'operatore', e.operatore,
                               'id_service', e.id_service, 'anno', e.anno,
                               'mese', e.mese, 'campo', e.campo, 'da', e.da, 'a', e.a,
-                              'origine', e.origine,
+                              'origine', e.origine, 'op_id', e.op_id,
                               'destinazione', s.destinazione, 'rag_soc', c.rag_soc) as x
     from public.eventi e
     left join public.services s on s.id_service = e.id_service

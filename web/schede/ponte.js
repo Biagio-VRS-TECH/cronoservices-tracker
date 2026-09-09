@@ -439,14 +439,39 @@ function guarda() {
  *  ricomprimerlo, +0,4 s a pagina: su 128 pagine raddoppia l'attesa. Chrome
  *  scrive i PNG del canvas sempre in RGBA (colorType 6), anche con
  *  {alpha:false}, quindi non c'e' scorciatoia senza scriversi un encoder. */
-const SCALA = 2, LOTTO = 8, QUALITA = 0.74;
+/* 22a sessione: scala 3 (~288 dpi, la risoluzione di una stampa vera) in JPEG
+ * 0,8. Il committente ricordava la stampa del browser "al massimo e istantanea":
+ * quella era vettoriale, e non si puo' avere in un file che il tracker archivia
+ * (il browser non consegna il PDF a nessuno). Qui si alza la resa: il tempo
+ * non cambia (e' il clone del DOM a costare), i byte si'. Il lotto scende a 5
+ * pagine perche' a scala 3 una tela di 8 pagine supererebbe i 200 MB. */
+const SCALA = 3, LOTTO = 5, QUALITA = 0.8;
 
-async function generaPdf(avanza) {
-  if (!window.html2canvas || !window.jspdf) throw new Error('librerie PDF non caricate');
+/** Le pagine in anteprima divise per FASCICOLO (data-part, messo dal
+ *  generatore). Con la tendina "solo il fascicolo k" resta quello; altrimenti
+ *  tutti, nell'ordine. Un documento non diviso e' un fascicolo solo. */
+function fascicoliInAnteprima() {
   const tutte = [...document.querySelectorAll('#pages .page')];
   const k = $('#printPart')?.value || '';
-  const pagine = k ? tutte.filter(p => p.getAttribute('data-part') === k) : tutte;
-  if (!pagine.length) throw new Error('nessuna pagina in anteprima');
+  const per = new Map();
+  for (const p of tutte) {
+    const part = p.getAttribute('data-part') || '1';
+    if (!per.has(part)) per.set(part, []);
+    per.get(part).push(p);
+  }
+  const N = per.size;
+  const chiavi = [...per.keys()];
+  return chiavi.filter(x => !k || x === k)
+    .map(x => ({ fascicolo: chiavi.indexOf(x) + 1, fascicoli: N, pagine: per.get(x) }));
+}
+
+/** Un PDF per fascicolo: [{blob, pagine, anteprima, fascicolo, fascicoli}].
+ *  L'avanzamento conta le pagine di tutti i fascicoli insieme. */
+async function generaPdfs(avanza) {
+  if (!window.html2canvas || !window.jspdf) throw new Error('librerie PDF non caricate');
+  const fasc = fascicoliInAnteprima();
+  const totale = fasc.reduce((n, f) => n + f.pagine.length, 0);
+  if (!totale) throw new Error('nessuna pagina in anteprima');
 
   /* chi scorre e' #banco (vedi il guscio in index.html): togliendo la scala
      alle pagine la colonna si accorcia di colpo, e senza rimettere lo
@@ -454,13 +479,29 @@ async function generaPdf(avanza) {
   const cont = $('#pages'), main = $('#banco') || $('#main');
   const trasf = cont.style.transform, scroll = main.scrollTop;
   cont.style.transform = 'none';
+  let fatteTot = 0;
+  const out = [];
+  try {
+    for (const f of fasc) {
+      const r = await rendiPagine(f.pagine, n => avanza(fatteTot + n, totale));
+      fatteTot += f.pagine.length;
+      out.push({ ...r, fascicolo: f.fascicolo, fascicoli: f.fascicoli });
+    }
+    return out;
+  } finally {
+    cont.style.transform = trasf;
+    main.scrollTop = scroll;
+  }
+}
+
+async function rendiPagine(pagine, avanza) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   let anteprima = null, fatte = 0;
-  try {
+  {
     for (let i = 0; i < pagine.length; i += LOTTO) {
       const lotto = pagine.slice(i, i + LOTTO);
-      avanza(fatte, pagine.length);
+      avanza(fatte);
       // le pagine del lotto finiscono per un attimo in un contenitore proprio,
       // cosi' la tela e' alta quanto loro e non quanto tutto il documento
       const w = document.createElement('div');
@@ -486,13 +527,10 @@ async function generaPdf(avanza) {
         lotto.forEach(p => w.before(p));
         w.remove();
       }
-      avanza(fatte, pagine.length);
+      avanza(fatte);
       await new Promise(r => setTimeout(r, 0));
     }
     return { blob: pdf.output('blob'), pagine: pagine.length, anteprima };
-  } finally {
-    cont.style.transform = trasf;
-    main.scrollTop = scroll;
   }
 }
 
@@ -508,13 +546,15 @@ function miniatura(tela) {
  *  sito (vedi titoloSito), quindi ripetere il cliente davanti darebbe
  *  "NIPPON SANSO - NIPPON SANSO - 2026": il cliente si mette solo se il titolo
  *  non lo contiene gia'. */
-function nomeFile() {
+function nomeFile(f) {
   const titolo = ($('#docTitle')?.value || '').trim();
   const chi = ctx.cliente || ctx.sito || '';
   const ripete = chi && titolo && soloLettere(titolo).includes(soloLettere(chi));
   const base = [ripete ? '' : (chi || 'sito'), titolo || 'schede tecnici', ctx.anno]
     .filter(Boolean).join(' - ');
-  return base.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) + '.pdf';
+  // in fascicoli: "... - fascicolo 2 di 3.pdf" (il tracker li rimette insieme dal gruppo)
+  const coda = f && f.fascicoli > 1 ? ` - fascicolo ${f.fascicolo} di ${f.fascicoli}` : '';
+  return base.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) + coda + '.pdf';
 }
 
 /** L'avanzamento e' la fascia stessa che si riempie dietro alla frase: una
@@ -549,22 +589,42 @@ async function esportaESalva({ scarica = true } = {}) {
   aggiorna(true);
   const t0 = performance.now();
   try {
-    const { blob, pagine, anteprima } = await generaPdf(progresso);
-    const nome = nomeFile();
-    if (scarica) scaricaFile(blob, nome);
-    const mb = (blob.size / 1048576).toFixed(1).replace('.', ',');
+    /* un documento diviso in fascicoli e' un PDF per fascicolo: si scaricano
+       uno dopo l'altro (il browser chiede una volta il permesso ai download
+       multipli) e si consegnano al tracker con lo stesso `gruppo`, che li
+       mostra come un documento solo in N parti */
+    const docs = await generaPdfs(progresso);
+    const N = docs.length, inFascicoli = docs[0].fascicoli > 1;
+    const gruppo = inFascicoli ? crypto.randomUUID().replace(/-/g, '') : null;
+    const pagine = docs.reduce((n, d) => n + d.pagine, 0);
+    const bytes = docs.reduce((n, d) => n + d.blob.size, 0);
+    const mb = (bytes / 1048576).toFixed(1).replace('.', ',');
+    const cosa = N > 1 ? `${N} fascicoli` : `“${nomeFile(docs[0])}”`;
+    if (scarica) {
+      for (const [i, d] of docs.entries()) {
+        if (i) await new Promise(r => setTimeout(r, 500));
+        scaricaFile(d.blob, nomeFile(d));
+      }
+    }
     if (!collegato || !sessione) {
-      return esito('dubbio', `Scaricato “${nome}” (${pagine} pag., ${mb} MB), ma non salvato nel tracker: ` +
+      return esito('dubbio', `${N > 1 ? 'Scaricati' : 'Scaricato'} ${cosa} (${pagine} pag., ${mb} MB), ma non salvato nel tracker: ` +
         (collegato ? 'entra nel tracker e riprova.' : 'nessun sito collegato.'));
     }
-    esitoCorrente = { tono: 'lavoro', testo: 'Consegno al tracker…' }; disegna();
-    const r = await salvaDocumento({
-      id_service: ctx.id, anno: ctx.anno, mese: ctx.mese || null,
-      nome, pdf: blob, pagine, anteprima,
-    });
+    let r = null;
+    for (const [i, d] of docs.entries()) {
+      esitoCorrente = { tono: 'lavoro', testo: N > 1 ? `Consegno al tracker · fascicolo ${i + 1} di ${N}…` : 'Consegno al tracker…' };
+      disegna();
+      const ri = await salvaDocumento({
+        id_service: ctx.id, anno: ctx.anno, mese: ctx.mese || null,
+        nome: nomeFile(d), pdf: d.blob, pagine: d.pagine, anteprima: d.anteprima,
+        gruppo, fascicolo: inFascicoli ? d.fascicolo : null, fascicoli: inFascicoli ? d.fascicoli : null,
+      });
+      r = r || ri;                    // la spunta la mette il primo; gli altri trovano "gia' cosi'"
+    }
     const mese = r.mese ? MESI[r.mese - 1] : '';
     const sec = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',');
-    esito('ok', `${scarica ? 'Scaricato e salvato' : 'Salvato'} nel tracker · ${pagine} pag., ${mb} MB in ${sec} s` +
+    esito('ok', `${scarica ? (N > 1 ? 'Scaricati e salvati' : 'Scaricato e salvato') : (N > 1 ? 'Salvati' : 'Salvato')} nel tracker` +
+      (N > 1 ? ` · ${N} fascicoli` : '') + ` · ${pagine} pag., ${mb} MB in ${sec} s` +
       (mese ? (r.cella?.esito === 'gia-cosi' ? ` · “stampata” era gia’ su ${mese}`
                                             : ` · spunta “stampata” su ${mese}`)
             : ' · nessuna spunta: mappatura non dovuta quest’anno'));

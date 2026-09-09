@@ -10,12 +10,13 @@
 import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
 import { chiama } from './api.js';
 import {
-  documentiDi, apriDocumento, eliminaDocumento, urlGeneratore, dimensione, ICO_PDF,
+  documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
+  urlGeneratore, dimensione, ICO_PDF,
 } from './documenti.js';
 import {
   st, cella, statoCella, spunta, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE,
   mappaturaSito, scadEffettiva, on, doveFatto,
-  prossimo, fatto, proposto, notaProposta, descriviEvento, ripristina, sonoAdmin,
+  prossimo, fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null;
@@ -182,22 +183,34 @@ function sezDocumenti() {
         title: 'Apre il generatore con questo sito gia\' scelto: alla stampa il PDF ' +
           'torna qui e la spunta "stampata" si mette da sola',
       })),
+    /* Un documento diviso in FASCICOLI e' UNA voce: la miniatura e il titolo del
+       primo, il conto di pagine e peso di tutti, e sotto una fila di bottoni
+       "1 · 40 pag." "2 · 38 pag."... uno per fascicolo. Elimina toglie tutto
+       il documento (tutti i fascicoli), con la stessa conferma di prima. */
     docs.length
-      ? h('ul.doc-lista', {}, docs.map(d => h('li', {},
+      ? h('ul.doc-lista', {}, gruppiDocumenti(idAperto).map(g => {
+        const d = g.capo, N = g.fascicoli;
+        return h('li' + (N > 1 ? '.doc-gruppo' : ''), {},
           h('button.doc-mini', {
-            title: 'Apri il PDF', 'aria-label': 'Apri ' + d.nome,
+            title: N > 1 ? 'Apri il fascicolo 1' : 'Apri il PDF', 'aria-label': 'Apri ' + d.nome,
             onclick: () => apriDocumento(d),
           }, d.anteprima ? h('img', { src: d.anteprima, alt: '' }) : h('span', { html: ICO_PDF })),
           h('div.doc-info', {},
-            h('b', { testo: d.nome, title: d.nome }),
+            h('b', { testo: N > 1 ? titoloDocumento(d) : d.nome, title: d.nome }),
             h('span.meta', { html:
-              `${d.pagine ? d.pagine + ' pag. · ' : ''}${dimensione(d.bytes || 0)}` +
+              (N > 1 ? `<b>${N} fascicoli</b> · ` : '') +
+              `${g.pagine ? g.pagine + ' pag. · ' : ''}${dimensione(g.bytes || 0)}` +
               (d.mese ? ` · spunta su ${esc(st.mesiNome[d.mese - 1])}` : '') +
-              `<br><span class="dato">${esc(d.creato_da || '?')} ${quando(d.creato_il)}</span>` })),
+              `<br><span class="dato">${esc(d.creato_da || '?')} ${quando(g.creato_il || d.creato_il)}</span>` }),
+            N > 1 ? h('div.fascicoli', {}, g.docs.map(f => h('button.pill.mini', {
+              title: `Apri il fascicolo ${f.fascicolo} di ${N} · ${f.nome}`,
+              onclick: () => apriDocumento(f),
+            }, h('b', { testo: String(f.fascicolo) }),
+               h('span', { testo: f.pagine ? ` · ${f.pagine} pag.` : '' })))) : null),
           h('div.doc-azioni', {},
-            h('button.pill.mini', { testo: 'Apri', onclick: () => apriDocumento(d) }),
+            N > 1 ? null : h('button.pill.mini', { testo: 'Apri', onclick: () => apriDocumento(d) }),
             h('button.pill.mini.debole', {
-              testo: 'Elimina', title: 'Toglie il PDF (la spunta resta)',
+              testo: 'Elimina', title: N > 1 ? `Toglie tutti i ${N} fascicoli (la spunta resta)` : 'Toglie il PDF (la spunta resta)',
               onclick: async e => {
                 const b = e.currentTarget;
                 if (b.dataset.conferma !== '1') {
@@ -205,10 +218,13 @@ function sezDocumenti() {
                   setTimeout(() => { b.dataset.conferma = ''; b.textContent = 'Elimina'; }, 3000);
                   return;
                 }
-                try { await eliminaDocumento(d); avviso('PDF eliminato.'); }
-                catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
+                try {
+                  for (const f of g.docs) await eliminaDocumento(f);
+                  avviso(N > 1 ? `${N} fascicoli eliminati.` : 'PDF eliminato.');
+                } catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
               },
-            })))))
+            })));
+      }))
       : h('p', {
           testo: 'Nessun PDF ancora: dal generatore, alla stampa, il documento arriva qui da solo.',
           style: 'color:var(--tenue);font-size:var(--t-mini);margin:0',
@@ -276,12 +292,13 @@ async function caricaStoria(id) {
           descriviEvento(e),
       }),
       /* il tastino di reversibilita' dell'admin (#ANCHOR: ruoli) */
-      sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
-        testo: 'Ripristina', title: 'Rimetti questo passo com\u2019era prima di questa modifica',
+      ripristinabile(e) ? h('button.pill.mini.ripristina', {
+        testo: (e.op_id || '').includes(':') ? 'Ripristina il blocco' : 'Ripristina',
+        title: 'Rimetti com\u2019era prima di questa modifica (tutto il blocco, se era un\u2019azione in blocco)',
         onclick: async ev => {
           ev.currentTarget.disabled = true;
-          const ok = await ripristina(e);
-          avviso(ok ? 'Ripristinato.' : 'Non ripristinato: prova a ricaricare.', { tono: ok ? 'ok' : 'allerta' });
+          const n = await ripristina(e);
+          if (n >= 0) avviso(`Ripristinato: ${n} ${n === 1 ? 'cella' : 'celle'}.`, { tono: 'ok' });
           caricaStoria(id);
         },
       }) : null))

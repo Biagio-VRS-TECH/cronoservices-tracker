@@ -85,7 +85,8 @@ declassano dall'app: **Azioni → Impostazioni → Chi è amministratore**.
 L'ultimo amministratore non si può declassare.
 
 Se il progetto esisteva già, prima di `07` vanno rieseguiti nell'ordine `01`
-(aggiunge la colonna `ruolo`), `02`, `03` e `04`.
+(aggiunge la colonna `ruolo`), `02`, `03`, `04` e `06` (i fascicoli dei PDF:
+`registra_documento` ha tre argomenti in più e la vecchia firma viene tolta).
 
 ## 3. Il primo travaso dell'anagrafica
 

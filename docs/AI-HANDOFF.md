@@ -38,7 +38,11 @@ mese di manutenzione e' una visita. Se la modifica riguarda celle, anni, ritardi
 o conteggi, leggere prima [ai/anno-e-tempo.md](ai/anno-e-tempo.md).
 
 Sorgente dati: `CronoServices_be.accdb` (backend Access di CronoServices, **sola
-lettura, mai scritto**). Le spunte vivono in un SQLite separato.
+lettura, mai scritto**), dal 2026-09-09 sul percorso di rete
+`\\192.168.1.220\DATI\AMMNE\TECH\CronoServices\`. **Quel file non va MAI
+toccato**: `sync.estrai` lo copia in `%TEMP%` e apre la copia (#ANCHOR:
+copia-access), cosi' sulla rete non nasce nemmeno il lock `.laccdb`. Le
+spunte vivono in un SQLite separato.
 
 Stack: **Python 3 solo stdlib** + SQLite + JS vanilla a moduli ES. Nessun `pip
 install`, nessun `npm`, nessun passo di build, nessuna CDN: l'app deve partire
@@ -130,7 +134,7 @@ ogni sync (ne tiene 20).
    `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
    `mappatura-anno`, `classe-mese`, `passi`, `passi-cumulativi`, `fuoco`, `massa`,
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
-   `affinita`, `ruoli`, `approvazioni`.
+   `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -152,6 +156,21 @@ ogni sync (ne tiene 20).
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-09 (23a sessione)
+
+Branch `anteprima-rete-blocchi-pdf` (dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-23a-sessione---access-dalla-rete-ripristino-a-blocchi-pdf-a-288-dpi-e-in-fascicoli)).
+**Access dalla rete**, letto da una copia in `%TEMP%` (#ANCHOR: copia-access in
+`app/sync.py`). **Ripristino a blocchi** (#ANCHOR: ripristino): ogni cella di
+`spuntaMolte` porta `op_id = <blocco>:<n>`; `/api/ripristina` /
+`ripristina_blocco` rimettono tutto il blocco a `da`, e il diario mostra il
+blocco come una riga con *Ripristina il blocco*. **PDF a scala 3** (288 dpi,
+~300 KB/pagina, tempo uguale) e **un PDF per fascicolo** con lo stesso
+`gruppo` (`documenti.gruppo/fascicolo/fascicoli`): il cassetto li mostra come
+un documento in N parti (`gruppiDocumenti` in `documenti.js`). **Da rieseguire
+su Supabase: 01, 02, 03, 04, 06, poi 07.** Service worker `crono-guscio-v15`.
+Non provato online: serve l'SQL eseguito e un account di prova.
 
 ## Stato al 2026-09-09 (22a sessione)
 

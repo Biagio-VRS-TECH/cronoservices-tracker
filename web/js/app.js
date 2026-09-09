@@ -12,7 +12,8 @@ import {
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
   CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
-  sonoAdmin, eAdmin, proposte, ripristina, descriviEvento, spunta, BREVE,
+  sonoAdmin, eAdmin, proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
+  descriviEvento, spunta, BREVE,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -822,36 +823,68 @@ async function sincronizza() {
 function mostraDiario() {
   modale(chiudi => {
     const corpo = h('div.diario', {}, h('p.nota-t', { testo: 'Leggo le ultime modifiche…' }));
-    chiama('/api/attivita?limit=120').then(r => {
+    const carica = () => chiama('/api/attivita?limit=200').then(r => {
       const att = r.dati.attivita || [];
-      corpo.replaceChildren(att.length
-        ? h('ul.elenco-diario', {}, att.map(e => h('li', {},
-          h('time.dato', { testo: quando(e.ts) }),
-          h('span.d-txt', {},
-            h('b', { testo: e.operatore || '—' }),
-            h('span', { html: ` · ${st.mesi[(e.mese || 1) - 1]} ${e.anno} · ` + descriviEvento(e) }),
-            h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })),
-          /* il tastino di reversibilita' (#ANCHOR: ruoli): solo l'admin, su
-             ogni mossa di chiunque, sue comprese. Rimette il passo com'era
-             PRIMA di quella riga; la riga nuova finisce anch'essa nel diario. */
-          sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
-            testo: 'Ripristina',
-            title: `Rimetti "${e.campo}" com\u2019era prima di questa modifica`,
-            onclick: async ev => {
-              ev.currentTarget.disabled = true;
-              const ok = await ripristina(e);
-              avviso(ok ? `Ripristinato: ${e.campo} di ${e.rag_soc || '#' + e.id_service} com\u2019era prima.`
-                        : 'Non ripristinato: il server non ha risposto.', { tono: ok ? 'ok' : 'allerta' });
-            },
-          }) : null)))
+      /* Le righe di uno stesso BLOCCO (#ANCHOR: ripristino: un'azione di massa,
+         un "Approva tutte", un'azione multipla) stanno insieme: una riga sola
+         con l'etichetta dell'azione, il conto, i siti, e un solo Ripristina
+         che le rimette tutte com'erano. Le righe singole restano singole. */
+      const gruppi = [];
+      for (const e of att) {
+        const b = (e.op_id || '').includes(':') ? bloccoDi(e) : null;
+        const ult = gruppi[gruppi.length - 1];
+        if (b && ult && ult.blocco === b) ult.righe.push(e);
+        else gruppi.push({ blocco: b, righe: [e] });
+      }
+      const bottone = (e, testo, titolo, fatto) => ripristinabile(e) ? h('button.pill.mini.ripristina', {
+        testo, title: titolo,
+        onclick: async ev => {
+          ev.currentTarget.disabled = true;
+          const n = await ripristina(e);
+          if (n >= 0) { avviso(fatto(n), { tono: 'ok' }); carica(); }
+          else ev.currentTarget.disabled = false;
+        },
+      }) : null;
+      corpo.replaceChildren(gruppi.length
+        ? h('ul.elenco-diario', {}, gruppi.map(g => {
+          const e = g.righe[0];
+          if (!g.blocco || g.righe.length === 1) {
+            return h('li', {},
+              h('time.dato', { testo: quando(e.ts) }),
+              h('span.d-txt', {},
+                h('b', { testo: e.operatore || '—' }),
+                h('span', { html: ` · ${st.mesi[(e.mese || 1) - 1]} ${e.anno} · ` + descriviEvento(e) }),
+                h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })),
+              bottone(e, 'Ripristina', `Rimetti "${e.campo}" com\u2019era prima di questa modifica`,
+                () => `Ripristinato: ${e.campo} di ${e.rag_soc || '#' + e.id_service} com\u2019era prima.`));
+          }
+          const siti = new Set(g.righe.map(x => x.id_service));
+          const mesi = [...new Set(g.righe.map(x => x.mese))].sort((a, b) => a - b);
+          const anni = [...new Set(g.righe.map(x => x.anno))];
+          return h('li.blocco', {},
+            h('time.dato', { testo: quando(e.ts) }),
+            h('span.d-txt', {},
+              h('b', { testo: e.operatore || '—' }),
+              h('span', { testo: ` · ${etichettaBlocco(g.righe)} · ${siti.size} ${siti.size === 1 ? 'sito' : 'siti'} · ` +
+                (mesi.length > 3 ? `${mesi.length} mesi` : mesi.map(m => st.mesi[m - 1]).join(', ')) + ` ${anni.join('/')}` }),
+              h('details.d-righe', {},
+                h('summary', { testo: `le ${g.righe.length} righe` }),
+                h('ul', {}, g.righe.slice(0, 60).map(x => h('li', {
+                  html: `${esc(st.mesi[(x.mese || 1) - 1])} · ${descriviEvento(x)} · ${esc(x.rag_soc || '#' + x.id_service)}` })),
+                  g.righe.length > 60 ? h('li', { testo: `… e altre ${g.righe.length - 60}` }) : null))),
+            bottone(e, 'Ripristina il blocco', `Rimetti com\u2019erano tutte le ${g.righe.length} spunte di questa azione`,
+              n => `Ripristinato il blocco: ${n} ${n === 1 ? 'cella rimessa' : 'celle rimesse'} com\u2019erano.`));
+        }))
         : h('p.nota-t', { testo: 'Nessuna modifica registrata: il diario parte dalla prima spunta.' }));
     }).catch(() => corpo.replaceChildren(h('p.nota-t', {
       testo: `Diario non disponibile: ${DOVE_VIVE} non risponde.`,
     })));
+    carica();
     return [
       h('h2', { testo: 'Diario attività' }),
-      h('p.sotto', { testo: 'Le ultime 120 modifiche, di tutti gli operatori e di tutti gli anni.' +
-        (sonoAdmin() ? ' Con "Ripristina" rimetti un passo com\u2019era prima di quella riga.' : '') }),
+      h('p.sotto', { testo: 'Le ultime 200 modifiche, di tutti gli operatori e di tutti gli anni; ' +
+        'le azioni in blocco sono una riga sola.' +
+        (sonoAdmin() ? ' Con "Ripristina" rimetti com\u2019era prima di quella riga, o tutto il blocco.' : '') }),
       corpo,
       h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },
         h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),

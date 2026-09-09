@@ -42,13 +42,42 @@ function togli(id, id_service) {
 
 export const documentiDi = id => st.documenti.get(id) || [];
 
+/* FASCICOLI. Un documento diviso in fascicoli e' arrivato come N PDF con lo
+   stesso `gruppo`: il tracker li mostra come UN documento con N parti. Qui i
+   documenti di un sito raggruppati, dal piu' recente: [{capo, docs, pagine,
+   bytes, fascicoli}] - `capo` e' il fascicolo 1 (o l'unico PDF). */
+export function gruppiDocumenti(id) {
+  const per = new Map();
+  for (const d of documentiDi(id)) {
+    const k = d.gruppo || d.id;
+    if (!per.has(k)) per.set(k, []);
+    per.get(k).push(d);
+  }
+  return [...per.values()].map(docs => {
+    docs.sort((a, b) => (a.fascicolo || 1) - (b.fascicolo || 1));
+    return {
+      capo: docs[0], docs,
+      pagine: docs.reduce((n, d) => n + (d.pagine || 0), 0),
+      bytes: docs.reduce((n, d) => n + (d.bytes || 0), 0),
+      fascicoli: docs[0].fascicoli && docs.length > 1 ? docs.length : 1,
+      creato_il: docs.reduce((t, d) => (d.creato_il > t ? d.creato_il : t), ''),
+    };
+  });
+}
+
+/** Il titolo di un documento in fascicoli: il nome del PDF senza " - fascicolo k di N". */
+export const titoloDocumento = d => String(d.nome || '')
+  .replace(/\.pdf$/i, '').replace(/\s*[-\u00b7]\s*fascicolo \d+ di \d+\s*$/i, '');
+
 /** Evento dal flusso (SSE / Realtime / altra scheda del browser). */
 export function eventoDocumento(ev) {
   if (ev.documento) aggiungi(ev.documento);
   else if (ev.eliminato) togli(ev.eliminato, ev.id_service);
-  if (ev.operatore && ev.documento) {
+  // un documento in fascicoli arriva in N pezzi: si avvisa una volta sola
+  if (ev.operatore && ev.documento && (!ev.documento.fascicolo || ev.documento.fascicolo === 1)) {
     const s = st.perServ.get(ev.id_service);
-    avviso(`${ev.operatore} ha stampato le schede di ${s?.dest || '#' + ev.id_service}.`);
+    const n = ev.documento.fascicoli > 1 ? ` (${ev.documento.fascicoli} fascicoli)` : '';
+    avviso(`${ev.operatore} ha stampato le schede di ${s?.dest || '#' + ev.id_service}${n}.`);
   }
 }
 
@@ -102,17 +131,19 @@ export const ICO_PDF = '<svg viewBox="0 0 24 24" width="13" height="13" fill="no
 export function htmlChipDocumento(id) {
   const l = documentiDi(id);
   if (!l.length) return `<span class="doc-chip vuoto" data-doc-srv="${id}" hidden></span>`;
-  const d = l[0];
-  const pag = d.pagine ? `${d.pagine} pag.` : '';
+  const g = gruppiDocumenti(id);           // i fascicoli di un documento contano uno
+  const d = g[0].capo;
+  const pag = g[0].pagine ? `${g[0].pagine} pag.` : '';
   const altroAnno = d.anno !== st.anno;      // l'ultimo PDF e' di un altro anno: chip tenue
   const anni = [...new Set(l.map(x => x.anno))].sort();
-  const titolo = `Schede tecnici · ${esc(d.nome)}${pag ? ' · ' + pag : ''}` +
+  const titolo = `Schede tecnici · ${esc(titoloDocumento(d))}` +
+    (g[0].fascicoli > 1 ? ` · ${g[0].fascicoli} fascicoli` : '') + (pag ? ' · ' + pag : '') +
     (altroAnno ? ` · del ${d.anno}` : '') +
     ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
-    (l.length > 1 ? ` · ${l.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
+    (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
   return `<button type="button" class="doc-chip${altroAnno ? ' altro-anno' : ''}" data-doc-srv="${id}" data-doc="${d.id}"
       title="${titolo}" aria-label="Apri il PDF delle schede tecnici">
-      ${ICO_PDF}${l.length > 1 ? `<i>${l.length}</i>` : ''}
+      ${ICO_PDF}${g.length > 1 ? `<i>${g.length}</i>` : ''}
     </button>`;
 }
 
@@ -200,13 +231,15 @@ const percorsoDi = d => d.percorso || `${d.anno}/${d.id_service}/${d.id}.pdf`;
 
 /** Carica un PDF prodotto dal generatore e lo registra. `pdf` e' un Blob.
  *  Ritorna la risposta del server: {documento, mese, cella}. */
-export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine, anteprima }) {
+export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine, anteprima,
+                                        gruppo = null, fascicolo = null, fascicoli = null }) {
   const bytes = pdf.size;
+  const parti = { gruppo, fascicolo, fascicoli };     // un documento in fascicoli: N PDF, un gruppo
   if (!nuvola.attiva()) {
     const b64 = await blobBase64(pdf);
     const r = await chiama('/api/documento', {
-      metodo: 'POST', ms: 120000,
-      body: { id_service, anno, mese, nome, pagine, anteprima, pdf: b64,
+      metodo: 'POST', ms: 180000,
+      body: { id_service, anno, mese, nome, pagine, anteprima, pdf: b64, ...parti,
               operatore: rete.operatore },
     });
     if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
@@ -218,7 +251,7 @@ export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine
   await nuvola.caricaOggetto('documenti', percorso, pdf);
   const r = await nuvola.chiama('/api/documento', {
     metodo: 'POST', ms: 60000,
-    body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes },
+    body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes, ...parti },
   });
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
   annunciaAltreSchede({ tipo: 'documento', anno, id_service, documento: r.dati.documento });

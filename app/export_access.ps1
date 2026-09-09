@@ -29,7 +29,9 @@ function Read-Table($conn, $sql) {
 }
 
 $conn = New-Object -ComObject ADODB.Connection
-$conn.Open("Provider=Microsoft.ACE.OLEDB.12.0;Data Source=$Accdb;")
+# Mode=Read: il provider apre in sola lettura. Comunque $Accdb e' una COPIA
+# temporanea fatta da sync.py: l'originale sulla rete non viene aperto mai.
+$conn.Open("Provider=Microsoft.ACE.OLEDB.12.0;Data Source=$Accdb;Mode=Read;")
 
 $clienti = Read-Table $conn "SELECT * FROM tClienti"
 

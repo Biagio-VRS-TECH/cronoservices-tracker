@@ -823,6 +823,10 @@ export function spunta(id, mese, campo, valore, senzaUndo, origine) {
 export function spuntaMolte(voci, etichetta, origine) {
   const celle = [], inverse = [];
   let vietate = 0;
+  /* Il BLOCCO (#ANCHOR: ripristino): tutte le celle di questa azione portano
+     `<blocco>:<n>` come op_id, anche se partono in piu' richieste da 250. Cosi'
+     nel diario l'azione e' una riga sola e l'admin la ripristina in un colpo. */
+  const blocco = crypto.randomUUID().replace(/-/g, '');
   for (const { id, mese, campo, valore } of voci) {
     const prima = cella(id, mese);
     const { v, errore } = effettivo(campo, prima[SIGLA[campo]], valore);
@@ -833,6 +837,7 @@ export function spuntaMolte(voci, etichetta, origine) {
     celle.push({
       id_service: id, mese, campo, valore: Number(valore) || 0,
       base_rev: prima.rev || null, base_valore: prima[SIGLA[campo]],
+      op_id: `${blocco}:${celle.length}`,
     });
   }
   if (vietate) {
@@ -866,8 +871,12 @@ export function annullaUltima() {
 /** Una riga di diario/storia in parole: "ha proposto", "ha approvato"... */
 export function descriviEvento(e) {
   if (e.campo === 'nota') return 'ha scritto una nota';
-  const rip = e.origine === 'ripristino' ? 'ha ripristinato: ' : '';
   const da = Number(e.da), a = Number(e.a);
+  if (e.origine === 'ripristino') {
+    const stato = a === PROPOSTA ? 'in attesa' : a === 1 ? 'fatto' : 'da fare';
+    return `ha rimesso <i>${e.campo}</i> ${stato}`;
+  }
+  const rip = '';
   let verbo;
   if (a === PROPOSTA) verbo = 'ha proposto';
   else if (a === 1 && da === PROPOSTA) verbo = 'ha approvato';
@@ -876,28 +885,44 @@ export function descriviEvento(e) {
   return `${rip}${verbo} <i>${e.campo}</i>`;
 }
 
-/** L'admin rimette un passo com'era PRIMA di quell'evento (#ANCHOR: ruoli): il
- *  tastino di reversibilita' del diario, che vale anche sulle sue mosse. Un
- *  evento di un altro anno passa dritto al server, senza toccare il modello
- *  (l'anno prima si aggiorna, perche' i passi si ereditano). */
+/** Il blocco di un evento del diario: l'op_id senza il `:n` della cella. Una
+ *  spunta singola e' un blocco da una. */
+export const bloccoDi = e => (e?.op_id || '').split(':')[0];
+export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' && e.da != null;
+
+/** L'admin rimette com'erano PRIMA tutti i passi di un'operazione (#ANCHOR:
+ *  ripristino): il tastino di reversibilita' del diario, che vale anche sulle
+ *  sue mosse e su un blocco intero (azione di massa, "Approva tutte", azione
+ *  multipla). Lo fa il server (/api/ripristina, ripristina_blocco), che
+ *  conosce ogni riga del blocco: qui si applicano le celle che tornano.
+ *  Ritorna il numero di celle cambiate, o -1 se non e' andata. */
 export async function ripristina(e) {
-  if (!sonoAdmin() || e.campo === 'nota' || e.da == null) return false;
-  const valore = Number(e.da);
-  if (e.anno === st.anno) {
-    spunta(e.id_service, e.mese, e.campo, valore, false, 'ripristino');
-    return true;
+  const blocco = bloccoDi(e);
+  if (!ripristinabile(e)) return -1;
+  let r;
+  try {
+    r = await chiama('/api/ripristina', { metodo: 'POST', ms: 60000,
+      body: { op_id: blocco, operatore: rete.operatore } });
+  } catch { return -1; }
+  if (!r.ok) { avviso(r.dati?.errore || 'Ripristino non riuscito.', { tono: 'allerta' }); return -1; }
+  let mio = 0;
+  for (const c of r.dati.celle || []) {
+    if (c.anno === st.anno) { cellaDalServer(c.id_service, c.mese, c.cella); mio++; }
+    else if (c.anno === st.anno - 1) { st.cellePrec.set(chiave(c.id_service, c.mese), c.cella); tocca(c.id_service); }
   }
-  const { ok, dati } = await chiama('/api/toggle', {
-    metodo: 'POST',
-    body: { id_service: e.id_service, anno: e.anno, mese: e.mese, campo: e.campo,
-            valore, operatore: rete.operatore, origine: 'ripristino' },
-  });
-  if (ok && dati?.cella && e.anno === st.anno - 1) {
-    st.cellePrec.set(chiave(e.id_service, e.mese), dati.cella);
-    tocca(e.id_service);
-    emetti('rilegge');
-  }
-  return !!ok;
+  if (mio || (r.dati.celle || []).length) emetti('rilegge');
+  return r.dati.n ?? mio;
+}
+
+/** Una riga di diario che racchiude un blocco: l'etichetta dell'azione. */
+export function etichettaBlocco(righe) {
+  const o = righe[0]?.origine, a = Number(righe[0]?.a), n = righe.length;
+  const sp = n === 1 ? 'spunta' : 'spunte';
+  if (o === 'massa') return `${a ? 'Completamento' : 'Azzeramento'} di massa · ${n} ${sp}`;
+  if (o === 'approvazione') return `Approvazione di ${n} ${n === 1 ? 'proposta' : 'proposte'}`;
+  if (o === 'annulla') return `Annulla · ${n} ${sp} riportate come prima`;
+  if (o === 'ripristino') return `Ripristino · ${n} ${sp} rimesse com\u2019erano`;
+  return `Azione multipla · ${n} ${sp}`;
 }
 
 /** La nota della cella. A differenza dei quattro passi la nota e' testo libero:

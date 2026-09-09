@@ -120,7 +120,12 @@ CREATE TABLE IF NOT EXISTS documenti (
   pagine      INTEGER NOT NULL DEFAULT 0,
   anteprima   TEXT,
   creato_il   TEXT NOT NULL,
-  creato_da   TEXT NOT NULL DEFAULT '?'
+  creato_da   TEXT NOT NULL DEFAULT '?',
+  -- un documento diviso in FASCICOLI e' un PDF per fascicolo, tutti con lo
+  -- stesso `gruppo`; `fascicolo` 1..N, `fascicoli` = N. Un PDF unico: NULL.
+  gruppo      TEXT,
+  fascicolo   INTEGER,
+  fascicoli   INTEGER
 );
 CREATE INDEX IF NOT EXISTS ix_doc_anno ON documenti(anno, id_service);
 """
@@ -133,6 +138,9 @@ AGGIUNTE = [
     ("services", "rinnovo_auto", "INTEGER NOT NULL DEFAULT 0"),
     ("mappature", "ricambi", "INTEGER NOT NULL DEFAULT 0"),
     ("operatori", "ruolo", "TEXT NOT NULL DEFAULT 'tecnico'"),
+    ("documenti", "gruppo", "TEXT"),
+    ("documenti", "fascicolo", "INTEGER"),
+    ("documenti", "fascicoli", "INTEGER"),
 ]
 
 

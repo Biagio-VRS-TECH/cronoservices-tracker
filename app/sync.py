@@ -42,19 +42,43 @@ def _txt(v):
 
 
 def estrai(cfg, base):
-    """Lancia l'export PowerShell e ritorna il payload JSON."""
+    """Lancia l'export PowerShell e ritorna il payload JSON.
+
+    IL FILE ACCESS NON SI APRE MAI DOV'E' (#ANCHOR: copia-access). Dal 2026-09-09
+    il backend sta sulla rete (\\\\192.168.1.220\\DATI\\AMMNE\\TECH\\CronoServices) e il
+    committente vuole che quel file non venga toccato in nessun modo: nemmeno il
+    lock `.laccdb` che il motore Jet crea accanto al file quando lo apre, anche
+    in sola lettura. Quindi si copia byte per byte in una cartella temporanea
+    locale (copyfile: solo il contenuto, niente attributi), e' la COPIA che
+    PowerShell apre, e la copia si butta a fine lavoro. Sul file originale si
+    fa una sola cosa: leggerlo per copiarlo."""
     accdb = os.path.abspath(os.path.join(base, cfg["accdb_backend"]))
     if not os.path.exists(accdb):
         raise RuntimeError("Backend Access non trovato: %s" % accdb)
     ps1 = os.path.join(base, "export_access.ps1")
     tmp = os.path.join(tempfile.gettempdir(), "cronoservice_export.json")
-    cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-           "-File", ps1, "-Accdb", accdb, "-Out", tmp]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    copia = os.path.join(tempfile.gettempdir(), "cronoservice_be_copia_%d.accdb" % os.getpid())
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+    try:
+        shutil.copyfile(accdb, copia)
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+               "-File", ps1, "-Accdb", copia, "-Out", tmp]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    finally:
+        for f in (copia, copia[:-6] + ".laccdb"):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
     if not os.path.exists(tmp):
         raise RuntimeError("Export Access fallito.\n%s\n%s" % (p.stdout, p.stderr))
     with open(tmp, encoding="utf-8-sig") as f:
-        return json.load(f)
+        d = json.load(f)
+    d["sorgente"] = accdb          # nel log deve comparire il file vero, non la copia
+    return d
 
 
 def backup(cfg, base):

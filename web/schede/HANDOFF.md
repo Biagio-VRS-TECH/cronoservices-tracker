@@ -496,6 +496,16 @@ le miniature — la barra no, quindi non lo paga nemmeno per il numero.
 
 # Registro (dal più recente, solo cosa è cambiato)
 
+### 2026-09-09 — scala 3 e un PDF per fascicolo
+- `ponte.js`: `SCALA` 2 → 3 (~288 dpi), `QUALITA` 0,74 → 0,8, `LOTTO` 8 → 5
+  (a scala 3 una tela di 8 pagine supera i 200 MB). Esempio della guida: 24
+  pagine in 7,1 s, ~300 KB a pagina. Il tempo non dipende dalla scala.
+- `generaPdfs` al posto di `generaPdf`: con la stampa divisa e "tutto il
+  documento" fa **un PDF per fascicolo** (`fascicoliInAnteprima`, dal
+  `data-part` delle pagine), nome `… - fascicolo k di N.pdf`, download in fila
+  e consegna al tracker con lo stesso `gruppo` (`salvaDocumento` prende
+  `gruppo/fascicolo/fascicoli`). Con "solo il fascicolo k" resta uno.
+
 ### 2026-09-09 — pareggio bianco, Esporta e salva, scala 2
 - Modalità libro: il pareggio delle pagine iniziali (`fmPad`) è `{t:'void'}`
   (pagina bianca dichiarata) invece di `{t:'free'}` (schede da compilare).

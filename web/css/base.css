@@ -144,6 +144,11 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .pill.attesa:hover { color: var(--allerta); border-color: var(--allerta); background: var(--allerta-tenue); }
 .elenco-diario .ripristina, .storia .ripristina { margin-left: auto; flex: none; }
+.elenco-diario li.blocco { background: color-mix(in srgb, var(--marchio-tenue) 55%, transparent); border-radius: var(--r-1); }
+.elenco-diario .d-righe { flex-basis: 100%; font-size: var(--t-micro); color: var(--tenue); }
+.elenco-diario .d-righe summary { cursor: pointer; }
+.elenco-diario .d-righe ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--bordo); }
+.elenco-diario .d-righe li { display: block; padding: 2px 0; border: 0; font-size: var(--t-micro); }
 .elenco-diario .azioni-riga { margin-left: auto; display: flex; gap: 6px; flex: none; }
 .elenco-diario .d-chi.nudo { background: none; border: 0; padding: 0; font: inherit; color: var(--tenue); cursor: pointer; text-align: left; }
 .elenco-diario .d-chi.nudo:hover { color: var(--marchio); text-decoration: underline; }
@@ -455,6 +460,12 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
 .doc-info .meta { color: var(--tenue); font-size: var(--t-micro); line-height: 1.5; }
 .doc-info .dato { font-family: var(--f-dato); }
 .doc-azioni { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+/* un documento in fascicoli: la fila dei fascicoli sotto i dati, uno per bottone */
+.doc-gruppo .fascicoli { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.doc-gruppo .fascicoli .pill { padding: 2px 8px; font-size: var(--t-micro); gap: 0; }
+.doc-gruppo .fascicoli .pill b { font-family: var(--f-dato); font-weight: 700; }
+.doc-gruppo .fascicoli .pill span { color: var(--tenue); }
+.doc-gruppo .meta > b { color: var(--inchiostro-2); font-weight: 600; }
 .doc-azioni .pill { justify-content: center; }
 .sez-documenti a.pill { text-decoration: none; }
 .sez-documenti a.pill svg { color: var(--marchio-scuro); }

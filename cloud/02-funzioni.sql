@@ -263,6 +263,55 @@ begin
   return jsonb_build_object('http', 200, 'esiti', esiti);
 end $fn$;
 
+-- ------------------------------------------------------------ ripristino ----
+-- Gemello di api.ripristina (#ANCHOR: ripristino): rimette com'erano PRIMA
+-- tutti i passi toccati da un'operazione. p_op_id e' l'op_id di una spunta
+-- singola o il blocco `<uuid>` delle celle di un bulk (`<uuid>:<n>`). Dal piu'
+-- recente al piu' vecchio; ogni scrittura e' un evento 'ripristino' col suo
+-- blocco, quindi si puo' ripristinare anche un ripristino. Solo admin.
+create or replace function public.ripristina_blocco(p_op_id text)
+returns jsonb
+language plpgsql security definer set search_path = public as $fn$
+declare
+  e public.eventi%rowtype; ris jsonb; op text; i int := 0; n int := 0;
+  blocco text := replace(gen_random_uuid()::text, '-', '');
+  esiti jsonb := '[]'::jsonb; celle jsonb := '{}'::jsonb; k text;
+begin
+  if not public.autorizzato() then
+    raise exception 'non autorizzato' using errcode = '42501';
+  end if;
+  if not public.e_admin() then
+    return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
+  end if;
+  if coalesce(p_op_id, '') = '' or position(':' in p_op_id) > 0 then
+    return jsonb_build_object('http', 400, 'errore', 'op_id mancante o non e'' un blocco');
+  end if;
+  op := public.operatore_corrente();
+
+  for e in select * from public.eventi
+            where op_id = p_op_id or op_id like p_op_id || ':%'
+            order by id desc loop
+    if e.campo not in ('stampata', 'controllata', 'corretta', 'ricambi') or e.da is null then
+      continue;
+    end if;
+    ris := public._applica(op, e.id_service, e.anno, e.mese, e.campo, e.da,
+                           null, null, blocco || ':' || i, 'ripristino', true);
+    i := i + 1;
+    esiti := esiti || jsonb_build_array(ris || jsonb_build_object('campo', e.campo));
+    if (ris->>'http')::int = 200 and (ris->>'esito') in ('ok', 'merge') then
+      k := e.anno || '|' || e.id_service || '|' || e.mese;
+      celle := celle || jsonb_build_object(k, jsonb_build_object(
+        'anno', e.anno, 'id_service', e.id_service, 'mese', e.mese, 'cella', ris->'cella'));
+    end if;
+  end loop;
+  if i = 0 and jsonb_array_length(esiti) = 0 then
+    return jsonb_build_object('http', 404, 'errore', 'nessuna modifica con questo identificativo');
+  end if;
+  select count(*) into n from jsonb_object_keys(celle);
+  return jsonb_build_object('http', 200, 'esiti', esiti, 'n', n, 'blocco', blocco,
+    'celle', (select coalesce(jsonb_agg(v), '[]'::jsonb) from jsonb_each(celle) as t(kk, v)));
+end $fn$;
+
 -- ----------------------------------------------------------------- nota ----
 -- Gemello di api.nota. La nota e' l'unico campo di testo libero: su un booleano
 -- i due valori possibili si riconciliano sempre da soli, su una frase no.

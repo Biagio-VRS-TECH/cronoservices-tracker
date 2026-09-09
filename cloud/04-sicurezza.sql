@@ -58,6 +58,7 @@ grant execute on function
   public.imposta_nota(int, int, int, text, int, text),
   public.imposta_operatore(text),
   public.imposta_ruolo(text, text),
+  public.ripristina_blocco(text),
   public.imposta_meta(text),
   public.e_admin()
 to authenticated;
@@ -71,7 +72,7 @@ do $blocco$
 declare f text;
 begin
   foreach f in array array['app_documenti(int)',
-                           'registra_documento(int, int, int, text, text, int, int, text)',
+                           'registra_documento(int, int, int, text, text, int, int, text, text, int, int)',
                            'elimina_documento(text)']
   loop
     if to_regprocedure('public.' || f) is not null then

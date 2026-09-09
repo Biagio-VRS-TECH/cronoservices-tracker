@@ -366,7 +366,7 @@ def nota(ctx, q, body):
 # ------------------------------------------------------------- letture ------
 def storia(ctx, q, body):
     with db.sess() as c:
-        rows = c.execute("""SELECT ts,operatore,campo,da,a,origine FROM eventi
+        rows = c.execute("""SELECT ts,operatore,campo,da,a,origine,op_id FROM eventi
                             WHERE id_service=? AND anno=? AND mese=?
                             ORDER BY id DESC LIMIT 50""",
                          (int(q["id_service"]), int(q["anno"]), int(q["mese"]))).fetchall()
@@ -377,7 +377,7 @@ def attivita(ctx, q, body):
     lim = min(int(q.get("limit", 60)), 300)
     with db.sess() as c:
         rows = c.execute("""SELECT e.ts,e.operatore,e.id_service,e.anno,e.mese,e.campo,
-                                   e.da, e.a, e.origine, s.destinazione, c.rag_soc
+                                   e.da, e.a, e.origine, e.op_id, s.destinazione, c.rag_soc
                             FROM eventi e
                             LEFT JOIN services s ON s.id_service=e.id_service
                             LEFT JOIN clienti  c ON c.id_cliente=s.id_cliente
@@ -429,6 +429,66 @@ def operatore(ctx, q, body):
     return 200, {"nome": nome, "operatori": elenco, "ruoli": ruoli,
                  "ruolo": ruoli.get(nome, "tecnico")}, {"tipo": "presenze",
                                                         "online": _online()}
+
+
+def ripristina(ctx, q, body):
+    """Il tastino di reversibilita' dell'admin (#ANCHOR: ripristino). Rimette
+    com'erano PRIMA tutti i passi toccati da un'operazione: `op_id` e' quello di
+    una spunta singola (un uuid) oppure il BLOCCO di un'azione di massa, di
+    "Approva tutte", di un'azione multipla (le celle di un bulk portano
+    `<blocco>:<n>`, quindi si prende tutto cio' che inizia per `<blocco>:`).
+    Si applica dal piu' recente al piu' vecchio, cosi' se un passo compare due
+    volte vince il suo valore piu' antico. Ogni scrittura e' un evento nuovo con
+    origine 'ripristino' e il suo blocco, quindi anche un ripristino si
+    ripristina. Solo admin: e' lui che ha il permesso di rimettere in attesa
+    (2) e di togliere un'approvazione."""
+    op_id = str(body.get("op_id") or "").strip()
+    if not op_id or ":" in op_id:
+        return 400, {"errore": "op_id mancante o non e' un blocco"}, None
+    operatore = body.get("operatore") or "?"
+    esiti, celle, anno_ev = [], {}, None
+    with db.WRITE_LOCK:
+        c = db.connect()
+        try:
+            no = _solo_admin(c, body, ctx)
+            if no:
+                c.close()
+                return no
+            eventi = c.execute("""SELECT * FROM eventi WHERE op_id=? OR op_id LIKE ?
+                                  ORDER BY id DESC""", (op_id, op_id + ":%")).fetchall()
+            if not eventi:
+                c.close()
+                return 404, {"errore": "nessuna modifica con questo identificativo"}, None
+            blocco = uuid.uuid4().hex
+            c.execute("BEGIN IMMEDIATE")
+            for i, e in enumerate(eventi):
+                if e["campo"] not in CAMPI or e["da"] is None:
+                    continue
+                st, out = _applica(c, operatore, e["id_service"], e["anno"], e["mese"],
+                                   e["campo"], e["da"], None, None,
+                                   "%s:%d" % (blocco, i), "ripristino", admin=True)
+                out["campo"] = e["campo"]
+                out["http"] = st
+                esiti.append(out)
+                if st == 200 and out.get("esito") in ("ok", "merge"):
+                    anno_ev = anno_ev or e["anno"]
+                    celle[(e["anno"], e["id_service"], e["mese"])] = out["cella"]
+            c.execute("COMMIT")
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
+        finally:
+            c.close()
+    lista = [{"anno": a, "id_service": sid, "mese": m, "cella": cel}
+             for (a, sid, m), cel in celle.items()]
+    ev = None
+    if lista:
+        # un blocco sta in un anno solo (il bulk porta l'anno): l'evento SSE
+        # e' quello delle azioni di massa, con le celle dell'anno del blocco
+        ev = {"tipo": "celle", "anno": anno_ev, "operatore": operatore,
+              "celle": [x for x in lista if x["anno"] == anno_ev]}
+    return 200, {"esiti": esiti, "celle": lista, "n": len(lista),
+                 "blocco": blocco}, ev
 
 
 def _solo_admin(c, body, ctx):
@@ -616,7 +676,8 @@ def _doc_out(r):
     return dict(id=r["id"], id_service=r["id_service"], anno=r["anno"], mese=r["mese"],
                 nome=r["nome"], percorso=r["percorso"], bytes=r["bytes"],
                 pagine=r["pagine"], anteprima=r["anteprima"], creato_il=r["creato_il"],
-                creato_da=r["creato_da"])
+                creato_da=r["creato_da"], gruppo=r["gruppo"], fascicolo=r["fascicolo"],
+                fascicoli=r["fascicoli"])
 
 
 def _documenti(c, anno=None):
@@ -661,6 +722,15 @@ def salva_documento(ctx, q, body):
     if not nome.lower().endswith(".pdf"):
         nome += ".pdf"
     doc_id = uuid.uuid4().hex
+    # un documento in fascicoli: un PDF per fascicolo, stesso `gruppo`
+    gruppo = re.sub(r"[^0-9a-f]", "", str(body.get("gruppo") or ""))[:32] or None
+    try:
+        fascicolo = int(body.get("fascicolo") or 0) or None
+        fascicoli = int(body.get("fascicoli") or 0) or None
+    except (TypeError, ValueError):
+        fascicolo = fascicoli = None
+    if not gruppo:
+        fascicolo = fascicoli = None
     rel = os.path.join(str(anno), "%d-%s-%s" % (sid, doc_id[:8], nome))
     percorso = os.path.join(_cartella_documenti(), rel)
     os.makedirs(os.path.dirname(percorso), exist_ok=True)
@@ -684,9 +754,11 @@ def salva_documento(ctx, q, body):
             if not 1 <= mese <= 12:
                 mese = _mese_scadenza(s, anno)
             c.execute("INSERT INTO documenti(id,id_service,anno,mese,nome,percorso,bytes,"
-                      "pagine,anteprima,creato_il,creato_da) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                      "pagine,anteprima,creato_il,creato_da,gruppo,fascicolo,fascicoli) "
+                      "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (doc_id, sid, anno, mese or None, nome, rel.replace(os.sep, "/"),
-                       len(dati), int(body.get("pagine") or 0), anteprima, ts, operatore))
+                       len(dati), int(body.get("pagine") or 0), anteprima, ts, operatore,
+                       gruppo, fascicolo, fascicoli))
             if mese:
                 st, out = _applica(c, operatore, sid, anno, mese, "stampata", 1,
                                    None, None, None, "schede")
@@ -755,6 +827,7 @@ ROUTE = {
     ("POST", "/api/nota"): nota,
     ("POST", "/api/operatore"): operatore,
     ("POST", "/api/ruolo"): ruolo,
+    ("POST", "/api/ripristina"): ripristina,
     ("POST", "/api/ping"): ping,
     ("POST", "/api/impostazioni"): impostazioni,
     ("POST", "/api/sync"): fai_sync,

@@ -3,6 +3,67 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-09 (23a sessione) - Access dalla rete, ripristino a blocchi, PDF a 288 dpi e in fascicoli
+
+Quattro richieste, sul branch `anteprima-rete-blocchi-pdf` (deploy preview, non main).
+
+- **Access dal percorso di rete** `\\192.168.1.220\DATI\AMMNE\TECH\CronoServices\CronoServices_be.accdb`
+  (`config.json`, con le barre in avanti). Regola del committente: **quel file non
+  va MAI modificato**. Quindi `sync.estrai` (#ANCHOR: copia-access) non lo apre
+  piu' dov'e': lo copia byte per byte in `%TEMP%` (`copyfile`, niente attributi),
+  PowerShell apre la **copia** (con `Mode=Read` in piu'), la copia e il suo
+  eventuale `.laccdb` si buttano a fine lavoro. Sulla rete non compare nessun
+  lock. Misurato: 8496 clienti, 545 service in 7,1 s. Vale anche per
+  `push_cloud.py`, che usa la stessa `estrai`. Prima `../CronoServices_be.accdb`
+  non esisteva nemmeno: il sync falliva e si andava avanti con la cache.
+- **Ripristino a blocchi** (#ANCHOR: ripristino). `spuntaMolte` da' a ogni cella
+  `op_id = <blocco>:<n>` (un blocco per azione, anche se le richieste sono
+  piu' di una da 250). `/api/ripristina {op_id}` / `ripristina_blocco(p_op_id)`
+  rimettono a `da` TUTTI gli eventi di quel blocco (o della spunta singola),
+  dal piu' recente al piu' vecchio, come nuovo blocco con origine
+  `ripristino`: si ripristina anche un ripristino. Solo admin. `storia` e
+  `attivita` portano `op_id`; il diario raggruppa le righe consecutive dello
+  stesso blocco in una (`li.blocco`: etichetta dell'azione, siti, mesi, le
+  righe in un `details`) con **Ripristina il blocco**. Il client (`ripristina(e)`
+  in `stato.js`) non tocca piu' il modello da solo: applica le celle che il
+  server restituisce (anno corrente e anno prima). `descriviEvento` per un
+  ripristino dice "ha rimesso X in attesa / fatto / da fare". Provato:
+  Approva tutte (3) -> una riga -> Ripristina il blocco -> le 3 tornano in
+  attesa e la pillola torna a 3. **Il "non succede nulla" riferito dal
+  committente era online: le funzioni SQL nuove non erano ancora state
+  eseguite su Supabase** (la vecchia `_applica` riportava il 2 a 1 -> gia' cosi').
+- **PDF a scala 3 (~288 dpi), JPEG 0,8, lotti da 5** (`ponte.js`). La qualita'
+  "massima e istantanea" che il committente ricorda era la stampa del browser,
+  vettoriale: quel PDF il browser non lo consegna a nessuno, quindi non puo'
+  finire nel tracker. Misurato sull'esempio della guida: 24 pagine in 7,1 s,
+  ~300 KB a pagina (7,3 MB). Il tempo non dipende dalla scala.
+- **Fascicoli**: con "Dividi la stampa in fascicoli" acceso e "tutto il
+  documento" nella tendina, `generaPdfs` fa **un PDF per fascicolo**
+  (`data-part` delle pagine), nome `... - fascicolo k di N.pdf`, scaricati
+  uno dopo l'altro e consegnati con lo stesso `gruppo` (colonne nuove in
+  `documenti`: `gruppo`, `fascicolo`, `fascicoli`, SQLite via AGGIUNTE e
+  Postgres in `06`; `registra_documento` ha tre argomenti in piu', **drop
+  della vecchia firma**). Il tracker li mostra come UN documento
+  (`gruppiDocumenti`, `titoloDocumento` in `documenti.js`): nel cassetto una
+  voce con miniatura del primo, "N fascicoli · pag. · MB · spunta", una fila
+  di bottoni "1 · 12 pag." "2 · 12 pag.", Elimina toglie tutti; il chip
+  accanto al sito conta i documenti, non i PDF; l'avviso "X ha stampato" esce
+  una volta. La spunta "stampata" la mette il primo, gli altri trovano gia'
+  cosi'.
+- **Da rieseguire su Supabase, in ordine: 01, 02, 03, 04, 06, poi 07** con la
+  casella dell'admin. Service worker `crono-guscio-v15`. Provato in browser su
+  `data/prova.db` (porta 8775).
+
+### Da decidere / resta fuori (23a)
+
+- Il test **online** (Supabase) non l'ho potuto fare: serve prima l'SQL
+  eseguito, poi un account di prova. Il committente ha offerto un account
+  dedicato: con quello si verifica ruoli, approvazioni, ripristino a blocchi e
+  fascicoli nello Storage.
+- Download multipli: Chrome chiede una volta il permesso "scaricare piu' file";
+  se negato arriva solo il primo fascicolo, ma nel tracker arrivano tutti.
+- Il ripristino della nota resta fuori (il diario non ha il testo precedente).
+
 ## Fatto il 2026-09-09 (22a sessione) - due ruoli: l'amministratore approva, azzera, sincronizza, ripristina
 
 *"separa la gestione dei ruoli, gli utenti normali e l'utente admin: l'admin

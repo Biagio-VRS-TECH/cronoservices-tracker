@@ -24,6 +24,11 @@ create table if not exists public.documenti (
   creato_da   text not null default '?'
 );
 create index if not exists ix_doc_anno on public.documenti(anno, id_service);
+-- Un documento diviso in FASCICOLI e' un PDF per fascicolo, tutti con lo stesso
+-- `gruppo`; `fascicolo` 1..N, `fascicoli` = N. Un PDF unico: null.
+alter table public.documenti add column if not exists gruppo    text;
+alter table public.documenti add column if not exists fascicolo integer;
+alter table public.documenti add column if not exists fascicoli integer;
 -- Realtime deve poter dire ANCHE chi era la riga cancellata (sito e anno), non
 -- solo la chiave: senza, il tracker non saprebbe da quale riga togliere l'icona.
 alter table public.documenti replica identity full;
@@ -60,7 +65,8 @@ language sql immutable as $fn$
   select jsonb_build_object(
     'id', d.id, 'id_service', d.id_service, 'anno', d.anno, 'mese', d.mese,
     'nome', d.nome, 'percorso', d.percorso, 'bytes', d.bytes, 'pagine', d.pagine,
-    'anteprima', d.anteprima, 'creato_il', d.creato_il, 'creato_da', d.creato_da)
+    'anteprima', d.anteprima, 'creato_il', d.creato_il, 'creato_da', d.creato_da,
+    'gruppo', d.gruppo, 'fascicolo', d.fascicolo, 'fascicoli', d.fascicoli)
 $fn$;
 
 -- Senza anno (null) tutti i documenti: lo storico dei PDF non scade con l'anno.
@@ -83,9 +89,12 @@ end $fn$;
 -- Il client ha gia' caricato il PDF nel bucket: qui si registra la riga e si
 -- mette la spunta. Se l'oggetto non c'e' davvero nello Storage la riga non
 -- nasce: niente icone che puntano nel vuoto.
+-- La firma e' cresciuta (gruppo/fascicolo/fascicoli): la vecchia va tolta.
+drop function if exists public.registra_documento(int, int, int, text, text, int, int, text);
 create or replace function public.registra_documento(
   p_id_service int, p_anno int, p_mese int, p_nome text, p_percorso text,
-  p_bytes int default 0, p_pagine int default 0, p_anteprima text default null)
+  p_bytes int default 0, p_pagine int default 0, p_anteprima text default null,
+  p_gruppo text default null, p_fascicolo int default null, p_fascicoli int default null)
 returns jsonb
 language plpgsql security definer set search_path = public as $fn$
 declare
@@ -117,10 +126,14 @@ begin
   end if;
 
   insert into public.documenti(id, id_service, anno, mese, nome, percorso, bytes,
-                               pagine, anteprima, creato_il, creato_da)
+                               pagine, anteprima, creato_il, creato_da,
+                               gruppo, fascicolo, fascicoli)
   values (replace(gen_random_uuid()::text, '-', ''), p_id_service, p_anno,
           nullif(mese, 0), coalesce(nullif(p_nome, ''), 'schede.pdf'), p_percorso,
-          coalesce(p_bytes, 0), coalesce(p_pagine, 0), ant, public.ts_locale(), op)
+          coalesce(p_bytes, 0), coalesce(p_pagine, 0), ant, public.ts_locale(), op,
+          nullif(regexp_replace(coalesce(p_gruppo, ''), '[^0-9a-f]', '', 'g'), ''),
+          case when coalesce(p_gruppo, '') = '' then null else nullif(p_fascicolo, 0) end,
+          case when coalesce(p_gruppo, '') = '' then null else nullif(p_fascicoli, 0) end)
   returning * into d;
 
   if mese > 0 then
@@ -153,7 +166,7 @@ end $fn$;
 -- ----------------------------------------------------------------- grant ---
 grant execute on function
   public.app_documenti(int),
-  public.registra_documento(int, int, int, text, text, int, int, text),
+  public.registra_documento(int, int, int, text, text, int, int, text, text, int, int),
   public.elimina_documento(text)
 to authenticated;
 

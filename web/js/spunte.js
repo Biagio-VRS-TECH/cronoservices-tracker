@@ -4,7 +4,7 @@
 import { h, ICO, esc, quando, avviso } from './ui.js';
 import { chiama, segnalaFuoco } from './api.js';
 import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spunta, spuntaMolte, salvaNota,
-  doveFatto, prossimo, fatto, proposto, descriviEvento, ripristina, sonoAdmin } from './stato.js';
+  doveFatto, prossimo, fatto, proposto, descriviEvento, ripristina, ripristinabile } from './stato.js';
 
 let aperto = null;
 
@@ -171,11 +171,13 @@ async function mostraStoria(id, mese) {
     h('span', { html: `<b>${esc(e.operatore)}</b> ${descriviEvento(e)}` }),
     /* il tastino di reversibilita' dell'admin (#ANCHOR: ruoli): rimette il
        passo com'era prima di quella riga, sue mosse comprese */
-    sonoAdmin() && e.campo !== 'nota' && e.da != null ? h('button.pill.mini.ripristina', {
-      testo: 'Ripristina', title: 'Rimetti com\u2019era prima di questa modifica',
+    ripristinabile(e) ? h('button.pill.mini.ripristina', {
+      testo: (e.op_id || '').includes(':') ? 'Ripristina il blocco' : 'Ripristina',
+      title: 'Rimetti com\u2019era prima di questa modifica (tutto il blocco, se era un\u2019azione in blocco)',
       onclick: async ev => {
         ev.currentTarget.disabled = true;
-        await ripristina({ ...e, id_service: id, anno: st.anno, mese });
+        const n = await ripristina(e);
+        if (n >= 0) avviso(`Ripristinato: ${n} ${n === 1 ? 'cella' : 'celle'}.`, { tono: 'ok' });
         disegnaPassi();
         mostraStoria(id, mese);
       },

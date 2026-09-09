@@ -1,5 +1,5 @@
 {
-  "accdb_backend": "../CronoServices_be.accdb",
+  "accdb_backend": "//192.168.1.220/DATI/AMMNE/TECH/CronoServices/CronoServices_be.accdb",
   "sqlite_path": "../data/cronoservice.db",
   "backup_dir": "../data/backup",
   "web_dir": "../web",

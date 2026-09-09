@@ -129,8 +129,10 @@ naturale estensione futura: oggi non entrano nella checklist mappature.
 4. **L'accentata nella console non e' corruzione del dato**: `UNIVERSIT?` nella
    stampa di un terminale Windows e' solo la code page. Il JSON prodotto e' UTF-8
    corretto (verificato: 0 occorrenze di U+FFFD).
-5. Il file `CronoServices_be.laccdb` che appare e sparisce e' il lock di Access:
-   normale, la nostra connessione e' in sola lettura e non blocca gli utenti.
+5. Dal 2026-09-09 il backend sta su `\\192.168.1.220\DATI\AMMNE\TECH\CronoServices\`
+   e **non va toccato in nessun modo**: `sync.estrai` lo copia in `%TEMP%` e
+   PowerShell apre la copia (#ANCHOR: copia-access). Sulla rete non compare
+   nessun `.laccdb`; se ne vedi uno accanto all'originale non e' nostro.
 
 ## Costo di un sync
 

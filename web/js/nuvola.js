@@ -186,6 +186,8 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('imposta_operatore', { p_nome: b.nome }, ms);
     case '/api/ruolo':                     // (#ANCHOR: ruoli) solo un admin passa
       return rpc('imposta_ruolo', { p_nome: b.nome, p_ruolo: b.ruolo }, ms);
+    case '/api/ripristina':                // (#ANCHOR: ripristino) un blocco o una spunta
+      return rpc('ripristina_blocco', { p_op_id: b.op_id }, Math.max(ms, 40000));
     case '/api/ping':
       return rpc('app_ping', { p_dove: b.dove || null }, ms);
     case '/api/impostazioni':
@@ -199,6 +201,8 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
         p_id_service: b.id_service, p_anno: b.anno, p_mese: num(b.mese),
         p_nome: b.nome || '', p_percorso: b.percorso,
         p_bytes: b.bytes || 0, p_pagine: b.pagine || 0, p_anteprima: b.anteprima || null,
+        p_gruppo: b.gruppo || null, p_fascicolo: num(b.fascicolo) || null,
+        p_fascicoli: num(b.fascicoli) || null,
       }, ms);
     case '/api/documento_elimina':
       return rpc('elimina_documento', { p_id: b.id }, ms);
