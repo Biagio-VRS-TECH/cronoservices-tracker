@@ -224,13 +224,20 @@ Serve una variabile in piu' su Netlify, `SUPABASE_SERVICE_KEY`, con lo scope
 **solo Functions**: la procedura e' in `cloud/LEGGIMI.md`. Senza, il modulo
 risponde "configurazione incompleta" e dice quale manca.
 
-**Provato** senza Node in macchina (non c'e'): la Function e' ESM standard, si
-importa nel browser e si esegue stubbando `process` e `fetch`. Dieci casi -
-variabili mancanti, GET, senza token, operatore, approvatore, token scaduto,
-casella non aziendale, password corta, casella gia' esistente, admin che
-riesce - e in tutti i casi negativi **la chiamata con la service key non parte
-mai**. Il giro completo end-to-end si potra' vedere solo sul Deploy Preview,
-dopo che il committente ha messo la variabile.
+**Provato** con `node netlify/functions/prova-registra-utente.mjs`, che sta
+accanto alla Function ed e' rimasto nel repo: la esegue davvero sostituendo
+`process.env` e `fetch` con dei finti, senza toccare ne' Supabase ne' Netlify.
+Tredici casi - variabili mancanti, GET, senza token, operatore, approvatore,
+token scaduto, casella non aziendale, dominio somigliante (`@finto-vrs-tech.it`),
+password corta, corpo vuoto, corpo non JSON, casella gia' esistente, admin che
+riesce - piu' due controlli che sono il punto di tutto il disegno: **in ogni
+caso negativo la chiamata con la service key non parte**, e il ruolo viene
+chiesto **col token di chi preme**. Esce 0 se e' tutto a posto.
+
+Non e' un test framework e non vuole diventarlo: e' l'unico pezzo del progetto
+che non si prova aprendo il browser, ed e' quello che tiene la chiave che puo'
+tutto. Il giro end-to-end vero si vedra' sul Deploy Preview, dopo che il
+committente ha messo `SUPABASE_SERVICE_KEY` fra le variabili del sito.
 
 ### Cosa manca / da decidere (25a)
 

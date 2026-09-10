@@ -52,7 +52,13 @@ spunte vivono in un SQLite separato.
 
 Stack: **Python 3 solo stdlib** + SQLite + JS vanilla a moduli ES. Nessun `pip
 install`, nessun `npm`, nessun passo di build, nessuna CDN: l'app deve partire
-offline con un doppio clic su `avvia.bat`.
+offline con un doppio clic su `avvia.bat`. L'unica eccezione, e sta fuori
+dall'app, e' `netlify/functions/` (`decisioni.md` 23): un
+file che gira sul server di Netlify perche' tiene un segreto - anche quello
+senza dipendenze.
+
+Se in macchina c'e' Node (non e' richiesto), `node --check` su un file JS dice
+subito se e' rotto: comodo dopo una modifica a mano a `web/js/`.
 
 **La stessa applicazione gira anche online** (Netlify + Supabase), con lo stesso
 `web/` e senza build. Cambia solo il trasporto: `chiama('/api/...')` in
@@ -114,6 +120,7 @@ ogni sync (ne tiene 20).
 | file | cosa contiene |
 |---|---|
 | `registra-utente.mjs` | **l'unica cosa che non gira nel browser** (#ANCHOR: registra-utente): l'admin registra un collega. Tiene la service key di Supabase, ma il ruolo lo chiede al database col token di chi chiama. Un file, nessuna dipendenza |
+| `prova-registra-utente.mjs` | la sua prova: `node netlify/functions/prova-registra-utente.mjs`. Stubba `process.env` e `fetch`, non tocca niente di vero, esce 0 se e' tutto a posto |
 
 ### Online `cloud/`
 | file | cosa contiene |
