@@ -83,7 +83,7 @@ scritto (esclusione per `client_id` nel body).
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |
 | POST | `/api/sync` | rilegge Access. Timeout client 300 s |
 | GET | `/api/documenti?anno=` | i PDF delle schede: senza anno tutti, e' lo storico (#ANCHOR: documenti) |
-| GET/POST | `/api/documento` | GET `?id=` scarica il file; POST archivia un PDF del generatore (base64, max 40 MB) e mette la spunta `stampata` |
+| GET/POST | `/api/documento` | GET `?id=` scarica il file; POST archivia un PDF del generatore (base64, max 200 MB: `MAX_PDF`) e mette la spunta `stampata` |
 | POST | `/api/documento_elimina` | `{id}`: un PDF solo. La spunta resta |
 | POST | `/api/documenti_elimina` | in blocco, per fare spazio: `{anno}` (solo admin) **oppure** `{id_service}` (chiunque), mai insieme. Prima i file, poi le righe; le spunte restano. Ritorna `{eliminati, n, bytes}` |
 | GET | `/api/stream?client_id=` | SSE. Eventi: `cella`, `celle`, `sync`, `presenze`, `documento`, `documenti` |

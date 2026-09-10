@@ -680,6 +680,14 @@ def esporta_csv(ctx, q, body):
 # stampa: archiviati per sito e anno, con la spunta "stampata" messa in
 # automatico sul mese della mappatura. Il file vive su disco in
 # data/documenti/<anno>/, la riga in `documenti`. #ANCHOR: documenti
+
+# Il tetto per file. Gemello di `file_size_limit` del bucket in
+# cloud/06-documenti.sql: se cambia uno deve cambiare l'altro, sono i due soli
+# posti dove il numero e' scritto. Online c'e' in piu' il *Global file size
+# limit* del progetto, che ha la precedenza e sta tenuto piu' alto (250 MB).
+MAX_PDF = 200 * 1024 * 1024
+
+
 def _cartella_documenti():
     d = os.path.join(os.path.dirname(db._DB_PATH), "documenti")
     os.makedirs(d, exist_ok=True)
@@ -724,8 +732,15 @@ def salva_documento(ctx, q, body):
         return 400, {"errore": "PDF non leggibile"}, None
     if not dati.startswith(b"%PDF"):
         return 400, {"errore": "il contenuto non e' un PDF"}, None
-    if len(dati) > 40 * 1024 * 1024:
-        return 413, {"errore": "PDF troppo grande (oltre 40 MB)"}, None
+    # Il gemello di `file_size_limit` del bucket in cloud/06-documenti.sql: il
+    # tetto vive in questi due posti e basta, e i due numeri devono restare
+    # uguali. 200 MB sono ~800 pagine a 288 dpi. Il messaggio dice cosa fare,
+    # non solo cosa e' successo: la via d'uscita e' dividere in fascicoli.
+    if len(dati) > MAX_PDF:
+        return 413, {"errore": "PDF troppo grande (%d MB, il tetto e' %d MB): "
+                               "dividi il documento in fascicoli con la tendina "
+                               "del generatore e salva di nuovo."
+                               % (len(dati) // (1024 * 1024), MAX_PDF // (1024 * 1024))}, None
     anteprima = body.get("anteprima") or None
     if anteprima and (not str(anteprima).startswith("data:image/jpeg;base64,")
                       or len(anteprima) > 80000):

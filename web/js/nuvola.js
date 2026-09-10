@@ -233,15 +233,35 @@ async function intestazioni() {
   return { apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t };
 }
 
+/* `cache-control: un anno, immutable`. Non e' spericolato: il percorso di un
+   PDF e' un UUID nuovo a ogni salvataggio e non viene MAI sovrascritto
+   (`x-upsert: false`), quindi quell'indirizzo o non esiste o ha per sempre lo
+   stesso contenuto. Senza, lo Storage mette il suo default di un'ora e il
+   tecnico che riapre lo stesso documento nel pomeriggio se lo riscarica tutto:
+   una decina di mega, spesso dal telefono. E' il guadagno piu' grosso sulla
+   velocita' e non costa un pixel di resa. */
+const ANNO_IN_SECONDI = 31536000;
+
 export async function caricaOggetto(bucket, percorso, blob) {
   const r = await fetch(`${ORIGINE}/storage/v1/object/${bucket}/${percorso}`, {
     method: 'POST', body: blob,
     headers: { ...await intestazioni(), 'Content-Type': blob.type || 'application/pdf',
+               'cache-control': `max-age=${ANNO_IN_SECONDI}, immutable`,
                'x-upsert': 'false' },
   });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
-    throw new Error(d.message || d.error || ('caricamento rifiutato (' + r.status + ')'));
+    const grezzo = d.message || d.error || '';
+    /* Lo Storage dice "The object exceeded the maximum allowed size", che a chi
+       sta salvando non dice niente di utile. Il tetto e' `file_size_limit` del
+       bucket (cloud/06-documenti.sql): la via d'uscita e' dividere il documento,
+       e la tendina per farlo e' gia' nel generatore. */
+    if (r.status === 413 || /maximum allowed size|exceeded.*size|too large/i.test(grezzo)) {
+      const mb = blob?.size ? ` (${(blob.size / 1048576).toFixed(1).replace('.', ',')} MB)` : '';
+      throw new Error(`il PDF${mb} supera il tetto per file dell'archivio: ` +
+        'dividi il documento in fascicoli con la tendina del generatore e salva di nuovo.');
+    }
+    throw new Error(grezzo || ('caricamento rifiutato (' + r.status + ')'));
   }
 }
 
@@ -273,7 +293,17 @@ export async function eliminaOggetti(bucket, percorsi) {
   return n;
 }
 
-export async function urlFirmato(bucket, percorso, secondi = 3600) {
+/* Otto ore, non un'ora - quanto dura una giornata di lavoro. Non allarga i
+   permessi: il bucket resta privato e l'indirizzo lo ottiene solo chi e'
+   entrato. Serve a due cose:
+   1. il tecnico che riapre il PDF dopo pranzo non si ritrova un indirizzo
+      scaduto (e, se nel frattempo e' andato giu' di rete, un errore);
+   2. e' la durata che rende riusabile l'indirizzo, e l'indirizzo E' la chiave
+      della cache. Attenzione: questa chiamata firma un GETTONE NUOVO ogni
+      volta - stesso file, indirizzo diverso, quindi cache mancata. A far
+      fruttare il `cache-control` di caricaOggetto e' chi chiama, tenendosi
+      l'indirizzo finche' vale: vedi `urlDocumento` in js/documenti.js. */
+export async function urlFirmato(bucket, percorso, secondi = 8 * 3600) {
   const r = await fetch(`${ORIGINE}/storage/v1/object/sign/${bucket}/${percorso}`, {
     method: 'POST', body: JSON.stringify({ expiresIn: secondi }),
     headers: { ...await intestazioni(), 'Content-Type': 'application/json' },

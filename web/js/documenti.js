@@ -256,10 +256,31 @@ export async function apriDocumento(d) {
   }
 }
 
+/* Gli indirizzi firmati gia' chiesti, finche' valgono: percorso -> {url, fino}.
+   Serve alla velocita', non ai permessi. Il PDF nel bucket e' immutabile (il
+   percorso e' un UUID nuovo a ogni salvataggio, mai sovrascritto) e viene
+   caricato con `cache-control: un anno` - ma la cache del browser ha per chiave
+   l'INDIRIZZO, e ogni chiamata a urlFirmato ne conia uno nuovo. Riusando lo
+   stesso indirizzo finche' e' valido, il tecnico che riapre lo stesso documento
+   nella giornata lo vede aprirsi dalla copia locale invece di riscaricarsi una
+   decina di mega dal telefono. Un minuto di margine prima della scadenza, cosi'
+   non si consegna al browser un indirizzo che muore mentre scarica. */
+const firmati = new Map();
+const MARGINE = 60000;
+
 export async function urlDocumento(d) {
   if (!nuvola.attiva()) return '/api/documento?id=' + encodeURIComponent(d.id);
-  return nuvola.urlFirmato('documenti', percorsoDi(d));
+  const p = percorsoDi(d);
+  const c = firmati.get(p);
+  if (c && c.fino > Date.now()) return c.url;
+  const secondi = 8 * 3600;
+  const url = await nuvola.urlFirmato('documenti', p, secondi);
+  firmati.set(p, { url, fino: Date.now() + secondi * 1000 - MARGINE });
+  return url;
 }
+
+/** Un documento che non c'e' piu' non deve lasciare in giro il suo indirizzo. */
+const scordaFirma = p => firmati.delete(p);
 
 /* Il percorso nel bucket lo sa il server (colonna `percorso`), ma per non
    farlo viaggiare in ogni bootstrap si ricostruisce: e' deterministico. */
@@ -285,16 +306,31 @@ export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine
   const id = crypto.randomUUID().replace(/-/g, '');
   const percorso = `${anno}/${id_service}/${id}.pdf`;
   await nuvola.caricaOggetto('documenti', percorso, pdf);
-  const r = await nuvola.chiama('/api/documento', {
-    metodo: 'POST', ms: 60000,
-    body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes, ...parti },
-  });
-  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  /* Da qui in poi il file E' nel bucket. Se la registrazione non va - un 403
+     sui permessi, un sito sconosciuto, la sessione scaduta, la rete che cade -
+     quell'oggetto resterebbe li' per sempre: occupa spazio e nell'app non si
+     vede, perche' l'app mostra le RIGHE, non il bucket. E' successo davvero il
+     2026-09-09: tre PDF, 73 MB, caricati mentre `registra_documento` rispondeva
+     403 (vedi decisione 23). Quindi il caricamento si disfa. La pulizia ha un
+     `catch` suo: se fallisce anche quella, l'errore che deve arrivare a chi sta
+     salvando resta il PRIMO, non quello della pulizia. */
+  let r;
+  try {
+    r = await nuvola.chiama('/api/documento', {
+      metodo: 'POST', ms: 60000,
+      body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes, ...parti },
+    });
+    if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  } catch (e) {
+    try { await nuvola.eliminaOggetto('documenti', percorso); } catch { }
+    throw e;
+  }
   annunciaAltreSchede({ tipo: 'documento', anno, id_service, documento: r.dati.documento });
   return r.dati;
 }
 
 export async function eliminaDocumento(d) {
+  scordaFirma(percorsoDi(d));
   if (nuvola.attiva()) await nuvola.eliminaOggetto('documenti', percorsoDi(d));
   const r = await chiama('/api/documento_elimina', {
     metodo: 'POST', body: { id: d.id, operatore: rete.operatore } });
@@ -319,6 +355,7 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   const noti = (anno != null
     ? [...st.documenti.values()].flat().filter(d => d.anno === anno)
     : documentiDi(id_service)).map(percorsoDi);
+  noti.forEach(scordaFirma);
   if (online && noti.length) await nuvola.eliminaOggetti('documenti', noti);
 
   const r = await chiama('/api/documenti_elimina', {

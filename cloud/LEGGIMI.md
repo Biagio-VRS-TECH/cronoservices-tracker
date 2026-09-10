@@ -213,7 +213,7 @@ Il generatore di schede (`/schede/`) alla stampa consegna il PDF al tracker.
 Online serve una tabella e un bucket in piu': **SQL Editor** → esegui
 `06-documenti.sql`, poi **riesegui `03-letture.sql`** (il bootstrap ora porta
 anche i documenti dell'anno). Il bucket `documenti` nasce da solo, privato, solo
-PDF fino a 40 MB. I file si leggono con indirizzi firmati che durano un'ora.
+PDF fino a 200 MB. I file si leggono con indirizzi firmati che durano otto ore.
 
 Finche' il 06 non e' eseguito, il tracker online funziona come prima e il
 generatore dice "Non salvato" quando prova a consegnare.
@@ -227,12 +227,63 @@ online, mentre in locale funzionano subito. Gli oggetti nel bucket li cancella
 il client prima della chiamata: e' lo stesso ordine di `elimina_documento`, e
 serve a non lasciare file orfani, che sono proprio lo spazio da liberare.
 
-**Il tetto dei 40 MB per PDF** e' nostro, non di Supabase: sta in
-`06-documenti.sql` (`file_size_limit`) e in `app/api.py`. Sul piano Free il
-tetto del progetto e' comunque 50 MB per file, quindi alzare il nostro oltre
-non serve senza passare al Pro; e prima di pagare conviene guardare quanto
-pesa il PDF, perche' a scala 3 un documento lungo li sfonda (vedi `ponte.js`,
-`SCALA`).
+### Il tetto per file: 200 MB, e i tre posti dove vive
+
+**Il tetto e' nostro, non del piano.** L'organizzazione e' sul **Pro**: lo
+Storage sono 100 GB inclusi (poi 0,021 $/GB) e l'egress 250 GB/mese, quindi ne'
+lo spazio ne' il traffico sono il vincolo - a 108 MB per cinque documenti ci
+stanno ~4.500 PDF di questa taglia. Chiarimento che vale la pena scrivere,
+perche' e' un fraintendimento facile: **i 100 GB non sono un contenitore
+diverso** in cui spostare i file. Lo Storage e' un'unica quota
+dell'organizzazione e il bucket `documenti` e' gia' quello giusto: al bucket si
+cambia solo il limite **per file**. Niente secondo bucket, niente migrazioni.
+
+Il numero vive in **tre** posti e vanno tenuti allineati:
+
+| dove | valore | chi lo cambia |
+|---|---|---|
+| `file_size_limit` del bucket, in `06-documenti.sql` | `209715200` (200 MB) | riesegui il 06 |
+| `MAX_PDF` in `app/api.py` (#ANCHOR: documenti) | `200 * 1024 * 1024` | e' nel repo |
+| **Global file size limit** del progetto | **250 MB** | **a mano**, dashboard → Storage → Settings |
+
+Il **globale ha la precedenza** sul bucket: se resta sotto, alzare il bucket
+non serve a niente. Percio' si alza prima quello, e lo si tiene un po' piu' su
+(250), cosi' il tetto che decide davvero resta quello del bucket - che sta in
+un file versionato invece che in una casella del pannello. Sul Pro il globale
+si puo' portare fino a 500 GB: 250 MB e' una scelta, non un massimo.
+
+Perche' proprio 200 MB: a 288 dpi un PDF pesa ~251 KB a pagina (misurato: 28,4
+MB per 116 pagine), quindi 200 MB sono ~800 pagine. Un tetto ci deve restare -
+senza, un errore del generatore caricherebbe qualunque cosa - ma e' un
+paracadute, non un obiettivo: il caricamento e' un POST unico, non
+ripristinabile, e a 200 MB su una linea d'ufficio e' lungo e se cade riparte da
+zero. **La qualita' non si tocca**: i 288 dpi di `ponte.js` (`SCALA`) sono
+risoluzione da stampa e restano, lo spazio non e' piu' il problema.
+
+### File orfani nel bucket: come si trovano e come si buttano
+
+Un **orfano** e' un oggetto nel bucket senza la sua riga in `public.documenti`:
+occupa spazio e nell'app non si vede, perche' l'app mostra le righe, non il
+bucket. Dalla 26a sessione il salvataggio non ne fabbrica piu' (se la
+registrazione fallisce, `salvaDocumento` disfa il caricamento), ma il controllo
+resta utile dopo un lavoro sull'SQL. Dall'SQL Editor, in sola lettura:
+
+```sql
+select o.name,
+       round((o.metadata->>'size')::bigint / 1048576.0, 1) as mb,
+       o.created_at
+  from storage.objects o
+  left join public.documenti d on d.percorso = o.name
+ where o.bucket_id = 'documenti' and d.id is null
+ order by o.created_at;
+```
+
+**Come si cancellano: dal pannello, non con una DELETE.** Togliere la riga da
+`storage.objects` in SQL lascia il file vero dov'e' e lo spazio non si libera.
+Si va su **Storage → `documenti`**, si apre la cartella, si selezionano e si usa
+*Delete*. In alternativa, dall'app: se il file avesse la sua riga, *Elimina* nel
+cassetto farebbe le due cose nell'ordine giusto - ma un orfano la riga non ce
+l'ha, ed e' proprio per questo che va preso dal pannello.
 
 **Dopo la 20a sessione (2026-09-09) vanno rieseguiti tutti e due**, `06` e poi
 `03`: il bootstrap porta `celle_prec` (le celle dell'anno prima, per i passi

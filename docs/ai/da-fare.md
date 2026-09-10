@@ -3,6 +3,93 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-10 (26a sessione) - i PDF grandi entrano, si aprono in fretta, e non lasciano orfani
+
+Branch `ruoli-falla-cambio-nome` (lo stesso: il deploy non e' ancora stato
+fatto). Nato da un "Non salvato: The object exceeded the maximum allowed size"
+salvando un documento lungo. Dettaglio del ragionamento in
+[decisioni.md](decisioni.md) 23, che **rovescia la 21**.
+
+### 1. Il tetto per file: da 40 a 200 MB
+
+Il tetto era **nostro**, non del piano: l'organizzazione e' passata al **Pro**
+(100 GB di Storage inclusi, egress 250 GB/mese, limite globale alzabile fino a
+500 GB), quindi il motivo per cui la 21 lo teneva a 40 e' caduto. Un tetto pero'
+resta: senza, un errore del generatore caricherebbe qualunque cosa.
+
+- `file_size_limit` del bucket in `cloud/06-documenti.sql`: **209715200**.
+- `MAX_PDF` in `app/api.py` (costante nuova, accanto a #ANCHOR: documenti):
+  `200 * 1024 * 1024`. Prima il numero era murato nell'`if`.
+- **A mano nel dashboard**: *Global file size limit* a **250 MB** (Storage →
+  Settings). Ha la **precedenza** sul bucket, quindi va alzato **prima**;
+  tenuto un gradino sopra, cosi' il tetto che decide resta quello del bucket,
+  che sta in un file versionato.
+- Grepato: non c'era **nessun** altro punto col limite, client compreso -
+  `ponte.js` e `documenti.js` non guardano la dimensione del blob.
+- 200 MB sono ~800 pagine a 288 dpi (251 KB a pagina, misurato). Nota: il
+  caricamento e' un POST unico non ripristinabile, quindi 200 MB e' un
+  paracadute, non un obiettivo.
+- **La qualita' non e' stata toccata**: `SCALA = 3` in `ponte.js` resta. Cade
+  anche la scala adattiva che la 21 indicava come "strada giusta": dava la
+  copia peggiore proprio all'impianto piu' grande, e lo spazio non e' piu' un
+  vincolo.
+
+### 2. Piu' veloce da aprire, senza toccare la resa
+
+- **`cache-control: un anno, immutable`** in `nuvola.caricaOggetto`: non era
+  impostato e lo Storage metteva il suo default di un'ora. E' sicuro perche' il
+  percorso e' un UUID nuovo a ogni salvataggio e `x-upsert` e' `false`: quel
+  file non cambia mai.
+- **Da solo non serviva a niente**, ed e' la parte meno ovvia: la cache ha per
+  chiave l'**indirizzo**, e `urlFirmato` conia un gettone nuovo a ogni
+  chiamata. Quindi la firma passa da un'ora a **otto ore** e `urlDocumento`
+  (`documenti.js`) **se la tiene** in una mappa finche' vale (un minuto di
+  margine). Chi riapre lo stesso PDF nel pomeriggio non riscarica dieci mega
+  dal telefono. La mappa si svuota quando il documento viene eliminato
+  (`scordaFirma`, chiamata da `eliminaDocumento` e `eliminaDocumenti`).
+- Il bucket resta **privato**: nessun permesso e' cambiato.
+
+### 3. Il messaggio d'errore dice cosa fare
+
+`caricaOggetto` riconosce il 413 / "maximum allowed size" e risponde "il PDF
+(N MB) supera il tetto per file dell'archivio: dividi il documento in fascicoli
+con la tendina del generatore e salva di nuovo", invece del testo inglese dello
+Storage. Stessa cosa lato locale in `api.py`. **Nessun passo nuovo per chi usa
+l'app**: si genera, si salva, il PDF e' nel tracker.
+
+### 4. I tre orfani: causa trovata nei log, e il buco chiuso
+
+Tre oggetti sotto `2026/556/` (27,4 + 24,0 + 24,0 MB) senza riga in
+`documenti`. **Non era la cancellazione in blocco** (quella toglie gli oggetti
+*prima* delle righe). I log edge del 2026-09-09 dicono la cosa esatta: upload
+**200**, poi `registra_documento` **403**, tre volte fra le 12:12 e le 12:13 -
+la finestra in cui si stava riapplicando l'SQL della 25a sessione e il `revoke`
+di `04` aveva tolto l'EXECUTE prima del ri-grant (lo stesso difetto corretto in
+`bf951dc`). Verificato: **oggi i quattro grant dei documenti sono a posto**.
+
+Il difetto strutturale era pero' un altro: `salvaDocumento` caricava e **poi**
+registrava, quindi qualunque fallimento della registrazione lasciava un file
+invisibile all'app. Ora **il caricamento si disfa**: `nuvola.eliminaOggetto` sul
+percorso appena caricato, in un `try` suo, e viene rilanciato l'errore
+originale (non quello della pulizia). Con i fascicoli, se salta il terzo di tre
+i primi due restano registrati: sono documenti veri e visibili, si buttano dal
+cassetto.
+
+- **Da fare a mano**: cancellare i tre orfani dal pannello **Storage →
+  `documenti` → `2026/556/`** (`e03faa5e…`, `6851af19…`, `efc4bce6…`). **Non**
+  con una DELETE su `storage.objects`: toglierebbe la riga e lascerebbe il
+  file, cioe' lo spazio che si vuole liberare.
+- La query che elenca gli orfani sta in [../../cloud/LEGGIMI.md](../../cloud/LEGGIMI.md) 6.
+
+### Da fare su Supabase
+
+**Rieseguire `06-documenti.sql`** (porta il nuovo `file_size_limit`), dopo aver
+alzato il *Global file size limit* a 250 MB. Il tentativo di applicarlo da qui
+con l'MCP e' stato **bloccato dal classificatore dei permessi**: la scrittura
+sul database di produzione la fa il committente.
+
+Service worker `crono-guscio-v18`.
+
 ## Fatto il 2026-09-09 (25a sessione) - la falla del cambio nome, e il terzo ruolo
 
 Branch `ruoli-falla-cambio-nome`. Due cose, una grave e una richiesta.

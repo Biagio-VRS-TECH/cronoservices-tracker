@@ -41,8 +41,18 @@ grant select on public.documenti to authenticated;
 
 -- ---------------------------------------------------------------- bucket ---
 -- Privato: si legge solo con un indirizzo firmato chiesto da chi e' entrato.
+--
+-- TETTO PER FILE: 200 MB (209715200). A ~251 KB per pagina - la misura vera dei
+-- PDF a scala 3 - sono ~800 pagine, piu' di quanto il generatore produca
+-- davvero; un tetto pero' ci resta, perche' senza limite un errore del
+-- generatore caricherebbe qualunque cosa. Il numero vive in due posti soli:
+-- qui e in app/api.py (#ANCHOR: documenti).
+-- ATTENZIONE: il *Global file size limit* del progetto (dashboard, Storage >
+-- Settings) ha la PRECEDENZA su questo, quindi va alzato PRIMA - tenuto a
+-- 250 MB, cosi' il tetto che decide resta questo, che sta in un file
+-- versionato invece che in una casella del pannello.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('documenti', 'documenti', false, 41943040, array['application/pdf'])
+values ('documenti', 'documenti', false, 209715200, array['application/pdf'])
 on conflict (id) do update
   set public = false,
       file_size_limit = excluded.file_size_limit,

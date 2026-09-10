@@ -161,6 +161,36 @@ ogni sync (ne tiene 20).
 
 ---
 
+## Stato al 2026-09-10 (26a sessione)
+
+Branch `ruoli-falla-cambio-nome`, lo stesso della 25a (il deploy non e' ancora
+stato fatto). Dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-10-26a-sessione---i-pdf-grandi-entrano-si-aprono-in-fretta-e-non-lasciano-orfani),
+[ai/decisioni.md](ai/decisioni.md) 23 (che **rovescia la 21**).
+
+**Il tetto dei PDF sale a 200 MB** (#ANCHOR: documenti): l'organizzazione e'
+sul piano **Pro**, quindi il motivo per tenerlo a 40 e' caduto - ma un tetto
+resta, perche' senza un errore del generatore caricherebbe qualunque cosa. Il
+numero vive in `MAX_PDF` (`app/api.py`) e nel `file_size_limit` del bucket
+(`cloud/06-documenti.sql`); il ***Global file size limit* del progetto ha la
+precedenza e va messo a mano a 250 MB** dal dashboard, prima di rieseguire il
+06. **La qualita' non si tocca**: `SCALA = 3` (288 dpi) resta, e cade la scala
+adattiva che la 21 proponeva. **Piu' veloce senza toccare la resa**:
+`cache-control` di un anno `immutable` in `caricaOggetto` piu' la firma che
+dura otto ore e che `urlDocumento` **si tiene** - da sole non servivano, perche'
+la cache ha per chiave l'indirizzo e ogni firma ne conia uno nuovo.
+**L'errore dice cosa fare** (dividere in fascicoli) invece del testo inglese
+dello Storage. **Niente di nuovo per chi usa l'app.**
+
+**Chiuso il buco degli orfani**: `salvaDocumento` caricava e poi registrava, e
+un fallimento della registrazione lasciava un file che l'app non mostra. Ora il
+caricamento **si disfa**. I tre orfani trovati (73 MB sotto `2026/556/`)
+venivano da tre `registra_documento` a **403** durante la riapplicazione
+dell'SQL della 25a - letto nei log edge, non dedotto; i grant oggi sono a
+posto. **Da fare a mano**: rieseguire `06` e cancellare i tre file dal pannello
+Storage (non con una DELETE su `storage.objects`, che lascia il file).
+Service worker `crono-guscio-v18`.
+
 ## Stato al 2026-09-09 (25a sessione)
 
 Branch `ruoli-falla-cambio-nome` (dettaglio in
@@ -193,6 +223,7 @@ cassetto). Le spunte "stampata" restano. Prima i file, poi le righe;
 `nuvola.eliminaOggetti` cancella gli oggetti del bucket a lotti di 100.
 **Da rieseguire su Supabase: `06-documenti.sql`.** Il tetto dei 40 MB per PDF
 e' nostro (bucket + `api.py`), non del piano Supabase: vedi decisione 21.
+(Alla 26a sessione e' salito a **200 MB**: decisione 23.)
 
 ## Stato al 2026-09-09 (23a sessione)
 

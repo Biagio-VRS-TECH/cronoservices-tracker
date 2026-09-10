@@ -882,12 +882,79 @@ potare guardando il peso, non a memoria. La conferma e' quella di sempre -
 il bottone diventa "Sicuro? N PDF" e torna com'era da solo (decisione 15) -
 perche' qui il numero **e'** l'avvertimento.
 
-**Il tetto dei 40 MB resta dov'e'.** Non e' di Supabase: e' scritto da noi nel
+**Il tetto dei 40 MB resta dov'e'.** [SUPERATA dalla decisione 23: col piano
+Pro il tetto e' salito a 200 MB e la scala adattiva e' stata scartata.]
+Non e' di Supabase: e' scritto da noi nel
 bucket e in `api.py`. Alzarlo si puo', ma sul piano Free il progetto si ferma
 comunque a 50 MB per file, e un PDF da 60 MB e' lento da aprire per il
 tecnico e mangia il traffico incluso. La strada giusta, quando servira', e'
 la scala adattiva in `ponte.js` (288 dpi sui documenti corti, 192 sui
 lunghi), non un piano piu' caro per archiviare JPEG.
+
+## 23. Il tetto dei PDF sale a 200 MB, e un caricamento che non si registra si disfa (26a sessione)
+
+Questa voce **rovescia la decisione 21** ("il tetto dei 40 MB resta dov'e'").
+Il motivo per cui restava e' caduto: l'organizzazione e' passata al piano
+**Pro**. Sul Free il progetto si fermava comunque a 50 MB per file, quindi
+alzare il nostro tetto non serviva a niente; sul Pro lo Storage e' 100 GB
+inclusi, l'egress 250 GB/mese e il limite globale si porta fino a 500 GB.
+
+**Il tetto resta pero' un tetto, e resta nostro.** 200 MB (~800 pagine a 288
+dpi, misurate: 251 KB a pagina). Senza limite, un errore del generatore
+caricherebbe qualunque cosa: e' un paracadute, non un obiettivo. Il numero vive
+in `06-documenti.sql` (bucket) e in `MAX_PDF` di `api.py`, e in piu' c'e' il
+*Global file size limit* del progetto - che **ha la precedenza** e va alzato
+prima, tenuto un gradino sopra (250 MB) proprio perche' il tetto che decide
+resti quello scritto in un file versionato.
+
+**Cade anche la strada che la 21 indicava**, cioe' la scala adattiva in
+`ponte.js` (288 dpi sui documenti corti, 192 sui lunghi). Era un modo di far
+quadrare i conti dello spazio, e i conti dello spazio non hanno piu' bisogno di
+quadrare: a 100 GB ci stanno ~4.500 documenti di questa taglia. Abbassare la
+risoluzione di un documento **perche' e' lungo** significa dare al tecnico la
+copia peggiore proprio dell'impianto piu' grande. I 288 dpi restano su tutto.
+
+**Sulla velocita' si e' lavorato dove non costa niente alla resa.** Il PDF nel
+bucket e' immutabile per costruzione - il percorso e' un UUID nuovo a ogni
+salvataggio e `x-upsert` e' `false` - quindi si carica con `cache-control` di
+un anno, `immutable`. Da solo pero' non serviva a niente, ed e' la parte meno
+ovvia: la cache ha per chiave **l'indirizzo**, e `urlFirmato` conia un gettone
+nuovo a ogni chiamata, percio' lo stesso file arrivava sempre da un indirizzo
+diverso e la copia locale non veniva mai riusata. Quindi la firma dura otto ore
+(una giornata di lavoro) e `urlDocumento` **se la tiene** finche' vale: chi
+riapre lo stesso documento nel pomeriggio non riscarica una decina di mega dal
+telefono. Il bucket resta privato: non e' cambiato nessun permesso.
+
+**Il messaggio d'errore dice cosa fare.** "Non salvato: The object exceeded the
+maximum allowed size" descriveva il problema in inglese e lasciava l'operatore
+fermo. Ora `caricaOggetto` riconosce il caso e dice di dividere in fascicoli
+con la tendina che c'e' gia'. Nessun passo nuovo per chi usa l'app: si genera,
+si salva, il PDF e' nel tracker.
+
+**L'ordine "prima il file, poi la riga" non basta: va disfatto.** Nel bucket
+c'erano tre PDF (73 MB) senza riga in `documenti`, caricati il 2026-09-09 fra
+le 12:12 e le 12:13. Non era la cancellazione in blocco, che gli oggetti li
+toglie **prima** delle righe (decisione 21). I log edge dicono la cosa esatta:
+upload 200, poi `registra_documento` **403**, tre volte. Era la finestra in cui
+si stava riapplicando l'SQL della 25a sessione, e il `revoke` di `04` aveva
+tolto l'EXECUTE prima che il ri-grant lo rimettesse - lo stesso difetto di
+`elimina_documenti` corretto in `bf951dc`.
+
+Il permesso e' a posto, ma il difetto vero era un altro ed e' strutturale:
+`salvaDocumento` caricava e **poi** registrava, quindi *qualunque* fallimento
+della registrazione (403, sito sconosciuto, sessione scaduta, rete caduta)
+lasciava un file che occupa spazio e che nell'app non si vede - l'app mostra le
+righe, non il bucket. Ora il caricamento si disfa: se la registrazione non va,
+l'oggetto appena caricato viene rimosso e l'errore rilanciato. La pulizia ha un
+`catch` suo, perche' l'errore che deve arrivare a chi salva e' il primo, non
+quello della pulizia. Con i fascicoli, se salta il terzo di tre i primi due
+restano registrati: sono documenti veri e visibili, si buttano dal cassetto -
+un orfano e' un'altra cosa.
+
+I tre orfani esistenti li cancella il committente dal pannello Storage: una
+DELETE su `storage.objects` toglierebbe la riga e lascerebbe il file, cioe'
+esattamente lo spazio che si voleva liberare. La query che li elenca sta in
+`cloud/LEGGIMI.md` 6.
 
 ## 22. Il ruolo sta sulla casella, non sul nome; e chi approva non e' chi comanda (25a sessione)
 
