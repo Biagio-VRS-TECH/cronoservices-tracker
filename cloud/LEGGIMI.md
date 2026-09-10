@@ -264,6 +264,12 @@ risponde "rotta sconosciuta" online, mentre in locale funziona subito. Nient'
 altro cambia: `04` si puo' rilanciare da solo senza rompere i documenti (il
 blocco che ridà l'EXECUTE al `06` c'e' apposta).
 
+Se la voce risponde **"DELETE requires a WHERE clause"**, il `03` in Supabase
+e' la prima stesura: rieseguilo. Supabase carica *pg-safeupdate* sulla
+connessione di PostgREST, e quell'estensione rifiuta ogni `DELETE` senza
+clausola anche dentro una funzione `security definer`. La versione buona
+cancella con `where id > 0`.
+
 Le spunte, le note e i PDF non si toccano: sparisce la storia, non il lavoro.
 Spariscono pero' anche i **Ripristina**, che leggono proprio quelle righe.
 

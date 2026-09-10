@@ -34,7 +34,13 @@ CSS nuovo in `base.css`: `.conferma-ok` (fascia d'allerta), `.campo-ok`,
 Voce nuova nel menu Azioni, solo admin. `POST /api/diario_azzera` ->
 `api.azzera_diario`; online `azzera_diario()` in `cloud/03-letture.sql`, con
 l'EXECUTE in `04-sicurezza.sql`. **Da rieseguire su Supabase: `03` e poi
-`04`.** `DELETE FROM eventi` e basta: spunte, note e PDF restano dove sono.
+`04`.** Cancella `eventi` e basta: spunte, note e PDF restano dove sono.
+La `DELETE` porta un `where id > 0` che sembra inutile e non lo e': Supabase
+carica **pg-safeupdate** sulla connessione di PostgREST, e quella rifiuta ogni
+`DELETE` senza clausola anche dentro una `security definer` ("DELETE requires
+a WHERE clause" - preso in faccia al primo tentativo online). `where true` non
+basta, il pianificatore lo butta via; `id > 0` resta e prende tutto, perche'
+`id` e' un'identita' che parte da 1.
 Spariscono pero' i **Ripristina**, che leggono proprio quelle righe - e' l'unica
 azione dell'applicazione che non si disfa in nessun modo, ed e' per questo che
 la conferma e' scritta a mano. `eventi` non e' nella pubblicazione Realtime,

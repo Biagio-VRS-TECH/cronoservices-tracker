@@ -245,7 +245,14 @@ begin
     return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
   end if;
   select count(*) into n from public.eventi;
-  delete from public.eventi;
+  -- IL `where` NON E' DECORATIVO. Supabase carica pg-safeupdate sulla
+  -- connessione di PostgREST, e quell'estensione rifiuta ogni DELETE senza
+  -- clausola - anche dentro una funzione SECURITY DEFINER, anche quando
+  -- cancellare tutto e' proprio quello che si vuole ("DELETE requires a WHERE
+  -- clause"). `where true` non basta: il pianificatore lo butta via e la
+  -- DELETE torna a essere nuda. `id > 0` invece resta, e prende ogni riga:
+  -- `id` e' un'identita' che parte da 1 (01-tabelle.sql).
+  delete from public.eventi where id > 0;
   return jsonb_build_object('http', 200, 'n', n);
 end $fn$;
 
