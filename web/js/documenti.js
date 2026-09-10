@@ -311,19 +311,20 @@ export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine
      quell'oggetto resterebbe li' per sempre: occupa spazio e nell'app non si
      vede, perche' l'app mostra le RIGHE, non il bucket. E' successo davvero il
      2026-09-09: tre PDF, 73 MB, caricati mentre `registra_documento` rispondeva
-     403 (vedi decisione 23). Quindi il caricamento si disfa. La pulizia ha un
+     403 (vedi decisione 24). Quindi il caricamento si disfa. La pulizia ha un
      `catch` suo: se fallisce anche quella, l'errore che deve arrivare a chi sta
-     salvando resta il PRIMO, non quello della pulizia. */
-  let r;
-  try {
-    r = await nuvola.chiama('/api/documento', {
-      metodo: 'POST', ms: 60000,
-      body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes, ...parti },
-    });
-    if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
-  } catch (e) {
+     salvando resta il PRIMO, non quello della pulizia.
+     Si disfa pero' solo se il server ha DETTO no. Su un timeout o una rete
+     caduta a meta' la riga potrebbe essere stata scritta lo stesso, e togliere
+     il file darebbe il difetto opposto: una riga che apre un PDF che non c'e'.
+     In quel caso l'oggetto resta, e lo trova la query degli orfani. */
+  const r = await nuvola.chiama('/api/documento', {
+    metodo: 'POST', ms: 60000,
+    body: { id_service, anno, mese, nome, pagine, anteprima, percorso, bytes, ...parti },
+  });
+  if (!r.ok) {
     try { await nuvola.eliminaOggetto('documenti', percorso); } catch { }
-    throw e;
+    throw new Error(r.dati?.errore || ('errore ' + r.stato));
   }
   annunciaAltreSchede({ tipo: 'documento', anno, id_service, documento: r.dati.documento });
   return r.dati;
@@ -344,20 +345,17 @@ export async function eliminaDocumento(d) {
  *  `{id_service}` (tutti i PDF di un sito, di qualunque anno). Le spunte
  *  "stampata" restano: il PDF si butta per fare posto, il lavoro fatto no.
  *
- *  Online l'ordine e' quello di sempre - prima gli oggetti nel bucket, poi le
- *  righe - perche' un file orfano nello Storage e' proprio lo spazio che si
- *  vuole liberare. La lista dei percorsi la da' il modello, ma il server
- *  cancella per criterio e risponde con quello che ha davvero tolto: se il
- *  modello era vecchio, i percorsi in piu' si ripuliscono subito dopo.
+ *  Online l'ordine e' PRIMA il server, POI il bucket: e' il server a decidere
+ *  se puoi (un anno intero e' del solo amministratore) e a dire cosa ha tolto
+ *  davvero. Cancellare prima gli oggetti - come si faceva - voleva dire che un
+ *  403, o un 404 perche' lo script SQL non era ancora stato rieseguito,
+ *  lasciava le righe in piedi e i file spariti: cento chip che aprono un PDF
+ *  che non c'e' piu'. Un oggetto rimasto nel bucket dopo che la riga e' andata
+ *  e' meno grave (spazio non liberato, e la query degli orfani in
+ *  cloud/LEGGIMI.md 6 lo trova); una riga senza file e' un difetto che si vede.
  *  Ritorna {n, bytes}. */
 export async function eliminaDocumenti({ anno = null, id_service = null } = {}) {
   const online = nuvola.attiva();
-  const noti = (anno != null
-    ? [...st.documenti.values()].flat().filter(d => d.anno === anno)
-    : documentiDi(id_service)).map(percorsoDi);
-  noti.forEach(scordaFirma);
-  if (online && noti.length) await nuvola.eliminaOggetti('documenti', noti);
-
   const r = await chiama('/api/documenti_elimina', {
     metodo: 'POST', ms: 120000,
     body: { anno, id_service, operatore: rete.operatore } });
@@ -365,11 +363,12 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   const eliminati = r.dati?.eliminati || [];
 
   if (online) {
-    const visti = new Set(noti);
-    const restanti = eliminati.map(e => e.percorso).filter(x => x && !visti.has(x));
-    // uno strascico non deve far sembrare fallita un'operazione riuscita
-    if (restanti.length) {
-      try { await nuvola.eliminaOggetti('documenti', restanti); } catch { }
+    const percorsi = eliminati.map(e => e.percorso).filter(Boolean);
+    percorsi.forEach(scordaFirma);
+    // le righe sono gia' andate: uno strascico nel bucket non deve far
+    // sembrare fallita un'operazione riuscita
+    if (percorsi.length) {
+      try { await nuvola.eliminaOggetti('documenti', percorsi); } catch { }
     }
   }
   togliMolti(eliminati);
@@ -390,5 +389,4 @@ const blobBase64 = b => new Promise((ok, ko) => {
   fr.readAsDataURL(b);
 });
 
-export const dimensione = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB'
-  : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+export { dimensione } from './ui.js';

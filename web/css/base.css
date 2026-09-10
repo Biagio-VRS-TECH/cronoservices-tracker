@@ -29,7 +29,7 @@ button { background: none; border: 0; cursor: pointer; }
 .banner {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 9px 18px; font-size: var(--t-mini); z-index: 45;
-  background: var(--allerta); color: #fff;
+  background: var(--allerta); color: var(--su-allerta);
 }
 .banner b { font-weight: 650; }
 .banner span { opacity: .92; }
@@ -77,7 +77,7 @@ button { background: none; border: 0; cursor: pointer; }
   width: 26px; height: 26px; border-radius: var(--r-1); color: var(--tenue);
   display: grid; place-items: center; transition: var(--rapido);
 }
-.frecc:hover { background: var(--marchio-tenue); color: var(--marchio); }
+.frecc:hover { background: var(--marchio-tenue); color: var(--marchio-scuro); }
 .frecc[disabled] { opacity: .25; cursor: default; }
 
 .testa-spazio { flex: 1; }
@@ -98,7 +98,7 @@ button { background: none; border: 0; cursor: pointer; }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
 .cerca-x {
   position: absolute; right: 5px; top: 50%; translate: 0 -50%;
-  width: 22px; height: 22px; border-radius: var(--r-tonda);
+  width: 24px; height: 24px; border-radius: var(--r-tonda);
   display: grid; place-items: center; font-size: 15px; line-height: 1;
   color: var(--tenue); transition: var(--rapido);
 }
@@ -134,13 +134,15 @@ button { background: none; border: 0; cursor: pointer; }
    l'approvatore, non per l'operatore */
 .ruolo {
   font: 600 var(--t-micro)/1 var(--f-dato); text-transform: uppercase; letter-spacing: .05em;
-  color: var(--marchio); background: var(--marchio-tenue); border-radius: var(--r-tonda);
+  color: var(--marchio-scuro); background: var(--marchio-tenue); border-radius: var(--r-tonda);
   padding: 3px 6px 2px; flex: none;
 }
 .pill.debole .ruolo { color: var(--tenue); background: var(--superficie-2); }
 /* la coda delle approvazioni: ambra, come una cosa che aspetta */
 .pill.attesa {
-  color: var(--allerta); border-color: color-mix(in srgb, var(--allerta) 45%, transparent);
+  /* il testo e' l'ambra scurita: quella pura sul suo fondo tenue fa 3,9:1 */
+  color: color-mix(in srgb, var(--allerta) 82%, var(--inchiostro));
+  border-color: color-mix(in srgb, var(--allerta) 45%, transparent);
   background: var(--allerta-tenue); font-weight: 600;
 }
 .pill.attesa:hover { color: var(--allerta); border-color: var(--allerta); background: var(--allerta-tenue); }
@@ -207,8 +209,13 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .pill.debole { background: transparent; color: var(--tenue); }
 .pill.debole:hover { border-style: dashed; }
-.pill.mini { padding: 3px 9px; font-size: var(--t-micro); }
-select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
+.pill.mini { padding: 3px 9px; min-height: 24px; font-size: var(--t-micro); }
+/* la tendina resta una pillola, ma con la freccina: senza, sembrava un'etichetta */
+select.pill {
+  padding-right: 22px; appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236E7175' stroke-width='1.5' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
 
 .stato-sync { display: flex; align-items: center; gap: 7px; font-size: var(--t-mini); color: var(--tenue); }
 .spia { width: 7px; height: 7px; border-radius: var(--r-tonda); background: var(--accento); flex: none; }
@@ -298,7 +305,7 @@ select.pill { padding-right: 8px; appearance: none; cursor: pointer; }
   color: inherit; font-weight: 600; padding: 3px 9px; border-radius: var(--r-tonda);
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
-.avviso.allerta { background: var(--allerta); color: #fff; }
+.avviso.allerta { background: var(--allerta); color: var(--su-allerta); }
 .avviso.ok      { background: var(--accento-scuro); color: #fff; }
 
 /* ---------------------------------------------------------------- modale -- */
@@ -425,7 +432,7 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
    Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,
    non verde: dice "c'e' il documento", non "e' a posto". #ANCHOR: documenti */
 .doc-chip {
-  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 20px;
+  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 24px;
   padding: 0 5px; border: 0; border-radius: var(--r-1); cursor: pointer;
   color: var(--marchio-scuro); background: var(--marchio-tenue);
   font: 600 var(--t-micro)/1 var(--f-dato); transition: var(--rapido);
@@ -499,7 +506,12 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  /* anche le animazioni infinite (spia, riflesso) si fermano dopo un giro:
+     con la sola durata a 1ms diventerebbero uno sfarfallio */
+  *, *::before, *::after {
+    animation-duration: 1ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 /* --------------------------------------------------------------- accesso -- */

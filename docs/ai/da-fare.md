@@ -3,12 +3,120 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-10 (27a sessione) - il controllo finale prima del deploy
+
+Branch `ruoli-falla-cambio-nome`, poi **deploy** (merge in `main` e push): e'
+il primo deploy dopo la 24a, quindi porta online 25a, 26a e questa sessione
+insieme. Richiesta: "un controllo finale a tutte le funzionalita' e
+all'interfaccia, poi il deploy". Fatto con tre revisioni in parallelo
+(correttezza del diff rispetto a `main`, semplificazione, accessibilita' con la
+skill `web-design-guidelines`) e un collaudo nel browser su una copia di
+`data/prova.db` (porta 8776): Anno, Mese, Statistiche, popover, cassetto,
+ricerca, tema, "Chi sta lavorando", approvazioni, Impostazioni, Diario, menu
+Azioni per operatore e per amministratore. Nessun errore in console.
+
+### Difetti veri trovati e chiusi
+
+- **Il client locale non ascoltava meta' degli eventi SSE** (`apriStream` in
+  `api.js`): `EventSource` consegna solo i tipi a cui ci si iscrive, e la
+  lista era ferma a `cella/celle/sync/presenze`. `ruoli`, `impostazioni`,
+  `documento`, `documenti` cadevano nel vuoto: in locale un collega che
+  salvava un PDF o veniva nominato non si vedeva finche' non si ricaricava.
+  Ora sono iscritti tutti gli otto tipi che `api.py` emette.
+- **Il proprio ruolo non si aggiornava mai dal vivo** (`eventoRemoto`,
+  `stato.js`): `st.ruolo` arrivava solo dal bootstrap e il ramo `if
+  (ev.ruolo)` era morto (l'evento e' un broadcast, non porta il ruolo di
+  ciascuno). Ora, all'evento `ruoli`, il client richiede il proprio a
+  `/api/operatore`: chi viene nominato approvatore vede la pillola subito,
+  chi viene declassato perde il menu senza ricaricare. Provato: la
+  promozione di un collega arriva in un secondo. (Online l'evento non
+  esiste: `operatori` non e' nella pubblicazione Realtime; resta in sospeso.)
+- **Cancellazione in blocco dei PDF: prima il server, poi il bucket**
+  (`eliminaDocumenti`). Cancellava gli oggetti e POI chiamava la RPC: un 403
+  (ruolo stantio), o un 404 perche' `06` non e' ancora stato rieseguito,
+  lasciava le righe in piedi e i file spariti. Ora si cancella solo cio' che
+  il server dice di aver tolto. Un orfano nel bucket e' il male minore.
+- **Il rollback del PDF solo se il server ha detto no** (`salvaDocumento`): su
+  timeout o rete caduta la riga poteva essere gia' scritta, e togliere il file
+  dava il difetto opposto (riga senza file).
+- **Il nome disambiguato non si perde a un avvio offline** (`avviaSessione`):
+  `setOperatore(nomeDaEmail())` era incondizionato e sovrascriveva "Mario
+  Rossi (mario.rossi)" con "Mario Rossi", cioe' il nome del collega omonimo.
+- **Cache del bootstrap** `cs.bootstrap.v1` -> `v2`: i payload vecchi non
+  hanno `ruolo`, e un admin che partiva offline veniva mostrato come operatore.
+- **Function `registra-utente`**: un 401/403 di GoTrue sulla chiave service
+  tornava al client com'era, e `funzione()` lo leggeva come "sessione
+  scaduta" buttando fuori l'amministratore; ora e' un 502 che nomina
+  `SUPABASE_SERVICE_KEY`. Un 404 su `ruolo_corrente` dice che vanno
+  rieseguiti `02` e `04`. Lato client, un 5xx con testo non JSON (timeout di
+  Netlify) non viene piu' scambiato per "manca la Function".
+- **`netlify-build.sh`**: `unset SUPABASE_SERVICE_KEY` in testa: con `set -u`
+  un uso accidentale ferma il build nominando la variabile.
+- **SQL `03`**: il conto degli amministratori per il blocco "ultimo admin"
+  considera solo le righe con una casella (una riga senza email non puo'
+  entrare, e non deve far credere che "ce n'e' un altro"); terzo tentativo
+  di disambiguazione del nome che non puo' collidere.
+
+### Accessibilita' e interfaccia (dalla revisione)
+
+- `modale()`: il fuoco torna a chi l'ha aperta, Tab gira dentro il foglio,
+  `aria-labelledby` sull'`h2`. Menu Azioni: frecce su/giu' fra le voci, Esc
+  rimette il fuoco sul bottone. Popover: Tab dalla cella entra nel popover,
+  Esc torna alla cella; i tasti 1-4 non scattano dentro la nota. Cassetto: il
+  fuoco torna alla riga; "Chiudi" ha l'`aria-label`.
+- Etichette sugli input (nome, mese, casella e password del collega, nota);
+  la password iniziale ha `spellcheck=false autocapitalize=off`; l'errore del
+  login e' `role="alert"`; `title` sui testi troncati (diario, popover).
+- Contrasti: `--tenue-2` #707377 / #9A9DA2 (era 3,7:1); `--marchio` come
+  TESTO sostituito da `--marchio-scuro` (chip ruolo, mese corrente, "Storia",
+  frecce); `.tm.pieno` con `--completa-testo`; nuovo token `--su-allerta` per
+  banner e avvisi (nel tema scuro il bianco sull'ambra faceva 2,5:1);
+  `.pill.attesa` con l'ambra scurita; `tinta()` a luminosita' 36% (le iniziali
+  bianche passano su ogni tonalita').
+- Bersagli a 24px (`.pill.mini`, `.pop-piede button`, `.cerca-x`, `.doc-chip`);
+  la tendina delle province ha la freccina; `color-scheme` sui due temi;
+  `theme-color` doppio; il logo ha `width/height`; `prefers-reduced-motion`
+  ferma anche le animazioni infinite.
+- Pulizia: `SIGLA_RUOLO` in `stato.js` accanto a `ETICHETTA_RUOLO` (era una
+  copia locale piu' un ternario); `eAdmin` tolto (nessun chiamante);
+  `dimensione()` in `ui.js` con la virgola italiana, riesportato da
+  `documenti.js` e usato anche dall'errore del 413; `notaProposta` e i
+  commenti dicono "chi approva", non "amministratore". La decisione della
+  26a era numerata 23 come quella della 25a: ora e' la **24**.
+
+### Da fare su Supabase (a mano, dal committente)
+
+- **`06-documenti.sql`** (dalla 24a/26a: `elimina_documenti` e il tetto a
+  200 MB; prima alzare il *Global file size limit* a 250 MB). Finche' non e'
+  applicato, "Elimina tutti"/"Cancella anno" online rispondono con un errore
+  e **non toccano niente** (e' il senso del nuovo ordine).
+- **`03-letture.sql`** (il conto degli admin e la disambiguazione).
+- I tre orfani sotto `2026/556/` dal pannello Storage (vedi 26a).
+
+### Lasciato fuori, con motivo
+
+- Online il proprio ruolo cambia solo al prossimo avvio: `operatori` non e'
+  in Realtime. Aggiungerla alla pubblicazione e iscriversi in `nuvola.js` e'
+  mezz'ora di lavoro, ma vuole SQL in piu' da rieseguire: alla prossima.
+- In locale l'identita' resta il nome in `localStorage` (convenzione fra
+  colleghi, come dice `decisioni.md` 22): il server non la puo' verificare
+  senza un login. Il testo di "Chi sta lavorando" lo dice.
+- `imposta_operatore` accetta ancora `p_nome` dal client al primo accesso (il
+  nome lo si potrebbe ricavare solo dalla casella, lato server).
+- Duplicati minori segnalati dalla revisione: il bottone "Sicuro?" a due
+  tempi ripetuto tre volte (`cassetto.js` x2, `app.js`), `funzione()` e
+  `rpc()` che condividono il grosso del trasporto, dominio aziendale e
+  lunghezza minima della password scritti in piu' posti (client, Function,
+  `autorizzato()`), indice mancante su `documenti(id_service)`.
+
+Service worker `crono-guscio-v19`.
+
 ## Fatto il 2026-09-10 (26a sessione) - i PDF grandi entrano, si aprono in fretta, e non lasciano orfani
 
 Branch `ruoli-falla-cambio-nome` (lo stesso: il deploy non e' ancora stato
 fatto). Nato da un "Non salvato: The object exceeded the maximum allowed size"
 salvando un documento lungo. Dettaglio del ragionamento in
-[decisioni.md](decisioni.md) 23, che **rovescia la 21**.
+[decisioni.md](decisioni.md) 24, che **rovescia la 21**.
 
 ### 1. Il tetto per file: da 40 a 200 MB
 

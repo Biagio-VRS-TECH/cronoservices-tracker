@@ -145,6 +145,10 @@ begin
     if exists (select 1 from public.operatori o where o.nome = v_nome) then
       v_nome := left(v_mail, 40);
     end if;
+    -- anche la casella e' presa (dati vecchi senza email): un suffisso che non collide
+    if exists (select 1 from public.operatori o where o.nome = v_nome) then
+      v_nome := left(v_nome, 35) || ' ' || left(md5(v_mail), 4);
+    end if;
     insert into public.operatori(nome, email, ultimo_accesso, ruolo)
     values (v_nome, v_mail, public.ts_locale(), v_ruolo);
   end if;
@@ -184,7 +188,11 @@ begin
     return jsonb_build_object('http', 400, 'errore',
       v_nome || ' non e'' ancora entrato: il ruolo si da'' dopo il primo accesso');
   end if;
-  select count(*) into n_admin from public.operatori o where o.ruolo = 'admin';
+  -- contano solo gli amministratori che possono davvero entrare: una riga
+  -- senza casella (seme, o di prima del login) non deve far credere che
+  -- "ce n'e' un altro" e lasciare l'azienda senza nessuno che comandi
+  select count(*) into n_admin from public.operatori o
+   where o.ruolo = 'admin' and o.email is not null;
   if p_ruolo <> 'admin' and n_admin <= 1
      and exists (select 1 from public.operatori o where o.nome = v_nome and o.ruolo = 'admin') then
     return jsonb_build_object('http', 400, 'errore',

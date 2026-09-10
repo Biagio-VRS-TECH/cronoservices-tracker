@@ -20,12 +20,16 @@ import {
   prossimo, fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
 } from './stato.js';
 
-let nodo = null, idAperto = null, stacca = null;
+let nodo = null, idAperto = null, stacca = null, prima = null;
 
 export function chiudiCassetto() {
+  const dentro = nodo?.contains(document.activeElement);
   nodo?.remove(); nodo = null; idAperto = null;
   stacca?.(); stacca = null;
   document.removeEventListener('keydown', esc0);
+  // il fuoco torna a chi ha aperto il pannello, se era finito dentro
+  if (dentro && prima?.isConnected) prima.focus?.();
+  prima = null;
 }
 const esc0 = e => { if (e.key === 'Escape') chiudiCassetto(); };
 
@@ -33,6 +37,7 @@ export function apriCassetto(id) {
   if (idAperto === id) return chiudiCassetto();
   chiudiCassetto();
   idAperto = id;
+  prima = document.activeElement;
   nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio service' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
@@ -106,7 +111,8 @@ function disegna() {
 
   nodo.replaceChildren(
     h('header', {},
-      h('button.chiudi', { html: ICO.ics, title: 'Chiudi (Esc)', onclick: chiudiCassetto }),
+      h('button.chiudi', { html: ICO.ics, title: 'Chiudi (Esc)', 'aria-label': 'Chiudi',
+        onclick: chiudiCassetto }),
       h('h2', { testo: cli.rs || '(cliente ' + s.cli + ')', style: 'margin:0 30px 2px 0;font-size:var(--t-grande);letter-spacing:-.02em' }),
       h('p', {
         testo: s.dest || '(senza destinazione)',

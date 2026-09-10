@@ -882,7 +882,7 @@ potare guardando il peso, non a memoria. La conferma e' quella di sempre -
 il bottone diventa "Sicuro? N PDF" e torna com'era da solo (decisione 15) -
 perche' qui il numero **e'** l'avvertimento.
 
-**Il tetto dei 40 MB resta dov'e'.** [SUPERATA dalla decisione 23: col piano
+**Il tetto dei 40 MB resta dov'e'.** [SUPERATA dalla decisione 24: col piano
 Pro il tetto e' salito a 200 MB e la scala adattiva e' stata scartata.]
 Non e' di Supabase: e' scritto da noi nel
 bucket e in `api.py`. Alzarlo si puo', ma sul piano Free il progetto si ferma
@@ -891,7 +891,7 @@ tecnico e mangia il traffico incluso. La strada giusta, quando servira', e'
 la scala adattiva in `ponte.js` (288 dpi sui documenti corti, 192 sui
 lunghi), non un piano piu' caro per archiviare JPEG.
 
-## 23. Il tetto dei PDF sale a 200 MB, e un caricamento che non si registra si disfa (26a sessione)
+## 24. Il tetto dei PDF sale a 200 MB, e un caricamento che non si registra si disfa (26a sessione)
 
 Questa voce **rovescia la decisione 21** ("il tetto dei 40 MB resta dov'e'").
 Il motivo per cui restava e' caduto: l'organizzazione e' passata al piano

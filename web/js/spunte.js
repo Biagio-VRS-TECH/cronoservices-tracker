@@ -22,10 +22,22 @@ export function chiudiPop() {
 
 const fuori = e => { if (aperto && !aperto.nodo.contains(e.target)) chiudiPop(); };
 const tasti = e => {
-  if (e.key === 'Escape') { chiudiPop(); return; }
+  if (e.key === 'Escape') {
+    const cella = aperto?.bersaglio;
+    chiudiPop();
+    if (cella?.isConnected) cella.focus?.();   // si torna alla cella da cui si era partiti
+    return;
+  }
   if (!aperto) return;
+  /* Tab dalla cella: si entra nel popover (che sta in fondo al body, quindi
+     altrimenti sarebbe irraggiungibile senza attraversare tutta la griglia). */
+  if (e.key === 'Tab' && !e.shiftKey && e.target === aperto.bersaglio) {
+    const primo = aperto.nodo.querySelector('.passo,button,textarea');
+    if (primo) { e.preventDefault(); primo.focus(); }
+    return;
+  }
   const i = '1234'.indexOf(e.key);
-  if (i >= 0) { e.preventDefault(); attiva(CAMPI[i]); }
+  if (i >= 0 && !e.target.matches?.('textarea,input')) { e.preventDefault(); attiva(CAMPI[i]); }
 };
 
 function attiva(campo) {
@@ -103,12 +115,12 @@ export function apriPop(bersaglio, id, mese) {
 
   const nodo = h('div.pop', { role: 'dialog', 'aria-label': 'Spunte mappatura' },
     h('h3', { testo: `${st.mesiNome[mese - 1]} ${st.anno}` }),
-    h('p.pop-sotto', { testo: `#${id} · ${s?.dest || ''}`.slice(0, 60) }),
+    h('p.pop-sotto', { testo: `#${id} · ${s?.dest || ''}`.slice(0, 60), title: `#${id} · ${s?.dest || ''}` }),
     h('div.passi'),
     h('div.pop-nota', {},
       h('p.js-eco-nota', { hidden: true }),
       h('textarea', {
-        placeholder: 'Nota (opzionale)', maxlength: 500,
+        placeholder: 'Nota (opzionale)', 'aria-label': 'Nota', maxlength: 500,
         /* la base e' quella che si vedeva quando la casella e' stata riempita:
            se intanto e' arrivata la nota di un altro, il server se ne accorge e
            chiede quale tenere invece di sovrascriverla in silenzio */

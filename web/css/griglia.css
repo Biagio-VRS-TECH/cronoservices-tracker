@@ -46,7 +46,7 @@
   text-transform: uppercase;
 }
 /* Il mese corrente: la lettera si accende; la colonna prosegue in `.mese-oggi`. */
-.crono-testa .m.oggi { color: var(--marchio); }
+.crono-testa .m.oggi { color: var(--marchio-scuro); }
 .crono-testa .col-tot {
   text-align: right; padding-right: 10px;
   font-size: var(--t-micro); letter-spacing: .09em; text-transform: uppercase; color: var(--tenue);
@@ -62,7 +62,7 @@
   transition: background var(--medio);
 }
 .tm:empty { visibility: hidden; }
-.tm.pieno { color: var(--completa); }
+.tm.pieno { color: var(--completa-testo); }
 
 /* -- la carta del cliente ------------------------------------------------- */
 /* NB: NON chiamarla .gruppo, in base.css .gruppo e' il segmented control.
@@ -263,7 +263,7 @@
 .cella[data-k="2"] .seg.k { background: color-mix(in srgb, var(--st-corretta) 40%, var(--superficie));    transform: none; }
 .cella[data-r="2"] .seg.r { background: color-mix(in srgb, var(--st-ricambi) 40%, var(--superficie));     transform: none; }
 /* PASSO PROPOSTO (data-x="3"): rapportino o ricambi spuntati da un operatore e
-   in attesa dell'amministratore (#ANCHOR: ruoli in js/stato.js). A righe col
+   in attesa di chi approva (#ANCHOR: ruoli in js/stato.js). A righe col
    colore del passo: "qualcuno l'ha fatto, non vale ancora". */
 .cella[data-k="3"] .seg.k { background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, color-mix(in srgb, var(--st-corretta) 22%, var(--superficie)) 2px 5px); transform: none; }
 .cella[data-r="3"] .seg.r { background: repeating-linear-gradient(135deg, var(--st-ricambi) 0 2px, color-mix(in srgb, var(--st-ricambi) 22%, var(--superficie)) 2px 5px); transform: none; }
@@ -429,9 +429,9 @@
 .pop-piede { display: flex; align-items: center; justify-content: space-between;
   margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--bordo); }
 .pop-piede button { font-size: var(--t-micro); color: var(--tenue); padding: 3px 6px;
-  border-radius: var(--r-1); }
+  min-height: 24px; border-radius: var(--r-1); }
 .pop-piede button:hover { background: var(--fondo); color: var(--inchiostro); }
-.pop-piede .primario { color: var(--marchio); font-weight: 600; }
+.pop-piede .primario { color: var(--marchio-scuro); font-weight: 600; }
 
 /* ==========================================================  VISTA MESE == */
 .mese-testa { padding: 22px 18px 14px; display: flex; align-items: center; gap: 22px;

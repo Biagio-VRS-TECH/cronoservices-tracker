@@ -65,6 +65,8 @@ export default async (req) => {
       body: '{}',
     });
     if (r.status === 401) return risposta(401, { errore: 'sessione scaduta: rientra.' });
+    if (r.status === 404) return risposta(503, { errore:
+      'il database non conosce ruolo_corrente(): vanno rieseguiti cloud/02 e cloud/04.' });
     if (!r.ok) return risposta(403, { errore: 'il database non ha confermato il tuo ruolo.' });
     ruolo = (await r.json());
   } catch {
@@ -107,7 +109,14 @@ export default async (req) => {
       if (r.status === 422 || /already|exist|registrat/i.test(motivo)) {
         return risposta(409, { errore: `${email} ha gia' un accesso.` });
       }
-      return risposta(r.status, { errore: motivo || `errore ${r.status}` });
+      // Un 401/403 qui e' della SERVICE key (sbagliata, ruotata, o e' l'anon),
+      // non della sessione di chi preme: rimandarlo com'e' farebbe uscire
+      // l'amministratore dall'app per una variabile d'ambiente.
+      if (r.status === 401 || r.status === 403) {
+        return risposta(502, { errore:
+          'Supabase rifiuta la chiave service del sito (SUPABASE_SERVICE_KEY): va controllata in Netlify.' });
+      }
+      return risposta(r.status >= 500 ? 502 : 400, { errore: motivo || `errore ${r.status}` });
     }
   } catch {
     return risposta(502, { errore: 'database non raggiungibile.' });

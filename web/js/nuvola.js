@@ -19,6 +19,7 @@ Tre cose che in locale erano del server e qui non ci sono piu':
     dell'ufficio una volta al giorno.
 */
 import { URL_SUPABASE, CHIAVE_ANON } from './nuvola-config.js';
+import { dimensione } from './ui.js';
 
 export const attiva = () => !!(URL_SUPABASE && CHIAVE_ANON);
 
@@ -160,11 +161,17 @@ async function funzione(percorso, corpo, ms = 20000) {
     try {
       dati = testo ? JSON.parse(testo) : {};
     } catch {
-      // La Function non e' pubblicata: il catch-all di netlify.toml ha risposto
-      // con index.html. Meglio dirlo che mostrare "errore di sintassi".
-      return { ok: false, stato: 501, dati: { errore:
-        'La registrazione non \u00e8 attiva su questo sito: manca la Function ' +
-        '(vedi cloud/LEGGIMI.md).' } };
+      // Non e' JSON. Se e' un 200 (o un 404) e' il catch-all di netlify.toml che
+      // ha risposto con index.html: la Function non e' pubblicata. Un 5xx col
+      // testo di Netlify ("Task timed out") e' invece una Function che c'e' ma
+      // e' caduta: dirlo, invece di mandare a ripubblicare.
+      if (r.ok || r.status === 404) {
+        return { ok: false, stato: 501, dati: { errore:
+          'La registrazione non \u00e8 attiva su questo sito: manca la Function ' +
+          '(vedi cloud/LEGGIMI.md).' } };
+      }
+      return { ok: false, stato: r.status, dati: { errore:
+        `La Function ha risposto ${r.status} senza un esito leggibile: riprova fra un momento.` } };
     }
     if (r.status === 401) {
       ultimoErrore = 'Sessione scaduta: rientra.';
@@ -299,7 +306,7 @@ export async function caricaOggetto(bucket, percorso, blob) {
        bucket (cloud/06-documenti.sql): la via d'uscita e' dividere il documento,
        e la tendina per farlo e' gia' nel generatore. */
     if (r.status === 413 || /maximum allowed size|exceeded.*size|too large/i.test(grezzo)) {
-      const mb = blob?.size ? ` (${(blob.size / 1048576).toFixed(1).replace('.', ',')} MB)` : '';
+      const mb = blob?.size ? ` (${dimensione(blob.size)})` : '';
       throw new Error(`il PDF${mb} supera il tetto per file dell'archivio: ` +
         'dividi il documento in fascicoli con la tendina del generatore e salva di nuovo.');
     }
@@ -513,7 +520,7 @@ export function assicuraSessione() {
         <label class="acc-et" for="acc-pwd">Password</label>
         <input class="campo" id="acc-pwd" type="password" autocomplete="current-password"
                required>
-        <p class="acc-errore" hidden></p>
+        <p class="acc-errore" role="alert" hidden></p>
         <button class="bottone acc-invia" type="submit">Entra</button>
       </form>`;
     document.body.appendChild(velo);

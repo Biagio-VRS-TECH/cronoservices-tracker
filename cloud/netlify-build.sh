@@ -3,6 +3,12 @@
 # E' tutto il "build" che c'e': nessun npm, nessun bundler, nessuna dipendenza.
 set -eu
 
+# La chiave service (vedi la cintura di sicurezza in fondo) qui non serve a
+# niente: la si toglie dall'ambiente prima di tutto. Con `set -u`, se un domani
+# qualcuno la scrivesse nell'heredoc, la shell si fermerebbe con un errore che
+# la nomina, invece di pubblicarla.
+unset SUPABASE_SERVICE_KEY
+
 # Le due variabili che servono. Prima si usava `: "${VAR:?messaggio}"`, che e'
 # piu' corto ma fa uscire la shell con un 2 muto: nei log di Netlify si leggeva
 # solo "Build script returned non-zero exit code: 2", senza sapere quale

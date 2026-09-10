@@ -755,7 +755,6 @@ export const sonoAdmin = () => ruoloMio() === 'admin';
 /** Chi chiude le proposte: amministratore e approvatore. */
 export const possoApprovare = () => ['admin', 'approvatore'].includes(ruoloMio());
 export const ruoloDi = nome => st.ruoli[nome] || 'tecnico';
-export const eAdmin = nome => ruoloDi(nome) === 'admin';
 /* Come si LEGGE un ruolo. Il valore memorizzato resta 'tecnico' - e' la chiave
    in database, in api.py e in tutte le funzioni Postgres - ma a schermo la
    parola e' "operatore": chi spunta le mappature non e' per forza un tecnico.
@@ -763,6 +762,8 @@ export const eAdmin = nome => ruoloDi(nome) === 'admin';
 export const ETICHETTA_RUOLO = {
   admin: 'amministratore', approvatore: 'approvatore', tecnico: 'operatore',
 };
+/* La forma corta, per le pilloline accanto al nome. */
+export const SIGLA_RUOLO = { admin: 'admin', approvatore: 'approva', tecnico: 'operatore' };
 
 /** Cosa succede DAVVERO se `campo`, che ora vale `attuale`, viene chiesto a
  *  `valore` da chi sta lavorando. Gemello di api._valore_per_ruolo: sui passi
@@ -794,7 +795,7 @@ export function prossimo(id, mese, campo) {
 /** Cosa manda a schermo un passo proposto: chi e da quando. */
 export function notaProposta(c, campo) {
   if (!proposto(c, campo)) return '';
-  return `${BREVE[campo]}: proposta${c.by ? ' da ' + c.by : ''}, in attesa dell\u2019amministratore`;
+  return `${BREVE[campo]}: proposta${c.by ? ' da ' + c.by : ''}, in attesa di chi approva`;
 }
 
 /** Le proposte dell'anno in attesa di chi approva (#ANCHOR: ruoli), le piu' recenti
@@ -1078,9 +1079,17 @@ export function eventoRemoto(ev) {
   if (ev.tipo === 'presenze') { aggiornaPresenze(ev.online); return; }
   if (ev.tipo === 'ruoli') {
     st.ruoli = ev.ruoli || {};
-    /* Il mio ruolo lo dice il server: l'evento lo porta quando cambia. */
-    if (ev.ruolo) st.ruolo = ev.ruolo;
-    emetti('ruoli'); return;
+    emetti('ruoli');
+    /* Il MIO ruolo (st.ruolo) lo dice il server, non st.ruoli[nome]: l'evento
+       e' un broadcast e non puo' portare quello di ciascun destinatario, quindi
+       glielo si richiede. Cosi' chi viene nominato approvatore vede la pillola
+       "da approvare" subito, e chi viene declassato perde il menu senza dover
+       ricaricare. (Questo evento nasce solo dal server locale.) */
+    chiama('/api/operatore', { metodo: 'POST', body: { nome: rete.operatore } })
+      .then(({ ok, dati }) => {
+        if (ok && dati?.ruolo && dati.ruolo !== st.ruolo) { st.ruolo = dati.ruolo; emetti('ruoli'); }
+      }).catch(() => {});
+    return;
   }
   if (ev.tipo === 'fuoco') { segnaFuoco(ev.nome, ev.dove); return; }
   if (ev.tipo === 'sync') { emetti('sync-fatto', ev.riepilogo); return; }

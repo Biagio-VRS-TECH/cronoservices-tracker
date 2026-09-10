@@ -103,14 +103,33 @@ export function avviso(testo, opz = {}) {
 }
 
 /* ------------------------------------------------------------- modale ---- */
+const FOCALIZZABILI = 'input:not([disabled]),button:not([disabled]),select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
 export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   const velo = h('div.velo');
-  const chiudi = () => { velo.remove(); document.removeEventListener('keydown', tasto); };
-  const tasto = e => { if (e.key === 'Escape' && chiudibile) chiudi(); };
+  const prima = document.activeElement;   // a chi torna il fuoco alla chiusura
+  const chiudi = () => {
+    velo.remove(); document.removeEventListener('keydown', tasto);
+    if (prima?.isConnected) prima.focus?.();
+  };
+  const tasto = e => {
+    if (e.key === 'Escape' && chiudibile) return chiudi();
+    /* Tab resta dentro il foglio: dietro il velo non si naviga. */
+    if (e.key !== 'Tab') return;
+    const f = [...foglio.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent !== null);
+    if (!f.length) return e.preventDefault();
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+  };
   /* `classe` serve ai fogli che non stanno nei 520px della modale normale (per
      esempio l'elenco per sito delle Statistiche, aperto a tutta pagina). */
   const foglio = h('div.foglio' + (classe ? '.' + classe : ''), { role: 'dialog', 'aria-modal': 'true' });
   foglio.append(...[costruisci(chiudi)].flat());
+  const titolo = foglio.querySelector('h2');
+  if (titolo) {
+    titolo.id ||= 'modale-titolo-' + Math.random().toString(36).slice(2, 8);
+    foglio.setAttribute('aria-labelledby', titolo.id);
+  }
   velo.append(foglio);
   if (chiudibile) velo.addEventListener('click', e => { if (e.target === velo) chiudi(); });
   document.addEventListener('keydown', tasto);
@@ -147,16 +166,26 @@ export function menu(bottone, voci) {
 }
 
 let menuAperto = null;
-export function chiudiMenu() {
+export function chiudiMenu({ fuoco = false } = {}) {
   if (!menuAperto) return;
   menuAperto.n.remove();
   menuAperto.bottone.setAttribute('aria-expanded', 'false');
+  if (fuoco) menuAperto.bottone.focus?.();
   menuAperto = null;
   document.removeEventListener('pointerdown', fuoriMenu, true);
   document.removeEventListener('keydown', escMenu, true);
 }
 const fuoriMenu = e => { if (menuAperto && !menuAperto.n.contains(e.target)) chiudiMenu(); };
-const escMenu = e => { if (e.key === 'Escape') chiudiMenu(); };
+const escMenu = e => {
+  if (e.key === 'Escape') return chiudiMenu({ fuoco: true });
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const voci = [...menuAperto.n.querySelectorAll('button.voce')];
+  if (!voci.length) return;
+  e.preventDefault();
+  const i = voci.indexOf(document.activeElement);
+  const passo = e.key === 'ArrowDown' ? 1 : -1;
+  voci[(i + passo + voci.length) % voci.length].focus();
+};
 
 /** Copia negli appunti con ritorno booleano: navigator.clipboard non c'e'
  *  sempre (contesti non sicuri), quindi c'e' il ripiego con textarea. */
@@ -194,6 +223,10 @@ export function quando(iso) {
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
+/* byte -> testo leggibile, con la virgola italiana */
+export const dimensione = n => n > 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB'
+  : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+
 export function dataIt(iso) {
   return iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
 }
@@ -202,7 +235,7 @@ export function dataIt(iso) {
 export function tinta(nome) {
   let x = 0;
   for (const ch of String(nome || '?')) x = (x * 31 + ch.charCodeAt(0)) % 360;
-  return `hsl(${x} 62% 44%)`;
+  return `hsl(${x} 60% 36%)`;
 }
 
 export function iniziali(nome) {

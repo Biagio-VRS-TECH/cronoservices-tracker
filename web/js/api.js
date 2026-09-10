@@ -22,7 +22,7 @@ import { avviso } from './ui.js';
 import * as nuvola from './nuvola.js';
 
 const K_CODA = 'cs.coda.v1';
-const K_CACHE = 'cs.bootstrap.v1';
+const K_CACHE = 'cs.bootstrap.v2';   // v2: il payload porta `ruolo`
 const K_OP = 'cs.operatore';
 
 export const rete = {
@@ -99,7 +99,12 @@ export async function avviaSessione() {
   // entrati, e non si cambia (#ANCHOR: ruoli). Il campo dove la si poteva
   // riscrivere e' stato tolto alla 25a sessione: cambiando nome si finiva sulla
   // riga di un collega e ci si portava dietro - o via - il ruolo.
-  setOperatore(nuvola.nomeDaEmail());
+  // Se il server all'ultimo accesso aveva disambiguato il nome ("Mario Rossi
+  // (mario.rossi)"), quello memorizzato comincia col nome della casella e va
+  // tenuto: sovrascriverlo con il nome nudo, a un avvio offline, vorrebbe dire
+  // firmare col nome del collega omonimo.
+  const base = nuvola.nomeDaEmail();
+  if (!(rete.operatore === base || rete.operatore.startsWith(base + ' ('))) setOperatore(base);
   // Registra il passaggio in `operatori`: e' quella riga a portare il ruolo, ed
   // e' li' che un amministratore ti trova per nominarti. Prima veniva scritta
   // solo se si apriva la finestra del nome, quindi chi non ci aveva mai
@@ -216,7 +221,13 @@ export function apriStream(onEvento) {
       rete.online = false; notifica();
       setTimeout(apri, Math.min(1000 * 2 ** tentativi++, 20000));
     };
-    for (const t of ['cella', 'celle', 'sync', 'presenze']) {
+    /* Tutti i tipi che api.py emette (`"tipo": ...`): il server li manda come
+       `event: <tipo>`, e EventSource consegna solo quelli a cui ci si iscrive.
+       Fino alla 27a sessione mancavano ruoli, impostazioni e i due dei PDF:
+       un collega che salvava un PDF o veniva nominato, in locale, non si
+       vedeva finche' non si ricaricava. */
+    for (const t of ['cella', 'celle', 'sync', 'presenze', 'ruoli', 'impostazioni',
+                     'documento', 'documenti']) {
       es.addEventListener(t, e => { try { onEvento(JSON.parse(e.data)); } catch { } });
     }
   };

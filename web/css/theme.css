@@ -28,7 +28,10 @@
   --inchiostro: #1C1D1F;
   --inchiostro-2:#58595B;      /* grigio scuro del logo */
   --tenue:      #6E7175;       /* 4,9:1 su bianco: passa AA sul testo piccolo */
-  --tenue-2:    #83868A;       /* famiglia del grigio chiaro del logo, alzato per leggibilita' */
+  --tenue-2:    #707377;       /* famiglia del grigio chiaro del logo: 4,6:1 su bianco, il
+                                  minimo per il testo micro (id, localita', totali) */
+  --su-allerta: #FFFFFF;       /* testo sopra l'ambra pieno (banner, avvisi) */
+  color-scheme: light;
 
   /* Stati della catena mappatura, nell'ordine dei quattro passi:
      stampata -> controllata -> completa rapportino -> ricambi e scadenze.
@@ -156,7 +159,9 @@
     --inchiostro: #EDEEF0;
     --inchiostro-2:#C6C8CB;
     --tenue:      #92959A;
-    --tenue-2:    #64676B;
+    --tenue-2:    #9A9DA2;       /* 5,1:1 sulla superficie scura */
+  --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
+  color-scheme: dark;
     --marchio:       #35C4FF;
     --marchio-scuro: #8FDCFF;
     --marchio-tenue: #0B2C3B;
@@ -189,7 +194,9 @@
   --inchiostro: #EDEEF0;
   --inchiostro-2:#C6C8CB;
   --tenue:      #92959A;
-  --tenue-2:    #64676B;
+  --tenue-2:    #9A9DA2;       /* 5,1:1 sulla superficie scura */
+  --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
+  color-scheme: dark;
   --marchio:       #35C4FF;
   --marchio-scuro: #8FDCFF;
   --marchio-tenue: #0B2C3B;

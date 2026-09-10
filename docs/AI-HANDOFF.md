@@ -189,12 +189,33 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 
 ---
 
+## Stato al 2026-09-10 (27a sessione)
+
+Controllo finale e **deploy** (il primo dopo la 24a: porta online 25a, 26a e
+questa). Dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-10-27a-sessione---il-controllo-finale-prima-del-deploy).
+Tre revisioni (correttezza, semplificazione, accessibilita') e un collaudo nel
+browser su una copia di `data/prova.db`. Chiusi: il client locale **non
+ascoltava** gli eventi SSE `ruoli/impostazioni/documento/documenti`
+(`apriStream`); il **proprio ruolo** ora si riaggiorna dal vivo all'evento
+`ruoli` (in locale); la cancellazione in blocco dei PDF fa **prima la RPC, poi
+il bucket**; il rollback del PDF solo se il server ha detto no; il nome
+disambiguato non si perde offline; cache bootstrap `v2`; la Function non
+scambia un errore della service key per una sessione scaduta;
+`netlify-build.sh` fa `unset SUPABASE_SERVICE_KEY`. Accessibilita': fuoco che
+torna (modale, menu, popover, cassetto), Tab intrappolato nella modale, frecce
+nel menu, etichette sugli input, contrasti AA (`--tenue-2`, `--su-allerta`,
+`--marchio-scuro` al posto di `--marchio` come testo), bersagli a 24px.
+`SIGLA_RUOLO` e `dimensione()` (virgola) in un posto solo. La decisione della
+26a e' rinumerata **24**. **Da rieseguire su Supabase: `06` e `03`.**
+Service worker `crono-guscio-v19`.
+
 ## Stato al 2026-09-10 (26a sessione)
 
 Branch `ruoli-falla-cambio-nome`, lo stesso della 25a (il deploy non e' ancora
 stato fatto). Dettaglio in
 [ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-10-26a-sessione---i-pdf-grandi-entrano-si-aprono-in-fretta-e-non-lasciano-orfani),
-[ai/decisioni.md](ai/decisioni.md) 23 (che **rovescia la 21**).
+[ai/decisioni.md](ai/decisioni.md) 24 (che **rovescia la 21**).
 
 **Il tetto dei PDF sale a 200 MB** (#ANCHOR: documenti): l'organizzazione e'
 sul piano **Pro**, quindi il motivo per tenerlo a 40 e' caduto - ma un tetto
@@ -259,7 +280,7 @@ cassetto). Le spunte "stampata" restano. Prima i file, poi le righe;
 `nuvola.eliminaOggetti` cancella gli oggetti del bucket a lotti di 100.
 **Da rieseguire su Supabase: `06-documenti.sql`.** Il tetto dei 40 MB per PDF
 e' nostro (bucket + `api.py`), non del piano Supabase: vedi decisione 21.
-(Alla 26a sessione e' salito a **200 MB**: decisione 23.)
+(Alla 26a sessione e' salito a **200 MB**: decisione 24.)
 
 ## Stato al 2026-09-09 (23a sessione)
 

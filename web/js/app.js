@@ -12,7 +12,7 @@ import {
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
   CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
-  sonoAdmin, possoApprovare, ruoloMio, ruoloDi, ETICHETTA_RUOLO,
+  sonoAdmin, possoApprovare, ruoloMio, ruoloDi, ETICHETTA_RUOLO, SIGLA_RUOLO,
   proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
   descriviEvento, spunta, BREVE,
 } from './stato.js';
@@ -575,7 +575,7 @@ function disegnaIo() {
     }),
     h('b', { testo: rete.operatore || 'Chi sei?' }),
     ...(ruoloMio() === 'tecnico' ? [] : [h('span.ruolo', {
-      testo: ruoloMio() === 'admin' ? 'admin' : 'approva',
+      testo: SIGLA_RUOLO[ruoloMio()],
       title: ruoloMio() === 'admin'
         ? 'Amministratore: approvi rapportino e ricambi, azioni di massa, sync, ripristini'
         : 'Approvatore: approvi rapportino e ricambi. Le azioni di massa, il sync e i ripristini restano dell\u2019amministratore.',
@@ -632,7 +632,7 @@ function chiediNome() {
   if (inNuvola()) { disegnaIo(); return; }
   modale(chiudi => {
     const input = h('input.campo', {
-      placeholder: 'Nome e cognome', value: rete.operatore, maxlength: 40,
+      placeholder: 'Nome e cognome', 'aria-label': 'Nome e cognome', value: rete.operatore, maxlength: 40,
       onkeydown: e => { if (e.key === 'Enter') conferma(); },
     });
     const conferma = async () => {
@@ -911,7 +911,8 @@ function mostraDiario() {
               h('span.d-txt', {},
                 h('b', { testo: e.operatore || '—' }),
                 h('span', { html: ` · ${st.mesi[(e.mese || 1) - 1]} ${e.anno} · ` + descriviEvento(e) }),
-                h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}` })),
+                h('span.d-chi', { testo: e.rag_soc || `#${e.id_service}`,
+                  title: e.rag_soc || `#${e.id_service}` })),
               bottone(e, 'Ripristina', `Rimetti "${e.campo}" com\u2019era prima di questa modifica`,
                 () => `Ripristinato: ${e.campo} di ${e.rag_soc || '#' + e.id_service} com\u2019era prima.`));
           }
@@ -953,7 +954,8 @@ function mostraDiario() {
 function mostraImpostazioni() {
   if (!sonoAdmin()) return avviso('Le impostazioni sono dell\u2019amministratore.');
   modale(chiudi => {
-    const inp = h('input.campo', { type: 'month', value: st.inizioTracciamento });
+    const inp = h('input.campo', { type: 'month', value: st.inizioTracciamento,
+      'aria-label': 'Da quando registrate le spunte qui' });
     /* RUOLI (#ANCHOR: ruoli): il giro e' operatore -> approvatore -> admin ->
        operatore. Le CHIAVI restano 'tecnico'/'approvatore'/'admin' - quelle le
        conosce il server - mentre a schermo si legge ETICHETTA_RUOLO.
@@ -962,7 +964,6 @@ function mostraImpostazioni() {
        Il ruolo si scrive sulla riga del nome, ma online quella riga e' legata a
        una casella: nessuno se la puo' spostare addosso. */
     const GIRO = { tecnico: 'approvatore', approvatore: 'admin', admin: 'tecnico' };
-    const SIGLA_RUOLO = { admin: 'admin', approvatore: 'approva', tecnico: 'operatore' };
     const ruoliBox = h('div.righe-scelta');
     const disegnaRuoli = () => {
       const nomi = [...new Set([...(st.operatori || []), ...Object.keys(st.ruoli || {})])]
@@ -995,9 +996,12 @@ function mostraImpostazioni() {
        service key, e quella in `web/` non ci puo' stare.
        Solo online: in locale non c'e' nessun login da creare. */
     const nuovaMail = h('input.campo', { type: 'email', autocomplete: 'off',
-      placeholder: 'nome.cognome@vrs-tech.it' });
+      placeholder: 'nome.cognome@vrs-tech.it', 'aria-label': 'Casella aziendale del collega' });
+    /* type=text apposta: si legge e si detta al telefono. Niente correttore ne'
+       maiuscola automatica dal tablet, o la password dettata non e' quella. */
     const nuovaPwd = h('input.campo', { type: 'text', autocomplete: 'off',
-      placeholder: 'password iniziale, almeno 10 caratteri' });
+      spellcheck: 'false', autocapitalize: 'off',
+      placeholder: 'password iniziale, almeno 10 caratteri', 'aria-label': 'Password iniziale' });
     const esitoReg = h('p.nota-t', { style: 'margin:0' });
     const bottoneReg = h('button.bottone', { testo: 'Registra' });
 
