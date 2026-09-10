@@ -140,6 +140,44 @@ async function rpc(nome, args, ms = 20000) {
   }
 }
 
+/** La sola chiamata che non va a Postgres ma alla Netlify Function
+ *  (#ANCHOR: registra-utente). Stessa forma di risposta di `rpc`, cosi' da
+ *  fuori - api.js, app.js - non si vede la differenza. Il token viaggia com'e':
+ *  e' la Function a chiedere al database chi sei. */
+async function funzione(percorso, corpo, ms = 20000) {
+  const t = await token();
+  if (!t) return { ok: false, stato: 401, dati: { errore: 'sessione scaduta' } };
+  const ctrl = new AbortController();
+  const orologio = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(percorso, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+      body: JSON.stringify(corpo || {}),
+    });
+    const testo = await r.text();
+    let dati;
+    try {
+      dati = testo ? JSON.parse(testo) : {};
+    } catch {
+      // La Function non e' pubblicata: il catch-all di netlify.toml ha risposto
+      // con index.html. Meglio dirlo che mostrare "errore di sintassi".
+      return { ok: false, stato: 501, dati: { errore:
+        'La registrazione non \u00e8 attiva su questo sito: manca la Function ' +
+        '(vedi cloud/LEGGIMI.md).' } };
+    }
+    if (r.status === 401) {
+      ultimoErrore = 'Sessione scaduta: rientra.';
+      salvaSessione(null);
+      return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
+    }
+    return { ok: r.ok, stato: r.status,
+             dati: r.ok ? dati : { errore: dati.errore || ('errore ' + r.status) } };
+  } finally {
+    clearTimeout(orologio);
+  }
+}
+
 /* ------------------------------------------------------- le vecchie rotte - */
 /** Stessa firma di api.chiama: le rotte /api/... diventano funzioni Postgres. */
 export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 } = {}) {
@@ -186,6 +224,10 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('imposta_operatore', { p_nome: b.nome }, ms);
     case '/api/ruolo':                     // (#ANCHOR: ruoli) solo un admin passa
       return rpc('imposta_ruolo', { p_nome: b.nome, p_ruolo: b.ruolo }, ms);
+    case '/api/registra_utente':
+      // L'unica rotta che NON e' una funzione Postgres (#ANCHOR: registra-utente):
+      // creare una casella vuole la service key, che sta solo nella Function.
+      return funzione('/api/registra-utente', b, ms);
     case '/api/ripristina':                // (#ANCHOR: ripristino) un blocco o una spunta
       return rpc('ripristina_blocco', { p_op_id: b.op_id }, Math.max(ms, 40000));
     case '/api/ping':

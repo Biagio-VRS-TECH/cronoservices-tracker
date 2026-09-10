@@ -34,6 +34,19 @@
   [headers.values]
     Cache-Control = "no-cache"
 
+# L'unica cosa che non gira nel browser (#ANCHOR: registra-utente): la
+# registrazione di un collega, che ha bisogno della service key di Supabase e
+# quindi non puo' stare in `web/`. Il redirect va PRIMA del catch-all qui sotto,
+# altrimenti /api/... finirebbe su index.html.
+#
+# Variabile in piu' richiesta dalla funzione (Site settings -> Environment
+# variables), da lasciare visibile SOLO alle Functions:
+#   SUPABASE_SERVICE_KEY  la chiave "service_role" del progetto Supabase
+[[redirects]]
+  from = "/api/registra-utente"
+  to = "/.netlify/functions/registra-utente"
+  status = 200
+
 # Applicazione a pagina unica: qualunque indirizzo apre index.html.
 [[redirects]]
   from = "/*"

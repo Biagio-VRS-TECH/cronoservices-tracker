@@ -988,6 +988,78 @@ function mostraImpostazioni() {
     };
     disegnaRuoli();
 
+    /* REGISTRA UN COLLEGA (#ANCHOR: registra-utente). Prima si passava dal
+       pannello di Supabase; qui si fa in un modulo. Il lavoro vero lo fa la
+       Netlify Function `netlify/functions/registra-utente.mjs`, l'unica cosa
+       del progetto che non gira nel browser: creare una casella vuole la
+       service key, e quella in `web/` non ci puo' stare.
+       Solo online: in locale non c'e' nessun login da creare. */
+    const nuovaMail = h('input.campo', { type: 'email', autocomplete: 'off',
+      placeholder: 'nome.cognome@vrs-tech.it' });
+    const nuovaPwd = h('input.campo', { type: 'text', autocomplete: 'off',
+      placeholder: 'password iniziale, almeno 10 caratteri' });
+    const esitoReg = h('p.nota-t', { style: 'margin:0' });
+    const bottoneReg = h('button.bottone', { testo: 'Registra' });
+
+    /* Il bottone "Genera" non e' obbligatorio - la password la scrivi tu - ma
+       toglie la tentazione della solita parola uguale per tutti. Alfabeto senza
+       i caratteri che si leggono male a voce (O/0, l/1/I): questa password
+       qualcuno dovra' pur dettarla al telefono. */
+    const generaPwd = () => {
+      const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      return [...crypto.getRandomValues(new Uint32Array(14))]
+        .map(n => A[n % A.length]).join('');
+    };
+
+    const registra = async () => {
+      const email = nuovaMail.value.trim().toLowerCase();
+      const password = nuovaPwd.value;
+      if (!email.endsWith('@vrs-tech.it')) {
+        esitoReg.className = 'nota-t allerta';
+        esitoReg.textContent = 'Serve una casella aziendale, che finisca per @vrs-tech.it.';
+        return nuovaMail.focus();
+      }
+      if (password.length < 10) {
+        esitoReg.className = 'nota-t allerta';
+        esitoReg.textContent = 'La password deve avere almeno 10 caratteri.';
+        return nuovaPwd.focus();
+      }
+      bottoneReg.disabled = true;
+      esitoReg.className = 'nota-t';
+      esitoReg.textContent = 'Registro…';
+      try {
+        const { ok, dati } = await chiama('/api/registra_utente',
+          { metodo: 'POST', body: { email, password }, ms: 30000 });
+        if (!ok) {
+          esitoReg.className = 'nota-t allerta';
+          esitoReg.textContent = dati.errore || 'Non registrato.';
+          return;
+        }
+        esitoReg.className = 'nota-t ok';
+        esitoReg.textContent = `${email} può entrare. Passagli la password: ` +
+          'la vedi solo adesso. Comparirà qui sopra, come operatore, dopo il suo ' +
+          'primo accesso - e da lì potrai dargli un altro ruolo.';
+        nuovaMail.value = '';
+      } catch {
+        esitoReg.className = 'nota-t allerta';
+        esitoReg.textContent = 'Non registrato: server non raggiungibile.';
+      } finally {
+        bottoneReg.disabled = false;
+      }
+    };
+    bottoneReg.onclick = registra;
+    nuovaPwd.onkeydown = e => { if (e.key === 'Enter') registra(); };
+
+    const registraBox = h('div', { style: 'display:grid;gap:8px' },
+      nuovaMail,
+      h('div', { style: 'display:flex;gap:8px' },
+        nuovaPwd,
+        h('button.pill.debole', { testo: 'Genera', type: 'button',
+          title: 'Scrive una password robusta nel campo qui accanto',
+          onclick: () => { nuovaPwd.value = generaPwd(); nuovaPwd.focus(); } })),
+      h('div', { style: 'display:flex;gap:10px;align-items:center' },
+        bottoneReg, esitoReg));
+
     /* SPAZIO DEI PDF (#ANCHOR: documenti). Lo Storage online non e' infinito e
        un documento a 288 dpi pesa: qui si vede quanto occupa ogni anno e si
        pota un anno chiuso in un clic. Le spunte "stampata" non si toccano -
@@ -1053,7 +1125,22 @@ function mostraImpostazioni() {
           'ripristina dal diario e pu\u00f2 buttare i PDF di un anno intero.'
       }),
       ruoliBox,
-      h('h3.tit-p', { style: 'margin-top:14px', testo: 'Da quando registrate le spunte qui' }),
+      /* Registrare un collega ha senso solo online: in locale non c'e' login
+         (#ANCHOR: registra-utente). */
+      ...(inNuvola() ? [
+        h('h3.tit-p', { style: 'margin-top:18px', testo: 'Registra un collega' }),
+        h('p.nota-t', {
+          style: 'margin-bottom:10px',
+          testo: 'Gli dai la casella aziendale e una password iniziale: pu\u00f2 ' +
+            'entrare subito, senza aspettare nessuna mail. Nasce OPERATORE e ' +
+            'compare qui sopra dopo il suo primo accesso, che \u00e8 quando il ' +
+            'tracker lo conosce: da l\u00ec gli cambi ruolo con un clic. La ' +
+            'password non viene salvata da nessuna parte e non si rilegge: se la ' +
+            'perde, gliene fai una nuova da Supabase.'
+        }),
+        registraBox,
+      ] : []),
+      h('h3.tit-p', { style: 'margin-top:18px', testo: 'Da quando registrate le spunte qui' }),
       h('p.nota-t', {
         style: 'margin-bottom:10px',
         testo: 'I mesi precedenti restano visibili e spuntabili per il recupero ' +

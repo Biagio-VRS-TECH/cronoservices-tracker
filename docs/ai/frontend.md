@@ -686,6 +686,12 @@ cassetto, popover), tooltip "proposta da X, in attesa di chi approva".
 Il clic passa sempre da `prossimo(id, mese, campo)`: su un 2 chi approva
 approva (-> 1), il tecnico ritira (-> 0). Ogni "e' fatto?" e' `fatto(c, campo)`.
 
+**Registrare un collega** (#ANCHOR: registra-utente) sta in Azioni ->
+Impostazioni, e compare solo `inNuvola()`: in locale non c'e' nessun login da
+creare. E' l'unica rotta che non diventa una funzione Postgres - in `nuvola.js`
+la serve `funzione()` invece di `rpc()` - perche' creare una casella vuole la
+service key, che vive solo nella Netlify Function.
+
 **Il nome del ruolo a schermo passa da `ETICHETTA_RUOLO`**: il valore `'tecnico'`
 si legge **"operatore"** (25a sessione, richiesta del committente). Nel codice, in
 `api.py` e nelle funzioni Postgres la chiave resta `'tecnico'`: nell'interfaccia

@@ -79,6 +79,7 @@ scritto (esclusione per `client_id` nel body).
 | GET | `/api/export.csv?anno&mese` | CSV `;` + BOM (Excel italiano), una colonna per passo, piu' `Ruolo` (`MAPPATURA` / `visita`) |
 | POST | `/api/operatore` | registra il nome, ritorna l'elenco, `ruoli` e il `ruolo` di chi chiama |
 | POST | `/api/ripristina` | `{op_id}`: l'admin rimette a `da` tutti gli eventi di quel blocco (`op_id` o `op_id:*`), come nuovo blocco `ripristino` (#ANCHOR: ripristino). Ritorna `celle` per anno |
+| POST | `/api/registra_utente` | **solo online** (#ANCHOR: registra-utente): `{email, password}`. Non e' Postgres ma la Netlify Function, che verifica `ruolo_corrente() = 'admin'` col token del chiamante e poi crea la casella con la service key. 403 a chi non e' admin, 400 su casella non `@vrs-tech.it` o password sotto i 10 caratteri, 409 se esiste gia' |
 | POST | `/api/ruolo` | `{nome, ruolo}` con ruolo `admin|approvatore|tecnico`: un admin nomina o declassa (#ANCHOR: ruoli). 403 se non e' admin, 400 sull'ultimo admin o sui nomi di config.json |
 | POST | `/api/ping` | presenza, TTL 45 s; ritorna chi e' collegato |
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |

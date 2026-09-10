@@ -82,6 +82,41 @@ Tre ruoli, legati alla **casella del login** (mai al nome):
 | **approvatore** | approva o respinge quelle due proposte, dalla pillola "N da approvare". Nient'altro |
 | **amministratore** | approva, completa o azzera in blocco, rilegge Access, cambia le impostazioni, "Ripristina" nel diario, butta i PDF di un anno intero |
 
+### Registrare un collega
+
+Dalla 25a sessione si fa **dall'app**: Azioni → Impostazioni → *Registra un
+collega*. Gli dai la casella aziendale e una password iniziale, lui entra
+subito (l'utente nasce già confermato, come quando si spuntava *Auto Confirm
+User* a mano). Nasce **operatore**; comparirà nell'elenco dei ruoli dopo il suo
+primo accesso, ed è lì che gli si cambia ruolo.
+
+Creare una casella richiede la **service_role key**, che in `web/` non può
+stare: chiunque apra il sito la leggerebbe. La tiene nascosta l'unica cosa del
+progetto che non gira nel browser, `netlify/functions/registra-utente.mjs`
+(#ANCHOR: registra-utente). Un file solo, nessun `npm`, nessuna dipendenza. Non
+decide niente da sé: prende il token di chi ha premuto il bottone e chiede a
+Postgres `ruolo_corrente()` **con quel token**; se non risponde `admin` si
+ferma, e la service key non viene nemmeno toccata.
+
+**Va aggiunta una variabile d'ambiente**, altrimenti il modulo risponde
+*"configurazione incompleta"*. In Netlify, *Site settings → Environment
+variables → Add a variable*:
+
+| variabile | valore | dove si trova |
+|---|---|---|
+| `SUPABASE_SERVICE_KEY` | la chiave **service_role** | Supabase → Project Settings → API Keys |
+
+Due accortezze quando la crei:
+
+- negli *Scopes* lascia spuntato solo **Functions**: non serve al build, e così
+  non può finire nel sito;
+- è la chiave che scavalca ogni permesso. Non va nel repository, non va in
+  `nuvola-config.js`, non si incolla in chat. `netlify-build.sh` scrive nel
+  client solo `SUPABASE_URL` e `SUPABASE_ANON_KEY`, mai questa.
+
+La password non viene salvata da nessuna parte e non si rilegge: se un collega
+la perde, gliene fai una nuova da Supabase → Authentication → Users.
+
 Il primo amministratore si nomina una volta sola, dall'SQL Editor, con
 `07-ruoli.sql` (sostituire la casella): la persona deve essere entrata almeno
 una volta nel tracker. Da lì in avanti i ruoli si girano dall'app: **Azioni →

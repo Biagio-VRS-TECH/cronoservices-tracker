@@ -996,3 +996,39 @@ come due domande separate ovunque (`puo_approvare()` / `e_admin()`,
 riscrittura. Rimettere una spunta *in attesa* (il valore 2, cioe' il
 ripristino) resta del solo amministratore: e' una macchina del tempo, non
 un'approvazione.
+
+## 23. Un solo pezzo fuori dal browser, e non e' lui a decidere chi comanda (25a sessione)
+
+Il progetto ha una regola forte (decisione 18): online e' Netlify **statico** piu'
+Supabase, niente server nostro. Registrare un collega la rompe, perche' creare
+una casella richiede la `service_role` key - quella che scavalca ogni permesso -
+e una chiave del genere in `web/` sarebbe pubblica: `web/` e' un mucchio di file
+che il browser scarica, non c'e' nessun posto dove nascondere niente.
+
+Le strade erano tre. **Lasciare tutto in Supabase**: gratis, ma ogni collega
+nuovo e' un giro nel pannello di amministrazione, ed e' quello che il committente
+ha chiesto di togliere. **L'invito per email**, che non avrebbe bisogno di
+segreti: ma l'SMTP non e' configurato e quello di default di Supabase manda
+poche mail all'ora, quindi il collega resterebbe fermo ad aspettare una mail che
+non arriva - i quattro utenti esistenti sono infatti tutti creati a mano.
+**Una Netlify Function**: un pezzo che gira sul server, che la chiave la puo'
+tenere.
+
+Si e' scelta la terza, con due paletti perche' resti l'eccezione e non l'inizio
+di un backend: **un file solo**, e **nessuna dipendenza** - niente `npm
+install`, niente `@supabase/supabase-js`, solo il `fetch` che il runtime ha
+gia'. Se un domani servisse la seconda funzione, e' il momento di rileggere
+questa decisione, non di aggiungerne una terza.
+
+Il punto vero, pero', e' un altro: **la Function non sa chi comanda**. Sarebbe
+stato naturale farle leggere la tabella `operatori` con la service key e
+decidere. Invece prende il token di chi ha premuto il bottone e chiede a
+Postgres `ruolo_corrente()` **con quel token**, cioe' si fa dire dal database
+"questa persona, che poteri ha?". Solo se la risposta e' `admin` va avanti, e la
+service key entra in scena dopo, per una cosa sola: creare l'utente.
+
+Costa una chiamata in piu' e vale il prezzo. Le regole sui ruoli stanno tutte in
+un posto (#ANCHOR: ruoli), e questo file non ne ha una copia sua che un giorno
+divergerebbe: il difetto della 25a sessione era esattamente una copia divergente
+- il client che si calcolava il ruolo per conto suo dal nome digitato. Fare due
+volte lo stesso errore nella stessa sessione sarebbe stato un peccato.

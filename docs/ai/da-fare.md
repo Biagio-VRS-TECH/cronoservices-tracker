@@ -197,6 +197,41 @@ il nome del passo 2, non del ruolo: li' "tecnico" e' chi fa il controllo sul
 campo, e la parola arriva dal rapportino) e "Schede tecnici", che e' il nome del
 generatore. Se il committente li vuole allineati, sono due stringhe.
 
+### Registrare un collega dall'app (stessa sessione)
+
+Richiesta del committente: prima si passava dal pannello di Supabase. Ora sta in
+Azioni > Impostazioni > *Registra un collega*, sotto le pillole dei ruoli, e
+compare **solo online**.
+
+Ha richiesto il primo pezzo del progetto che non gira nel browser:
+`netlify/functions/registra-utente.mjs` (#ANCHOR: registra-utente). Creare una
+casella vuole la **service_role key**, che in `web/` non puo' stare. Resta
+fedele alle regole: un file, nessun `npm`, nessuna dipendenza, nessun build.
+
+**Il punto del disegno**: la Function non decide chi comanda. Prende il token di
+chi ha premuto il bottone e chiede a Postgres `ruolo_corrente()` **con quel
+token**; solo se risponde `admin` va avanti, e solo allora tocca la service key.
+Cosi' l'autorizzazione resta nel database insieme a tutta l'altra, e se domani
+cambiano i ruoli questo file non si tocca.
+
+Scelte del committente: **password scritta dall'admin** (non invito per email -
+l'SMTP di Supabase non e' configurato e i quattro utenti attuali sono tutti
+creati a mano) e **solo registrazione**: disattivare e azzerare le password
+restano in Supabase. Minimo di 10 caratteri e un bottone *Genera* facoltativo,
+con un alfabeto senza i caratteri che si leggono male al telefono (O/0, l/1/I).
+
+Serve una variabile in piu' su Netlify, `SUPABASE_SERVICE_KEY`, con lo scope
+**solo Functions**: la procedura e' in `cloud/LEGGIMI.md`. Senza, il modulo
+risponde "configurazione incompleta" e dice quale manca.
+
+**Provato** senza Node in macchina (non c'e'): la Function e' ESM standard, si
+importa nel browser e si esegue stubbando `process` e `fetch`. Dieci casi -
+variabili mancanti, GET, senza token, operatore, approvatore, token scaduto,
+casella non aziendale, password corta, casella gia' esistente, admin che
+riesce - e in tutti i casi negativi **la chiamata con la service key non parte
+mai**. Il giro completo end-to-end si potra' vedere solo sul Deploy Preview,
+dopo che il committente ha messo la variabile.
+
 ### Cosa manca / da decidere (25a)
 
 - **Il declassamento non arriva in diretta**: se un admin ti toglie il ruolo
@@ -208,6 +243,15 @@ generatore. Se il committente li vuole allineati, sono due stringhe.
   serve correggere un refuso, oggi si fa in `operatori` da Supabase.
 - **In locale l'identita' resta un nome** (vedi 22a): il committente ha detto
   che in locale non lavorera' piu', quindi non e' stato messo nessun PIN.
+- **Della registrazione manca il resto della gestione utenti**: disattivare chi
+  esce dall'azienda e rifare la password a chi la perde restano da Supabase.
+  Scelta del committente, non una dimenticanza: sono le due operazioni che fanno
+  danni se partono per sbaglio. La Function e' pronta ad accoglierle - stesso
+  controllo del ruolo, stessa Admin API (`PUT`/`DELETE /auth/v1/admin/users/<id>`).
+- **La registrazione non finisce nel diario**: `eventi` e' fatto per le celle
+  (id_service, anno, mese) e una riga senza cella non ci sta. Se servisse la
+  traccia di chi ha registrato chi, il posto giusto e' una colonna
+  `creato_da` in `operatori`, non un evento.
 
 ## Fatto il 2026-09-09 (24a sessione) - cancellare i PDF in blocco, per fare spazio
 

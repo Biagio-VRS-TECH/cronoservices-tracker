@@ -110,6 +110,11 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 `data/cronoservice.db` = dati applicativi. `data/documenti/<anno>/` = i PDF delle schede (locale). `data/backup/` = copie automatiche a
 ogni sync (ne tiene 20).
 
+### Serverless `netlify/functions/`
+| file | cosa contiene |
+|---|---|
+| `registra-utente.mjs` | **l'unica cosa che non gira nel browser** (#ANCHOR: registra-utente): l'admin registra un collega. Tiene la service key di Supabase, ma il ruolo lo chiede al database col token di chi chiama. Un file, nessuna dipendenza |
+
 ### Online `cloud/`
 | file | cosa contiene |
 |---|---|
@@ -125,7 +130,11 @@ ogni sync (ne tiene 20).
 | `sync-cloud.cmd` | un travaso a mano |
 | `netlify-build.sh` | scrive `nuvola-config.js` in pubblicazione |
 
-`netlify.toml` sta nella radice. Fuori dall'app: `docs/ai/valida-tavolozza.py` controlla le tavolozze dei grafici
+`netlify.toml` sta nella radice: contiene anche il redirect
+`/api/registra-utente` -> la Function, che deve stare **prima** del catch-all
+verso `index.html`. La Function vuole `SUPABASE_SERVICE_KEY` fra le variabili
+d'ambiente del sito (solo scope Functions): senza, il modulo dice
+"configurazione incompleta". Vedi [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md). Fuori dall'app: `docs/ai/valida-tavolozza.py` controlla le tavolozze dei grafici
 (gemello Python dello script della skill `dataviz`, che e' in JS e qui non gira).
 `.claude/launch.json` avvia il server per l'anteprima.
 
