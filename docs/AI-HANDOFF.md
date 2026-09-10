@@ -220,6 +220,13 @@ fatto** - il tenue e le righe erano illeggibili. E il passo ereditato **si
 toglie da dove sei**: `toccaPasso` in `stato.js` lo toglie dal mese in cui era
 stato messo, invece dell'avviso "vai su quel mese".
 
+**I quattro colori non si vedevano da mesi** (terza passata): `stat.css` aveva
+un suo `.seg` che schiacciava a larghezza zero i segmenti di ogni cella - ora
+`.passi-mini`. E `--st-stampata` da grigio e' diventato **oro**: quattro
+colori veri, `--cl-pretrac` resta grigio. **Prima di battezzare una classe,
+`grep` in tutti i CSS**: `riepilogo`, `seg` e per poco `capsula-cli` erano gia'
+presi.
+
 **Il PDF mette "stampata" sulla prima visita IN ARRIVO** (#ANCHOR:
 mese-stampa, `mesePerStampa` in `web/js/stato.js`), mai su un mese passato,
 anche se la mappatura e' in ritardo.
@@ -230,7 +237,7 @@ resta ma non lo chiama piu' nessuna schermata.
 
 **"Come si legge" rifatta** con la leggenda nuova: passo ereditato, passo
 proposto, la riga del cliente e la regola del PDF.
-Service worker `crono-guscio-v21`.
+Service worker `crono-guscio-v22`.
 
 ## Stato al 2026-09-10 (27a sessione)
 

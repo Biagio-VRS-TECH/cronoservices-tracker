@@ -419,11 +419,15 @@
 .barra-et.due b, .barra-et.due span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .barra-et.due b { font-weight: 600; }
 .barra-et.due span { font-size: var(--t-micro); color: var(--tenue); }
-.seg { display: flex; gap: 3px; justify-self: end; }
-.seg i { width: 19px; height: 7px; border-radius: 2px; background: var(--st-vuoto); transition: background var(--medio); }
-.seg i.fatto { background: var(--completa); }
-.seg.tutta i.fatto { box-shadow: 0 0 8px -2px var(--completa); }
-.carta:not(.entrata) .seg i.fatto { background: var(--st-vuoto); }
+/* Era `.seg`: lo stesso nome del segmento della cella (griglia.css), e questa
+   regola - caricata dopo - gli metteva display:flex e justify-self:end, cioe'
+   larghezza ZERO. I quattro colori della cella non si vedevano da quando
+   esiste questo file; si vedeva solo il verde della capsula completa. */
+.passi-mini { display: flex; gap: 3px; justify-self: end; }
+.passi-mini i { width: 19px; height: 7px; border-radius: 2px; background: var(--st-vuoto); transition: background var(--medio); }
+.passi-mini i.fatto { background: var(--completa); }
+.passi-mini.tutta i.fatto { box-shadow: 0 0 8px -2px var(--completa); }
+.carta:not(.entrata) .passi-mini i.fatto { background: var(--st-vuoto); }
 .barre-cli.lunga {
   max-height: 470px; overflow-y: auto; overscroll-behavior: contain;
   padding-right: 4px;
@@ -437,7 +441,7 @@
 .siti-espansi > div { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .siti-espansi .barre-cli { flex: 1; min-height: 0; max-height: none; }
 .barra-riga.fuori .barra-et { color: var(--tenue); }
-.barra-riga.fuori .seg { opacity: .5; }
+.barra-riga.fuori .passi-mini { opacity: .5; }
 .barra-riga.cliccabile { cursor: pointer; transition: background var(--rapido), border-color var(--rapido), transform var(--rapido); }
 .barra-riga.cliccabile:hover {
   background: var(--superficie-2); border-color: var(--bordo); transform: translateX(2px);
@@ -709,7 +713,7 @@
 @media (prefers-reduced-motion: reduce) {
   .pista i, .barra-pista i, .barra-pista i b, .stack i, .col-pista, .col-pista i, .col-n,
   .torta .fette, .quadrante .settori, .quadrante .q-tacca, .quadrante .q-nomi,
-  .anello .fette, .graf *, .obiettivo, .carta, .seg i { transition: none; }
+  .anello .fette, .graf *, .obiettivo, .carta, .passi-mini i { transition: none; }
   .eroe-quadro::before, .fine .onda { animation: none; }
   .fine .onda { display: none; }
 }

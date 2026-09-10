@@ -141,6 +141,26 @@ toglie da settembre (settembre 3/4, dicembre non piu' verde, popover e capsula
 del cliente aggiornati); dal foglio di dicembre il clic su Stampata idem.
 Service worker `crono-guscio-v21`.
 
+### Terza passata: "nella vista annuale non si vedono nemmeno"
+
+Vero, e da mesi. `stat.css` definiva un suo `.seg` (`display:flex;
+justify-self:end`) per la capsula "i 4 passi" della lista per sito delle
+Statistiche - lo stesso nome del segmento della cella in `griglia.css`, e
+caricato dopo: i segmenti di TUTTE le celle erano a **larghezza zero**. Si
+vedeva solo il verde della capsula completa (che e' il fondo della capsula,
+non un segmento), e in legenda le celle d'esempio uscivano vuote. E' il motivo
+per cui il committente non ha mai visto i quattro colori e chiedeva "una
+casella [colore 1][colore 2][colore 3][colore 4]": c'era, ma larga zero.
+Quello delle Statistiche ora si chiama `.passi-mini` (`stat.js`, `stat.css`).
+Lezione, la terza in un giorno (dopo `riepilogo` e `capsula-cli`): **prima di
+dare un nome a una classe, `grep` in tutti i CSS**.
+
+Poi **il primo passo ha un colore**: `--st-stampata` era un grigio "neutro
+voluto" (decisione della 6a), che su una capsula grigia non si distingueva da
+vuoto. Ora e' oro (`#B8860B` / `#E2B83C` in scuro), l'unico caldo fra i passi;
+il pre-tracciamento (`--cl-pretrac`) si tiene il vecchio grigio in proprio.
+Service worker `crono-guscio-v22`.
+
 ### Rimasto fuori
 
 - **L'azzeramento del diario non avvisa gli altri client**: chi ha il diario

@@ -66,7 +66,8 @@ sono il modello, non il disegno. La classe `altrui` + `--tinta` e il chip
 `.fuoco-nome` nel `.q` dicono che un collega ha la cella aperta (#ANCHOR:
 fuoco); `data-tip` conserva il suggerimento base, a cui `dipingi()` aggiunge
 "N passi gia' fatti a maggio".
-`s` = stampata, `c` = controllata, `k` = corretta / "completa rapportino"
+`s` = stampata (oro, dalla 28a: era un grigio che non si distingueva dal vuoto),
+`c` = controllata, `k` = corretta / "completa rapportino"
 (`k` perche' `c` era occupato), `r` = ricambi (`stato.SIGLA`).
 **Il numero dei passi non e' cablato da nessuna parte**: viene da
 `stato.CAMPI` / `stato.PASSI` e da un token `--st-<campo>` per la tinta. La

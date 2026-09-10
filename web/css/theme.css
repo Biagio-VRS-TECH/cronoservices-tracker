@@ -37,9 +37,13 @@
      stampata -> controllata -> completa rapportino -> ricambi e scadenze.
      Verificati col validatore della skill dataviz su superficie #FFFFFF: tutti
      in banda L, coppie adiacenti separate anche in protanopia/deuteranopia
-     (peggior coppia 13,5 su una soglia di 8). Il grigio del primo passo e' un
-     neutro voluto: "solo stampata" non deve chiamare l'occhio. */
-  --st-stampata:   #8B8D91;
+     (peggior coppia 13,5 su una soglia di 8). Il primo passo era un grigio
+     neutro ("solo stampata non deve chiamare l'occhio"): dalla 28a sessione e'
+     un oro, perche' un segmento grigio su una capsula grigia non si vedeva e il
+     committente vuole QUATTRO colori. Caldo, e' l'unico caldo fra i passi;
+     l'arancio dell'allerta sta sul bordo della capsula, non dentro, quindi non
+     si confondono. */
+  --st-stampata:   #B8860B;   /* oro: contrasto 3,3:1 su bianco, come segmento basta */
   --st-controllata:var(--marchio);
   --st-corretta:   #A0307E;   /* magenta: L .50 C .17 contrasto 6,5:1 su bianco.
                                  Era var(--accento), cioe' lo STESSO verde con cui
@@ -82,7 +86,7 @@
   --cl-previsto: var(--marchio);
   --cl-stima:    #0E7FA8;
   --cl-rinnovo:  var(--scadenza);
-  --cl-pretrac:  var(--st-stampata);
+  --cl-pretrac:  #8B8D91;    /* il grigio che era di `stampata`: pre-tracciamento resta neutro */
 
   --allerta:       #C2600B;   /* AMBRA = lavoro nostro in ritardo (mese passato
                                  e mappatura non completa). Solo questo. */
@@ -167,7 +171,7 @@
     --marchio-tenue: #0B2C3B;
     --accento:       #22C39A;
     --completa-testo: var(--accento);
-    --st-stampata:   #6E7175;
+    --st-stampata:   #E2B83C;   /* oro rischiarato per il fondo scuro */
     --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
     --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
     --cl-stima:    #1D89B4;
@@ -202,7 +206,7 @@
   --marchio-tenue: #0B2C3B;
   --accento:       #22C39A;
   --completa-testo: var(--accento);
-  --st-stampata:   #6E7175;
+  --st-stampata:   #E2B83C;
   --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
   --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
   --cl-stima:    #1D89B4;

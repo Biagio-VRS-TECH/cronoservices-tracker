@@ -399,7 +399,10 @@ function grafSiti(cl, tot) {
         h('span.barra-et.due', { title: nome },
           h('b', { testo: v.cli }),
           h('span', { testo: v.sito })),
-        h('span.seg' + (v.completa ? '.tutta' : ''), {},
+        /* `.passi-mini`, non `.seg`: `.seg` e' il segmento della cella della
+           griglia, e un secondo `.seg` qui (display:flex, justify-self:end)
+           schiacciava a larghezza zero i segmenti di TUTTE le celle. */
+        h('span.passi-mini' + (v.completa ? '.tutta' : ''), {},
           CAMPI.map((c, k) => h('i' + (k < v.n ? '.fatto' : ''), {}))),
         h('span.barra-val.dato', { testo: `${v.n}/${PASSI}` }),
         h('span.stato-pill.' + v.stato, { testo: et }));
