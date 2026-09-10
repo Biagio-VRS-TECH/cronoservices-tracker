@@ -161,6 +161,16 @@ vuoto. Ora e' oro (`#B8860B` / `#E2B83C` in scuro), l'unico caldo fra i passi;
 il pre-tracciamento (`--cl-pretrac`) si tiene il vecchio grigio in proprio.
 Service worker `crono-guscio-v22`.
 
+### Quarta passata: "la barra sopra toglila del tutto che non serve"
+
+La capsula a quattro segmenti della riga cliente (punto 3 qui sopra) e'
+durata qualche ora: vista coi colori veri, il committente l'ha tolta. Via
+`quotaMese`, `capsulaCliente`, `segCliente`, il giro in `aggiornaTotali`, le
+regole `.capsula-cli` e la sezione "La riga del cliente" della legenda.
+`barreCliente()` rende dodici `.q` vuoti: servono solo a tenere `.mese-oggi`
+allineato con le righe dei siti. Il totale del cliente resta nella colonna
+Anno. Service worker `crono-guscio-v23`.
+
 ### Rimasto fuori
 
 - **L'azzeramento del diario non avvisa gli altri client**: chi ha il diario

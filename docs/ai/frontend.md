@@ -362,18 +362,12 @@ azioni multiple: e' l'unico resto del vecchio checkbox, che non esiste piu', e
 si vede dall'anello cyan (`.selez.scelto`). L'alone verde al passaggio dice cosa
 fa il clic senza scrivere niente - il verde vuol dire "completa" dappertutto.
 
-**La riga del cliente riassume i suoi siti con la stessa capsula**
-(`capsulaCliente` in `anno.js`, `.cella.capsula-cli` in `griglia.css`): per ogni
-mese, i `PASSI` segmenti, piu' bassi. Segmento pieno = quel passo e' fatto su
-**almeno uno** dei siti del cliente in scadenza quel mese (`data-x="1"` se su
-tutti, `2` se su alcuni: si disegnano uguali), spento = su nessuno; capsula
-verde = tutto fatto su tutti. Prima era una barretta sola che si
-riempiva da sinistra (`.qb`): diceva a che percentuale si era arrivati, non a
-quale passo, e per saperlo bisognava aprire il cliente. Con un sito solo - il
-caso normale - la capsula del cliente e' identica a quella della sua riga. Si
-riscrive intera in `aggiornaTotali` (dodici nodi per cliente).
-Attenzione al nome: `.riepilogo` era gia' preso (i totali in barra, `base.css`,
-con `margin-left:auto`), da qui `capsula-cli`.
+**La riga del cliente non ha piu' niente nei dodici mesi** (`barreCliente` in
+`anno.js` rende dodici `.q` vuoti, che tengono allineata la colonna di oggi).
+C'e' stata una barretta in percentuale (`.qb`) e, per qualche ora della 28a
+sessione, una capsula a quattro segmenti (`.capsula-cli`): il committente le ha
+tolte entrambe - "non serve". I passi si leggono sulle righe dei siti, il
+totale del cliente sta nella colonna Anno.
 
 **Il pallino davanti al sito** (`.punto-stato`, `statoMappatura()`) e' lo
 stato della mappatura dell'anno di quel sito: verde completa, ambra in ritardo,

@@ -126,49 +126,15 @@ function htmlRigaSrv(s, rit) {
   </div>`;
 }
 
-/* PASSO PER PASSO nel mese, sulla riga del cliente: per ognuno dei PASSI,
-   quanti dei suoi SITI in scadenza quel mese ce l'hanno gia' (un cliente con
-   nove impianti puo' averne tre in scadenza a marzo). I passi restano appesi
-   al mese di scadenza anche se il lavoro e' stato fatto alla visita di un
-   altro mese: e' quello l'impegno. Le scadenze pre-tracciamento non ci sono:
-   non sono un impegno preso qui.
-
-   Qui c'era una barretta sola che si riempiva da sinistra: diceva "a che
-   punto siamo" in percentuale, ma non QUALE punto - e per saperlo bisognava
-   aprire il cliente. La capsula a quattro segmenti e' la stessa della cella
-   del sito, e si legge senza aprire niente. */
-function quotaMese(g, m) {
-  const q = { siti: 0, per: Object.fromEntries(CAMPI.map(k => [k, 0])) };
-  for (const s of g.srvs) {
-    if (s.stato !== 'APERTO') continue;
-    const ma = mappaturaSito(s);
-    if (!ma.prevista || ma.scad !== m) continue;
-    q.siti++;
-    for (const k of CAMPI) if (ma.passi[k]) q.per[k]++;
-  }
-  return q;
-}
-
-/* Stessi valori dei segmenti della cella: 1 = ce l'hanno TUTTI i siti in
-   scadenza quel mese, 2 = solo alcuni (tenue, come l'ereditato), 0 = nessuno.
-   Con un sito solo - il caso normale - la capsula del cliente e' identica a
-   quella della sua riga. */
-const segCliente = q => CAMPI.map(k =>
-  `data-${SIGLA[k]}="${q.per[k] === 0 ? 0 : q.per[k] === q.siti ? 1 : 2}"`).join(' ');
-
-function capsulaCliente(q) {
-  const f = CAMPI.reduce((a, k) => a + q.per[k], 0);
-  const piena = f === q.siti * PASSI;
-  return `<span class="cella capsula-cli${piena ? ' completa' : ''}" ${segCliente(q)}
-    title="${f}/${q.siti * PASSI} passi · ${q.siti} ${q.siti === 1 ? 'mappatura' : 'mappature'} in scadenza">${SEG}</span>`;
-}
-
-function barreCliente(g) {
+/* La riga del cliente NON riassume piu' i mesi: dodici caselle vuote, che
+   servono solo a tenere la colonna di oggi (`.mese-oggi`) allineata a quelle
+   dei siti. Ci sono state una barretta in percentuale e poi una capsula a
+   quattro segmenti (28a sessione): il committente le ha tolte tutte e due -
+   "non serve", i passi si leggono sulle righe dei siti e il totale sta nella
+   colonna Anno. */
+function barreCliente() {
   let out = '';
-  for (let m = 1; m <= 12; m++) {
-    const q = quotaMese(g, m);
-    out += `<div class="q${oggiCl(m)}">${q.siti ? capsulaCliente(q) : ''}</div>`;
-  }
+  for (let m = 1; m <= 12; m++) out += `<div class="q${oggiCl(m)}"></div>`;
   return out;
 }
 
@@ -193,7 +159,7 @@ function htmlGruppo(g, rit) {
         ${pg.chiusi ? `<span class="tag">${pg.chiusi} chius${pg.chiusi === 1 ? 'o' : 'i'}</span>` : ''}
         <span class="tag completo" title="Tutte le mappature dell'anno di questo cliente sono complete">a posto</span>
       </div>
-      <div class="mesi">${barreCliente(g)}</div>
+      <div class="mesi">${barreCliente()}</div>
       <div class="col-tot${pg.tot && pg.fatti === pg.tot ? ' pieno' : ''}"
            title="${pg.dovute ? `${pg.complete} mappature complete su ${pg.dovute} dovute` : 'nessuna mappatura dovuta quest\'anno'}">
         ${pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;'}
@@ -514,15 +480,6 @@ function aggiornaTotali(id) {
   t2.innerHTML = pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;';
   t2.classList.toggle('pieno', completo);
   sez.classList.toggle('completo', completo);
-  const caselle = sez.querySelectorAll('.riga-cli .mesi > .q');
-  for (let m = 1; m <= 12; m++) {
-    const casella = caselle[m - 1];
-    if (!casella) continue;
-    const q = quotaMese(g, m);
-    // dodici nodi per cliente: si riscrive la capsula intera invece di
-    // rincorrere quattro attributi e due classi.
-    casella.innerHTML = q.siti ? capsulaCliente(q) : '';
-  }
   aggiornaRigaTotali();
 }
 

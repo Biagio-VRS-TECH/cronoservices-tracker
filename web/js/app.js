@@ -1386,21 +1386,6 @@ function mostraAiuto() {
         riga(cel('nontracciato', 0), CLASSE_ET['non-tracciato']),
         riga(trattino, 'Nessuna manutenzione prevista, o service non ancora attivo')),
 
-      h('h3.tit-p', { testo: 'La riga del cliente' }),
-      h('p.nota-t', {
-        style: 'margin-bottom:10px',
-        testo: 'La riga chiusa di un cliente riassume i suoi siti: per ogni mese, ' +
-          `una capsula uguale ma più bassa, con gli stessi ${PASSI} segmenti. ` +
-          'Un segmento acceso vuol dire che quel passo è stato fatto su almeno uno ' +
-          'dei suoi siti in scadenza quel mese; la capsula è verde quando è tutto ' +
-          'fatto su tutti. Così si vede dove si è arrivati senza aprire il cliente.',
-      }),
-      h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
-        riga(cel('capsula-cli', 2, 1, 'width:40px;flex:none'),
-          'Cliente chiuso: i primi due passi fatti'),
-        riga(cel('capsula-cli completa', PASSI, 1, 'width:40px;flex:none'),
-          'Tutte le mappature del mese chiuse')),
-
       h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
       h('p.nota-t', {
         style: 'margin-bottom:10px',

@@ -196,10 +196,9 @@ Quindi l'unita' e' la coppia **(sito, anno)**, dove il sito e' un record di
   un altro service, ed e' sparito il caso "chiusa altrove, su un altro
   impianto";
 - la riga del CLIENTE nella griglia **somma** i suoi siti: nove impianti = 9 x
-  `PASSI` nella colonna Anno, e la capsula di un mese riassume le mappature che
-  scadono la' (un cliente puo' averne tre a marzo) passo per passo - pieno se
-  quel passo e' fatto su tutti, tenue se solo su alcuni. Fino alla 28a
-  sessione era una barretta unica che si riempiva in percentuale;
+  `PASSI` nella colonna Anno; nei dodici mesi della sua riga non c'e' piu'
+  niente (28a sessione: via la barretta in percentuale e, poche ore dopo,
+  anche la capsula a quattro segmenti che l'aveva sostituita);
 - la vista Mese tiene le due unita' separate come prima ("10 in scadenza · 55
   impianti"), ma ora "in scadenza" conta i siti la cui mappatura scade in quel
   mese: le schede sono di piu' perche' comprendono le visite;

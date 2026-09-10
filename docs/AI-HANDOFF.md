@@ -210,9 +210,9 @@ e `modale()` ora da' i tasti solo al foglio davanti.
 restano, i "Ripristina" no. **Da rieseguire su Supabase, in ordine:
 `03-letture.sql` e `04-sicurezza.sql`.**
 
-**La riga del cliente ha i quattro segmenti** (`.cella.capsula-cli`) al posto
-della barretta unica che si riempiva in percentuale: acceso = passo fatto su
-almeno uno dei suoi siti in scadenza quel mese, verde = tutto su tutti.
+**La riga del cliente non ha piu' niente nei mesi**: via la barretta in
+percentuale, e via anche la capsula a quattro segmenti che l'aveva sostituita
+per qualche ora ("non serve"). Restano dodici `.q` vuoti per l'allineamento.
 
 **Un segmento o e' del suo colore o e' vuoto** (seconda passata, stesso
 giorno): ereditato (`data-x="2"`) e proposto (`3`) si disegnano **come il
@@ -237,7 +237,7 @@ resta ma non lo chiama piu' nessuna schermata.
 
 **"Come si legge" rifatta** con la leggenda nuova: passo ereditato, passo
 proposto, la riga del cliente e la regola del PDF.
-Service worker `crono-guscio-v22`.
+Service worker `crono-guscio-v23`.
 
 ## Stato al 2026-09-10 (27a sessione)
 
