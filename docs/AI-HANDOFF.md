@@ -172,6 +172,7 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare tabelle SQLite o un endpoint | [ai/sqlite-e-api.md](ai/sqlite-e-api.md) |
 | toccare concorrenza, coda offline, SSE, conflitti | [ai/concorrenza.md](ai/concorrenza.md) |
 | toccare layout, CSS, viste, comportamenti UI | [ai/frontend.md](ai/frontend.md) |
+| scrivere o rivedere interfaccia: tastiera, focus, moduli, stati, contrasto | [../AGENTS.md](../AGENTS.md) |
 | sapere perche' una scelta e' stata fatta cosi' | [ai/decisioni.md](ai/decisioni.md) |
 | toccare i grafici, le torte o la vista Statistiche | [ai/frontend.md](ai/frontend.md#la-vista-statistiche) + skill `dataviz` |
 | sapere cosa manca / cosa e' rimasto in sospeso | [ai/da-fare.md](ai/da-fare.md) |

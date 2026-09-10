@@ -1,5 +1,9 @@
 # Frontend — struttura, CSS, trappole
 
+Le regole di **come** si scrive l'interfaccia (tastiera, focus, moduli,
+stati, contrasto) stanno in [../../AGENTS.md](../../AGENTS.md). Qui c'e' la
+struttura: dove sta il codice e quali trappole ha.
+
 Moduli ES nativi, nessun bundler. `index.html` carica solo `js/app.js`, il resto
 sono `import`. Servito sempre via HTTP dal server Python (con `file://` i moduli
 non partono).
