@@ -264,21 +264,22 @@
 .cella[data-c="1"] .seg.c { background: var(--st-controllata); transform: none; }
 .cella[data-k="1"] .seg.k { background: var(--st-corretta);    transform: none; }
 .cella[data-r="1"] .seg.r { background: var(--st-ricambi);     transform: none; }
-/* PASSO EREDITATO (data-x="2"): fatto in un mese prima, o l'anno prima, e
-   ancora valido (#ANCHOR: passi-cumulativi in js/stato.js). Stesso colore del
-   passo, ma tenue: "c'e', non e' di qui". Sta PRIMA delle regole della
-   mappatura completa, che hanno la stessa specificita' e devono vincere. */
-.cella[data-s="2"] .seg.s { background: color-mix(in srgb, var(--st-stampata) 40%, var(--superficie));    transform: none; }
-.cella[data-c="2"] .seg.c { background: color-mix(in srgb, var(--st-controllata) 40%, var(--superficie)); transform: none; }
-.cella[data-k="2"] .seg.k { background: color-mix(in srgb, var(--st-corretta) 40%, var(--superficie));    transform: none; }
-.cella[data-r="2"] .seg.r { background: color-mix(in srgb, var(--st-ricambi) 40%, var(--superficie));     transform: none; }
-/* PASSO PROPOSTO (data-x="3"): rapportino o ricambi spuntati da un operatore e
-   in attesa di chi approva (#ANCHOR: ruoli in js/stato.js). A righe col
-   colore del passo: "qualcuno l'ha fatto, non vale ancora". */
-.cella[data-k="3"] .seg.k { background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, color-mix(in srgb, var(--st-corretta) 22%, var(--superficie)) 2px 5px); transform: none; }
-.cella[data-r="3"] .seg.r { background: repeating-linear-gradient(135deg, var(--st-ricambi) 0 2px, color-mix(in srgb, var(--st-ricambi) 22%, var(--superficie)) 2px 5px); transform: none; }
-.cella[data-s="3"] .seg.s { background: repeating-linear-gradient(135deg, var(--st-stampata) 0 2px, color-mix(in srgb, var(--st-stampata) 22%, var(--superficie)) 2px 5px); transform: none; }
-.cella[data-c="3"] .seg.c { background: repeating-linear-gradient(135deg, var(--st-controllata) 0 2px, color-mix(in srgb, var(--st-controllata) 22%, var(--superficie)) 2px 5px); transform: none; }
+/* UN SEGMENTO O E' DEL SUO COLORE O E' VUOTO. Il modello distingue tre modi di
+   essere acceso - data-x="1" fatto qui, "2" EREDITATO da una visita prima
+   (#ANCHOR: passi-cumulativi), "3" PROPOSTO e in attesa di chi approva
+   (#ANCHOR: ruoli) - e fino alla 28a sessione li disegnava diversi: tenue il
+   2, a righe il 3. Non si leggeva niente ("cosa orrenda", parola del
+   committente), e la domanda a cui la cella deve rispondere e' una sola:
+   QUALI passi ci sono. Il dove e il "non ancora approvato" li dicono il
+   popover, il cassetto e la pillola "da approvare"; il verde della capsula
+   intera continua a chiedere il valore 1 su tutti e quattro (statoCella), quindi
+   una cella con quattro segmenti accesi e NON verde e' una cella con qualcosa
+   da approvare. Gli attributi restano nel DOM: e' solo il disegno a
+   coincidere. */
+.cella[data-s="2"] .seg.s, .cella[data-s="3"] .seg.s { background: var(--st-stampata);    transform: none; }
+.cella[data-c="2"] .seg.c, .cella[data-c="3"] .seg.c { background: var(--st-controllata); transform: none; }
+.cella[data-k="2"] .seg.k, .cella[data-k="3"] .seg.k { background: var(--st-corretta);    transform: none; }
+.cella[data-r="2"] .seg.r, .cella[data-r="3"] .seg.r { background: var(--st-ricambi);     transform: none; }
 /* MAPPATURA COMPLETA: la capsula intera si accende di verde, non solo un alone.
    E' il segnale piu' importante della griglia - "questo sito e' a posto per
    l'anno" - e si deve leggere da lontano, scorrendo 274 righe. I quattro
@@ -413,17 +414,15 @@
 .passo[data-campo="corretta"][aria-checked="true"] .box    { background: var(--st-corretta);    border-color: var(--st-corretta); }
 .passo[data-campo="ricambi"][aria-checked="true"] .box     { background: var(--st-ricambi);     border-color: var(--st-ricambi); }
 .passo .et { flex: 1; font-size: var(--t-mini); font-weight: 500; }
-/* passo ereditato da una visita prima: spuntato ma tenue, con dove e' stato
-   fatto; non e' un bottone che fa qualcosa qui (#ANCHOR: passi-cumulativi) */
-/* passo PROPOSTO, in attesa dell'admin (#ANCHOR: ruoli): casella a righe col
-   colore del passo, niente segno di spunta */
-.passo.proposto .box { background: repeating-linear-gradient(135deg, var(--bordo-forte) 0 2px, transparent 2px 5px); }
-.passo.proposto[data-campo="corretta"] .box { border-color: var(--st-corretta); background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, transparent 2px 5px); }
-.passo.proposto[data-campo="ricambi"] .box  { border-color: var(--st-ricambi);  background: repeating-linear-gradient(135deg, var(--st-ricambi) 0 2px, transparent 2px 5px); }
-.passo.proposto .et { font-style: italic; }
-.passo.eredita { color: var(--tenue); cursor: default; }
-.passo.eredita .box { opacity: .5; }
-.passo.eredita .et { font-weight: 400; }
+/* Passo EREDITATO (.eredita) e passo PROPOSTO (.proposto, aria-checked=mixed):
+   stessa casella piena degli altri - vedi la nota sui segmenti della cella. Il
+   dove e il "in attesa" stanno nel suggerimento e nella riga `.chi`; il clic
+   su un ereditato lo toglie da dove e' stato messo (stato.toccaPasso). */
+.passo[aria-checked="mixed"] .box svg { opacity: 1; transform: none; }
+.passo[data-campo="corretta"][aria-checked="mixed"] .box { background: var(--st-corretta); border-color: var(--st-corretta); }
+.passo[data-campo="ricambi"][aria-checked="mixed"] .box  { background: var(--st-ricambi);  border-color: var(--st-ricambi); }
+.passo[data-campo="stampata"][aria-checked="mixed"] .box    { background: var(--st-stampata);    border-color: var(--st-stampata); }
+.passo[data-campo="controllata"][aria-checked="mixed"] .box { background: var(--st-controllata); border-color: var(--st-controllata); color: var(--su-marchio); }
 .passo.eredita .chi { white-space: nowrap; }
 .passo .chi { font: var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); }
 .passo .n-passo { font: 600 var(--t-micro)/1 var(--f-dato); color: var(--tenue-2); flex: none; }
@@ -556,9 +555,8 @@
 .passi-riga .passo .box { width: 16px; height: 16px; border-radius: var(--r-tonda);
   border-color: color-mix(in srgb, var(--bordo-forte) 80%, transparent); }
 .passi-riga .passo .et { font-size: var(--t-micro); font-weight: 600; }
-.passi-riga .passo.eredita[aria-checked="true"] { background: transparent; color: var(--tenue);
-  box-shadow: inset 0 0 0 1px var(--bordo); }
-.passi-riga .passo[aria-checked="true"] { background: var(--superficie); color: var(--inchiostro);
+.passi-riga .passo[aria-checked="true"], .passi-riga .passo[aria-checked="mixed"] {
+  background: var(--superficie); color: var(--inchiostro);
   box-shadow: 0 0 0 1px var(--bordo), var(--ombra-1); }
 .scheda.finita .passi-riga { background: color-mix(in srgb, var(--completa) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--completa) 30%, transparent); }

@@ -15,9 +15,9 @@ import {
   urlGeneratore, dimensione, ICO_PDF,
 } from './documenti.js';
 import {
-  st, cella, statoCella, spunta, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE,
+  st, cella, statoCella, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE, toccaPasso,
   mappaturaSito, scadEffettiva, on, doveFatto,
-  prossimo, fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
+  fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null, prima = null;
@@ -41,6 +41,8 @@ export function apriCassetto(id) {
   nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio service' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
+  /* Tutte le righe, non solo quella del mese toccato: una spunta messa o
+     tolta a giugno cambia gli ereditati di settembre e novembre. */
   const s1 = on('cella', d => { if (d.id === idAperto) rinfresca(d.mese); });
   // un PDF nuovo o tolto: si rifa' solo la sezione, il pannello non torna in cima
   const s2 = on('documenti', d => {
@@ -52,9 +54,10 @@ export function apriCassetto(id) {
 }
 
 /* Un passo ereditato da una visita prima (#ANCHOR: passi-cumulativi in
-   stato.js) si vede spuntato ma tenue, e dice dove e' stato fatto. */
+   stato.js) si vede spuntato come gli altri; il suggerimento dice dove e'
+   stato fatto e il clic lo toglie da la' (stato.toccaPasso). */
 const titoloPasso = (campo, er, c) => er
-  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 un clic la toglie da l\u00ec`
   : (c && proposto(c, campo)) ? notaProposta(c, campo)
   : ETICHETTA[campo];
 
@@ -78,11 +81,7 @@ function rigaMese(id, m, previsto) {
         'aria-checked': (!e.ered[campo] && proposto(c, campo)) ? 'mixed' : String(fatto(c, campo) || !!e.ered[campo]),
         'data-campo': campo,
         title: titoloPasso(campo, e.ered[campo], c),
-        onclick: () => {
-          const er = statoCella(id, m).ered[campo];
-          if (er) return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}. Per toglierla vai su quel mese.`);
-          spunta(id, m, campo, prossimo(id, m, campo));
-        },
+        onclick: () => toccaPasso(id, m, campo),
       },
         h('span.box', { html: ICO.ok }),
         h('span.et', { testo: BREVE[campo] }),
@@ -276,16 +275,20 @@ function rinfresca(mese) {
   if (!s || !nodo) return;
   const riga = nodo.querySelector(`.scheda[data-mese="${mese}"]`);
   if (!riga) return disegna();
-  const c = cella(idAperto, mese), e = statoCella(idAperto, mese);
-  riga.classList.toggle('finita', e.completa);
-  riga.classList.toggle('ritardo', e.ritardo && !e.completa);
-  for (const b of riga.querySelectorAll('.passo')) {
-    const campo = b.dataset.campo, er = e.ered[campo], pr = !er && proposto(c, campo);
-    b.setAttribute('aria-checked', pr ? 'mixed' : String(fatto(c, campo) || !!er));
-    b.classList.toggle('eredita', !!er);
-    b.classList.toggle('proposto', pr);
-    b.title = titoloPasso(campo, er, c);
+  for (const r of nodo.querySelectorAll('.scheda[data-mese]')) {
+    const m = Number(r.dataset.mese);
+    const c = cella(idAperto, m), e = statoCella(idAperto, m);
+    r.classList.toggle('finita', e.completa);
+    r.classList.toggle('ritardo', e.ritardo && !e.completa);
+    for (const b of r.querySelectorAll('.passo')) {
+      const campo = b.dataset.campo, er = e.ered[campo], pr = !er && proposto(c, campo);
+      b.setAttribute('aria-checked', pr ? 'mixed' : String(fatto(c, campo) || !!er));
+      b.classList.toggle('eredita', !!er);
+      b.classList.toggle('proposto', pr);
+      b.title = titoloPasso(campo, er, c);
+    }
   }
+  const c = cella(idAperto, mese);
   const meta = riga.querySelector('.meta');
   if (meta) {
     meta.innerHTML = c.at

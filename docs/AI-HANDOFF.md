@@ -211,8 +211,14 @@ restano, i "Ripristina" no. **Da rieseguire su Supabase, in ordine:
 `03-letture.sql` e `04-sicurezza.sql`.**
 
 **La riga del cliente ha i quattro segmenti** (`.cella.capsula-cli`) al posto
-della barretta unica che si riempiva in percentuale: pieno = passo fatto su
-tutti i suoi siti in scadenza quel mese, tenue = su alcuni.
+della barretta unica che si riempiva in percentuale: acceso = passo fatto su
+almeno uno dei suoi siti in scadenza quel mese, verde = tutto su tutti.
+
+**Un segmento o e' del suo colore o e' vuoto** (seconda passata, stesso
+giorno): ereditato (`data-x="2"`) e proposto (`3`) si disegnano **come il
+fatto** - il tenue e le righe erano illeggibili. E il passo ereditato **si
+toglie da dove sei**: `toccaPasso` in `stato.js` lo toglie dal mese in cui era
+stato messo, invece dell'avviso "vai su quel mese".
 
 **Il PDF mette "stampata" sulla prima visita IN ARRIVO** (#ANCHOR:
 mese-stampa, `mesePerStampa` in `web/js/stato.js`), mai su un mese passato,
@@ -224,7 +230,7 @@ resta ma non lo chiama piu' nessuna schermata.
 
 **"Come si legge" rifatta** con la leggenda nuova: passo ereditato, passo
 proposto, la riga del cliente e la regola del PDF.
-Service worker `crono-guscio-v20`.
+Service worker `crono-guscio-v21`.
 
 ## Stato al 2026-09-10 (27a sessione)
 
@@ -375,9 +381,10 @@ Nove richieste (dettaglio in
 passo messo a maggio vale anche alla visita di settembre, e una mappatura
 rimasta aperta a dicembre porta i suoi passi nell'anno dopo (se era chiusa si
 riparte). `mappaturaSito().passi` e' l'unione per campo; `statoCella()` da'
-`ered`, `mie`, `n`. La cella disegna l'ereditato con `data-x="2"` (tenue), il
-popover/Mese/cassetto lo mostrano spuntato-tenue con dove e' stato fatto, e da
-li' non si toglie. Il bootstrap porta `celle_prec` (l'anno prima). Leggere
+`ered`, `mie`, `n`. La cella porta l'ereditato come `data-x="2"` (dalla 28a
+disegnato **uguale** al fatto), il popover/Mese/cassetto lo mostrano spuntato
+con dove e' stato fatto, e **un clic lo toglie da li'** (`toccaPasso`). Il
+bootstrap porta `celle_prec` (l'anno prima). Leggere
 [ai/anno-e-tempo.md](ai/anno-e-tempo.md) prima di toccare i conteggi.
 
 **Chi ha aperto cosa** (#ANCHOR: fuoco): il `dove` della presenza porta la cella

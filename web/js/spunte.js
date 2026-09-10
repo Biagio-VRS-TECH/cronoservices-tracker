@@ -3,8 +3,8 @@
    #ANCHOR: popover */
 import { h, ICO, esc, quando, avviso } from './ui.js';
 import { chiama, segnalaFuoco } from './api.js';
-import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spunta, spuntaMolte, salvaNota,
-  doveFatto, prossimo, fatto, proposto, possoApprovare, descriviEvento, ripristina, ripristinabile } from './stato.js';
+import { st, CAMPI, SIGLA, PASSI, ETICHETTA, cella, statoCella, spuntaMolte, salvaNota, toccaPasso,
+  doveFatto, fatto, proposto, possoApprovare, descriviEvento, ripristina, ripristinabile } from './stato.js';
 
 let aperto = null;
 
@@ -42,15 +42,9 @@ const tasti = e => {
 
 function attiva(campo) {
   const { id, mese } = aperto;
-  const er = statoCella(id, mese).ered[campo];
-  /* un passo ereditato (#ANCHOR: passi-cumulativi) e' fatto altrove: da qui
-     non si tocca, altrimenti lo si rimetterebbe due volte o lo si toglierebbe
-     nel mese sbagliato */
-  if (er) {
-    return avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. ` +
-      'Per toglierla vai su quel mese.');
-  }
-  spunta(id, mese, campo, prossimo(id, mese, campo));
+  /* un passo ereditato (#ANCHOR: passi-cumulativi) il clic lo toglie da dove
+     e' stato messo: ci pensa toccaPasso */
+  toccaPasso(id, mese, campo);
   disegnaPassi();
 }
 
@@ -62,7 +56,7 @@ function rigaPasso(campo, n, e) {
   const on = fatto(e.c, campo) || !!er;
   return h('button.passo' + (er ? '.eredita' : '') + (pr ? '.proposto' : ''), {
     role: 'checkbox', 'aria-checked': pr ? 'mixed' : String(on), 'data-campo': campo,
-    title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec`
+    title: er ? `Gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}: un clic la toglie da l\u00ec`
       : pr ? (possoApprovare() ? 'Proposta dall\u2019operatore: un clic la approva' : 'In attesa di chi approva: un clic la ritira')
       : null,
     onclick: () => attiva(campo),

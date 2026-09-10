@@ -102,6 +102,45 @@ la finestra dei PDF sopra le Impostazioni con l'Escape che ne chiude una sola,
 le capsule del cliente che si aggiornano dal vivo a ogni spunta, la legenda
 allineata. Nessun errore in console.
 
+### Seconda passata, stesso giorno: "cosa orrenda e' sta cosa tenue e a righe?"
+
+Dopo il deploy, dal committente: la cella deve essere `[colore 1][colore 2]
+[colore 3][colore 4]` in base alle spunte, **fine**; e "Controllata: gia' fatta
+a giugno, per toglierla vai su quel mese" mentre lui e' amministratore e - a
+suo dire - su quel mese. Due cose:
+
+- **Un segmento o e' del suo colore o e' vuoto.** `data-x="2"` (ereditato) e
+  `3` (proposto) si disegnano **identici all'1**, in `griglia.css`; nei
+  bottoni `.passo` lo stesso: `.eredita` non e' piu' tenue e
+  `aria-checked="mixed"` (proposta) ha la casella piena. Gli attributi e le
+  classi restano nel DOM: sono il modello (statoCella, effettivo, i conteggi
+  che contano solo l'1), cambia solo il disegno. A distinguere una proposta
+  restano il tooltip, la pillola ambra "N da approvare" e il fatto che la
+  capsula non diventa verde. Nella capsula del cliente `2` = "su alcuni siti"
+  ora si vede acceso come "su tutti": la legenda dice "almeno uno".
+- **Il passo ereditato si toglie da dove sei.** `toccaPasso(id, mese, campo)`
+  in `stato.js`: se il passo e' ereditato dallo stesso anno lo toglie dal mese
+  in cui era stato messo (`spunta(id, er.mese, campo, 0)`), emette `cella`
+  anche per la cella cliccata (che perde l'ereditato) e lo dice ("Controllata
+  tolta a settembre, dove era stata messa da Biagio"). Se viene dall'anno prima
+  non si raggiunge da `st.celle` e l'avviso dice in che anno andare. Lo usano
+  popover (`attiva`), Mese (clic e tasti 1-4), cassetto; il pallino del Mese
+  (`completaScheda`) nel verso "togli" toglie anche gli ereditati. Il cassetto
+  ora rinfresca **tutte** le righe a ogni `cella`, perche' una spunta a giugno
+  cambia gli ereditati di settembre. L'avviso "per toglierla vai su quel mese"
+  non esiste piu' in nessun file.
+  Il caso "sono su quel mese e mi dice vai su quel mese" non si riproduce dal
+  codice (`ered` esclude per costruzione il mese stesso): la spiegazione piu'
+  probabile e' che il passo venisse da **giugno dell'anno prima**, e
+  `doveFatto` lo diceva ("nel 2025 (giugno)") ma di sfuggita. Ora in quel caso
+  l'avviso e' esplicito: "Si toglie dall'anno 2025".
+
+Collaudato su `data/prova.db`: #174 con i quattro passi a settembre, la cella
+di dicembre li eredita; dal popover di dicembre il clic su Controllata la
+toglie da settembre (settembre 3/4, dicembre non piu' verde, popover e capsula
+del cliente aggiornati); dal foglio di dicembre il clic su Stampata idem.
+Service worker `crono-guscio-v21`.
+
 ### Rimasto fuori
 
 - **L'azzeramento del diario non avvisa gli altri client**: chi ha il diario

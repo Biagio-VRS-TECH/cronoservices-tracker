@@ -57,7 +57,12 @@ onclick}, ...figli)`.
 I segmenti sono pilotati **dal CSS** (`.cella[data-s="1"] .seg.s { transform:none }`):
 il JS cambia solo gli attributi, l'animazione e' gratis. `2` = passo
 **ereditato** (fatto in un mese prima o l'anno prima, #ANCHOR: passi-cumulativi
-in `stato.js`): stesso colore, tenue. La classe `altrui` + `--tinta` e il chip
+in `stato.js`), `3` = **proposto** (#ANCHOR: ruoli): dalla 28a sessione si
+disegnano **identici all'1** - un segmento o e' del suo colore o e' vuoto. Il
+tenue e le righe che li distinguevano non si leggevano ("cosa orrenda",
+parola del committente); il dove e il "non ancora approvato" li dicono il
+popover, il cassetto e la pillola ambra. Gli attributi restano nel DOM perche'
+sono il modello, non il disegno. La classe `altrui` + `--tinta` e il chip
 `.fuoco-nome` nel `.q` dicono che un collega ha la cella aperta (#ANCHOR:
 fuoco); `data-tip` conserva il suggerimento base, a cui `dipingi()` aggiunge
 "N passi gia' fatti a maggio".
@@ -359,8 +364,9 @@ fa il clic senza scrivere niente - il verde vuol dire "completa" dappertutto.
 **La riga del cliente riassume i suoi siti con la stessa capsula**
 (`capsulaCliente` in `anno.js`, `.cella.capsula-cli` in `griglia.css`): per ogni
 mese, i `PASSI` segmenti, piu' bassi. Segmento pieno = quel passo e' fatto su
-**tutti** i siti del cliente in scadenza quel mese, tenue = su alcuni, spento =
-su nessuno; capsula verde = tutto fatto. Prima era una barretta sola che si
+**almeno uno** dei siti del cliente in scadenza quel mese (`data-x="1"` se su
+tutti, `2` se su alcuni: si disegnano uguali), spento = su nessuno; capsula
+verde = tutto fatto su tutti. Prima era una barretta sola che si
 riempiva da sinistra (`.qb`): diceva a che percentuale si era arrivati, non a
 quale passo, e per saperlo bisognava aprire il cliente. Con un sito solo - il
 caso normale - la capsula del cliente e' identica a quella della sua riga. Si
@@ -713,10 +719,13 @@ Lo snippet per ricalcolare i rapporti e' in
 
 ## Ruoli e proposte a schermo (#ANCHOR: ruoli, 22a e 25a sessione)
 
-Un passo proposto (valore 2, solo `corretta`/`ricambi`) si disegna **a righe**
-col colore del passo: nella cella `data-x="3"` (e classe `.attesa` sulla
-capsula), nei bottoni `.passo.proposto` con `aria-checked="mixed"` (Mese,
-cassetto, popover), tooltip "proposta da X, in attesa di chi approva".
+Un passo proposto (valore 2, solo `corretta`/`ricambi`) porta nella cella
+`data-x="3"` (e classe `.attesa` sulla capsula), nei bottoni `.passo.proposto`
+con `aria-checked="mixed"` (Mese, cassetto, popover), tooltip "proposta da X,
+in attesa di chi approva". **Si disegna pieno come un passo fatto** (dalla 28a
+sessione: le righe non si leggevano): a distinguerlo restano il tooltip, la
+pillola ambra "N da approvare" e il fatto che la capsula **non diventa verde**
+finche' i quattro non valgono 1.
 Il clic passa sempre da `prossimo(id, mese, campo)`: su un 2 chi approva
 approva (-> 1), il tecnico ritira (-> 0). Ogni "e' fatto?" e' `fatto(c, campo)`.
 

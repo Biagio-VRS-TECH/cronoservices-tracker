@@ -266,9 +266,12 @@ Regola, in `passiSito(s)` (`web/js/stato.js`):
 
 Conseguenze: chiudere il quarto passo a settembre rende **verde la cella di
 settembre** (4 = 1 suo + 3 ereditati) e la riga 4/4; la cella di maggio resta
-a 3. Un passo ereditato **non si toglie dalla cella che lo eredita**: popover,
-Mese e cassetto lo mostrano spuntato-tenue con "gia' fatta a maggio da X · si
-toglie da li'", e "Completa i passi mancanti" mette solo quelli che mancano
+a 3. Un passo ereditato si vede spuntato **uguale agli altri** e il clic
+**lo toglie da dove e' stato messo** (`toccaPasso` in `stato.js`, 28a
+sessione: prima c'era un avviso "vai su quel mese" che era un vicolo cieco);
+il tooltip dice "gia' fatta a maggio da X · un clic la toglie da li'". Se viene
+dall'anno prima da qui non si raggiunge (`st.celle` e' l'anno corrente) e lo
+si dice. "Completa i passi mancanti" mette solo quelli che mancano
 davvero (anche `passiMancanti` per le azioni di massa). Ogni spunta ridipinge
 tutte le capsule della riga: cambia anche settembre quando si tocca maggio.
 

@@ -1365,18 +1365,19 @@ function mostraAiuto() {
       h('h2', { testo: 'Come si legge' }),
       h('p.sotto', {
         testo: `Ogni cella è un mese di manutenzione. I ${PASSI} segmenti si riempiono ` +
-          'da sinistra, uno per passo.',
+          'da sinistra, uno per passo. Un passo fatto in una visita vale anche nelle ' +
+          'visite dopo dello stesso sito, e lì si vede acceso uguale: il suggerimento ' +
+          'dice dove è stato fatto, e un clic lo toglie da lì.',
       }),
       h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
         riga(cel('', 0), 'Da fare'),
         ...CAMPI.map((campo, i) =>
           riga(cel(i === PASSI - 1 ? 'completa' : '', i + 1),
             `${i + 1}. ${ETICHETTA[campo]}${i === PASSI - 1 ? ' — completa' : ''}`)),
-        riga(cel('', 2, 2), 'Tenue: passo già fatto prima — in un mese precedente ' +
-          'o nell’anno scorso — e ancora valido. Vale anche qui, e da qui non si toglie'),
         riga(cel('', PASSI, i => DA_APPROVARE.includes(CAMPI[i]) ? 3 : 1),
-          `A righe: ${DA_APPROVARE.map(k => ETICHETTA[k]).join(' e ')} spuntati da un ` +
-          'operatore, in attesa di chi approva. Contano solo dopo l’approvazione'),
+          `Tutti e ${PASSI} accesi ma non verde: ` +
+          `${DA_APPROVARE.map(k => ETICHETTA[k]).join(' o ')} sono ancora proposte di ` +
+          'un operatore, in attesa di chi approva (la pillola ambra in barra)'),
         riga(cel('ritardo', 1), 'In ritardo: la scadenza è passata e la mappatura ' +
           'del sito non è chiusa in nessun mese'),
         riga(cel('visita', 0), CLASSE_ET['visita']),
@@ -1390,16 +1391,15 @@ function mostraAiuto() {
         style: 'margin-bottom:10px',
         testo: 'La riga chiusa di un cliente riassume i suoi siti: per ogni mese, ' +
           `una capsula uguale ma più bassa, con gli stessi ${PASSI} segmenti. ` +
-          'Un segmento pieno vuol dire che quel passo è fatto su TUTTI i suoi siti ' +
-          'in scadenza quel mese, tenue che è fatto solo su alcuni, spento che non ' +
-          'lo ha ancora nessuno. Così si vede dove si è arrivati senza aprire il ' +
-          'cliente.',
+          'Un segmento acceso vuol dire che quel passo è stato fatto su almeno uno ' +
+          'dei suoi siti in scadenza quel mese; la capsula è verde quando è tutto ' +
+          'fatto su tutti. Così si vede dove si è arrivati senza aprire il cliente.',
       }),
       h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
         riga(cel('capsula-cli', 2, 1, 'width:40px;flex:none'),
-          'Cliente chiuso: i primi due passi fatti su tutti i siti in scadenza'),
-        riga(cel('capsula-cli', PASSI, 2, 'width:40px;flex:none'),
-          'Tutti i passi, ma solo su una parte dei suoi siti')),
+          'Cliente chiuso: i primi due passi fatti'),
+        riga(cel('capsula-cli completa', PASSI, 1, 'width:40px;flex:none'),
+          'Tutte le mappature del mese chiuse')),
 
       h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
       h('p.nota-t', {

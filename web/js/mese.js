@@ -12,8 +12,8 @@
    #ANCHOR: vista-mese */
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import {
-  st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito,
-  prossimo, fatto, proposto, notaProposta,
+  st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito, toccaPasso, emetti,
+  fatto, proposto, notaProposta,
   filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
   CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
@@ -23,14 +23,13 @@ import { htmlChipDocumento } from './documenti.js';
 let radice = null;
 
 /* Un passo EREDITATO (fatto in una visita prima, o l'anno prima: #ANCHOR:
-   passi-cumulativi in stato.js) si vede spuntato ma tenue, e dice dove e' stato
-   fatto. Non si toglie da qui: si toglie da dove e' stato messo. */
+   passi-cumulativi in stato.js) si vede spuntato come gli altri, e il
+   suggerimento dice dove e' stato fatto. Il clic lo toglie da la'
+   (stato.toccaPasso). */
 const titoloPasso = (campo, i, er, c) => er
-  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 si toglie da l\u00ec`
+  ? `${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''} \u00b7 un clic la toglie da l\u00ec`
   : (c && proposto(c, campo)) ? notaProposta(c, campo)
   : `${ETICHETTA[campo]} (tasto ${i + 1})`;
-const avvisoEredita = (campo, er) =>
-  avviso(`${ETICHETTA[campo]}: gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. Per toglierla vai su quel mese.`);
 
 function htmlPassi(id, mese) {
   const e = statoCella(id, mese), c = e.c;
@@ -232,10 +231,7 @@ function collega(r) {
     const p = e.target.closest('.passo');
     if (p) {
       const [id, mese] = p.dataset.cella.split('-').map(Number);
-      const campo = p.dataset.campo;
-      const er = statoCella(id, mese).ered[campo];
-      if (er) return avvisoEredita(campo, er);
-      spunta(id, mese, campo, prossimo(id, mese, campo));
+      toccaPasso(id, mese, p.dataset.campo);
       return;
     }
     const b = e.target.closest('.info b');
@@ -257,10 +253,7 @@ function collega(r) {
     const i = '1234'.indexOf(e.key);
     if (i >= 0) {                       // il fuoco non si sposta: resta la scheda
       e.preventDefault();
-      const id = Number(sch.dataset.srv), campo = CAMPI[i];
-      const er = statoCella(id, st.mese).ered[campo];
-      if (er) return avvisoEredita(campo, er);
-      return spunta(id, st.mese, campo, prossimo(id, st.mese, campo));
+      return toccaPasso(Number(sch.dataset.srv), st.mese, CAMPI[i]);
     }
     if (e.key === '0') {                // tutti insieme, come il clic sul pallino
       e.preventDefault();
@@ -366,8 +359,18 @@ function completaScheda(id) {
   const e = statoCella(id, st.mese), c = e.c;
   const valore = e.n === PASSI ? 0 : 1;
   let toccati = 0;
+  let altrove = 0, altroAnno = 0;
   for (const campo of CAMPI) {
-    if (valore && e.ered[campo]) continue;          // gia' fatto in una visita prima
+    const er = e.ered[campo];
+    if (valore && er) continue;                     // gia' fatto in una visita prima
+    if (!valore && er) {
+      /* ereditato: si toglie da dove e' stato messo (come toccaPasso). Quello
+         dell'anno prima da qui non si raggiunge. */
+      if (er.anno !== st.anno) { altroAnno++; continue; }
+      spunta(id, er.mese, campo, 0);
+      altrove++; toccati++;
+      continue;
+    }
     /* una proposta (2) si tocca in entrambi i versi: l'admin la approva, il
        operatore la ritira; `spunta` decide secondo il ruolo */
     const a = c[SIGLA[campo]];
@@ -375,12 +378,14 @@ function completaScheda(id) {
     spunta(id, st.mese, campo, valore);
     toccati++;
   }
+  if (altrove) emetti('cella', { id, mese: st.mese });   // la scheda perde gli ereditati
   const s = st.perServ.get(id);
   if (!valore && toccati) {
-    avviso(`Tolti i ${toccati} passi di ${s?.dest || '#' + id} messi in questo mese: ` +
-      'riclicca il pallino per rimetterli.', { tono: 'allerta' });
-  } else if (!valore) {
-    avviso(`I passi di ${s?.dest || '#' + id} vengono da visite precedenti: si tolgono da l\u00ec.`);
+    avviso(`Tolti i ${toccati} passi di ${s?.dest || '#' + id}` +
+      (altrove ? ` (${altrove} ${altrove === 1 ? 'era stato messo' : 'erano stati messi'} in una visita prima)` : '') +
+      ': riclicca il pallino per rimetterli.', { tono: 'allerta' });
+  } else if (!valore && altroAnno) {
+    avviso(`I passi di ${s?.dest || '#' + id} vengono dall'anno ${st.anno - 1}: si tolgono da l\u00ec.`);
   }
 }
 

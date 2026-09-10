@@ -870,6 +870,31 @@ export function spunta(id, mese, campo, valore, senzaUndo, origine) {
   });
 }
 
+/** IL CLIC SU UN PASSO, da qualunque vista: mette o toglie. Se il passo e'
+ *  EREDITATO (#ANCHOR: passi-cumulativi) - fatto in una visita prima e valido
+ *  anche qui - il clic lo TOGLIE DA DOVE E' STATO MESSO, senza mandare nessuno
+ *  a cercare quel mese. Prima qui c'era un avviso ("gia' fatta a giugno: per
+ *  toglierla vai su quel mese") che era un vicolo cieco, e per giunta bugiardo
+ *  quando il passo veniva dall'anno prima. L'unico caso che non si risolve da
+ *  qui e' proprio quello: le celle dell'anno prima non sono in `st.celle`, e si
+ *  dice chiaramente in che anno andare. Ritorna true se ha fatto qualcosa. */
+export function toccaPasso(id, mese, campo) {
+  const er = statoCella(id, mese).ered[campo];
+  if (!er) { spunta(id, mese, campo, prossimo(id, mese, campo)); return true; }
+  if (er.anno !== st.anno) {
+    avviso(`${ETICHETTA[campo]}: fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. ` +
+      `Si toglie dall'anno ${er.anno}.`, { tono: 'allerta' });
+    return false;
+  }
+  spunta(id, er.mese, campo, 0);
+  // la cella da cui si e' cliccato cambia anche lei (perde l'ereditato):
+  // chi la mostra - popover, cassetto - deve saperlo
+  emetti('cella', { id, mese });
+  avviso(`${ETICHETTA[campo]} tolta ${doveFatto(er)}, dove era stata messa` +
+    `${er.by ? ' da ' + er.by : ''}.`);
+  return true;
+}
+
 /** N spunte in una volta. `voci` = [{id, mese, campo, valore}]. `origine`
  *  'massa' e' riservata a Completa/Azzera tutte: il server la accetta solo da
  *  un admin. */
