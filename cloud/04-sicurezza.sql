@@ -60,6 +60,7 @@ grant execute on function
   public.imposta_ruolo(text, text),
   public.ripristina_blocco(text),
   public.imposta_meta(text),
+  public.azzera_diario(),
   public.e_admin(),
   public.puo_approvare(),
   public.ruolo_corrente()

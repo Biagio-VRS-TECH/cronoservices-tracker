@@ -18,9 +18,9 @@ legame col tracker, che vive nella stessa origine:
   2. "ESPORTA E SALVA" (il bottone del generatore) e "Salva nel tracker" (nel
      dock) producono lo stesso PDF (html2canvas + jsPDF, in lib/): il primo lo
      scarica anche sul computer, tutti e due lo consegnano al tracker - file
-     archiviato, riga in `documenti`, spunta "stampata" sul mese della
-     mappatura. Il tracker mostra l'icona accanto al nome del sito. La
-     finestra di stampa del browser non c'e' piu' in mezzo: scrivendo il PDF
+     archiviato, riga in `documenti`, spunta "stampata" sulla prima visita in
+     arrivo (#ANCHOR: mese-stampa). Il tracker mostra l'icona accanto al nome
+     del sito. La finestra di stampa del browser non c'e' piu' in mezzo: il PDF
      da li' ogni foglio portava in testa e in fondo il titolo della pagina e
      l'indirizzo del sito (quello di Netlify), e il file era quello che il
      browser voleva, non il nostro. Resta raggiungibile con Ctrl+P;
@@ -30,7 +30,7 @@ Il fatto certo che il tracker registra e' "il PDF esiste", ed e' quello che
 mette la spunta. */
 import { chiama, avviaSessione, inNuvola } from '../js/api.js';
 import * as nuvola from '../js/nuvola.js';
-import { st, applica, mappaturaSito } from '../js/stato.js';
+import { st, applica, mesePerStampa } from '../js/stato.js';
 import { salvaDocumento } from '../js/documenti.js';
 import { affinita, pesiParole } from '../js/affinita.js';
 
@@ -81,9 +81,11 @@ async function caricaSiti() {
   siti = [];
   for (const s of st.perServ.values()) {
     if (s.stato !== 'APERTO' || s.arch) continue;
-    const ma = mappaturaSito(s), cliente = st.clienti.get(s.cli)?.rs || '';
+    const cliente = st.clienti.get(s.cli)?.rs || '';
+    // la spunta va sulla prima visita in arrivo, mai su una passata:
+    // #ANCHOR: mese-stampa in js/stato.js
     siti.push({ id: s.id, dest: s.dest || '', loc: s.loc || '', cli: s.cli, cliente,
-                mese: ma.mese || ma.scad || 0, nome: cliente + ' ' + (s.dest || '') });
+                mese: mesePerStampa(s), nome: cliente + ' ' + (s.dest || '') });
   }
   siti.sort((a, b) => a.cliente.localeCompare(b.cliente) || a.dest.localeCompare(b.dest));
   pesi = pesiParole(siti.map(s => s.nome));

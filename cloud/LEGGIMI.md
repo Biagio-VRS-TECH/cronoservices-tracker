@@ -252,6 +252,23 @@ lavora su righe di prova.
 
 ---
 
+## 5-bis. Dopo la 28a sessione (2026-09-10): azzerare il diario
+
+Vanno rieseguiti, in quest'ordine, **`03-letture.sql`** e poi
+**`04-sicurezza.sql`**. Il `03` aggiunge `azzera_diario()` (solo
+l'amministratore, butta tutte le righe di `eventi`); il `04` le da' l'EXECUTE,
+senza il quale la funzione c'e' ma nessuno la puo' chiamare.
+
+Finche' non si fanno, la voce *Azzera il diario attivita'* nel menu Azioni
+risponde "rotta sconosciuta" online, mentre in locale funziona subito. Nient'
+altro cambia: `04` si puo' rilanciare da solo senza rompere i documenti (il
+blocco che ridà l'EXECUTE al `06` c'e' apposta).
+
+Le spunte, le note e i PDF non si toccano: sparisce la storia, non il lavoro.
+Spariscono pero' anche i **Ripristina**, che leggono proprio quelle righe.
+
+---
+
 ## 6. Le schede tecnici e i loro PDF
 
 Il generatore di schede (`/schede/`) alla stampa consegna il PDF al tracker.

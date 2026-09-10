@@ -78,12 +78,13 @@ scritto (esclusione per `client_id` nel body).
 | GET | `/api/incongruenze?anno=` | aperti senza mesi, mesi != QVA, spunte orfane. **Nessuna vista lo chiama piu'** dalla 7a sessione (i tre pannelli sono stati rimossi, vedi decisioni.md 15b): resta perche' rimetterlo a schermo e' quindici righe |
 | GET | `/api/export.csv?anno&mese` | CSV `;` + BOM (Excel italiano), una colonna per passo, piu' `Ruolo` (`MAPPATURA` / `visita`) |
 | POST | `/api/operatore` | registra il nome, ritorna l'elenco, `ruoli` e il `ruolo` di chi chiama |
+| POST | `/api/diario_azzera` | solo admin: `DELETE FROM eventi`, tutto il diario. Ritorna `{n}`. Spunte, note e PDF non si toccano; i "Ripristina" pero' spariscono con le righe. Dal client solo dopo aver scritto OK (#ANCHOR: conferma-ok) |
 | POST | `/api/ripristina` | `{op_id}`: l'admin rimette a `da` tutti gli eventi di quel blocco (`op_id` o `op_id:*`), come nuovo blocco `ripristino` (#ANCHOR: ripristino). Ritorna `celle` per anno |
 | POST | `/api/registra_utente` | **solo online** (#ANCHOR: registra-utente): `{email, password}`. Non e' Postgres ma la Netlify Function, che verifica `ruolo_corrente() = 'admin'` col token del chiamante e poi crea la casella con la service key. 403 a chi non e' admin, 400 su casella non `@vrs-tech.it` o password sotto i 10 caratteri, 409 se esiste gia' |
 | POST | `/api/ruolo` | `{nome, ruolo}` con ruolo `admin|approvatore|tecnico`: un admin nomina o declassa (#ANCHOR: ruoli). 403 se non e' admin, 400 sull'ultimo admin o sui nomi di config.json |
 | POST | `/api/ping` | presenza, TTL 45 s; ritorna chi e' collegato |
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |
-| POST | `/api/sync` | rilegge Access. Timeout client 300 s |
+| POST | `/api/sync` | rilegge Access. Solo admin. **Dalla 28a sessione nessuna schermata lo chiama piu'**: il bottone "Sincronizza da Access" e' stato tolto (online il `.accdb` non si raggiunge, in locale il server lo rilegge all'avvio e il PC dell'ufficio spinge alle 08:15). Resta per una chiamata a mano; timeout client 300 s |
 | GET | `/api/documenti?anno=` | i PDF delle schede: senza anno tutti, e' lo storico (#ANCHOR: documenti) |
 | GET/POST | `/api/documento` | GET `?id=` scarica il file; POST archivia un PDF del generatore (base64, max 200 MB: `MAX_PDF`) e mette la spunta `stampata` |
 | POST | `/api/documento_elimina` | `{id}`: un PDF solo. La spunta resta |

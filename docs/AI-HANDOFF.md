@@ -27,8 +27,10 @@ tecnico) -> `corretta` ("mappatura completa rapportino") -> `ricambi`
 `ETICHETTA_RUOLO` (`tecnico` -> **"operatore"**): il **tecnico/operatore** spunta tutto,
 ma `corretta` e `ricambi` restano **proposte** (valore 2); l'**approvatore** le
 approva o le respinge e nient'altro; l'**amministratore** in piu' completa/azzera
-in blocco, sincronizza da Access, cambia le impostazioni, "Ripristina" dal diario
-e cancella i PDF di un anno intero (i PDF di un singolo sito li butta chiunque).
+in blocco, cambia le impostazioni, "Ripristina" dal diario (o lo **azzera**
+tutto) e cancella i PDF di un anno intero (i PDF di un singolo sito li butta
+chiunque). Le sue azioni in blocco partono solo dopo aver **scritto OK**
+(#ANCHOR: conferma-ok).
 Due poteri, due domande distinte: `possoApprovare()`/`puo_approvare()` e
 `sonoAdmin()`/`e_admin()`. Il ruolo e' legato alla **casella del login**, mai al
 nome, e il **nome non si cambia dall'app**. Un passo e' fatto solo se vale 1:
@@ -165,7 +167,8 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
    `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
    `mappatura-anno`, `classe-mese`, `passi`, `passi-cumulativi`, `fuoco`, `massa`,
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
-   `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`.
+   `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
+   `conferma-ok`, `mese-stampa`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -188,6 +191,40 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-10 (28a sessione)
+
+Branch `ruoli-falla-cambio-nome`. Cinque richieste; dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-10-28a-sessione---si-scrive-ok-la-riga-del-cliente-si-legge-il-pdf-guarda-avanti).
+
+**Si scrive OK** (#ANCHOR: conferma-ok, `campoOK` in `web/js/ui.js`): tutte le
+azioni in blocco dell'amministratore - Completa tutte, Azzera tutte, *Azzera il
+diario attivita'*, *Cancella i PDF* di un anno - tengono il bottone spento
+finche' non c'e' scritto OK. Il campo sta dentro la finestra che c'e' gia', non
+in una seconda: il conto esatto resta sotto gli occhi. Il "Sicuro?" a due tempi
+dello *Spazio dei PDF* non c'e' piu' (lo si prendeva col secondo clic di fila),
+e `modale()` ora da' i tasti solo al foglio davanti.
+
+**Azzera il diario attivita'** (nuovo, solo admin): `POST /api/diario_azzera` /
+`azzera_diario()`. Butta tutte le righe di `eventi`; spunte, note e PDF
+restano, i "Ripristina" no. **Da rieseguire su Supabase, in ordine:
+`03-letture.sql` e `04-sicurezza.sql`.**
+
+**La riga del cliente ha i quattro segmenti** (`.cella.capsula-cli`) al posto
+della barretta unica che si riempiva in percentuale: pieno = passo fatto su
+tutti i suoi siti in scadenza quel mese, tenue = su alcuni.
+
+**Il PDF mette "stampata" sulla prima visita IN ARRIVO** (#ANCHOR:
+mese-stampa, `mesePerStampa` in `web/js/stato.js`), mai su un mese passato,
+anche se la mappatura e' in ritardo.
+
+**Via il bottone "Sincronizza da Access"**: online non funzionava, in locale il
+server rilegge all'avvio e il PC dell'ufficio spinge alle 08:15. `/api/sync`
+resta ma non lo chiama piu' nessuna schermata.
+
+**"Come si legge" rifatta** con la leggenda nuova: passo ereditato, passo
+proposto, la riga del cliente e la regola del PDF.
+Service worker `crono-guscio-v20`.
 
 ## Stato al 2026-09-10 (27a sessione)
 

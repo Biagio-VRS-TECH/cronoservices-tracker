@@ -2,8 +2,9 @@
 
 Il generatore (web/schede/) quando stampa produce anche un PDF e lo consegna
 qui: una riga in `documenti` legata al SITO e all'anno, il file nello Storage
-(online) o in data/documenti/ (locale), e la spunta "stampata" messa sul mese
-della mappatura. Questo modulo e' tutto quello che il tracker sa dei documenti:
+(online) o in data/documenti/ (locale), e la spunta "stampata" messa sulla
+PRIMA VISITA IN ARRIVO, mai su una passata (#ANCHOR: mese-stampa in stato.js).
+Questo modulo e' tutto quello che il tracker sa dei documenti:
 il modello in memoria (`st.documenti`), l'icona da mettere accanto al nome del
 sito, l'apertura del file e la sua eliminazione.
 
@@ -11,7 +12,7 @@ Lo usa ANCHE il generatore (schede/ponte.js), che vive nella stessa origine e
 importa questi stessi moduli: due pagine, un solo trasporto. */
 import { chiama, rete } from './api.js';
 import * as nuvola from './nuvola.js';
-import { st, emetti, mappaDocumenti, mappaturaSito } from './stato.js';
+import { st, emetti, mappaDocumenti, mesePerStampa } from './stato.js';
 import { h, esc, quando, avviso } from './ui.js';
 
 /* ------------------------------------------------------------- modello --- */
@@ -140,14 +141,14 @@ export function annunciaAltreSchede(ev) {
 }
 
 /** L'indirizzo del generatore. Con un sito, ci arriva gia' puntato su quello:
- *  alla stampa il PDF torna qui e la spunta va sul mese della sua mappatura
- *  (quello in cui e' stata chiusa, altrimenti la scadenza). */
+ *  alla stampa il PDF torna qui e la spunta "stampata" va sulla prima visita
+ *  in arrivo, mai su una passata (#ANCHOR: mese-stampa in stato.js). */
 export function urlGeneratore(s) {
   const p = new URLSearchParams({ anno: st.anno });
   if (s) {
-    const ma = mappaturaSito(s), cli = st.clienti.get(s.cli);
+    const cli = st.clienti.get(s.cli);
     p.set('service', s.id);
-    p.set('mese', ma.mese || ma.scad || '');
+    p.set('mese', mesePerStampa(s) || '');
     p.set('sito', s.dest || '');
     p.set('cliente', cli?.rs || '');
     if (s.loc) p.set('localita', s.loc);

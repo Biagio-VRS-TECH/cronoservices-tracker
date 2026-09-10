@@ -310,8 +310,9 @@ si conta dal DOM: e' l'unico numero che parla della selezione, e deve dire
 quello che si vede (completando una scheda con "Da fare" acceso la scheda
 resta, le righe non spariscono sotto le mani).
 
-Stampa, CSV, Sincronizza, Completa/Azzera di massa, **Diario attivita'** e
-Impostazioni stanno in un menu **Azioni** (`ui.menu()`, classe `.tendina`):
+Stampa, CSV, Completa/Azzera di massa, **Diario attivita'** (e, per l'admin,
+**Azzera il diario**) e Impostazioni stanno in un menu **Azioni**
+(`ui.menu()`, classe `.tendina`):
 sette bottoni in barra diventavano illeggibili. Il diario apre una modale con
 le ultime 120 modifiche (`GET /api/attivita?limit=120`, classi `.diario` /
 `.elenco-diario` in `base.css`): stava nella vista Controlli, ed e' una cosa che
@@ -326,6 +327,23 @@ Dopo l'azione l'avviso resta 15 secondi con **Annulla**, che rimanda le operazio
 inverse (`stato.annullaUltima()`, si appoggia allo stesso percorso di scrittura,
 quindi e' anch'esso tracciato e idempotente).
 
+**Prima di partire si scrive OK** (`campoOK` in `ui.js`, #ANCHOR: conferma-ok).
+Vale per tutte le azioni in blocco dell'amministratore: Completa tutte, Azzera
+tutte, *Azzera il diario attivita'* e *Cancella i PDF* di un anno. Non e' un
+secondo "sei sicuro?" - quello lo si schiaccia per riflesso, ed era il difetto
+del vecchio bottone a due tempi dello *Spazio dei PDF*. Il campo **sta dentro
+la finestra che c'e' gia'**, cosi' il conto esatto resta sotto gli occhi mentre
+si conferma, e governa il bottone, che nasce disabilitato; se non c'e' niente
+da fare il campo sparisce e il bottone diventa un semplice "Chiudi"
+(`ok.rivedi()` rimette d'accordo campo e bottone quando il conto cambia sotto,
+per esempio spuntando "comprendi anche le visite").
+
+**Azzera il diario** (`azzeraDiario` in `app.js`, `POST /api/diario_azzera`,
+online `azzera_diario()` in `cloud/03-letture.sql`) butta tutte le righe di
+`eventi`. Spunte, note e PDF restano: sparisce la storia, non il lavoro - e con
+lei i "Ripristina", che leggono proprio quelle righe. E' l'unica azione che non
+si disfa in nessun modo.
+
 **Nel foglio del Mese il pallino e' il bottone della scheda** (`htmlSelez` e
 `completaScheda` in `mese.js`, `.selez` in `griglia.css`). Il colore e' lo stato
 dell'**anno**, non del mese: le quattro caselle dicono gia' come sta questo
@@ -337,6 +355,18 @@ sulla scheda col fuoco. Il **ctrl+clic** (o cmd, o shift) seleziona per le
 azioni multiple: e' l'unico resto del vecchio checkbox, che non esiste piu', e
 si vede dall'anello cyan (`.selez.scelto`). L'alone verde al passaggio dice cosa
 fa il clic senza scrivere niente - il verde vuol dire "completa" dappertutto.
+
+**La riga del cliente riassume i suoi siti con la stessa capsula**
+(`capsulaCliente` in `anno.js`, `.cella.capsula-cli` in `griglia.css`): per ogni
+mese, i `PASSI` segmenti, piu' bassi. Segmento pieno = quel passo e' fatto su
+**tutti** i siti del cliente in scadenza quel mese, tenue = su alcuni, spento =
+su nessuno; capsula verde = tutto fatto. Prima era una barretta sola che si
+riempiva da sinistra (`.qb`): diceva a che percentuale si era arrivati, non a
+quale passo, e per saperlo bisognava aprire il cliente. Con un sito solo - il
+caso normale - la capsula del cliente e' identica a quella della sua riga. Si
+riscrive intera in `aggiornaTotali` (dodici nodi per cliente).
+Attenzione al nome: `.riepilogo` era gia' preso (i totali in barra, `base.css`,
+con `margin-left:auto`), da qui `capsula-cli`.
 
 **Il pallino davanti al sito** (`.punto-stato`, `statoMappatura()`) e' lo
 stato della mappatura dell'anno di quel sito: verde completa, ambra in ritardo,
@@ -709,7 +739,7 @@ impostazioni (era la falla della 25a sessione). Due domande diverse:
 A chi approva compaiono: il badge `.ruolo` nella pillola `#io` ("admin" o
 "approva") e la pillola ambra `#approva` (`.pill.attesa`, nascosta a zero) che
 apre *Da approvare*. **Solo all'admin**: le voci
-Completa/Azzera/Sincronizza/Impostazioni nel menu Azioni e il bottone
+Completa/Azzera/Azzera il diario/Impostazioni nel menu Azioni e il bottone
 `.pill.mini.ripristina` su ogni riga di diario, storia del popover e ultime
 modifiche del cassetto. Il tecnico non vede niente di tutto questo.
 

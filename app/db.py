@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS ops (
 );
 
 -- `ruolo`: 'admin' | 'approvatore' | 'tecnico' (#ANCHOR: ruoli). L'admin approva
--- rapportino e ricambi, fa le azioni di massa, sincronizza da Access e
--- ripristina dal diario; l'approvatore approva quelle due spunte e basta.
+-- rapportino e ricambi, fa le azioni di massa e ripristina dal diario (o lo
+-- azzera); l'approvatore approva quelle due spunte e basta.
 CREATE TABLE IF NOT EXISTS operatori (
   nome TEXT PRIMARY KEY, ultimo_accesso TEXT,
   ruolo TEXT NOT NULL DEFAULT 'tecnico'
@@ -197,8 +197,8 @@ def set_meta(c, k, v):
 
 # ------------------------------------------------------------------ ruoli ----
 # #ANCHOR: ruoli. Tre ruoli, due poteri diversi:
-#   'admin'       comanda: approva, azzera in blocco, sincronizza, cambia le
-#                 impostazioni, ripristina dal diario, butta i PDF di un anno
+#   'admin'       comanda: approva, azzera in blocco, cambia le impostazioni,
+#                 ripristina dal diario (o lo azzera), butta i PDF di un anno
 #   'approvatore' approva rapportino e ricambi e NIENT'ALTRO: non azzera, non
 #                 ripristina, non entra nelle impostazioni
 #   'tecnico'     propone: quelle due spunte restano in attesa

@@ -1,7 +1,7 @@
 /* app.js - guscio dell'applicazione: avvio, viste, filtri, tema, tastiera,
    identita' operatore, azioni di massa, stato del collegamento.  #ANCHOR: app */
 import {
-  $, $$, h, ICO, avviso, modale, menu, copia, quando, esc, tinta, iniziali,
+  $, $$, h, ICO, avviso, modale, menu, copia, quando, esc, tinta, iniziali, campoOK,
 } from './ui.js';
 import {
   rete, bootstrap, onCambio, setOperatore, apriStream, avviaPresenza, chiama, svuota,
@@ -11,7 +11,7 @@ import {
   st, on, applica, cambiaAnno, elencoProv, riepilogoAnno, contaStato, filtraStato,
   esitoConferma, esitoConflitto, esitoFallita, eventoRemoto, spuntaMolte, annullaUltima,
   caricaFiltri, salvaFiltri, componiDove, spezzaDove, aggiornaPresenze,
-  CAMPI, PASSI, ETICHETTA, CLASSE_ET, ET_STATO,
+  CAMPI, PASSI, DA_APPROVARE, ETICHETTA, CLASSE_ET, ET_STATO,
   sonoAdmin, possoApprovare, ruoloMio, ruoloDi, ETICHETTA_RUOLO, SIGLA_RUOLO,
   proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
   descriviEvento, spunta, BREVE,
@@ -369,8 +369,8 @@ function apriAzioni(bottone) {
   const inAnno = st.vista === 'anno';
   const soloAnno = () => avviso('Le azioni di massa si usano dalla vista Anno.');
   /* Le voci dell'amministratore (#ANCHOR: ruoli) a un operatore non compaiono:
-     completare/azzerare tutto, rileggere Access, le impostazioni. Il server le
-     rifiuta comunque (403), qui si evita di mostrare porte chiuse. */
+     completare/azzerare tutto, azzerare il diario, le impostazioni. Il server
+     le rifiuta comunque (403), qui si evita di mostrare porte chiuse. */
   const admin = sonoAdmin();
   menu(bottone, [
     ...(admin ? [
@@ -393,7 +393,8 @@ function apriAzioni(bottone) {
     { et: 'Possibili doppioni', ico: ICO.cerca, nota: 'nomi che si somigliano', fn: mostraDoppioni },
     ...(admin ? [
       null,
-      { et: 'Sincronizza da Access', ico: ICO.sync, fn: sincronizza },
+      { et: 'Azzera il diario attività', ico: ICO.ics, tono: 'pericolo',
+        nota: 'cancella tutta la storia', fn: azzeraDiario },
       { et: 'Impostazioni', nota: 'tracciamento, ruoli', fn: mostraImpostazioni },
     ] : []),
   ]);
@@ -403,7 +404,7 @@ function apriAzioni(bottone) {
 /* #ANCHOR: approvazioni. Rapportino e ricambi spuntati da un operatore arrivano
    qui come proposte: chi approva - amministratore o APPROVATORE - le approva o
    le respinge. La pillola in barra c'e' solo per loro e solo se c'e' qualcosa
-   in attesa. L'approvatore finisce qui e basta: le azioni di massa, il sync,
+   in attesa. L'approvatore finisce qui e basta: le azioni di massa, il diario,
    le impostazioni e i ripristini restano dell'amministratore. */
 function aggiornaApprova() {
   const b = $('#approva');
@@ -478,14 +479,18 @@ function descrizioneFiltri() {
   return p.length ? p.join(', ') : 'nessun filtro attivo, quindi tutto l\'anno';
 }
 
-/** Completa o azzera in blocco. Conferma con i numeri esatti, poi Annulla.
- *  #ANCHOR: massa */
+/** Completa o azzera in blocco. Conferma con i numeri esatti, la parola OK
+ *  scritta a mano (#ANCHOR: conferma-ok), poi Annulla.  #ANCHOR: massa */
 function massa(modo) {
   const completa = modo === 'completa';
   modale(chiudi => {
     const conStime = h('input', { type: 'checkbox' });
     const riga = h('p', { style: 'margin:0 0 14px;font-size:var(--t-mini)' });
     const bottone = h('button.bottone', { testo: '…' });
+    /* Tocca centinaia di celle di colpo: si scrive OK prima. Quando non c'e'
+       niente da fare il bottone e' un semplice "Chiudi" e il campo sparisce -
+       far digitare OK per chiudere una finestra sarebbe una presa in giro. */
+    const ok = campoOK(bottone);
 
     const ricalcola = () => {
       const voci = completa
@@ -501,6 +506,8 @@ function massa(modo) {
       bottone.textContent = voci.length
         ? (completa ? `Completa ${voci.length} spunte` : `Azzera ${voci.length} spunte`)
         : 'Chiudi';
+      ok.hidden = !voci.length;
+      if (voci.length) ok.rivedi(); else bottone.disabled = false;
       bottone.onclick = () => {
         chiudi();
         if (!voci.length) return;
@@ -542,6 +549,7 @@ function massa(modo) {
         testo: 'Ogni modifica resta nel diario col tuo nome, e subito dopo hai il ' +
           'pulsante Annulla.'
       }),
+      ok,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
         h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
         bottone),
@@ -577,8 +585,8 @@ function disegnaIo() {
     ...(ruoloMio() === 'tecnico' ? [] : [h('span.ruolo', {
       testo: SIGLA_RUOLO[ruoloMio()],
       title: ruoloMio() === 'admin'
-        ? 'Amministratore: approvi rapportino e ricambi, azioni di massa, sync, ripristini'
-        : 'Approvatore: approvi rapportino e ricambi. Le azioni di massa, il sync e i ripristini restano dell\u2019amministratore.',
+        ? 'Amministratore: approvi rapportino e ricambi, azioni di massa, diario, ripristini'
+        : 'Approvatore: approvi rapportino e ricambi. Le azioni di massa, il diario e i ripristini restano dell\u2019amministratore.',
     })]));
 }
 
@@ -595,10 +603,10 @@ function mostraChiSono() {
   const r = ruoloMio();
   const cosaPuoi = {
     admin: 'Approvi "Rapportino" e "Ricambi", completi o azzeri in blocco, ' +
-      'rileggi Access, cambi le impostazioni, ripristini dal diario e puoi ' +
+      'cambi le impostazioni, ripristini dal diario (o lo azzeri) e puoi ' +
       'buttare i PDF di un anno intero.',
     approvatore: 'Approvi "Rapportino" e "Ricambi": le proposte degli operatori le ' +
-      'chiudi tu. Le azioni in blocco, la rilettura di Access, le impostazioni e ' +
+      'chiudi tu. Le azioni in blocco, il diario, le impostazioni e ' +
       'i ripristini restano dell\u2019amministratore.',
     tecnico: 'Spunti tutto; "Rapportino" e "Ricambi" restano proposte finch\u00e9 non ' +
       'le approva un amministratore o un approvatore.',
@@ -860,18 +868,11 @@ const riassuntoSync = r => `Access letto: ${r.services} service, ${r.clienti} cl
   (r.mesi_cambiati ? `, ${r.mesi_cambiati} con mesi cambiati` : '') +
   (r.spunte_orfane ? `, ${r.spunte_orfane} spunte orfane` : '') + '.';
 
-async function sincronizza() {
-  const stop = avviso('Lettura del database Access…', { durata: 0 });
-  try {
-    const { dati, ok } = await chiama('/api/sync', { metodo: 'POST', body: { operatore: rete.operatore }, ms: 300000 });
-    stop();
-    if (!ok) avviso('Sync non riuscito: ' + (dati.errore || ''), { tono: 'allerta', durata: 10000 });
-    // in caso di successo ci pensa l'evento SSE 'sync', che arriva a tutti
-  } catch {
-    stop();
-    avviso('Server non raggiungibile: sync rinviato.', { tono: 'allerta' });
-  }
-}
+/* Il bottone "Sincronizza da Access" non c'e' piu' (28a sessione): online il
+   .accdb non si raggiunge e lo legge il PC dell'ufficio da solo alle 08:15, in
+   locale lo rilegge il server all'avvio. Restava un tasto che o non serviva o
+   non funzionava. L'evento resta: quando il sync avviene, chi e' collegato se
+   lo sente dire lo stesso. */
 
 /* ------------------------------------------------------ diario ----------- */
 /* Stava nella vista Controlli, che non c'e' piu': i grafici sono passati alle
@@ -946,6 +947,55 @@ function mostraDiario() {
       corpo,
       h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },
         h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
+    ];
+  });
+}
+
+/* AZZERARE IL DIARIO (#ANCHOR: conferma-ok). Solo l'amministratore, e solo
+   scrivendo OK: e' l'unica azione dell'applicazione che non si puo' disfare in
+   nessun modo, perche' e' proprio il registro di cosa si e' fatto a sparire -
+   e con lui i "Ripristina", che leggono di la'. Le spunte non si toccano: si
+   perde la storia, non il lavoro. Serve quando il diario e' pieno di prove o di
+   un travaso sbagliato e non si riesce piu' a leggere chi ha fatto cosa. */
+function azzeraDiario() {
+  if (!sonoAdmin()) return avviso('Azzerare il diario è dell’amministratore.');
+  modale(chiudi => {
+    const bottone = h('button.bottone.pericolo', { testo: 'Azzera il diario' });
+    const ok = campoOK(bottone);
+    bottone.onclick = async () => {
+      bottone.disabled = true; bottone.textContent = 'Azzero…';
+      try {
+        const { dati, ok: andata } = await chiama('/api/diario_azzera', {
+          metodo: 'POST', body: { operatore: rete.operatore }, ms: 60000,
+        });
+        if (!andata) throw new Error(dati?.errore || 'rifiutato');
+        chiudi();
+        const n = dati.n || 0;
+        avviso(n ? `Diario azzerato: ${n} ${n === 1 ? 'riga cancellata' : 'righe cancellate'}. ` +
+                   'Le spunte sono al loro posto.'
+                 : 'Il diario era già vuoto.', { tono: 'ok', durata: 9000 });
+      } catch (e) {
+        chiudi();
+        avviso('Diario non azzerato: ' + (e.message || e), { tono: 'allerta' });
+      }
+    };
+    return [
+      h('h2', { testo: 'Azzera il diario attività' }),
+      h('p.sotto', {
+        testo: 'Cancella tutte le righe del diario, di tutti gli operatori e di ' +
+          'tutti gli anni. Le spunte, le note e i PDF restano dove sono: sparisce ' +
+          'solo la storia di chi le ha messe e quando.',
+      }),
+      h('p', {
+        style: 'margin:0 0 14px;font-size:var(--t-mini)',
+        html: 'Da qui in poi il diario riparte dalla prima spunta nuova, e i ' +
+          '<b>Ripristina</b> delle righe di oggi non ci saranno più: ' +
+          'leggono proprio quelle righe. <b>Non si torna indietro.</b>',
+      }),
+      ok,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
+        bottone),
     ];
   });
 }
@@ -1067,8 +1117,9 @@ function mostraImpostazioni() {
     /* SPAZIO DEI PDF (#ANCHOR: documenti). Lo Storage online non e' infinito e
        un documento a 288 dpi pesa: qui si vede quanto occupa ogni anno e si
        pota un anno chiuso in un clic. Le spunte "stampata" non si toccano -
-       si butta il PDF, non il lavoro. Conferma in due tempi come nel cassetto:
-       il bottone diventa "Sicuro?" e torna com'era da solo. */
+       si butta il PDF, non il lavoro. Conferma scritta come le altre azioni in
+       blocco dell'amministratore (#ANCHOR: conferma-ok): il "Sicuro?" a due
+       tempi che c'era qui si prendeva col secondo clic di fila. */
     const pdfBox = h('div', { style: 'display:grid;gap:6px' });
     const disegnaPdf = () => {
       const r = riepilogoDocumenti();
@@ -1084,27 +1135,7 @@ function mostraImpostazioni() {
           title: `Toglie i ${a.n} PDF del ${a.anno} (${dimensione(a.bytes)})` +
             (eCorrente ? ' — è l’anno in corso' : '') +
             '. Le spunte "stampata" restano.',
-          onclick: async e => {
-            const b = e.currentTarget;
-            if (b.dataset.conferma !== '1') {
-              b.dataset.conferma = '1';
-              b.textContent = `Sicuro? ${a.n} PDF`;
-              setTimeout(() => {
-                b.dataset.conferma = ''; b.textContent = 'Cancella';
-              }, 4000);
-              return;
-            }
-            b.disabled = true; b.textContent = 'Cancello…';
-            try {
-              const { n, bytes } = await eliminaDocumenti({ anno: a.anno });
-              disegnaPdf();
-              avviso(`${n} PDF del ${a.anno} eliminati: ${dimensione(bytes)} liberati.`,
-                     { tono: 'ok' });
-            } catch (ex) {
-              b.disabled = false; b.dataset.conferma = ''; b.textContent = 'Cancella';
-              avviso('Non cancellati: ' + (ex.message || ex), { tono: 'allerta' });
-            }
-          },
+          onclick: e => confermaCancellaPdf(a, e.currentTarget, disegnaPdf),
         });
         return h('div', { style: 'display:flex;align-items:center;gap:10px;' +
                                  'justify-content:space-between' },
@@ -1125,8 +1156,8 @@ function mostraImpostazioni() {
         testo: 'Tre ruoli, un clic per girarli. L\u2019OPERATORE spunta tutto, ma ' +
           '"Rapportino" e "Ricambi" restano proposte. L\u2019APPROVATORE chiude quelle ' +
           'due proposte e basta. L\u2019AMMINISTRATORE, oltre ad approvare, completa o ' +
-          'azzera in blocco, rilegge Access, cambia queste impostazioni, ' +
-          'ripristina dal diario e pu\u00f2 buttare i PDF di un anno intero.'
+          'azzera in blocco, cambia queste impostazioni, ripristina dal diario ' +
+          '(o lo azzera) e pu\u00f2 buttare i PDF di un anno intero.'
       }),
       ruoliBox,
       /* Registrare un collega ha senso solo online: in locale non c'e' login
@@ -1180,6 +1211,44 @@ function mostraImpostazioni() {
             } catch { avviso('Non salvato: server non raggiungibile.', { tono: 'allerta' }); }
           }
         })),
+    ];
+  });
+}
+
+/** La finestra che chiede OK prima di buttare i PDF di un anno intero
+ *  (#ANCHOR: conferma-ok). `bott` e' il bottone della riga: torna com'era se
+ *  la cosa non va in porto. */
+function confermaCancellaPdf(a, bott, ridisegna) {
+  modale(chiudi => {
+    const via = h('button.bottone.pericolo', { testo: `Cancella i ${a.n} PDF` });
+    const ok = campoOK(via);
+    via.onclick = async () => {
+      via.disabled = true; via.textContent = 'Cancello…';
+      bott.disabled = true; bott.textContent = 'Cancello…';
+      try {
+        const { n, bytes } = await eliminaDocumenti({ anno: a.anno });
+        chiudi();
+        ridisegna();
+        avviso(`${n} PDF del ${a.anno} eliminati: ${dimensione(bytes)} liberati.`,
+               { tono: 'ok' });
+      } catch (ex) {
+        chiudi();
+        bott.disabled = false; bott.textContent = 'Cancella';
+        avviso('Non cancellati: ' + (ex.message || ex), { tono: 'allerta' });
+      }
+    };
+    return [
+      h('h2', { testo: `Cancella i PDF del ${a.anno}` }),
+      h('p.sotto', {
+        testo: `${a.n} ${a.n === 1 ? 'documento' : 'documenti'}, ${dimensione(a.bytes)}` +
+          (a.anno === st.anno ? ' — è l’anno in corso.' : '.') +
+          ' Le spunte "stampata" restano: sparisce il file, non il lavoro. ' +
+          'Non si torna indietro.',
+      }),
+      ok,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
+        via),
     ];
   });
 }
@@ -1274,15 +1343,18 @@ function tastiera() {
 function mostraAiuto() {
   modale(chiudi => {
     /* `n` = quanti passi mostrare accesi, da sinistra: la legenda segue CAMPI,
-       cosi' aggiungere un passo non richiede di ritoccare questa finestra. */
-    const cel = (cl, n) => h('span.cella' + (cl ? '.' + cl : ''), {
-      style: 'width:40px;height:20px;flex:none',
-      ...Object.fromEntries(CAMPI.map((campo, i) =>
-        ['data-' + { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' }[campo],
-          i < n ? 1 : 0])),
-      html: CAMPI.map(campo =>
-        `<i class="seg ${{ stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' }[campo]}"></i>`).join(''),
-    });
+       cosi' aggiungere un passo non richiede di ritoccare questa finestra.
+       `v` e' il VALORE del segmento acceso, gli stessi della griglia: 1 fatto
+       qui, 2 ereditato (tenue), 3 proposto e in attesa (a righe). Puo' essere
+       una funzione dell'indice, per la riga dove non tutti i passi sono uguali. */
+    const S = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
+    const cel = (cl, n, v = 1, misura = 'width:40px;height:20px;flex:none') =>
+      h('span.cella' + (cl ? '.' + cl : ''), {
+        style: misura,
+        ...Object.fromEntries(CAMPI.map((campo, i) =>
+          ['data-' + S[campo], i < n ? (typeof v === 'function' ? v(i) : v) : 0])),
+        html: CAMPI.map(campo => `<i class="seg ${S[campo]}"></i>`).join(''),
+      });
     const riga = (nodo, et) => h('div', { style: 'display:flex;align-items:center;gap:10px' },
       nodo, h('span', { testo: et, style: 'font-size:var(--t-mini)' }));
     const trattino = h('span', {
@@ -1300,6 +1372,11 @@ function mostraAiuto() {
         ...CAMPI.map((campo, i) =>
           riga(cel(i === PASSI - 1 ? 'completa' : '', i + 1),
             `${i + 1}. ${ETICHETTA[campo]}${i === PASSI - 1 ? ' — completa' : ''}`)),
+        riga(cel('', 2, 2), 'Tenue: passo già fatto prima — in un mese precedente ' +
+          'o nell’anno scorso — e ancora valido. Vale anche qui, e da qui non si toglie'),
+        riga(cel('', PASSI, i => DA_APPROVARE.includes(CAMPI[i]) ? 3 : 1),
+          `A righe: ${DA_APPROVARE.map(k => ETICHETTA[k]).join(' e ')} spuntati da un ` +
+          'operatore, in attesa di chi approva. Contano solo dopo l’approvazione'),
         riga(cel('ritardo', 1), 'In ritardo: la scadenza è passata e la mappatura ' +
           'del sito non è chiusa in nessun mese'),
         riga(cel('visita', 0), CLASSE_ET['visita']),
@@ -1307,6 +1384,22 @@ function mostraAiuto() {
         riga(cel('darinnovare', 0), CLASSE_ET['da-rinnovare']),
         riga(cel('nontracciato', 0), CLASSE_ET['non-tracciato']),
         riga(trattino, 'Nessuna manutenzione prevista, o service non ancora attivo')),
+
+      h('h3.tit-p', { testo: 'La riga del cliente' }),
+      h('p.nota-t', {
+        style: 'margin-bottom:10px',
+        testo: 'La riga chiusa di un cliente riassume i suoi siti: per ogni mese, ' +
+          `una capsula uguale ma più bassa, con gli stessi ${PASSI} segmenti. ` +
+          'Un segmento pieno vuol dire che quel passo è fatto su TUTTI i suoi siti ' +
+          'in scadenza quel mese, tenue che è fatto solo su alcuni, spento che non ' +
+          'lo ha ancora nessuno. Così si vede dove si è arrivati senza aprire il ' +
+          'cliente.',
+      }),
+      h('div', { style: 'display:grid;gap:9px;margin-bottom:20px' },
+        riga(cel('capsula-cli', 2, 1, 'width:40px;flex:none'),
+          'Cliente chiuso: i primi due passi fatti su tutti i siti in scadenza'),
+        riga(cel('capsula-cli', PASSI, 2, 'width:40px;flex:none'),
+          'Tutti i passi, ma solo su una parte dei suoi siti')),
 
       h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
       h('p.nota-t', {
@@ -1333,6 +1426,17 @@ function mostraAiuto() {
           'manutenzione la scadenza è il primo: quella cella è piena, le altre ' +
           'restano come visite (capsula col solo contorno) e si possono spuntare ' +
           'se la mappatura si fa lì.'
+      }),
+
+      h('h3.tit-p', { testo: 'Il PDF delle schede e la spunta "Stampata"' }),
+      h('p.nota-t', {
+        style: 'margin-bottom:18px',
+        testo: 'Quando il generatore consegna un PDF, la spunta "Stampata" si mette ' +
+          'da sola sulla PRIMA VISITA IN ARRIVO di quel sito, mai su un mese già ' +
+          'passato — anche se la mappatura è in ritardo. Il foglio stampato oggi ' +
+          'serve al prossimo giro, ed è lì che va segnato. I passi si accumulano, ' +
+          'quindi vale lo stesso per la scadenza: l’icona del PDF accanto al nome ' +
+          'del sito apre l’ultimo documento archiviato.',
       }),
 
       h('h3.tit-p', { testo: 'Perché gli anni non sono identici' }),

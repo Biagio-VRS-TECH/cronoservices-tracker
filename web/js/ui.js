@@ -102,6 +102,34 @@ export function avviso(testo, opz = {}) {
   return via;
 }
 
+/* --------------------------------------------------- conferma scritta --- */
+/* Le azioni che non si disfano davvero - azzerare le spunte in blocco,
+   completarle tutte, buttare il diario, cancellare i PDF di un anno - non
+   partono con un clic solo: prima si scrive OK. Non e' un secondo "sei
+   sicuro?" da schiacciare per riflesso, e' l'unica cosa nella finestra che
+   chiede di fermarsi a leggere.
+   Il campo non apre una finestra sua: sta DENTRO quella che c'e' gia', cosi'
+   il conto esatto ("1.284 spunte da togliere") resta sotto gli occhi mentre si
+   conferma. Governa il bottone, che nasce disabilitato.  #ANCHOR: conferma-ok */
+export function campoOK(bottone, { parola = 'OK', etichetta } = {}) {
+  const id = 'ok-' + Math.random().toString(36).slice(2, 8);
+  const inp = h('input.campo.campo-ok', {
+    id, type: 'text', autocomplete: 'off', spellcheck: 'false', placeholder: parola,
+  });
+  const giusto = () => inp.value.trim().toUpperCase() === parola.toUpperCase();
+  const rivedi = () => { bottone.disabled = !giusto(); };
+  inp.oninput = rivedi;
+  inp.onkeydown = e => { if (e.key === 'Enter' && giusto()) bottone.click(); };
+  rivedi();
+  const n = h('label.conferma-ok', { for: id },
+    h('span', { testo: etichetta || `Se sei sicuro, digita ${parola}:` }), inp);
+  // `rivedi` serve a chi cambia le carte in tavola mentre la finestra e' aperta
+  // (in "Completa tutte" una spunta puo' azzerare il conto): il bottone si
+  // rimette d'accordo col campo invece di restare acceso per inerzia.
+  n.rivedi = rivedi;
+  return n;
+}
+
 /* ------------------------------------------------------------- modale ---- */
 const FOCALIZZABILI = 'input:not([disabled]),button:not([disabled]),select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
 export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
@@ -112,6 +140,12 @@ export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
     if (prima?.isConnected) prima.focus?.();
   };
   const tasto = e => {
+    /* Una modale puo' aprirne un'altra sopra (la conferma scritta prima di
+       buttare i PDF di un anno, dentro le Impostazioni): i tasti li prende solo
+       quella davanti, altrimenti un Escape ne chiudeva due e il Tab girava fra
+       due fogli sovrapposti. */
+    if (document.querySelectorAll('.velo').length > 1 &&
+        velo !== [...document.querySelectorAll('.velo')].pop()) return;
     if (e.key === 'Escape' && chiudibile) return chiudi();
     /* Tab resta dentro il foglio: dietro il velo non si naviga. */
     if (e.key !== 'Tab') return;

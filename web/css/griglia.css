@@ -134,12 +134,22 @@
 .riga-srv.a-posto .tag.completo,
 .scheda.finita .tag.completo { display: inline-flex; }
 
-/* barretta di avanzamento del cliente nel mese */
+/* IL RIEPILOGO DEL CLIENTE NEL MESE: la stessa capsula a quattro segmenti
+   della cella del sito, in piccolo. Qui c'era una barretta sola che si
+   riempiva da sinistra: diceva a che percentuale si era arrivati, non a quale
+   PASSO, e per saperlo bisognava aprire il cliente. Riusa per intero le regole
+   di `.cella` (colori dei segmenti, tenue per "solo alcuni siti", verde per la
+   capsula piena): quello che cambia e' solo la misura.
+   Non e' un bottone e non si clicca: niente ingrandimento al passaggio del
+   mouse, che qui sembrerebbe un invito a premere. */
 .riga-cli .mesi .q { display: grid; place-items: center; }
-.riga-cli .qb { width: 22px; height: 4px; border-radius: var(--r-tonda); background: var(--st-vuoto); overflow: hidden; }
-.riga-cli .qb.pieno { box-shadow: 0 0 6px -1px color-mix(in srgb, var(--completa) 70%, transparent); }
-.riga-cli .qb i { display: block; height: 100%; background: var(--completa); border-radius: inherit;
-  transition: width var(--medio); }
+/* La forma vale anche fuori dalla griglia (la legenda di "Come si legge" la
+   ridisegna); la larghezza segue il passo dei mesi e quindi solo qui. */
+.cella.capsula-cli { height: 11px; padding: 1.5px; border-radius: 4px; gap: 1.5px; }
+.cella.capsula-cli .seg { border-radius: 1.5px; }
+.riga-cli .cella.capsula-cli { width: calc(var(--passo-mese) - 14px); }
+.riga-cli .cella.capsula-cli:hover { transform: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-vuoto) 90%, transparent); }
+.riga-cli .cella.capsula-cli.completa:hover { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--completa) 62%, transparent); }
 
 /* Bottone "Chiudi tutti / Apri tutti" nell'angolo della testa: con 222 clienti
    le tendine si richiudevano a mano una per una. */

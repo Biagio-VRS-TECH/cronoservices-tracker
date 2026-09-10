@@ -3,6 +3,110 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-10 (28a sessione) - si scrive OK, la riga del cliente si legge, il PDF guarda avanti
+
+Branch `ruoli-falla-cambio-nome` (lo stesso della 25a-27a). Cinque richieste in
+una.
+
+### 1. "Digita OK" su tutte le azioni in blocco dell'amministratore
+
+`campoOK(bottone, {parola, etichetta})` in `ui.js` (#ANCHOR: conferma-ok):
+ritorna l'etichetta col campo e tiene il bottone **disabilitato** finche' non
+c'e' scritto OK. Non apre una finestra sua - sta dentro quella che c'e' gia',
+cosi' il conto esatto resta sotto gli occhi mentre si conferma. Espone
+`rivedi()` per chi cambia le carte in tavola a finestra aperta (in *Completa
+tutte* la spunta "comprendi anche le visite" cambia il conto: se scende a zero
+il campo sparisce e il bottone diventa "Chiudi").
+
+Dove: **Completa tutte le spunte**, **Azzera tutte le spunte**, **Azzera il
+diario attivita'** (nuovo, sotto) e **Cancella i PDF** di un anno nelle
+Impostazioni. Quest'ultimo aveva un "Sicuro?" a due tempi sullo stesso
+bottone: lo si prendeva col secondo clic di fila, che e' esattamente il gesto
+che si voleva impedire. Ora apre una finestra sopra le Impostazioni - e per
+questo `modale()` ora **da' i tasti solo al foglio davanti** (prima un Escape
+ne chiudeva due e il Tab girava fra due fogli sovrapposti).
+
+CSS nuovo in `base.css`: `.conferma-ok` (fascia d'allerta), `.campo-ok`,
+`.bottone.pericolo` e `.bottone:disabled`.
+
+### 2. Azzera il diario attivita'
+
+Voce nuova nel menu Azioni, solo admin. `POST /api/diario_azzera` ->
+`api.azzera_diario`; online `azzera_diario()` in `cloud/03-letture.sql`, con
+l'EXECUTE in `04-sicurezza.sql`. **Da rieseguire su Supabase: `03` e poi
+`04`.** `DELETE FROM eventi` e basta: spunte, note e PDF restano dove sono.
+Spariscono pero' i **Ripristina**, che leggono proprio quelle righe - e' l'unica
+azione dell'applicazione che non si disfa in nessun modo, ed e' per questo che
+la conferma e' scritta a mano. `eventi` non e' nella pubblicazione Realtime,
+quindi la cancellazione non fa partire una valanga di eventi verso i client.
+Nessun evento SSE: chi ha il diario gia' aperto lo rilegge riaprendolo.
+
+### 3. La riga del cliente: quattro segmenti al posto della barretta
+
+`capsulaCliente`/`quotaMese` in `anno.js`, `.cella.capsula-cli` in
+`griglia.css`. Per ogni mese, i `PASSI` segmenti della cella, piu' bassi
+(11px): pieno = quel passo e' fatto su **tutti** i siti del cliente in scadenza
+quel mese, tenue = su alcuni, spento = su nessuno; verde = tutto fatto. Prima
+era `.qb`, una barretta unica che si riempiva da sinistra: diceva a che
+percentuale si era arrivati, non a quale passo. Riusa per intero le regole dei
+segmenti di `.cella`, quindi non nasce un secondo linguaggio di colori.
+`aggiornaTotali` riscrive la capsula intera (dodici nodi per cliente) invece di
+rincorrere quattro attributi.
+**Trappola trovata**: il nome `riepilogo` era gia' preso da `base.css` (i
+totali in barra, `display:flex` + `margin-left:auto`) e mandava a destra le
+capsule della legenda. Da qui `capsula-cli`.
+
+### 4. Il PDF mette la spunta sulla prima visita IN ARRIVO
+
+`mesePerStampa(s)` in `stato.js` (#ANCHOR: mese-stampa), usata da
+`urlGeneratore` (`documenti.js`) e da `caricaSiti` (`schede/ponte.js`). Prima
+era `ma.mese || ma.scad`, cioe' il mese della mappatura: con un sito in
+**ritardo** la spunta finiva su un mese gia' passato - le schede stampate oggi
+risultavano consegnate a marzo, quando il tecnico ci va a novembre. Ora: primo
+mese di manutenzione spuntabile **>= il mese di oggi** (visite comprese, non
+solo la scadenza); su un anno futuro il primo dell'anno; su un anno gia' chiuso,
+o se tutte le visite sono alle spalle, si torna al comportamento di prima.
+Verificato sui dati veri: 8 siti cambiano, tutti del tipo `000001000001`
+(giugno + dicembre, scadenza giugno) -> la spunta passa da giugno a dicembre.
+
+### 5. Via il bottone "Sincronizza da Access"
+
+Non serviva piu': online il `.accdb` non si raggiunge (rispondeva con un
+messaggio di scuse) e in locale il server lo rilegge da solo all'avvio, mentre
+il PC dell'ufficio spinge su Supabase alle 08:15. Tolti la voce di menu e
+`sincronizza()`; **restano** `POST /api/sync`, `sync.esegui` e l'evento
+`sync-fatto`, che continua ad avvisare chi e' collegato quando il travaso
+avviene davvero.
+
+### E la finestra "Come si legge"
+
+Rifatta la legenda con quello che mancava e con quello che e' cambiato: il
+**passo ereditato** (tenue) e il **passo proposto** (a righe) - c'erano nella
+griglia dalla 20a e dalla 22a, non nella legenda -, la nuova sezione **"La
+riga del cliente"** con due capsule d'esempio, e **"Il PDF delle schede e la
+spunta Stampata"**. Il costruttore `cel()` prende ora anche il *valore* del
+segmento (1/2/3), come funzione dell'indice per la riga delle proposte, cosi'
+la legenda continua a seguire `CAMPI` e `DA_APPROVARE` senza numeri scritti a
+mano.
+
+Service worker `crono-guscio-v20`. Collaudato nel browser su una copia di
+`data/prova.db` (porta 8775): menu Azioni senza il sync, il campo OK che
+abilita e disabilita, il diario azzerato davvero (7294 righe, spunte intatte),
+la finestra dei PDF sopra le Impostazioni con l'Escape che ne chiude una sola,
+le capsule del cliente che si aggiornano dal vivo a ogni spunta, la legenda
+allineata. Nessun errore in console.
+
+### Rimasto fuori
+
+- **L'azzeramento del diario non avvisa gli altri client**: chi ha il diario
+  aperto in quel momento vede ancora le righe vecchie finche' non lo riapre.
+  Basterebbe un evento `diario` (SSE + tipo nuovo in `apriStream`), ma
+  online non ci sarebbe il gemello Realtime e i due giri direbbero cose
+  diverse.
+- **`POST /api/sync` non lo chiama piu' nessuna schermata.** Resta per una
+  chiamata a mano: toglierlo vorrebbe dire togliere anche il ramo di
+  `nuvola.js` e la voce in `ROUTE`, e il giorno che serve rimetterlo e' peggio.
+
 ## Fatto il 2026-09-10 (27a sessione) - il controllo finale prima del deploy
 
 Branch `ruoli-falla-cambio-nome`, poi **deploy** (merge in `main` e push): e'

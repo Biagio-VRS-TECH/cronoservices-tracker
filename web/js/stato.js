@@ -448,6 +448,33 @@ export function classeMese(s, mese) {
   return mese === meseScadenza(s) ? 'previsto' : 'visita';
 }
 
+/** Il mese su cui va la spunta "stampata" quando si archivia un PDF delle
+ *  schede: la PRIMA VISITA IN ARRIVO, mai una passata.  #ANCHOR: mese-stampa
+ *
+ *  Prima si usava il mese della mappatura (dove sta il lavoro, altrimenti la
+ *  scadenza) e con un sito in RITARDO quella spunta finiva su un mese gia'
+ *  passato: le schede appena stampate risultavano consegnate a marzo, quando
+ *  il tecnico ci va a novembre. Il foglio stampato oggi serve alla prossima
+ *  visita, e li' va segnato - anche se la scadenza e' scaduta.
+ *
+ *  Vale ogni mese di manutenzione spuntabile (visite comprese), non solo la
+ *  scadenza. Non cambia niente per chi e' in pari: se la scadenza deve ancora
+ *  arrivare, la prima visita in arrivo e' proprio lei. Su un anno gia' chiuso
+ *  non c'e' nessun futuro da trovare e si torna al comportamento di prima. */
+export function mesePerStampa(s) {
+  const ma = mappaturaSito(s);
+  const ripiego = ma.mese || ma.scad || 0;
+  if (st.anno < st.annoOggi) return ripiego;
+  const minimo = st.anno === st.annoOggi ? st.meseOggi : 1;
+  for (let m = minimo; m <= 12; m++) {
+    const b = classeBase(s, m);
+    if (b !== 'non-previsto' && b !== 'prima-contratto') return m;
+  }
+  // tutte le visite dell'anno sono alle spalle: meglio il mese della mappatura
+  // che nessuna spunta.
+  return ripiego;
+}
+
 export function statoCella(id, mese) {
   const s = st.perServ.get(id);
   const c = cella(id, mese);
@@ -741,8 +768,8 @@ function cellaDalServer(id, mese, valore) {
 
 /* ------------------------------------------------------------- ruoli ---- */
 /* #ANCHOR: ruoli. Tre ruoli e due poteri diversi:
-     admin        approva, azzera in blocco, sincronizza, cambia le impostazioni,
-                  ripristina dal diario, butta i PDF di un anno intero
+     admin        approva, azzera in blocco, cambia le impostazioni, ripristina
+                  dal diario (o lo azzera), butta i PDF di un anno intero
      approvatore  approva rapportino e ricambi e BASTA
      tecnico      a schermo "OPERATORE" (ETICHETTA_RUOLO): propone, e quelle
                   due spunte restano in attesa

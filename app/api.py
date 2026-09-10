@@ -396,6 +396,24 @@ def attivita(ctx, q, body):
     return 200, {"attivita": [dict(r) for r in rows]}, None
 
 
+def azzera_diario(ctx, q, body):
+    """Butta TUTTO il diario, di tutti gli operatori e di tutti gli anni. Solo
+    l'amministratore (#ANCHOR: ruoli), e dal client solo dopo aver scritto OK
+    (#ANCHOR: conferma-ok in web/js/ui.js).
+
+    Le spunte, le note e i documenti NON si toccano: sparisce la storia di chi
+    le ha messe, non il lavoro. Sparisce pero' anche il "Ripristina", che legge
+    proprio quelle righe: e' l'unica azione dell'applicazione che non si disfa
+    in nessun modo, ed e' per questo che la conferma e' scritta a mano."""
+    with db.WRITE_LOCK, db.sess() as c:
+        no = _solo_admin(c, body, ctx)
+        if no:
+            return no
+        n = c.execute("SELECT COUNT(*) AS n FROM eventi").fetchone()["n"]
+        c.execute("DELETE FROM eventi")
+    return 200, {"n": n}, None
+
+
 def incongruenze(ctx, q, body):
     """Controlli di qualita' sul dato Access. Riprende l'idea di qVerificaIncongruenze
     (mesi spuntati != visite annue previste dalla cadenza) e aggiunge i casi che
@@ -920,6 +938,7 @@ ROUTE = {
     ("POST", "/api/operatore"): operatore,
     ("POST", "/api/ruolo"): ruolo,
     ("POST", "/api/ripristina"): ripristina,
+    ("POST", "/api/diario_azzera"): azzera_diario,
     ("POST", "/api/ping"): ping,
     ("POST", "/api/impostazioni"): impostazioni,
     ("POST", "/api/sync"): fai_sync,

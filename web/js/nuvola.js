@@ -241,6 +241,8 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('app_ping', { p_dove: b.dove || null }, ms);
     case '/api/impostazioni':
       return rpc('imposta_meta', { p_inizio_tracciamento: b.inizio_tracciamento }, ms);
+    case '/api/diario_azzera':             // solo admin, e solo dopo aver scritto OK
+      return rpc('azzera_diario', {}, Math.max(ms, 40000));
 
     // i PDF delle schede tecnici (cloud/06-documenti.sql, #ANCHOR: documenti)
     case '/api/documenti':

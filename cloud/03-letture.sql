@@ -224,6 +224,31 @@ begin
   return jsonb_build_object('http', 200, 'inizio_tracciamento', v);
 end $fn$;
 
+-- ------------------------------------------------------ azzera il diario ---
+-- Gemello di api.azzera_diario. Butta TUTTE le righe di `eventi`, di tutti gli
+-- operatori e di tutti gli anni. Solo l'amministratore, e dal client solo dopo
+-- aver scritto OK (#ANCHOR: conferma-ok in web/js/ui.js).
+-- Le spunte, le note e i documenti non si toccano: sparisce la storia, non il
+-- lavoro. Sparisce pero' anche `ripristina_blocco`, che legge proprio queste
+-- righe: e' l'unica azione che non si disfa in nessun modo.
+-- `eventi` non e' pubblicata su Realtime (04-sicurezza.sql), quindi non parte
+-- una valanga di eventi di cancellazione verso i client.
+create or replace function public.azzera_diario()
+returns jsonb
+language plpgsql security definer set search_path = public as $fn$
+declare n bigint;
+begin
+  if not public.autorizzato() then
+    raise exception 'non autorizzato' using errcode = '42501';
+  end if;
+  if not public.e_admin() then
+    return jsonb_build_object('http', 403, 'errore', 'questa azione e'' dell''amministratore');
+  end if;
+  select count(*) into n from public.eventi;
+  delete from public.eventi;
+  return jsonb_build_object('http', 200, 'n', n);
+end $fn$;
+
 -- --------------------------------------------------------------- storia ----
 create or replace function public.app_storia(p_id_service int, p_anno int, p_mese int)
 returns jsonb
