@@ -84,7 +84,30 @@ Azioni per operatore e per amministratore. Nessun errore in console.
   commenti dicono "chi approva", non "amministratore". La decisione della
   26a era numerata 23 come quella della 25a: ora e' la **24**.
 
+### Dopo il deploy: "Azzera tutte" collaudato, e la produzione azzerata
+
+Il committente ha segnalato che "Azzera tutte le spunte" dava problemi nella
+preview. Provato in locale su `data/prova.db` da amministratore: l'azzeramento
+(94 spunte, un `/api/bulk` a 200), il completamento (118) e l'**Annulla**
+funzionano. Il difetto era **visivo**: nella finestra compariva la parola
+"null", perche' `modale()` faceva `append(...)` anche del figlio `null` (la
+riga delle opzioni che c'e' solo per "Completa") e il browser lo scrive come
+testo. Ora `modale()` salta i figli nulli. Sul database di produzione i log
+edge dicono che i `bulk_celle` del 10/09 alle 09:51 sono andati a 200 e le
+mappature erano gia' tutte a zero.
+
+**Produzione azzerata su richiesta** (10/09, dopo il deploy): `delete` su
+`eventi`, `ops`, `mappature`, `documenti` (erano 2644, 2642, 293 e 0 righe).
+**Non toccati**: `meta` (la data di inizio tracciamento la decide e la cambia
+l'amministratore da Impostazioni), `operatori`, `presenze`, `sync_log`,
+`clienti`/`services`. Nel bucket resta solo il segnaposto vuoto della
+cartella `2026/556/` creato dal pannello. Il committente aveva gia' fatto da
+solo: *Global file size limit* a 250 MB, `03` e `06` rieseguiti, orfani
+cancellati.
+
 ### Da fare su Supabase (a mano, dal committente)
+
+Niente: tutto applicato (vedi sopra). Resta come promemoria:
 
 - **`06-documenti.sql`** (dalla 24a/26a: `elimina_documenti` e il tetto a
   200 MB; prima alzare il *Global file size limit* a 250 MB). Finche' non e'

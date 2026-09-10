@@ -124,7 +124,9 @@ export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   /* `classe` serve ai fogli che non stanno nei 520px della modale normale (per
      esempio l'elenco per sito delle Statistiche, aperto a tutta pagina). */
   const foglio = h('div.foglio' + (classe ? '.' + classe : ''), { role: 'dialog', 'aria-modal': 'true' });
-  foglio.append(...[costruisci(chiudi)].flat());
+  // i figli `null` (un pezzo che c'e' solo in certi casi) si saltano: append()
+  // li scriverebbe come testo "null" - si vedeva in "Azzera tutte le spunte"
+  foglio.append(...[costruisci(chiudi)].flat().filter(x => x != null));
   const titolo = foglio.querySelector('h2');
   if (titolo) {
     titolo.id ||= 'modale-titolo-' + Math.random().toString(36).slice(2, 8);

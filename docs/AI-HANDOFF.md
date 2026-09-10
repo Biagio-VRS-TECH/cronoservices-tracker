@@ -207,7 +207,10 @@ torna (modale, menu, popover, cassetto), Tab intrappolato nella modale, frecce
 nel menu, etichette sugli input, contrasti AA (`--tenue-2`, `--su-allerta`,
 `--marchio-scuro` al posto di `--marchio` come testo), bersagli a 24px.
 `SIGLA_RUOLO` e `dimensione()` (virgola) in un posto solo. La decisione della
-26a e' rinumerata **24**. **Da rieseguire su Supabase: `06` e `03`.**
+26a e' rinumerata **24**. SQL `03` e `06` **applicati** dal committente. Dopo il
+deploy: "Azzera tutte" collaudato (mostrava un "null": `modale()` ora salta i
+figli nulli) e **produzione azzerata** su richiesta (`eventi`, `ops`,
+`mappature`, `documenti`; `meta` e `operatori` intatti).
 Service worker `crono-guscio-v19`.
 
 ## Stato al 2026-09-10 (26a sessione)
