@@ -108,11 +108,21 @@ variables → Add a variable*:
 
 Due accortezze quando la crei:
 
-- negli *Scopes* lascia spuntato solo **Functions**: non serve al build, e così
-  non può finire nel sito;
-- è la chiave che scavalca ogni permesso. Non va nel repository, non va in
-  `nuvola-config.js`, non si incolla in chat. `netlify-build.sh` scrive nel
-  client solo `SUPABASE_URL` e `SUPABASE_ANON_KEY`, mai questa.
+- spunta **Contains secret values**: Netlify la nasconde nell'interfaccia e la
+  oscura nei log di deploy;
+- negli *Scopes*, se il piano te lo fa scegliere, lascia solo **Functions**. Sul
+  piano attuale (`nf_team_dev`) la scelta non c'è e resta *All scopes*: **va
+  bene lo stesso**, perché `netlify-build.sh` scrive in `nuvola-config.js` solo
+  `SUPABASE_URL` e `SUPABASE_ANON_KEY` — la service key non la tocca mai. E per
+  sicurezza, se un domani qualcuno la aggiungesse a quel file, lo script se ne
+  accorge e **ferma la pubblicazione** invece di mandare online una chiave che
+  può tutto.
+
+Il *Deploy context* dev'essere **All**: serve anche ai Deploy Preview, non solo
+alla produzione.
+
+È la chiave che scavalca ogni permesso: non va nel repository, non va in
+`nuvola-config.js`, non si incolla in chat.
 
 La password non viene salvata da nessuna parte e non si rilegge: se un collega
 la perde, gliene fai una nuova da Supabase → Authentication → Users.
