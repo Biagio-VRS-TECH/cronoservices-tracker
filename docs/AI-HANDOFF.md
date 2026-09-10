@@ -120,7 +120,16 @@ ogni sync (ne tiene 20).
 | file | cosa contiene |
 |---|---|
 | `registra-utente.mjs` | **l'unica cosa che non gira nel browser** (#ANCHOR: registra-utente): l'admin registra un collega. Tiene la service key di Supabase, ma il ruolo lo chiede al database col token di chi chiama. Un file, nessuna dipendenza |
-| `prova-registra-utente.mjs` | la sua prova: `node netlify/functions/prova-registra-utente.mjs`. Stubba `process.env` e `fetch`, non tocca niente di vero, esce 0 se e' tutto a posto |
+
+In `netlify/functions/` ci va **solo roba con un handler**: Netlify pubblica come
+funzione ogni file di quella cartella, e un file che funzione non e' fa fallire
+il build con un `exit code: 2` che non dice quale sia. La prova sta apposta
+fuori, in `netlify/prove/`.
+
+### Prove `netlify/prove/`
+| file | cosa contiene |
+|---|---|
+| `prova-registra-utente.mjs` | `node netlify/prove/prova-registra-utente.mjs`. Stubba `process.env` e `fetch`, non tocca niente di vero, esce 0 se e' tutto a posto |
 
 ### Online `cloud/`
 | file | cosa contiene |

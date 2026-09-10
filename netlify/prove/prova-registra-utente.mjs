@@ -1,6 +1,6 @@
 /* prova-registra-utente.mjs - la prova di registra-utente.mjs, a mano.
  *
- *   node netlify/functions/prova-registra-utente.mjs
+ *   node netlify/prove/prova-registra-utente.mjs
  *
  * Perche' esiste. Tutto il resto del progetto si prova aprendo il browser; la
  * Function no, perche' gira sul server di Netlify. Ed e' proprio il pezzo che
@@ -16,7 +16,12 @@
  * controlli si fanno importando il modulo nella console del browser - e' ESM
  * standard e usa `process` solo dentro la funzione.
  */
-import fn from './registra-utente.mjs';
+/* Sta in `prove/` e non accanto alla Function apposta: Netlify pubblica come
+   funzione OGNI file dentro `netlify/functions/`, e questo non e' una
+   funzione - non ha un handler. Tenendolo li' il build falliva
+   ("Build script returned non-zero exit code: 2"), ed e' costato un po' di
+   tempo capirlo, perche' l'errore non nomina il file. */
+import fn from '../functions/registra-utente.mjs';
 
 const vero = process;                  // lo stub qui sotto copre `process`
 const chiamate = [];

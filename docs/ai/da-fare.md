@@ -224,8 +224,8 @@ Serve una variabile in piu' su Netlify, `SUPABASE_SERVICE_KEY`, con lo scope
 **solo Functions**: la procedura e' in `cloud/LEGGIMI.md`. Senza, il modulo
 risponde "configurazione incompleta" e dice quale manca.
 
-**Provato** con `node netlify/functions/prova-registra-utente.mjs`, che sta
-accanto alla Function ed e' rimasto nel repo: la esegue davvero sostituendo
+**Provato** con `node netlify/prove/prova-registra-utente.mjs`, rimasto nel
+repo (fuori da `functions/`: vedi qui sotto): la esegue davvero sostituendo
 `process.env` e `fetch` con dei finti, senza toccare ne' Supabase ne' Netlify.
 Tredici casi - variabili mancanti, GET, senza token, operatore, approvatore,
 token scaduto, casella non aziendale, dominio somigliante (`@finto-vrs-tech.it`),
@@ -238,6 +238,25 @@ Non e' un test framework e non vuole diventarlo: e' l'unico pezzo del progetto
 che non si prova aprendo il browser, ed e' quello che tiene la chiave che puo'
 tutto. Il giro end-to-end vero si vedra' sul Deploy Preview, dopo che il
 committente ha messo `SUPABASE_SERVICE_KEY` fra le variabili del sito.
+
+### La trappola di `netlify/functions/` (stessa sessione)
+
+Il file di prova era stato messo accanto alla Function, in
+`netlify/functions/`. **Netlify pubblica come funzione ogni file di quella
+cartella**: uno script di test, che un handler non ce l'ha, fa fallire il build.
+E l'errore non aiuta - `Failed during stage 'building site': Build script
+returned non-zero exit code: 2`, senza dire quale file.
+
+Costato tempo perche' il 2 e' anche la firma di `${VAR:?messaggio}` in dash, e
+la pista sbagliata sembrava solida: sono stati sospettati i fine riga CRLF (nel
+repo sono LF, `core.autocrlf=true` normalizza), la sintassi dello script
+(valida, provata con `dash -n`) e la variabile `SUPABASE_SERVICE_KEY` marcata
+secret (creata *dopo* il primo fallimento). Quello che ha risolto e' stato
+guardare **quando** i deploy hanno iniziato a fallire, commit per commit, via
+API di GitHub: l'ultimo verde era quello prima del file di prova.
+
+La regola, adesso scritta anche in AI-HANDOFF: in `netlify/functions/` ci va
+solo roba con un handler; le prove stanno in `netlify/prove/`.
 
 ### Cosa manca / da decidere (25a)
 
