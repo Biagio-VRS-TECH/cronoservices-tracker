@@ -131,7 +131,7 @@ button { background: none; border: 0; cursor: pointer; }
 .io:hover { background: var(--fondo); }
 .io b { font-weight: 500; font-size: var(--t-mini); }
 /* il ruolo accanto al nome (#ANCHOR: ruoli): c'e' per l'amministratore e per
-   l'approvatore, non per il tecnico */
+   l'approvatore, non per l'operatore */
 .ruolo {
   font: 600 var(--t-micro)/1 var(--f-dato); text-transform: uppercase; letter-spacing: .05em;
   color: var(--marchio); background: var(--marchio-tenue); border-radius: var(--r-tonda);

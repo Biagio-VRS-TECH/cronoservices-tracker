@@ -262,7 +262,7 @@
 .cella[data-c="2"] .seg.c { background: color-mix(in srgb, var(--st-controllata) 40%, var(--superficie)); transform: none; }
 .cella[data-k="2"] .seg.k { background: color-mix(in srgb, var(--st-corretta) 40%, var(--superficie));    transform: none; }
 .cella[data-r="2"] .seg.r { background: color-mix(in srgb, var(--st-ricambi) 40%, var(--superficie));     transform: none; }
-/* PASSO PROPOSTO (data-x="3"): rapportino o ricambi spuntati da un tecnico e
+/* PASSO PROPOSTO (data-x="3"): rapportino o ricambi spuntati da un operatore e
    in attesa dell'amministratore (#ANCHOR: ruoli in js/stato.js). A righe col
    colore del passo: "qualcuno l'ha fatto, non vale ancora". */
 .cella[data-k="3"] .seg.k { background: repeating-linear-gradient(135deg, var(--st-corretta) 0 2px, color-mix(in srgb, var(--st-corretta) 22%, var(--superficie)) 2px 5px); transform: none; }

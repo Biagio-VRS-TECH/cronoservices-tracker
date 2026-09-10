@@ -182,6 +182,21 @@ chi non e' admin, l'ultimo admin che non si declassa, un ruolo inventato
 rifiutato. In browser: badge "approva", menu Azioni senza le voci dell'admin,
 "Approva tutte (3)" che svuota la coda, la scheda di `#io` senza campi.
 
+### "Tecnico" a schermo si legge "operatore" (stessa sessione)
+
+Richiesta del committente. Cambia **solo l'etichetta**: il valore in database, in
+`api.py` e nelle funzioni Postgres resta `'tecnico'`. Il posto per farlo c'era
+gia' (`ETICHETTA_RUOLO` in `stato.js`), e cambiare il dato avrebbe rotto il sito
+in produzione, che gira ancora col client vecchio e manda `'tecnico'`.
+Toccati: `ETICHETTA_RUOLO`, `SIGLA_RUOLO` nelle impostazioni, il pannello
+presenze (mostrava il valore grezzo), la coda *Da approvare*, il tooltip della
+cella proposta, la scheda di `#io` e i commenti.
+
+**Lasciato apposta**: `ETICHETTA.controllata` = "Controllata dal tecnico" (e'
+il nome del passo 2, non del ruolo: li' "tecnico" e' chi fa il controllo sul
+campo, e la parola arriva dal rapportino) e "Schede tecnici", che e' il nome del
+generatore. Se il committente li vuole allineati, sono due stringhe.
+
 ### Cosa manca / da decidere (25a)
 
 - **Il declassamento non arriva in diretta**: se un admin ti toglie il ruolo

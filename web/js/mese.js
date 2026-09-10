@@ -369,7 +369,7 @@ function completaScheda(id) {
   for (const campo of CAMPI) {
     if (valore && e.ered[campo]) continue;          // gia' fatto in una visita prima
     /* una proposta (2) si tocca in entrambi i versi: l'admin la approva, il
-       tecnico la ritira; `spunta` decide secondo il ruolo */
+       operatore la ritira; `spunta` decide secondo il ruolo */
     const a = c[SIGLA[campo]];
     if (valore ? a === 1 : a === 0) continue;
     spunta(id, st.mese, campo, valore);

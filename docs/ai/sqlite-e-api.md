@@ -34,7 +34,8 @@ e il contratto degli endpoint.
   Alimenta la storia della cella e il diario. Non si potano.
 - `ops` — `op_id` gia' applicati: e' l'idempotenza della coda offline.
 - `operatori` — nome + ultimo accesso + `ruolo` ('admin' | 'approvatore' |
-  'tecnico', #ANCHOR: ruoli). Il nome e' solo una firma e **dall'app non si
+  'tecnico', #ANCHOR: ruoli; 'tecnico' a schermo si legge **"operatore"**, vedi
+  `ETICHETTA_RUOLO` in stato.js: il valore non cambia, cambia l'etichetta). Il nome e' solo una firma e **dall'app non si
   cambia**; l'identita' e' la casella del login, ed e' li' che sta il ruolo.
   Nessuna password (scelta del committente): in locale il ruolo e' una convenzione,
   col seme `config.json["amministratori"]`; online e' legato alla casella.

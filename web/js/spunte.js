@@ -51,7 +51,7 @@ function rigaPasso(campo, n, e) {
   return h('button.passo' + (er ? '.eredita' : '') + (pr ? '.proposto' : ''), {
     role: 'checkbox', 'aria-checked': pr ? 'mixed' : String(on), 'data-campo': campo,
     title: er ? `Gi\u00e0 fatta ${doveFatto(er)}: si toglie da l\u00ec`
-      : pr ? (possoApprovare() ? 'Proposta dal tecnico: un clic la approva' : 'In attesa di chi approva: un clic la ritira')
+      : pr ? (possoApprovare() ? 'Proposta dall\u2019operatore: un clic la approva' : 'In attesa di chi approva: un clic la ritira')
       : null,
     onclick: () => attiva(campo),
   },

@@ -404,7 +404,7 @@ export function aggiornaCella(id, mese, remoto) {
  *  intorno (fuoco della tastiera, chip del collega). */
 function dipingi(n, id, mese) {
   const e = statoCella(id, mese);
-  /* 1 fatto, 2 ereditato (tenue), 3 PROPOSTO dal tecnico e in attesa dell'admin
+  /* 1 fatto, 2 ereditato (tenue), 3 PROPOSTO dall'operatore e in attesa di chi approva
      (a righe, #ANCHOR: ruoli), 0 niente */
   for (const k of CAMPI) {
     const v = e.c[SIGLA[k]];

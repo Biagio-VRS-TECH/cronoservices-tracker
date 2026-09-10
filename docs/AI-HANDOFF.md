@@ -22,7 +22,9 @@ Ogni mappatura si chiude in quattro spunte: `stampata` -> `controllata` (dal
 tecnico) -> `corretta` ("mappatura completa rapportino") -> `ricambi`
 ("controllo ricambi e scadenze"). L'ordine e il numero stanno in un posto solo:
 `CAMPI` in `web/js/stato.js` e `db.CAMPI` in `app/db.py`. Tutto il resto conta
-`PASSI`, mai "tre". **Tre ruoli** (#ANCHOR: ruoli): il **tecnico** spunta tutto,
+`PASSI`, mai "tre". **Tre ruoli** (#ANCHOR: ruoli), il cui valore in database e'
+`'admin' | 'approvatore' | 'tecnico'` ma che a schermo si leggono con
+`ETICHETTA_RUOLO` (`tecnico` -> **"operatore"**): il **tecnico/operatore** spunta tutto,
 ma `corretta` e `ricambi` restano **proposte** (valore 2); l'**approvatore** le
 approva o le respinge e nient'altro; l'**amministratore** in piu' completa/azzera
 in blocco, sincronizza da Access, cambia le impostazioni, "Ripristina" dal diario

@@ -64,10 +64,10 @@ export const CAMPI = ['stampata', 'controllata', 'corretta', 'ricambi'];
    era gia' occupato da "controllata"; 'r' per "ricambi". */
 export const SIGLA = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
 export const PASSI = CAMPI.length;
-/* RUOLI E APPROVAZIONI (#ANCHOR: ruoli). Due passi non li chiude il tecnico:
-   li PROPONE, e chi ha il potere di approvare (amministratore o approvatore)
-   li chiude. Nel modello un passo vale 0 (da
-   fare), 1 (fatto/approvato) o PROPOSTA = 2 (spuntato dal tecnico, in attesa
+/* RUOLI E APPROVAZIONI (#ANCHOR: ruoli). Due passi non li chiude l'operatore
+   (il ruolo che nel codice vale 'tecnico'): li PROPONE, e chi ha il potere di
+   approvare (amministratore o approvatore) li chiude. Nel modello un passo vale 0 (da
+   fare), 1 (fatto/approvato) o PROPOSTA = 2 (spuntato dall'operatore, in attesa
    dell'admin). Il 2 non conta come fatto da nessuna parte: `fatto()` e' l'unico
    modo giusto di chiedere "questo passo c'e'?". Le regole stanno in
    `effettivo()` qui sotto e nel gemello `_valore_per_ruolo` di app/api.py. */
@@ -744,7 +744,8 @@ function cellaDalServer(id, mese, valore) {
      admin        approva, azzera in blocco, sincronizza, cambia le impostazioni,
                   ripristina dal diario, butta i PDF di un anno intero
      approvatore  approva rapportino e ricambi e BASTA
-     tecnico      propone: quelle due spunte restano in attesa
+     tecnico      a schermo "OPERATORE" (ETICHETTA_RUOLO): propone, e quelle
+                  due spunte restano in attesa
    `st.ruolo` arriva dal server col bootstrap ed e' l'unica fonte. Il ruolo NON
    si ricava piu' da `st.ruoli[rete.operatore]`: quella riga era il difetto
    della 25a sessione, perche' il nome a schermo e' solo una firma e bastava
@@ -755,13 +756,17 @@ export const sonoAdmin = () => ruoloMio() === 'admin';
 export const possoApprovare = () => ['admin', 'approvatore'].includes(ruoloMio());
 export const ruoloDi = nome => st.ruoli[nome] || 'tecnico';
 export const eAdmin = nome => ruoloDi(nome) === 'admin';
+/* Come si LEGGE un ruolo. Il valore memorizzato resta 'tecnico' - e' la chiave
+   in database, in api.py e in tutte le funzioni Postgres - ma a schermo la
+   parola e' "operatore": chi spunta le mappature non e' per forza un tecnico.
+   Passa tutto da qui: nell'interfaccia non si scrive mai il valore grezzo. */
 export const ETICHETTA_RUOLO = {
-  admin: 'amministratore', approvatore: 'approvatore', tecnico: 'tecnico',
+  admin: 'amministratore', approvatore: 'approvatore', tecnico: 'operatore',
 };
 
 /** Cosa succede DAVVERO se `campo`, che ora vale `attuale`, viene chiesto a
  *  `valore` da chi sta lavorando. Gemello di api._valore_per_ruolo: sui passi
- *  da approvare il tecnico propone (1 -> 2) e ritira (2 -> 0), ma non toglie
+ *  da approvare l'operatore propone (1 -> 2) e ritira (2 -> 0), ma non toglie
  *  un'approvazione (1 -> 0); chi approva (admin o approvatore) approva e
  *  respinge; rimettere in attesa (2, dal ripristino) e' del solo admin.
  *  Ritorna { v, errore }. */
@@ -779,7 +784,7 @@ export function effettivo(campo, attuale, valore) {
 }
 
 /** Il valore che un clic sul passo vuole ottenere: e' un interruttore, ma una
- *  proposta in attesa chi approva la APPROVA (-> 1) e il tecnico la RITIRA (-> 0). */
+ *  proposta in attesa chi approva la APPROVA (-> 1) e l'operatore la RITIRA (-> 0). */
 export function prossimo(id, mese, campo) {
   const a = cella(id, mese)[SIGLA[campo]];
   if (a === PROPOSTA) return possoApprovare() ? 1 : 0;

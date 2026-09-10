@@ -686,6 +686,11 @@ cassetto, popover), tooltip "proposta da X, in attesa di chi approva".
 Il clic passa sempre da `prossimo(id, mese, campo)`: su un 2 chi approva
 approva (-> 1), il tecnico ritira (-> 0). Ogni "e' fatto?" e' `fatto(c, campo)`.
 
+**Il nome del ruolo a schermo passa da `ETICHETTA_RUOLO`**: il valore `'tecnico'`
+si legge **"operatore"** (25a sessione, richiesta del committente). Nel codice, in
+`api.py` e nelle funzioni Postgres la chiave resta `'tecnico'`: nell'interfaccia
+non si scrive mai il valore grezzo.
+
 **Il ruolo di chi lavora e' `st.ruolo`, e arriva dal server** col bootstrap.
 Non si ricava dal nome a schermo: `st.ruoli[nome]` serve solo all'elenco delle
 impostazioni (era la falla della 25a sessione). Due domande diverse:

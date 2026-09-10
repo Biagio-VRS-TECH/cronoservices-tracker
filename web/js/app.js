@@ -368,7 +368,7 @@ async function vaiOggi() {
 function apriAzioni(bottone) {
   const inAnno = st.vista === 'anno';
   const soloAnno = () => avviso('Le azioni di massa si usano dalla vista Anno.');
-  /* Le voci dell'amministratore (#ANCHOR: ruoli) a un tecnico non compaiono:
+  /* Le voci dell'amministratore (#ANCHOR: ruoli) a un operatore non compaiono:
      completare/azzerare tutto, rileggere Access, le impostazioni. Il server le
      rifiuta comunque (403), qui si evita di mostrare porte chiuse. */
   const admin = sonoAdmin();
@@ -400,7 +400,7 @@ function apriAzioni(bottone) {
 }
 
 /* ------------------------------------------------------- approvazioni ---- */
-/* #ANCHOR: approvazioni. Rapportino e ricambi spuntati da un tecnico arrivano
+/* #ANCHOR: approvazioni. Rapportino e ricambi spuntati da un operatore arrivano
    qui come proposte: chi approva - amministratore o APPROVATORE - le approva o
    le respinge. La pillola in barra c'e' solo per loro e solo se c'e' qualcosa
    in attesa. L'approvatore finisce qui e basta: le azioni di massa, il sync,
@@ -411,7 +411,7 @@ function aggiornaApprova() {
   const n = possoApprovare() ? proposte().length : 0;
   b.hidden = n === 0;
   b.textContent = n === 1 ? '1 da approvare' : `${n} da approvare`;
-  b.title = 'Spunte proposte dai tecnici, in attesa della tua approvazione';
+  b.title = 'Spunte proposte dagli operatori, in attesa della tua approvazione';
 }
 
 function mostraApprovazioni() {
@@ -447,7 +447,7 @@ function mostraApprovazioni() {
             })),
           h('span.azioni-riga', {},
             h('button.pill.mini', { testo: 'Approva', onclick: () => { spunta(v.id, v.mese, v.campo, 1, false, 'approvazione'); ridisegna(); } }),
-            h('button.pill.mini.debole', { testo: 'Respingi', title: 'Torna "da fare": il tecnico lo vede',
+            h('button.pill.mini.debole', { testo: 'Respingi', title: 'Torna "da fare": l\u2019operatore lo vede',
               onclick: () => { spunta(v.id, v.mese, v.campo, 0, false, 'respinta'); ridisegna(); } })));
       }))] : []));
       if (!lista.length) aggiornaApprova();
@@ -455,7 +455,7 @@ function mostraApprovazioni() {
     ridisegna();
     return [
       h('h2', { testo: 'Da approvare' }),
-      h('p.sotto', { testo: 'I tecnici spuntano "Rapportino" e "Ricambi", ma quelle due spunte valgono ' +
+      h('p.sotto', { testo: 'Gli operatori spuntano "Rapportino" e "Ricambi", ma quelle due spunte valgono ' +
         'solo dopo il tuo via. Approvare le rende fatte; respingere le rimette da fare. ' +
         'Ogni mossa resta nel diario col tuo nome.' }),
       testa, corpo,
@@ -597,11 +597,11 @@ function mostraChiSono() {
     admin: 'Approvi "Rapportino" e "Ricambi", completi o azzeri in blocco, ' +
       'rileggi Access, cambi le impostazioni, ripristini dal diario e puoi ' +
       'buttare i PDF di un anno intero.',
-    approvatore: 'Approvi "Rapportino" e "Ricambi": le proposte dei tecnici le ' +
+    approvatore: 'Approvi "Rapportino" e "Ricambi": le proposte degli operatori le ' +
       'chiudi tu. Le azioni in blocco, la rilettura di Access, le impostazioni e ' +
       'i ripristini restano dell\u2019amministratore.',
     tecnico: 'Spunti tutto; "Rapportino" e "Ricambi" restano proposte finch\u00e9 non ' +
-      'le approva un amministratore.',
+      'le approva un amministratore o un approvatore.',
   }[r];
   modale(chiudi => [
     h('h2', { testo: 'Chi sta lavorando' }),
@@ -825,7 +825,7 @@ function pannelloCollegamento() {
         ? h('ul.elenco-gente', {}, tutti.map(o =>
           h('li', {},
             h('span.pallino', { style: 'background:' + tinta(o.nome), testo: iniziali(o.nome) }),
-            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}${ruoloDi(o.nome) !== 'tecnico' ? ' · ' + ruoloDi(o.nome) : ''}` }),
+            h('span', { html: `<b>${esc(o.nome)}</b>${o.nome === rete.operatore ? ' (tu)' : ''}${ruoloDi(o.nome) !== 'tecnico' ? ' · ' + ETICHETTA_RUOLO[ruoloDi(o.nome)] : ''}` }),
             h('span.nota-t', { testo: doveSta(o).replace(/^ · /, '') }))))
         : h('p.nota-t', { style: 'margin-bottom:18px', testo: 'Solo tu, per ora.' }),
 
@@ -954,13 +954,15 @@ function mostraImpostazioni() {
   if (!sonoAdmin()) return avviso('Le impostazioni sono dell\u2019amministratore.');
   modale(chiudi => {
     const inp = h('input.campo', { type: 'month', value: st.inizioTracciamento });
-    /* RUOLI (#ANCHOR: ruoli): il giro e' tecnico -> approvatore -> admin ->
-       tecnico. I nomi di config.json (locale) restano admin comunque; l'ultimo
+    /* RUOLI (#ANCHOR: ruoli): il giro e' operatore -> approvatore -> admin ->
+       operatore. Le CHIAVI restano 'tecnico'/'approvatore'/'admin' - quelle le
+       conosce il server - mentre a schermo si legge ETICHETTA_RUOLO.
+       I nomi di config.json (locale) restano admin comunque; l'ultimo
        admin non si declassa, altrimenti nessuno azzera piu' niente.
        Il ruolo si scrive sulla riga del nome, ma online quella riga e' legata a
        una casella: nessuno se la puo' spostare addosso. */
     const GIRO = { tecnico: 'approvatore', approvatore: 'admin', admin: 'tecnico' };
-    const SIGLA_RUOLO = { admin: 'admin', approvatore: 'approva', tecnico: 'tecnico' };
+    const SIGLA_RUOLO = { admin: 'admin', approvatore: 'approva', tecnico: 'operatore' };
     const ruoliBox = h('div.righe-scelta');
     const disegnaRuoli = () => {
       const nomi = [...new Set([...(st.operatori || []), ...Object.keys(st.ruoli || {})])]
@@ -1044,7 +1046,7 @@ function mostraImpostazioni() {
       h('h3.tit-p', { style: 'margin-top:14px', testo: 'Chi pu\u00f2 fare cosa' }),
       h('p.nota-t', {
         style: 'margin-bottom:10px',
-        testo: 'Tre ruoli, un clic per girarli. Il TECNICO spunta tutto, ma ' +
+        testo: 'Tre ruoli, un clic per girarli. L\u2019OPERATORE spunta tutto, ma ' +
           '"Rapportino" e "Ricambi" restano proposte. L\u2019APPROVATORE chiude quelle ' +
           'due proposte e basta. L\u2019AMMINISTRATORE, oltre ad approvare, completa o ' +
           'azzera in blocco, rilegge Access, cambia queste impostazioni, ' +
