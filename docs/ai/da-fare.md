@@ -90,7 +90,8 @@ sul database di produzione la fa il committente.
 
 Service worker `crono-guscio-v18`.
 
-## Fatto il 2026-09-09 (25a sessione) - la falla del cambio nome, e il terzo ruolo
+## Fatto il 2026-09-09/10 (25a sessione) - la falla del cambio nome, il terzo ruolo,
+## l'etichetta "operatore" e la registrazione dall'app
 
 Branch `ruoli-falla-cambio-nome`. Due cose, una grave e una richiesta.
 

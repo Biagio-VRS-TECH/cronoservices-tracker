@@ -219,7 +219,7 @@ posto. **Da fare a mano**: rieseguire `06` e cancellare i tre file dal pannello
 Storage (non con una DELETE su `storage.objects`, che lascia il file).
 Service worker `crono-guscio-v18`.
 
-## Stato al 2026-09-09 (25a sessione)
+## Stato al 2026-09-10 (25a sessione)
 
 Branch `ruoli-falla-cambio-nome` (dettaglio in
 [ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-09-25a-sessione---la-falla-del-cambio-nome-e-il-terzo-ruolo),
@@ -233,9 +233,17 @@ riga di un'altra casella non si tocca mai, e **il campo per cambiare nome non
 c'e' piu'**: `#io` apre una scheda in sola lettura, la riga in `operatori` nasce
 al login. **Terzo ruolo `approvatore`**: approva `corretta`/`ricambi` e basta.
 `_valore_per_ruolo`/`_applica` portano `p_approva` e `p_admin` separati (vecchie
-firme droppate). **SQL gia' applicato su Supabase** in questa sessione
-(migrazioni `ruoli_25a_*`) e verificato in produzione con una prova che rifa'
-l'attacco e si annulla da sola. Il `web/` invece e' ancora da deployare.
+firme droppate). **SQL gia' applicato su Supabase** (migrazioni `ruoli_25a_*`) e
+verificato in produzione con una prova che rifa' l'attacco e si annulla da sola.
+
+Poi, nello stesso branch: **`'tecnico'` a schermo si legge "operatore"**
+(`ETICHETTA_RUOLO`, il valore in database non cambia) e **l'amministratore
+registra un collega dall'app** (#ANCHOR: registra-utente), con il primo pezzo
+che non gira nel browser - `netlify/functions/registra-utente.mjs`, che tiene la
+service key ma il ruolo lo chiede al database col token di chi preme. Richiede
+`SUPABASE_SERVICE_KEY` fra le variabili del sito Netlify: **gia' impostata**, e
+il giro verificato sul Deploy Preview. Il `web/` e' ancora da deployare (il
+merge su `main` e' il deploy vero, lo chiede il committente).
 Service worker `crono-guscio-v17`.
 
 ## Stato al 2026-09-09 (24a sessione)
