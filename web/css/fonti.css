@@ -1,0 +1,35 @@
+/* fonti.css - i tre caratteri dell'applicazione, serviti da qui (web/assets/fonti/):
+   nessuna CDN, l'app parte offline come prima. Tre file variabili, ~210 KB in tutto.
+     Newsreader   serif editoriale: titoli, cifre eroe, copertine dei documenti
+     Inter        sans neutro e nitido: prosa e comandi
+     JetBrains Mono  monospazio: ogni dato, id, ora, conteggio
+   Solo il sottoinsieme latino (l'italiano ci sta tutto). `font-display: swap`
+   con i fallback di sistema dichiarati in theme.css. #ANCHOR: fonti */
+@font-face {
+  font-family: "Newsreader Variable";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonti/newsreader-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Newsreader Variable";
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonti/newsreader-latin-wght-italic.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonti/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/assets/fonti/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+}

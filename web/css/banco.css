@@ -1,0 +1,253 @@
+/* banco.css - il BANCO DI LAVORO dei generatori (web/schede/, web/registro/).
+   I due generatori preparano fogli A4: l'app intorno e' un piano di lavoro su
+   cui l'unica cosa luminosa sono le pagine. Questi token (--ui-*, --acc*) sono
+   i nomi che il loro CSS usa da sempre; qui NON hanno piu' valori propri, ma
+   sono derivati dai token del tracker (css/theme.css): un marchio, una
+   tavolozza, un font, tre pagine. Il tema lo decide `data-tema` sul <html>
+   (setTheme nei generatori lo scrive sempre esplicito). #ANCHOR: css-banco */
+:root {
+  /* Piano di lavoro, dietro le pagine. ESADECIMALE, non color-mix: html2canvas
+     legge il fondo di <body> e #app anche fotografando una sola pagina e non sa
+     interpretare `color(srgb ...)` - la resa del PDF moriva prima di disegnare
+     ("unsupported color function color", trovato nella 29a sessione sul
+     registro). Vale il fondo del tracker scurito di un soffio. */
+  --ui-0: #ECEAE5;   /* la porcellana del tracker, scurita di un soffio */
+  --ui-1: var(--superficie);      /* pannelli laterali */
+  --ui-2: var(--superficie-2);    /* campi e riquadri rialzati */
+  --ui-3: var(--bordo);           /* bordi */
+  --ui-4: var(--bordo-forte);     /* bordi in evidenza */
+  --ui-tx:  var(--inchiostro);
+  --ui-tx2: var(--inchiostro-2);
+  --ui-tx3: var(--tenue);
+  /* l'accento come TESTO e come bottone: sul chiaro il cyan puro non ha
+     contrasto, si usa il cyan profondo del marchio */
+  --acc: var(--marchio-scuro);
+  --acc-hi: color-mix(in srgb, var(--marchio-scuro) 70%, var(--inchiostro));
+  --acc-lo: var(--marchio-tenue);
+  --acc-ink: #FFFFFF;
+  --warn: var(--allerta);
+  --mono: var(--f-dato);
+  --r1: var(--r-1); --r2: var(--r-2); --r3: var(--r-3);
+  --ease: var(--molla);
+  --rail: var(--bordo);
+  --rail-on: color-mix(in srgb, var(--marchio) 44%, transparent);
+  /* Ombre e fili del banco: sono quelli del tracker, cosi' i pannelli dei
+     generatori hanno la stessa mano delle carte della griglia. Il filo a bassa
+     opacita' e' il bordo di tutta l'interfaccia premium. */
+  --ui-filo: var(--bordo-lieve);
+  --ui-ombra-1: var(--ombra-1);
+  --ui-ombra-2: var(--ombra-2);
+  --ui-ombra-3: var(--ombra-3);
+  --ui-lucido: var(--lucido);
+}
+/* Tema scuro: le pagine bianche restano l'unica luce. L'accento torna il cyan
+   pieno (sul fondo scuro legge bene) con l'inchiostro profondo sopra. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="chiaro"]) {
+    --ui-0: #0F1215;
+    --ui-1: var(--superficie);
+    --ui-2: var(--superficie-2);
+    --acc: var(--marchio);
+    --acc-hi: var(--marchio-scuro);
+    --acc-lo: var(--marchio-tenue);
+    --acc-ink: var(--su-marchio);
+  }
+}
+:root[data-tema="scuro"] {
+  --ui-0: #0F1215;
+  --ui-1: var(--superficie);
+  --ui-2: var(--superficie-2);
+  --acc: var(--marchio);
+  --acc-hi: var(--marchio-scuro);
+  --acc-lo: var(--marchio-tenue);
+  --acc-ink: var(--su-marchio);
+}
+
+/* ---- GRUPPI RICHIUDIBILI (js/gruppi.js) ----------------------------------
+   Il titolo di ogni gruppo del pannello e' anche il suo interruttore: un clic
+   lo chiude (resta solo la riga del titolo, con la freccetta girata) e un
+   altro lo riapre; il bottone in cima (#grpTutti) li apre o chiude tutti.
+   Lo stato si ricorda per pagina nel browser. Il gruppo "Esporta" non si
+   chiude: e' l'uscita del lavoro e sta sempre a portata di clic. */
+#side .grp > h2[role="button"]{cursor:pointer;user-select:none}
+#side .grp > h2[role="button"]::before{content:"";width:6px;height:6px;flex:none;margin:0 3px 2px 1px;
+  border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);
+  transition:transform .22s var(--ease),color .13s}
+#side .grp.chiuso > h2[role="button"]::before{transform:rotate(-45deg) translateY(1px)}
+#side .grp > h2[role="button"]:hover{color:var(--ui-tx)}
+#side .grp > h2[role="button"]:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:4px}
+#side .grp.chiuso > :not(h2){display:none!important}
+#side .grp.chiuso{padding-bottom:14px}
+#side .grp.chiuso > h2{margin-bottom:0}
+#grpTutti{flex:0 0 auto;width:28px;height:24px;padding:0;border:1px solid var(--ui-3);border-radius:8px;
+  background:var(--ui-2);color:var(--ui-tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .13s,border-color .13s,color .13s}
+#grpTutti svg{width:14px;height:14px;display:block;transition:transform .24s var(--ease)}
+#grpTutti.chiusi svg{transform:rotate(180deg)}
+#grpTutti:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}
+
+/* ---- IL PANNELLO (#side) e la BARRA DEL MARCHIO --------------------------
+   30a sessione. Il pannello e' una colonna flessibile: i gruppi scendono uno
+   sotto l'altro e "Esporta" (#exportGrp) resta INCHIODATO in fondo, sia che il
+   pannello sia piu' lungo dello schermo (sticky) sia che i gruppi chiusi lo
+   lascino corto (margin-top:auto lo spinge giu'). Prima, a gruppi chiusi, il
+   bottone saliva a meta' schermo.
+   La barra del marchio sta su DUE righe: sopra i comandi dell'applicazione
+   (torna al tracker, guida, apri/chiudi gruppi, giorno/notte), sotto logo e
+   nome. Su una riga sola, a pannello stretto, il titolo andava a capo e i
+   tastini si accavallavano. Il suo z-index sta SOPRA il ponte (#ponte ha 38
+   per la nuvoletta): scorrendo il pannello, la rotta del collegamento
+   passava sopra il logo. */
+#side{display:flex;flex-direction:column}
+#side>.grp,#side>#brandbar{flex:0 0 auto}
+#side #exportGrp{margin-top:auto;position:sticky;bottom:0;z-index:4;background:var(--ui-1)}
+#side #ponte{z-index:auto}
+#brandbar{position:sticky;top:0;z-index:40;flex:none;background:var(--ui-1);
+  border-bottom:1px solid var(--ui-filo);padding:12px 0 13px;
+  display:flex;flex-direction:column;gap:11px}
+/* filo luminoso che si spegne verso destra: firma il pannello */
+#brandbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,var(--acc),transparent 72%)}
+.bb-riga{display:flex;align-items:center;gap:6px;min-width:0}
+.bb-riga .bb-spazio{flex:1 1 auto;min-width:4px}
+.bb-riga #themeSeg{margin-left:0}
+/* TORNA AL TRACKER: un bottone vero, non il link di 10px che stava nella rotta
+   del ponte ("quella piccolissima") */
+.bb-indietro{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 8px;
+  border-radius:999px;border:1px solid var(--ui-filo);background:var(--vetro-fondo);color:var(--ui-tx2);
+  text-decoration:none;font:600 12px/1 var(--f-ui);white-space:nowrap;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+.bb-indietro svg{width:14px;height:14px;flex:none;transition:transform .2s var(--ease)}
+.bb-indietro:hover{color:var(--acc-hi);border-color:var(--acc);background:var(--acc-lo)}
+.bb-indietro:hover svg{transform:translateX(-2px)}
+.bb-marchio{display:flex;align-items:center;gap:12px;min-width:0}
+/* Lo STESSO logo del tracker. E' trasparente e la parola GROUP e' grigio
+   scuro: sul banco scuro serve la piastrina bianca, con la luce accesa no. */
+#brandbar img{height:30px;width:auto;flex:none;background:var(--ui-tx);padding:3px 5px;border-radius:var(--r1)}
+:root.lt #brandbar img{background:none;padding:0}
+#brandbar h1{font-family:var(--f-display);font-weight:560;font-size:17px;margin:0;min-width:0;
+  letter-spacing:-.022em;line-height:1.15;color:var(--ui-tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#brandbar h1 span{display:block;font:600 9px/1.35 var(--mono);text-transform:uppercase;letter-spacing:.11em;
+  color:var(--ui-tx3);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* i tastini dell'applicazione: guida, apri/chiudi tutti i gruppi */
+#tourBtn,#grpTutti{flex:0 0 auto;width:30px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--ui-filo);border-radius:9px;background:var(--vetro-fondo);color:var(--ui-tx2);cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+#tourBtn svg,#grpTutti svg{width:14px;height:14px;display:block}
+#tourBtn:hover,#grpTutti:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}
+#grpTutti svg{transition:transform .24s var(--ease)}
+#grpTutti.chiusi svg{transform:rotate(180deg)}
+@media print{#brandbar{display:none!important}}
+
+/* ---- LA COLONNA DELL'ALBERO (#treecol, js/albero.js) ----------------------
+   Era solo del generatore di schede (dentro schede/index.html); dalla 30a
+   sessione la usa anche il registro, per togliere piani, reparti o stanze
+   indesiderati dal documento. Compare a file caricato: vuota ruberebbe
+   spazio all'anteprima. La maniglia (#treegrip) si trascina solo nelle
+   schede; nel registro e' un separatore fermo (.fermo). */
+:root{--treew:320px}
+#treegrip{flex:0 0 8px;position:sticky;top:0;height:100vh;cursor:col-resize;display:flex;align-items:center;justify-content:center;background:transparent;z-index:6}
+#treegrip::before{content:"";width:3px;height:52px;border-radius:2px;background:var(--ui-3);transition:background .13s,height .13s}
+#treegrip:hover::before,#treegrip.drag::before{background:var(--acc);height:110px}
+#treegrip.fermo{cursor:default}
+#treegrip.fermo:hover::before{background:var(--ui-3);height:52px}
+#treecol{width:var(--treew);flex:0 0 var(--treew);background:var(--ui-1);border-left:1px solid var(--ui-3);
+  padding:0 16px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* la sezione occupa tutta la colonna: intestazione e barra in alto ferme,
+   l'albero sotto si allunga fino in fondo allo schermo e scorre da solo */
+#treecol .grp{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:0;padding:18px 0 0}
+#treecol[hidden],#treegrip[hidden]{display:none}
+/* ---- l'albero ----
+   Ogni riga ha due comandi e due gesti: il CERCHIO a sinistra include o
+   esclude il ramo (pieno = dentro, vuoto = fuori, trattino = in parte); il
+   NOME e' un collegamento che porta l'anteprima a quel piano / reparto /
+   stanza. Il BINARIO verticale (bordo sinistro di .sub) scende accanto ai
+   figli e si accende quando dentro c'e' qualcosa che entra nel documento. */
+#tree{font-size:12.9px;flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--ui-filo);
+  border-radius:var(--r2);padding:8px 10px 10px;background:var(--ui-2);
+  scrollbar-width:thin;scrollbar-color:var(--ui-4) transparent}
+#tree::-webkit-scrollbar{width:10px;height:10px}
+#tree::-webkit-scrollbar-thumb{background:var(--ui-3);border:3px solid transparent;background-clip:content-box;border-radius:6px}
+#tree::-webkit-scrollbar-track{background:transparent}
+#tree .sub{margin-left:7px;padding-left:16px;border-left:1px solid var(--rail);transition:border-color .18s}
+#tree .sub.lit{border-left-color:var(--rail-on)}
+#tree .sub[hidden]{display:none}
+#tree .lv1{margin-top:6px;color:var(--acc-hi);font-weight:700}
+#tree .lv1:first-child{margin-top:0}
+#tree .lv2{color:var(--ui-tx)}
+#tree .lv3{font-size:12.2px;color:var(--ui-tx2)}
+#tree .nh,#tree .row{display:flex;align-items:center;gap:5px;margin:1px 0;border-radius:var(--r1);transition:background .12s}
+#tree .nh:hover,#tree .row:hover{background:var(--ui-1)}
+#tree .pick{display:flex;align-items:center;flex:0 0 auto;margin:0;padding:4px 3px;cursor:pointer;background:none;line-height:0}
+#tree .pick:hover{background:none}
+/* il cerchio: non la casella del browser, cosi' ha la stessa faccia ovunque */
+#tree input[type=checkbox],#selAll{-webkit-appearance:none;appearance:none;position:relative;width:17px;height:17px;
+  flex:0 0 auto;margin:0;cursor:pointer;border-radius:50%;border:1.5px solid var(--ui-4);background:none;box-shadow:none;
+  transition:background .15s,border-color .15s}
+#tree input[type=checkbox]:hover,#selAll:hover{border-color:var(--acc)}
+#tree input[type=checkbox]:checked,#selAll:checked{background:var(--acc);border-color:var(--acc)}
+#tree input[type=checkbox]::after,#selAll::after{content:"";position:absolute;inset:-1px;background-repeat:no-repeat;
+  background-position:center;background-size:10px 10px;opacity:0;transform:scale(.55);transition:opacity .12s,transform .18s var(--ease)}
+#tree input[type=checkbox]:checked::after,#selAll:checked::after{opacity:1;transform:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.3 6.4l2.5 2.5 4.9-5.2'/%3E%3C/svg%3E")}
+/* dentro in parte: cerchio vuoto col bordo acceso e un trattino */
+#tree input[type=checkbox]:indeterminate,#selAll:indeterminate{background:none;border-color:var(--acc)}
+#tree input[type=checkbox]:indeterminate::after,#selAll:indeterminate::after{display:none}
+#tree input[type=checkbox]:indeterminate::before,#selAll:indeterminate::before{content:"";
+  position:absolute;inset:0;margin:auto;width:7px;height:2px;border-radius:2px;background:var(--acc)}
+#tree .nm{flex:1 1 auto;min-width:0;cursor:pointer;border-radius:5px;padding:3px 6px;line-height:1.3;transition:color .12s,background .12s}
+#tree .nm:hover{background:var(--acc-lo);color:var(--acc-hi)}
+#tree .cnt{color:var(--ui-tx3);font-weight:400;font-family:var(--mono);font-size:.9em}
+#tree .nh.out>.nm,#tree .row.out>.nm{color:var(--ui-tx3);font-weight:400}
+#tree .out>.nm .cnt{opacity:.55}
+#tree .tw{flex:0 0 auto;width:15px;height:15px;padding:0;border:0;background:none;color:var(--ui-tx3);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--ease),color .13s}
+#tree .tw svg{width:9px;height:9px;display:block}
+#tree .tw.closed{transform:rotate(-90deg)}
+#tree .tw:hover{color:var(--acc)}
+#treebar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+#treebar .pick{display:flex;align-items:center;gap:9px;font-size:12.8px;color:var(--ui-tx2);
+  cursor:pointer;margin:0;padding:4px 6px 4px 3px;border-radius:var(--r1);transition:background .12s,color .12s}
+#treebar .pick:hover{background:var(--ui-2);color:var(--ui-tx)}
+#treebar .ico{margin-left:auto}
+@media print{#treecol,#treegrip{display:none!important}}
+
+/* ---- TUTORIAL GUIDATO (js/tour.js) -----------------------------------------
+   Una guida che parla addosso ai comandi veri: a ogni passo l'app resta quella
+   che e', si accende solo il pezzo di cui si parla e il fumetto si mette
+   accanto. La penombra la fa l'ombra smisurata di #tourHole - un elemento
+   solo - e non prende i clic: quelli li ferma #tourVeil, che sta sotto e copre
+   tutto lo schermo. Era in schede/index.html; dalla 30a sessione lo condivide
+   il registro. */
+#tourWrap[hidden]{display:none}
+#tourVeil{position:fixed;inset:0;z-index:9990;background:transparent}
+#tourHole{position:fixed;z-index:9991;pointer-events:none;border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(6,9,12,.74),0 0 0 2px var(--acc),0 0 22px rgba(0,168,228,.45);
+  transition:left .2s var(--ease),top .2s var(--ease),width .2s var(--ease),height .2s var(--ease)}
+:root.lt #tourHole{box-shadow:0 0 0 9999px rgba(24,33,42,.42),0 0 0 2px var(--acc),0 0 22px rgba(1,118,157,.28)}
+/* passo senza bersaglio: il buco si annulla al centro, la penombra resta */
+#tourHole.blind{box-shadow:0 0 0 9999px rgba(6,9,12,.74)}
+:root.lt #tourHole.blind{box-shadow:0 0 0 9999px rgba(24,33,42,.42)}
+#tourPop{position:fixed;z-index:9992;width:344px;max-width:calc(100vw - 24px);
+  background:var(--ui-1);color:var(--ui-tx);border:1px solid var(--ui-filo);border-radius:var(--r3);
+  box-shadow:var(--ui-ombra-3);padding:16px 17px 14px}
+#tourPop .tour-k{margin:0 0 7px;font:700 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.17em;color:var(--ui-tx3)}
+#tourPop h3{margin:0 0 8px;font-family:var(--f-display);font-size:18px;font-weight:560;letter-spacing:-.022em;color:var(--ui-tx)}
+#tourPop .tour-tx{font-size:13px;line-height:1.55;color:var(--ui-tx2)}
+#tourPop .tour-tx p{margin:0 0 8px}
+#tourPop .tour-tx p:last-child{margin:0}
+#tourPop .tour-tx b{color:var(--ui-tx)}
+#tourNote{margin:10px 0 0;padding:8px 10px;border:1px solid var(--ui-3);border-radius:var(--r1);
+  background:var(--ui-2);font-size:11.8px;line-height:1.5;color:var(--ui-tx3)}
+#tourNote[hidden]{display:none}
+#tourNote b{color:var(--warn)}
+#tourDots{display:flex;gap:4px;margin:14px 0 11px}
+#tourDots i{flex:1 1 0;height:3px;border-radius:2px;background:var(--ui-3)}
+#tourDots i.done{background:var(--acc-lo)}
+#tourDots i.on{background:var(--acc)}
+.tour-nav{display:flex;align-items:center;gap:8px}
+.tour-nav .btn{width:auto;flex:0 0 auto;margin:0;padding:8px 15px;font-size:13px}
+.tour-nav .tour-lnk{margin-right:auto;padding:6px 0;border:0;background:none;cursor:pointer;
+  font:inherit;font-size:12.3px;color:var(--ui-tx3);text-decoration:underline;text-underline-offset:2px}
+.tour-nav .tour-lnk:hover{color:var(--acc-hi)}
+@media print{#tourWrap{display:none!important}}

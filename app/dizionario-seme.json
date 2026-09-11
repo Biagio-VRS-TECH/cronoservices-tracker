@@ -1,0 +1,87 @@
+{
+  "_istruzioni": "Seme del dizionario dei componenti (registro): copiato dal programma locale l'11 settembre 2026. Si legge una volta sola, quando la tabella dizionario_componenti e' vuota. Le modifiche si fanno dall'app (web/registro/, scheda Nomi dei componenti), non qui.",
+  "101236": {
+    "nome": "Riduttore di pressione DCn 300 per ossigeno (O2)",
+    "priorita": 2,
+    "aggiornato": "2026-09-11T11:35:19"
+  },
+  "101237": {
+    "nome": "Riduttore di pressione DCn 300 per azoto (N2)",
+    "priorita": 4,
+    "aggiornato": "2026-09-11T11:35:35"
+  },
+  "101490": {
+    "nome": "Pompa del vuoto Rietschle VC50"
+  },
+  "101690": {
+    "nome": "Valvola a sfera 1/2\" per ossigeno",
+    "priorita": 3,
+    "aggiornato": "2026-09-11T11:35:40"
+  },
+  "101696": {
+    "nome": "Valvola a sfera 1\" per ossigeno"
+  },
+  "102569": {
+    "nome": "Vuotostato pretarato 0,4 bar"
+  },
+  "103368": {
+    "nome": "Presa ossigeno (UNI 9507)",
+    "aggiornato": "2026-09-11T11:29:49"
+  },
+  "103371": {
+    "nome": "Presa vuoto (UNI 9507)",
+    "aggiornato": "2026-09-11T11:44:59"
+  },
+  "103397": {
+    "nome": "Pressostato 3,6-5,7 bar",
+    "aggiornato": "2026-09-11T11:45:00"
+  },
+  "103411": {
+    "nome": "Serpentina in rame 1 m per ossigeno"
+  },
+  "103416": {
+    "nome": "Rampa medicale 1/3 posti per ossigeno",
+    "aggiornato": "2026-09-11T11:45:00"
+  },
+  "103426": {
+    "nome": "Unità terza fonte ossigeno con riduttore SR-2210M"
+  },
+  "106059": {
+    "nome": "Serpentina inox 2,5 m per ossigeno / CO2"
+  },
+  "106341": {
+    "nome": "Gruppo controllo vuoto con vuotometro"
+  },
+  "115499": {
+    "nome": "Valvola alta pressione per rampa ossigeno"
+  },
+  "115549": {
+    "nome": "Filtro Rietschle CMV 290"
+  },
+  "115655": {
+    "nome": "Centrale automatica di riduzione ossigeno SR 2210M"
+  },
+  "115713": {
+    "nome": "Modulo allarme di centrale gas medicali"
+  },
+  "115926": {
+    "nome": "Unità di controllo impianto 6,6-9,6 bar"
+  },
+  "116882": {
+    "nome": "Riduttore di II stadio doppio mod. 2290 per ossigeno"
+  },
+  "117047": {
+    "nome": "Unità di blocco area ossigeno con presa AFNOR"
+  },
+  "117069": {
+    "nome": "Modulo allarme di reparto 2 gas + vuoto"
+  },
+  "133460": {
+    "nome": "Filtro Alu NEA-L-HP172 per ossigeno, con elemento filtrante",
+    "priorita": 1,
+    "aggiornato": "2026-09-11T11:32:44"
+  },
+  "135906": {
+    "nome": "Serbatoio del vuoto orizzontale 500 litri"
+  }
+}

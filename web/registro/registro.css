@@ -1,0 +1,392 @@
+/* registro.css - il generatore del REGISTRO DEI COMPONENTI.  #ANCHOR: css-registro
+
+Due mondi, due sezioni, nessuna confusione fra i due:
+
+  APPLICAZIONE  il banco di lavoro intorno alle pagine. Vive SOLO nei token
+                condivisi (css/theme.css e css/banco.css: --ui-*, --acc*,
+                --f-*, --r1..3, --t-*), quindi segue il tema chiaro/scuro
+                insieme al tracker e al generatore di schede.
+  DOCUMENTO     la carta. Fra i due segnalibri "DOCUMENTO INIZIO/FINE": e' il
+                porting di mappatura/templates/registro.html, e impagina.js lo
+                rilegge da qui per il file HTML autonomo (sostituendo
+                `#pages .page` con `.doc`). Non tocca MAI un token dell'app: il
+                foglio e' bianco con la luce accesa e con la luce spenta, perche'
+                e' carta e non interfaccia.
+
+Il guscio e' quello del generatore di schede (web/schede/index.html): #app non
+scorre, scorre solo #banco, e la testata del ponte sta fuori dal riquadro che
+scorre. */
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+/* TRAPPOLA (pagata): il fondo del banco NON puo' essere var(--ui-0).
+   In tema chiaro banco.css lo calcola con color-mix(), e Chrome lo restituisce
+   come `color(srgb ...)`: html2canvas non sa leggere quella funzione e la resa
+   del PDF muore con "unsupported color function color" prima ancora di
+   disegnare la prima pagina - legge il fondo di <body> e di #app anche quando
+   deve fotografare solo una .page. Stesse tinte di --ui-0, in esadecimale.
+   Lo stesso vale per web/schede/ (body e #app hanno la stessa regola): li' il
+   difetto c'e' ancora, e si vede solo a tema chiaro. */
+:root{--fondo-banco:#ECEAE5}
+:root[data-tema="scuro"]{--fondo-banco:#0F1215}
+@media (prefers-color-scheme:dark){:root:not([data-tema="chiaro"]){--fondo-banco:#0F1215}}
+body{margin:0;font-family:var(--f-ui);color:var(--ui-tx);background:var(--fondo-banco)}
+button,select,input{font-family:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* ==================================================== APPLICAZIONE: guscio */
+#app{display:flex;height:100vh;overflow:hidden;background:var(--fondo-banco)}
+#side{--side-pad:22px;width:400px;flex:0 0 400px;background:var(--ui-1);border-right:1px solid var(--ui-3);
+  padding:0 22px;position:sticky;top:0;height:100vh;overflow:auto;
+  display:flex;flex-direction:column;
+  scrollbar-width:thin;scrollbar-color:var(--ui-4) transparent}
+#side::-webkit-scrollbar{width:10px}
+#side::-webkit-scrollbar-thumb{background:var(--ui-3);border:3px solid transparent;background-clip:content-box;border-radius:6px}
+#side::-webkit-scrollbar-track{background:transparent}
+#main{position:relative;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#banco{flex:1 1 auto;min-height:0;overflow:auto;padding:30px 20px 60px}
+
+/* la barra del marchio (#brandbar), la colonna dell'albero (#treecol) e il
+   tutorial stanno in css/banco.css: condivisi con il generatore di schede */
+
+/* il selettore del tema: tre stati, l'indicatore scorre sotto al prescelto */
+#themeSeg{position:relative;display:inline-flex;gap:2px;padding:3px;border-radius:999px;
+  background:var(--ui-2);border:1px solid var(--ui-3);flex:0 0 auto}
+#themeSeg button{position:relative;z-index:1;width:26px;height:24px;display:grid;place-items:center;
+  border:0;background:transparent;color:var(--ui-tx3);border-radius:999px;cursor:pointer;transition:color .14s}
+#themeSeg button svg{width:14px;height:14px}
+#themeSeg button[aria-pressed=true]{color:var(--acc)}
+#themeSeg button:hover{color:var(--ui-tx)}
+
+/* ---- gruppi numerati del pannello: molto respiro, un filo che corre ---- */
+.grp{border-top:1px solid var(--ui-3);padding:20px 0 8px}
+.grp:first-of-type{border-top:0}
+.grp h2{display:flex;align-items:center;gap:10px;margin:0 0 14px;
+  font:700 10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.17em;color:var(--ui-tx3)}
+.grp h2::after{content:"";flex:1 1 auto;height:1px;background:var(--ui-3)}
+
+label.row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.2px;
+  color:var(--ui-tx);margin:0 0 2px;padding:6px 7px;margin-left:-7px;border-radius:6px;
+  cursor:pointer;transition:background .12s}
+label.row:hover{background:var(--ui-2)}
+label.row select{flex:0 0 auto}
+#side select,#side input[type=text]{background:var(--pista-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);
+  box-shadow:var(--pista-incavo);border-radius:var(--r1);padding:7px 9px;font-size:13px}
+#side input[type=text]{width:100%;display:block}
+#side input[readonly]{color:var(--ui-tx2);cursor:default}
+.hint{font-size:11.8px;color:var(--ui-tx3);line-height:1.5;margin:8px 0 0}
+.hint b{color:var(--ui-tx2)}
+
+/* interruttore: accende un comportamento, sta sul bordo destro della riga */
+.sw input[type=checkbox]{appearance:none;width:34px;height:19px;border-radius:999px;background:var(--ui-3);
+  position:relative;cursor:pointer;transition:background .16s var(--ease);flex:0 0 auto;margin:0;border:0}
+.sw input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2.5px rgba(0,0,0,.3);transition:transform .16s var(--ease)}
+.sw input[type=checkbox]:checked{background:var(--acc)}
+.sw input[type=checkbox]:checked::after{transform:translateX(15px)}
+
+#drop{border:1px dashed var(--ui-4);border-radius:var(--r2);padding:26px 14px;text-align:center;font-size:12.8px;
+  color:var(--ui-tx2);cursor:pointer;background:var(--pista-fondo);box-shadow:var(--pista-incavo);transition:.15s}
+#drop:hover,#drop.hot{border-color:var(--acc);border-style:solid;background:var(--acc-lo);color:var(--acc-hi)}
+#drop b{display:block;font-size:14px;margin-bottom:4px;color:var(--ui-tx)}
+#drop:hover b,#drop.hot b{color:var(--acc-hi)}
+
+#fileinfo{font-size:12.3px;color:var(--ui-tx2);margin-top:12px;line-height:1.6;word-break:break-word}
+#fileinfo b{color:var(--ui-tx)}
+#fileinfo .conti{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:9px;
+  font:500 12px/1.5 var(--mono);color:var(--ui-tx2)}
+#fileinfo .conti span{color:var(--ui-tx3)}
+#fileinfo .conti b{color:var(--ui-tx);font-weight:600}
+#fileinfo .errore{color:#E5484D}
+.xrow{display:inline-flex;align-items:center;gap:6px;margin:11px 0 2px;padding:5px 9px;
+  border:1px solid var(--ui-3);border-radius:var(--r1);background:var(--ui-2);
+  color:var(--ui-tx3);font:inherit;font-size:12.2px;cursor:pointer;transition:.13s}
+.xrow svg{width:12px;height:12px;display:block}
+.xrow:hover{border-color:var(--warn);color:var(--warn);background:var(--ui-1)}
+
+/* il bottone primario e' d'INCHIOSTRO (avorio con la luce spenta), come nel
+   tracker: pieno scuro, filo di luce sul bordo alto, ombra corta. I secondari
+   sono di vetro. I token --btn-* vivono in css/theme.css */
+.btn{display:block;width:100%;padding:12px 14px;border:0;border-radius:var(--r2);background:var(--btn-fondo);color:var(--btn-testo);
+  font-size:13.5px;font-weight:600;letter-spacing:.02em;cursor:pointer;margin-top:8px;
+  box-shadow:var(--btn-lucido),var(--btn-ombra);transition:background .13s,box-shadow .13s,transform .13s}
+.btn:hover{background:var(--btn-fondo-hover);box-shadow:var(--btn-lucido),var(--ui-ombra-2);transform:translateY(-1px)}
+.btn:active{transform:none;box-shadow:var(--btn-lucido)}
+.btn.sec{background:var(--vetro-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);font-weight:600;font-size:12.6px;padding:8px;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
+.btn.sec:hover{background:var(--ui-1);border-color:var(--ui-4);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
+.btn:disabled,.btn:disabled:hover{opacity:.38;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2);box-shadow:none;transform:none}
+
+/* il lampo sui bottoni, come nel tracker (css/base.css): una striscia di luce
+   che attraversa il bottone al passaggio. --lampo vive in css/theme.css */
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:34%;
+  background:linear-gradient(100deg,transparent,var(--lampo),transparent);
+  transform:skewX(-18deg) translateX(-160%);pointer-events:none}
+.btn:hover::after{animation:lampo .75s var(--ease) both}
+.btn.sec::after,.btn:disabled::after{display:none}
+@keyframes lampo{to{transform:skewX(-18deg) translateX(420%)}}
+.duebtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.duebtn .btn{margin-top:10px}
+
+/* ---- controlli e anomalie (uso interno VRS) ---- */
+#controlli{list-style:none;margin:0;padding:0;font-size:12.5px}
+#controlli li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--ui-3)}
+#controlli li:last-child{border-bottom:0}
+#controlli .v{font:500 12px/1.5 var(--mono);color:var(--ui-tx)}
+#controlli .pallino{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--ui-4)}
+#controlli .ok .pallino{background:#2E9E5B}
+#controlli .medio .pallino{background:var(--warn)}
+#controlli .no .pallino{background:#E5484D}
+#quadratura{margin:2px 0 12px;padding:10px 12px;border-radius:var(--r2);font-size:13px;line-height:1.5}
+#quadratura.ok{background:color-mix(in srgb,#2E9E5B 12%,transparent);color:var(--ui-tx)}
+#quadratura.no{background:color-mix(in srgb,#E5484D 14%,transparent);color:var(--ui-tx)}
+#quadratura b{font:700 12px/1.4 var(--mono)}
+
+#anomalie{margin-top:14px;max-height:340px;overflow:auto;font-size:12.3px;line-height:1.55;
+  scrollbar-width:thin;scrollbar-color:var(--ui-4) transparent}
+#anomalie div{padding:8px 0;border-bottom:1px solid var(--ui-3);color:var(--ui-tx2)}
+#anomalie div:last-child{border-bottom:0}
+#anomalie b{color:var(--ui-tx)}
+.etichetta{display:inline-block;font:700 9.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.12em;
+  padding:3px 6px;border-radius:4px;margin-right:7px;vertical-align:1px}
+.etichetta.errore{background:color-mix(in srgb,#E5484D 20%,transparent);color:#E5484D}
+.etichetta.avviso{background:var(--allerta-tenue);color:var(--warn)}
+.etichetta.info{background:var(--ui-2);color:var(--ui-tx3);border:1px solid var(--ui-3)}
+
+/* il comando di uscita resta a portata di clic anche a pannello lungo */
+#exportGrp{position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
+  padding-bottom:18px;border-top:1px solid var(--ui-filo);z-index:4;
+  box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
+.zoomrow{display:flex;gap:8px;align-items:center;margin-top:10px}
+.zoomrow .btn{margin:0}
+.ico{width:34px;height:34px;flex:0 0 34px;border:1px solid var(--ui-filo);background:var(--vetro-fondo);color:var(--ui-tx2);
+  border-radius:var(--r1);cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+.ico:hover{border-color:var(--ui-4);color:var(--ui-tx);background:var(--ui-1);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
+.ico:disabled{opacity:.3;cursor:not-allowed}
+
+/* ---- le due viste del banco ---- */
+#viste{flex:none;display:flex;gap:2px;padding:9px 20px 0;border-bottom:1px solid var(--ui-3);background:var(--fondo-banco)}
+#viste button{border:0;background:transparent;color:var(--ui-tx3);cursor:pointer;padding:9px 14px 10px;
+  font:600 12.5px/1 var(--f-ui);border-bottom:2px solid transparent;transition:.13s}
+#viste button:hover{color:var(--ui-tx)}
+#viste button[aria-selected=true]{color:var(--ui-tx);border-bottom-color:var(--acc)}
+#viste .conta{font:600 10px/1 var(--mono);color:var(--ui-tx3);margin-left:7px}
+
+#empty-state{max-width:620px;margin:9vh auto;color:var(--ui-tx2);font-size:14px;line-height:1.7}
+#empty-state .kick{font:700 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.22em;color:var(--ui-tx3)}
+#empty-state h2{font:400 30px/1.15 var(--f-display);letter-spacing:-.01em;color:var(--ui-tx);margin:14px 0 18px}
+#empty-state p{margin:0 0 14px}
+#empty-state b{color:var(--ui-tx)}
+#empty-state .acts{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px}
+#empty-state .acts .btn{width:auto;margin:0;padding:11px 20px}
+#empty-state .foot{font-size:12.6px;color:var(--ui-tx3);border-top:1px solid var(--ui-3);padding-top:14px;margin:0}
+
+#zoomwrap{margin:0 auto;overflow:hidden}
+#pages{width:calc(210mm + 16px);padding:0 8px;transform-origin:top left}
+@media screen{
+  #pages .page{box-shadow:0 20px 44px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+  :root.lt #pages .page{box-shadow:0 10px 26px rgba(15,20,24,.11),0 0 0 1px rgba(15,20,24,.09)}
+}
+
+/* ---- tabella dei nomi dei componenti (il dizionario) ---- */
+#nomi{max-width:1100px;margin:0 auto}
+#nomi .testa{margin:0 0 16px;color:var(--ui-tx2);font-size:13px;line-height:1.65;max-width:78ch}
+#nomi .testa h2{font:400 24px/1.2 var(--f-display);color:var(--ui-tx);margin:0 0 8px}
+#nomi table{width:100%;border-collapse:collapse;font-size:13px}
+#nomi th{text-align:left;font:700 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.14em;
+  color:var(--ui-tx3);padding:0 10px 9px;border-bottom:1px solid var(--ui-3)}
+#nomi td{padding:5px 10px;border-bottom:1px solid var(--ui-3);vertical-align:middle;color:var(--ui-tx2)}
+#nomi tr.priorita td{background:color-mix(in srgb,var(--acc) 7%,transparent)}
+#nomi td.cod{font:500 12px/1.4 var(--mono);color:var(--ui-tx3);white-space:nowrap;width:16ch}
+#nomi td.descr{color:var(--ui-tx3);font-size:12.3px;max-width:34ch}
+#nomi td.n{text-align:right;font:600 12px/1.4 var(--mono);color:var(--ui-tx);width:7ch}
+#nomi td.ord{width:11ch}
+#nomi input{width:100%;background:var(--ui-2);color:var(--ui-tx);border:1px solid var(--ui-3);
+  border-radius:var(--r1);padding:6px 8px;font-size:13px;transition:border-color .13s,background .13s}
+#nomi input:hover{border-color:var(--ui-4)}
+#nomi input.originale{color:var(--ui-tx3)}
+#nomi input.trascritta{background:var(--acc-lo);border-color:var(--acc);color:var(--ui-tx)}
+#nomi input.salvataggio{border-color:var(--acc)}
+#nomi input.salvato{border-color:#2E9E5B;background:color-mix(in srgb,#2E9E5B 12%,var(--ui-2))}
+#nomi input.ordine{width:7ch;text-align:center;font:600 12.5px/1.4 var(--mono)}
+#nomi input.ordine.vuoto{color:var(--ui-tx3)}
+#nomiStato{margin:12px 0 0;font-size:12.4px;color:var(--ui-tx3);min-height:1.4em}
+#nomiStato.errore-testo{color:#E5484D}
+
+@media (max-width:980px){
+  #app{flex-direction:column;height:auto;overflow:visible}
+  #side,#treecol{width:auto;flex:none;position:static;height:auto}
+  #treegrip{display:none}
+  #main{height:auto;overflow:visible}
+  #banco{overflow:visible}
+  #ponte{position:sticky;top:0}
+}
+
+/* ==== DOCUMENTO INIZIO ====
+   Porting di mappatura/templates/registro.html. Lo rilegge impagina.js per il
+   file HTML autonomo, sostituendo `#pages .page` con `.doc`: quindi da qui in
+   giu' OGNI selettore comincia con `#pages .page`, e nessuno usa un token
+   dell'applicazione (il documento e' carta: identico nei due temi).
+   Palette coordinata al marchio VRS: navy profondo, tinte grigio-azzurre, e il
+   cyan del logo come unico filo di colore, solo in copertina. */
+#pages .page{
+  --navy:#17304A;          /* in bianco e nero diventa un grigio scuro pieno */
+  --navy-medio:#4A6A86;
+  --cyan:#00AEEF;          /* il cyan del marchio: solo la riga di copertina */
+  --tinta:#E9EEF4;
+  --tinta-2:#F4F7FA;
+  --grigio:#6B7480;
+  --grigio-chiaro:#CFD6DE;
+  --riga:#DDE3EA;
+  --qta:#EEF2F6;
+  --inchiostro:#1C2530;
+  --serif:"Newsreader Variable","Constantia","Cambria","Georgia",serif;
+  --sans:"Inter Variable","Segoe UI","Calibri","Corbel",sans-serif;
+  position:relative;width:210mm;height:297mm;margin:0 auto 22px;overflow:hidden;
+  background:#fff;color:var(--inchiostro);
+  font-family:var(--sans);font-size:var(--corpo,10.5pt);line-height:1.32;
+  font-variant-numeric:lining-nums tabular-nums;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+#pages .page *{box-sizing:border-box}
+#pages .page .corpo{position:absolute;left:16mm;right:16mm;top:16mm;height:262mm;overflow:hidden}
+/* il contenitore di misura: stessa larghezza utile, altezza libera, fuori schermo */
+#pages .page.misura{position:absolute;left:-10000px;top:0;height:auto;overflow:visible;
+  box-shadow:none!important;margin:0;visibility:hidden;pointer-events:none}
+#pages .page.misura .corpo{position:static;height:auto;overflow:visible;width:178mm}
+#pages .page h1,#pages .page h2{font-family:var(--serif);font-weight:400;margin:0;
+  font-variant-numeric:lining-nums}
+#pages .page .num{font-variant-numeric:lining-nums tabular-nums}
+#pages .page .cod{font-size:.76em;color:var(--grigio);letter-spacing:.02em;white-space:nowrap}
+
+/* ---- pie' di pagina: su tutte tranne la copertina ---- */
+#pages .page .piede{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;
+  justify-content:space-between;gap:8mm;font-size:8pt;color:var(--grigio);
+  border-top:.5pt solid var(--grigio-chiaro);padding-top:1.6mm}
+
+/* ---- copertina: pagina intera, nessun margine ---- */
+#pages .page.copertina .cop{display:grid;grid-template-columns:26mm 1fr;height:297mm;width:210mm}
+#pages .page .cop-banda{background:var(--navy);position:relative}
+/* il filo cyan del marchio: l'unico colore acceso del documento */
+#pages .page .cop-banda::after{content:"";position:absolute;right:0;top:0;bottom:0;width:1.6mm;background:var(--cyan)}
+#pages .page .cop-verticale{position:absolute;left:11mm;top:22mm;transform:translateX(-50%) rotate(180deg);
+  writing-mode:vertical-rl;color:#fff;opacity:.85;letter-spacing:.28em;font-size:9pt;
+  text-transform:uppercase;font-family:var(--sans)}
+#pages .page .cop-corpo{padding:26mm 22mm 22mm;display:flex;flex-direction:column}
+#pages .page .cop-logo{height:14mm;width:auto;display:block}
+#pages .page .cop-payoff{font-size:9.5pt;color:var(--grigio);margin-top:3mm}
+#pages .page .cop-titolo{margin-top:40mm}
+#pages .page .cop-sopra{font-size:10.5pt;letter-spacing:.3em;text-transform:uppercase;color:var(--navy-medio)}
+#pages .page .cop-titolo h1{font-size:34pt;line-height:1.12;margin-top:4mm;color:var(--navy)}
+#pages .page .cop-cliente{margin-top:16mm;padding-top:6mm;border-top:.5pt solid var(--grigio-chiaro)}
+#pages .page .cop-et{font-size:9.5pt;letter-spacing:.25em;text-transform:uppercase;color:var(--grigio)}
+#pages .page .cop-nome{font-family:var(--serif);font-size:21pt;line-height:1.2;margin-top:2.5mm;color:var(--inchiostro)}
+#pages .page .cop-cifre{display:grid;grid-template-columns:repeat(4,1fr);gap:5mm;margin-top:16mm}
+#pages .page .cop-cifre div{border-top:1.5pt solid var(--navy);padding-top:2.5mm}
+#pages .page .cop-cifre .v{font-family:var(--serif);font-size:24pt;color:var(--navy);line-height:1}
+#pages .page .cop-cifre .e{font-size:9pt;color:var(--grigio);margin-top:1.5mm;letter-spacing:.06em;text-transform:uppercase}
+#pages .page .cop-piede{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;
+  font-size:9.5pt;color:var(--grigio)}
+#pages .page .cop-piede b{color:var(--inchiostro);font-weight:600}
+#pages .page .cop-pag{text-align:right}
+
+/* ---- titoli di pagina, spiegazione ----
+   NIENTE MARGINI nelle unita' del documento: l'impaginatore somma altezze, e un
+   margine che collassa non entra nella somma. Si usa solo il padding. */
+/* i blocchi sono unita' di misura: flow-root perche' i margini dei figli
+   restino DENTRO l'altezza misurata invece di sfuggire collassando */
+#pages .page [data-u=blocco]{display:flow-root}
+/* un titolo che arriva in mezzo alla pagina ha bisogno di respiro sopra: e'
+   padding e non margine, cosi' entra nell'altezza misurata */
+#pages .page [data-u=blocco].stacco{padding-top:7mm}
+#pages .page .pagina-titolo{display:flex;align-items:baseline;justify-content:space-between;gap:8mm;
+  border-bottom:1.5pt solid var(--navy);padding-bottom:1.8mm}
+#pages .page .pagina-titolo h2{font-size:18pt;color:var(--navy)}
+#pages .page .pagina-titolo .destra{font-size:9pt;color:var(--grigio);text-align:right;line-height:1.25}
+#pages .page .spiegazione{max-width:168mm;padding-top:4mm}
+#pages .page .spiegazione p{margin:0 0 1.4mm}
+
+/* ---- tabelle: ogni tbody e' un'unita' che non si spezza ---- */
+/* lo STACCO fra una tabella e quello che la precede e' un margine della
+   tabella, non un margine delle righe: cosi' l'impaginatore lo somma una volta
+   sola insieme all'intestazione, ogni volta che apre (o riapre) la tabella */
+#pages .page .doc-tab{border-collapse:collapse;width:100%;table-layout:fixed;margin-top:4.5mm}
+#pages .page .doc-tab th,#pages .page .doc-tab td{text-align:left;vertical-align:top;overflow-wrap:break-word}
+
+/* sommario: i numeri di pagina stanno in una colonna a larghezza fissa, quindi
+   scriverli dopo l'impaginazione non muove niente */
+#pages .page .sommario td{padding:.9mm 1.5mm;border-bottom:.5pt dotted var(--grigio-chiaro);white-space:nowrap}
+#pages .page .sommario td.t{white-space:normal}
+#pages .page .sommario td.q{text-align:right;color:var(--grigio);font-size:.9em}
+#pages .page .sommario td.p{text-align:right;font-weight:600}
+#pages .page .sommario tr.sez td{font-family:var(--serif);font-size:12.5pt;color:var(--navy);
+  padding-top:2.6mm;border-bottom:.6pt solid var(--navy-medio)}
+#pages .page .sommario tr.sez td.q{font-family:var(--sans);font-size:.75em;padding-top:3.4mm}
+#pages .page .sommario tr.sez td.p{font-family:var(--sans);font-size:var(--corpo,10.5pt);padding-top:3.2mm;color:var(--inchiostro)}
+#pages .page .sommario tr.rep td.t{padding-left:7mm}
+#pages .page .sommario .sotto{font-size:.7em;letter-spacing:.1em;text-transform:uppercase;color:var(--grigio);font-family:var(--sans)}
+
+/* quadro d'insieme */
+#pages .page .matrice th,#pages .page .matrice td{padding:1.3mm 1.5mm;font-size:.93em;border-bottom:.5pt solid var(--riga)}
+#pages .page .matrice thead th{font-weight:600;color:var(--navy);border-bottom:1pt solid var(--navy);
+  font-size:.8em;text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom;line-height:1.15}
+#pages .page .matrice thead th .sopra{display:block;font-weight:400;color:var(--grigio);font-size:.85em;letter-spacing:.1em}
+#pages .page .matrice td.n,#pages .page .matrice th.n{text-align:right;white-space:nowrap}
+#pages .page .matrice td.zero{color:var(--grigio-chiaro);text-align:center}
+#pages .page .matrice td.tot,#pages .page .matrice th.tot{font-weight:600;background:var(--qta);border-left:.5pt solid var(--grigio-chiaro)}
+#pages .page .matrice td.nome{white-space:normal}
+#pages .page .matrice td.nome .cod{margin-left:1.5mm}
+
+/* apertura di sezione (piano) */
+#pages .page .sezione-testa{display:flex;background:var(--navy);color:#fff;margin-bottom:3.5mm}
+#pages .page .st-titolo{padding:3.2mm 6mm}
+#pages .page .st-titolo .sopra{font-size:8pt;letter-spacing:.28em;text-transform:uppercase;opacity:.8}
+#pages .page .st-titolo h2{font-size:22pt;line-height:1.05;margin-top:.5mm;color:#fff}
+#pages .page .st-titolo h2 small{font-family:var(--sans);font-size:9.5pt;opacity:.85;margin-left:3mm;
+  letter-spacing:.1em;text-transform:uppercase}
+
+/* registro di reparto: Stanza | Componente | Quantita', una stanza per volta */
+#pages .page .registro thead tr.barra th{background:var(--tinta);color:var(--navy);
+  padding:2mm 2.4mm 1.7mm;border-top:1pt solid var(--navy);
+  font-family:var(--serif);font-size:13pt;font-weight:400}
+#pages .page .registro thead tr.barra .barra-int{display:flex;justify-content:space-between;
+  align-items:baseline;gap:4mm}
+#pages .page .registro thead tr.barra .segue{display:none;font-family:var(--sans);font-size:8pt;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--grigio)}
+#pages .page .registro thead.continua tr.barra .segue{display:inline}
+#pages .page .registro thead tr.colonne th{font-size:7.8pt;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--grigio);border-bottom:.7pt solid var(--navy-medio);padding:1.1mm 2.4mm}
+#pages .page .registro td{padding:1.35mm 2.4mm}
+#pages .page .registro th.c-qta,#pages .page .registro td.c-qta{text-align:right}
+#pages .page .registro tbody.voce td{border-bottom:.5pt solid var(--riga)}
+#pages .page .registro tbody.voce tr:not(:last-child) td{border-bottom:none}
+#pages .page .registro tbody.voce.pari td{background:var(--tinta-2)}
+#pages .page .registro td.c-stanza{font-weight:600;color:var(--inchiostro);border-right:.5pt solid var(--riga)}
+#pages .page .registro td.c-comp .comp{display:flex;justify-content:space-between;align-items:baseline;gap:3mm}
+#pages .page .registro td.c-comp .comp .nome{flex:1 1 auto}
+#pages .page .registro td.c-qta{font-weight:600;font-size:1.1em;background:var(--qta)!important;
+  border-left:.5pt solid var(--grigio-chiaro)}
+
+/* legenda: alfabetica, e' li' che un componente si cerca per nome */
+#pages .page .legenda th,#pages .page .legenda td{border-bottom:.5pt solid var(--riga);font-size:.93em;padding:1.1mm 1.8mm}
+#pages .page .legenda thead th{font-size:7.8pt;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--grigio);border-bottom:.7pt solid var(--navy-medio)}
+#pages .page .legenda td.codice{color:var(--grigio);white-space:nowrap}
+#pages .page .legenda td.nome{font-weight:600}
+#pages .page .legenda td.descr{color:var(--grigio);font-size:.88em}
+#pages .page .legenda td.qta,#pages .page .legenda thead th.qta{text-align:right;font-weight:600}
+#pages .page .nota-piede{font-size:8.5pt;color:var(--grigio);padding-top:2mm;border-top:.5pt solid var(--riga)}
+/* ==== DOCUMENTO FINE ==== */
+
+@media print{
+  #app,#main{display:block;height:auto;overflow:visible}
+  #side,#ponte,#viste,#empty-state{display:none!important}
+  #banco{overflow:visible;padding:0}
+  #zoomwrap{width:auto!important;height:auto!important;overflow:visible!important}
+  #pages{transform:none!important;width:auto!important;padding:0!important}
+  #pages .page{box-shadow:none;margin:0;break-after:page;page-break-after:always}
+  #pages .page:last-child{break-after:auto;page-break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

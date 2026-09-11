@@ -4,17 +4,22 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v23';
+const CACHE = 'crono-guscio-v25';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
-  '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
-  '/css/stampa.css',
+  '/css/fonti.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
+  '/css/stampa.css', '/css/banco.css', '/css/ponte.css',
+  '/assets/fonti/inter-latin-wght-normal.woff2', '/assets/fonti/newsreader-latin-wght-normal.woff2',
+  '/assets/fonti/newsreader-latin-wght-italic.woff2', '/assets/fonti/jetbrains-mono-latin-wght-normal.woff2',
   '/js/app.js', '/js/api.js', '/js/nuvola.js', '/js/nuvola-config.js',
   '/js/stato.js', '/js/ui.js',
   '/js/anno.js', '/js/mese.js', '/js/stat.js',
-  '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js',
+  '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js', '/js/ponte.js',
+  '/js/gruppi.js', '/js/tour.js', '/js/albero.js',
   '/schede/', '/schede/index.html', '/schede/ponte.js',
-  '/schede/lib/html2canvas.min.js', '/schede/lib/jspdf.umd.min.js',
+  '/registro/', '/registro/index.html', '/registro/registro.js', '/registro/impagina.js',
+  '/registro/app.js', '/registro/registro.css',
+  '/lib/html2canvas.min.js', '/lib/jspdf.umd.min.js', '/lib/xlsx.min.js',
   '/assets/icona.svg', '/assets/logo.webp',
 ];
 

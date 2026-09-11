@@ -54,7 +54,9 @@ spunte vivono in un SQLite separato.
 
 Stack: **Python 3 solo stdlib** + SQLite + JS vanilla a moduli ES. Nessun `pip
 install`, nessun `npm`, nessun passo di build, nessuna CDN: l'app deve partire
-offline con un doppio clic su `avvia.bat`. L'unica eccezione, e sta fuori
+offline con un doppio clic su `avvia.bat`. I tre caratteri (Newsreader, Inter,
+JetBrains Mono, `web/assets/fonti/`, `css/fonti.css`) sono serviti dal sito,
+non da una CDN: offline funzionano lo stesso. L'unica eccezione, e sta fuori
 dall'app, e' `netlify/functions/` (`decisioni.md` 23): un
 file che gira sul server di Netlify perche' tiene un segreto - anche quello
 senza dipendenze.
@@ -81,7 +83,8 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 |---|---|---|
 | `server.py` | 295 | HTTP + routing + file statici + hub SSE. Avvio: `main()` |
 | `api.py` | 655 | tutti gli endpoint. Ogni handler: `(ctx,q,body) -> (status,payload,evento)` |
-| `db.py` | 158 | schema SQLite (stringa `SCHEMA`), `sess()`, `WRITE_LOCK`, `CAMPI`, costanti mesi |
+| `db.py` | 200 | schema SQLite (stringa `SCHEMA`), `sess()`, `WRITE_LOCK`, `CAMPI`, costanti mesi; `documenti.tipo`, `dizionario_componenti` + seme (#ANCHOR: dizionario) |
+| `dizionario-seme.json` | - | le 24 voci del vocabolario dei componenti costruite col programma Python: si leggono una volta, a tabella vuota |
 | `sync.py` | 208 | import Access -> SQLite, diff, backup |
 | `export_access.ps1` | 57 | estrazione ADODB -> JSON. **Deve restare ASCII puro** |
 | `rete_locale.py` | 113 | scoperta UDP di altri server Crono in LAN |
@@ -104,11 +107,24 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/cassetto.js` | 203 | pannello laterale di un service |
 | `js/spunte.js` | 148 | popover della cella |
 | `js/affinita.js` | 170 | somiglianza fra nomi scritti male (normalizzazione, Damerau-Levenshtein per parola, pesi di rarita'): ricerca, riconoscimento file nel generatore, doppioni. #ANCHOR: affinita |
-| `js/documenti.js` | 230 | i PDF delle schede tecnici: modello, icona accanto al sito, apertura, consegna. #ANCHOR: documenti |
-| `schede/index.html` | 3888 | il **generatore di schede tecnici** (ex `Schede-Tecnici-Generatore.html`), pagina unica con SheetJS dentro. Il guscio: `#app` non scorre, scorre solo `#banco`. Il suo handoff e' `schede/HANDOFF.md` |
-| `schede/ponte.js` | 455 | il legame generatore -> tracker: barra del sito, PDF con html2canvas + jsPDF (`schede/lib/`), consegna. #ANCHOR: ponte |
+| `js/documenti.js` | 420 | i PDF dei due generatori: modello, `TIPI` (`schede` \| `registro`, #ANCHOR: tipi-documento), un chip per tipo accanto al sito, apertura, consegna. #ANCHOR: documenti |
+| `js/gruppi.js` | 55 | i gruppi del pannello dei generatori si aprono e chiudono (titolo = interruttore, `#grpTutti` li gira tutti); stato in localStorage. Script classico. #ANCHOR: gruppi |
+| `js/tour.js` | 190 | il TUTORIAL GUIDATO condiviso (`Tour.crea({passi, chiave, primaDi, dopo})`): velo, buco, fumetto, tasti. Script classico. #ANCHOR: tour |
+| `js/albero.js` | 160 | l'albero piano > reparto > stanza con i cerchi a tre stati (`creaAlbero`), porting del buildTree delle schede: lo usa il registro. #ANCHOR: albero |
+| `js/ponte.js` | 560 | il ponte GENERICO generatore -> tracker (`avviaPonte({tipo})`): testata di consegna, riconoscimento del sito dal file, PDF con html2canvas + jsPDF (`web/lib/`), consegna, nuvoletta. #ANCHOR: ponte |
+| `schede/index.html` | 3720 | il **generatore di schede tecnici** (per i tecnici), pagina unica. Il guscio: `#app` non scorre, scorre solo `#banco`. Librerie, token dell'app e CSS del ponte sono fuori (vedi sotto). Il suo handoff e' `schede/HANDOFF.md` |
+| `schede/ponte.js` | 35 | wrapper: `avviaPonte({tipo:'schede'})` + agganci a `loadRows`/`unloadFile`/`aggiornaTitoloSito` |
+| `registro/index.html` | 208 | il **generatore del registro dei componenti** (il documento per il CLIENTE): stesso guscio delle schede, stessa testata `#ponte`. Handoff: `registro/HANDOFF.md` |
+| `registro/registro.js` | 683 | porting 1:1 di `mappatura/registro/{lettura,modello}.py`: lettura dell'export, ordinamenti, legenda, quadro d'insieme, anomalie, quadratura. Nessun DOM |
+| `registro/impagina.js` | 499 | il registro diventa `div.page` A4 nel DOM (impaginazione a mano, numeri di pagina del sommario, pie' di pagina) + la versione HTML digitale |
+| `registro/app.js` | 428 | collante: file -> dizionario (`/api/dizionario`) -> registro -> pagine -> pannelli -> ponte; scheda "Nomi dei componenti" |
+| `registro/registro.css` | 380 | l'app del registro (token del banco) e il DOCUMENTO (carta bianca in tutti e due i temi) |
+| `lib/` | - | `xlsx.min.js` (SheetJS 0.18.5, era dentro schede/index.html), `html2canvas.min.js`, `jspdf.umd.min.js`: condivise dai due generatori |
 | `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
-| `css/theme.css` | 214 | **solo token**: colori, font, misure, segnali, vetro. Il marchio si cambia qui |
+| `css/theme.css` | 240 | **solo token**: colori, i tre caratteri (`--f-display/--f-ui/--f-dato`), misure, segnali, vetro. Il marchio si cambia qui |
+| `css/fonti.css` | 35 | i `@font-face` dei tre caratteri in `assets/fonti/`. #ANCHOR: fonti |
+| `css/banco.css` | 250 | i token del **banco di lavoro** dei generatori (`--ui-*`, `--acc*`), derivati da theme.css; poi tutto cio' che le due pagine condividono: gruppi richiudibili, **barra del marchio** a due righe, `#side` a colonna con Esporta inchiodato in fondo, **colonna dell'albero**, **tutorial**. `--ui-0` e' esadecimale di proposito (html2canvas non legge `color-mix`). #ANCHOR: css-banco |
+| `css/ponte.css` | 300 | la testata di consegna `#ponte` e la nuvoletta, condivisa dai due generatori. #ANCHOR: css-ponte |
 | `css/base.css` | 428 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
 | `css/griglia.css` | 539 | carte cliente, cella a 4 segmenti, riga/carta "a posto", vista mese (pista dei mesi, capsula dei passi) |
 | `css/stat.css` | 748 | griglia a 12 colonne, carte di vetro, quadrante dell'anno, ritmo, agenda, torte, barre, colonne, tooltip |
@@ -142,8 +158,9 @@ fuori, in `netlify/prove/`.
 | `03-letture.sql` | `app_bootstrap` e le altre letture, CSV compreso |
 | `04-sicurezza.sql` | RLS, permessi, pubblicazione Realtime |
 | `05-sync.sql` | `sync_applica`: il gemello di `sync.esegui` |
-| `06-documenti.sql` | tabella `documenti`, bucket Storage, `registra_documento` (gemello di `api.salva_documento`) |
+| `06-documenti.sql` | tabella `documenti` (con `tipo`), bucket Storage, `registra_documento(..., p_tipo)` (gemello di `api.salva_documento`) |
 | `07-ruoli.sql` | il primo amministratore (per casella). Gli altri si nominano dall'app |
+| `08-dizionario.sql` | `dizionario_componenti`, `app_dizionario()`, `imposta_voce_dizionario()`, seme delle 24 voci (#ANCHOR: dizionario) |
 | `installa-sync-cloud.cmd` | crea l'operazione pianificata delle 08:15 |
 | `sync-cloud.cmd` | un travaso a mano |
 | `netlify-build.sh` | scrive `nuvola-config.js` in pubblicazione |
@@ -167,8 +184,9 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
    `filtro-stato`, `tema`, `css-base`, `css-griglia`, `css-stat`, `css-stampa`, `anno-modello`,
    `mappatura-anno`, `classe-mese`, `passi`, `passi-cumulativi`, `fuoco`, `massa`,
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
-   `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
-   `conferma-ok`, `mese-stampa`.
+   `ponte-schede`, `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
+   `conferma-ok`, `mese-stampa`, `tipi-documento`, `dizionario`, `fonti`,
+   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -191,6 +209,79 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-11 (30a sessione)
+
+Branch `registro-componenti-premium` (lo stesso della 29a: sono correzioni a
+quel lavoro). Undici punti segnalati dal committente dopo la prova; dettaglio
+in [ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-11-30a-sessione---undici-difetti-dopo-la-prova).
+
+**Nel tracker**: "Mostra chiusi" ora si accende (`.pill.debole` vinceva su
+`[aria-pressed]`: stessa specificita', scritta dopo); nel cassetto i PDF
+stanno in **due gruppi per tipo** (schede per i tecnici, registro per il
+cliente), ognuno col suo occhiello e il conto.
+
+**Nei generatori**: la barra del marchio e' su **due righe** (`.bb-riga` con
+il bottone **Tracker** per tornare indietro, la guida, apri/chiudi tutti i
+gruppi, giorno/notte; sotto logo e nome) e sta **sopra** il ponte (z 40 contro
+il 38 della nuvoletta): a pannello stretto e scorrendo non si accavalla piu'
+niente. `#side` e' una colonna flex: **Esporta resta inchiodato in fondo**
+anche a gruppi chiusi (`margin-top:auto` + sticky). **"Salva nel tracker" non
+c'e' piu'**: Esporta e salva fa tutto (il PDF si scarica e si consegna; si
+interrompe dal libretto o con Esc). Nelle schede la barra nativa del banco si
+toglie quando c'e' quella blu (`body.ds-attiva`, `syncNativeScrollbar`).
+Tutto cio' che le due pagine condividono e' uscito da `schede/index.html`:
+`css/banco.css` (barra, albero, tutorial), `js/tour.js` (il motore della
+guida), `js/albero.js` (l'albero).
+
+**Nel registro**: la **colonna dell'albero** (`#treecol`, 4 - Cosa entra nel
+registro) toglie piani, reparti o stanze dal documento filtrando le righe
+PRIMA del modello (le righe dati scendono dello stesso numero: quadratura
+onesta; il nome salta alla pagina); il **tutorial** in dodici passi con un
+esempio che si carica da solo; e la scheda "Nomi dei componenti" **non
+rigenera piu' le pagine a ogni nome salvato** (misurati 140 ms di blocco su
+122 pagine: il "tremolio"): si segna `pagineDaRifare` e si impagina tornando
+all'anteprima o esportando (`assicuraPagine`, anche nel `pagine()` del
+ponte). Service worker `crono-guscio-v25`.
+
+## Stato al 2026-09-11 (29a sessione)
+
+Branch `registro-componenti-premium`. Una richiesta in tre parti; dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-11-29a-sessione---il-registro-dei-componenti-entra-nellapp-un-ponte-solo-un-look-solo),
+[ai/decisioni.md](ai/decisioni.md) 25.
+
+**Il Registro dei componenti entra nell'app** (`web/registro/`): il documento
+per il CLIENTE che elenca i componenti installati e dove stanno, prima solo
+programma Python sul PC dell'ufficio (`Desktop/Claude/mappatura`). Stessa
+logica portata in JS (`registro.js`), impaginazione A4 fatta a mano nel DOM
+(`impagina.js`, numeri di pagina veri nel sommario, nessuna stanza spezzata),
+PDF raster con lo stesso motore delle schede. Provato: RIZZATO 4 pagine, CASA
+GEROSA 12, sintetico da 3200 righe 122 pagine in 91 ms, quadratura OK su tutti.
+
+**Il bottone "Schede tecnici" e' diventato "Genera PDF"** (`#documenti`), un
+menu a due voci; nel cassetto i due generatori partono gia' puntati sul sito.
+**Un ponte solo** (`web/js/ponte.js`, `avviaPonte({tipo})`), un CSS
+(`css/ponte.css`), i token del banco derivati da theme.css (`css/banco.css`),
+le librerie in `web/lib/` (SheetJS estratto da schede/index.html).
+
+**`documenti.tipo`** = `'schede'` | `'registro'` (#ANCHOR: tipi-documento): il
+registro si archivia sul sito **senza spunta** (lo decide il server, in
+`salva_documento` e `registra_documento`); due icone accanto al sito (foglio
+cyan = schede, libretto grafite = registro). **Dizionario condiviso**
+(`dizionario_componenti`, `/api/dizionario`, #ANCHOR: dizionario) al posto del
+JSON locale, seminato con le 24 voci esistenti.
+
+**Look premium unico**: tre caratteri self-hosted (`css/fonti.css`), palette
+rivista in theme.css (inchiostro grafite-navy, un accento solo), carte dei
+documenti con la miniatura grande, stesso logo `/assets/logo.webp` in tracker,
+schede e registro. Contrasti AA riverificati, `valida-tavolozza.py`
+riallineato (superficie scura `#14191E`, oro del primo passo).
+
+**Da rieseguire su Supabase, in ordine: `06-documenti.sql` (di nuovo, firma
+nuova di `registra_documento`) poi `08-dizionario.sql` (nuovo).** Trappola
+pagata: html2canvas non legge `color-mix()` sul fondo di `body`/`#app` - a tema
+chiaro il PDF moriva - quindi `--ui-0` e' esadecimale. Service worker
+`crono-guscio-v24`.
 
 ## Stato al 2026-09-10 (28a sessione)
 

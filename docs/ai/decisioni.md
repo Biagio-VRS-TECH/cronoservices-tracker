@@ -1033,3 +1033,131 @@ un posto (#ANCHOR: ruoli), e questo file non ne ha una copia sua che un giorno
 divergerebbe: il difetto della 25a sessione era esattamente una copia divergente
 - il client che si calcolava il ruolo per conto suo dal nome digitato. Fare due
 volte lo stesso errore nella stessa sessione sarebbe stato un peccato.
+
+## 25. Due documenti, un ponte, un tipo: il registro non e' un passo della mappatura (29a sessione)
+
+Il **Registro dei componenti** - il documento per il cliente che elenca cosa e'
+installato e dove, nato come programma Python sul PC dell'ufficio
+(`Desktop/Claude/mappatura`) - entra nell'app come **secondo generatore**,
+`web/registro/`, accanto alle schede tecnici. Tre scelte lo tengono semplice:
+
+1. **Un ponte solo.** Tutto quello che lega un generatore al tracker (testata di
+   consegna, riconoscimento del sito dal nome del file, PDF con html2canvas +
+   jsPDF, consegna, nuvoletta) e' in `web/js/ponte.js`, generico: `avviaPonte({
+   tipo })`. `schede/ponte.js` e' rimasto un wrapper di trenta righe che aggancia
+   le funzioni globali di quel file. Il markup della testata e' identico nelle due
+   pagine, il CSS e' uno (`css/ponte.css`) e i token del banco di lavoro
+   (`--ui-*`, `--acc*`) non hanno piu' valori propri: `css/banco.css` li deriva
+   da `theme.css`. Un marchio, una tavolozza, tre pagine.
+2. **Il tipo sta sul documento, e lo decide il server.** `documenti.tipo` e'
+   `'schede'` o `'registro'`; `registra_documento`/`salva_documento` mettono la
+   spunta "stampata" solo per le schede. Il registro e' un documento per il
+   cliente, non un passo della mappatura: si archivia sul sito, nessuna casella
+   si tocca, e il tracker lo mostra con un'icona sua (libretto, grafite) accanto
+   a quella delle schede (foglio, cyan). Non si e' fatto un secondo modello ne'
+   una seconda tabella: e' lo stesso storico, con due icone.
+3. **Il dizionario e' condiviso, come le spunte.** I nomi leggibili dei codici
+   articolo e la priorita' nel quadro d'insieme vivevano in un JSON sul PC
+   dell'ufficio: online sarebbero rimasti a chi ha quel PC. Ora stanno in
+   `dizionario_componenti` (SQLite e Postgres, `08-dizionario.sql`), dietro
+   `/api/dizionario`, con lo stesso contratto del vecchio `Dizionario` Python
+   (nome e priorita' indipendenti, riga che sparisce quando non resta niente).
+   Il vocabolario di partenza e' seminato dal JSON (`app/dizionario-seme.json`),
+   una volta sola, dove il codice non c'e' ancora.
+
+Con questo cade il vincolo "font di sistema, nessun webfont": l'app deve
+partire offline, e lo fa lo stesso, perche' i tre caratteri (Newsreader, Inter,
+JetBrains Mono, ~210 KB in tutto, `web/assets/fonti/`) sono serviti dal sito,
+non da una CDN. Il vincolo che resta e' quello vero: nessun `npm`, nessuna
+build, nessuna dipendenza esterna a tempo di esecuzione.
+
+## 26. Il restyling premium: porcellana, laguna, tre materiali, un tema solo (30a sessione)
+
+Il committente: "non sembra di lusso". Il cyan puro del logo e il grigio freddo
+da pannello di controllo facevano un cruscotto, non un oggetto di pregio. Cosa
+e' cambiato, e dove vive (tutto in `css/theme.css`, il resto lo eredita):
+
+- **Neutri**: fondo PORCELLANA calda (`#F3F1EC`) e inchiostro GRAFITE neutro
+  (`#15181C`); in notte carbone caldo (`#0C0E11` / `#151719`) e avorio. E' la
+  carta di pregio: avorio, nero, un colore vivo solo. Contrasti rimisurati
+  (inchiostro 17,8:1, tenue 5,4:1 su bianco e 4,8:1 sul fondo).
+- **Il blu**: da cyan (`#00AEEF`) a LAGUNA (`#0D96CF`, notte `#2FB3EA`), stessa
+  tonalita' - cosi' i quattro passi restano distinti anche in CVD - ma piu'
+  profonda: 3,3:1 su bianco come riempimento (il cyan faceva 2,5, sotto la
+  soglia). `--cl-stima` scende a `#085F87` per restare a distanza 15 dal
+  "previsto". `valida-tavolozza.py` aggiornato e rilanciato: tutto ok.
+- **Tre materiali** (`--btn-*`, `--vetro-fondo`, `--satin`, `--pista-*`,
+  `--filo-platino`): INCHIOSTRO per il bottone primario e la posizione attiva
+  dei comandi segmentati (pieno scuro tinto del fondo della laguna, filo di
+  luce sul bordo alto; in notte si inverte in AVORIO); VETRO per pillole,
+  campi e carte; SATIN sui riempimenti di capsule e barre. Il cyan non e' piu'
+  un bottone: e' solo il segnale. Le piste sono un incavo, non un grigio.
+- **Un tema solo** (#ANCHOR: tema-unico in `js/app.js`): chiave `cs.tema` per
+  tracker e generatori, con l'evento `storage` che gira le schede aperte. La
+  vecchia `vrsSchedeCampo.theme` faceva divergere i generatori appena si
+  sceglieva qualcosa li'; `ponte.js` non traduce piu' fra due chiavi.
+
+Cosa NON e' cambiato, di proposito: i quattro colori dei passi, il verde di
+"completa", ambra e rosso; il DOCUMENTO stampato dei due generatori (e' carta,
+non interfaccia); il vincolo html2canvas sul fondo del banco in esadecimale
+(`--ui-0`, `--fondo-banco`: ora `#ECEAE5` / `#0F1215`).
+
+Movimento (stessa sessione, su richiesta "qualche dinamicita' qua e la'"): poco e
+sempre con un senso. Il cambio tema SFUMA con `document.startViewTransition`
+(tracker `inDissolvenza()`, generatori `setTheme(t, save, dolce)`), anche quando
+arriva da un'altra scheda; sui bottoni d'inchiostro passa un LAMPO (`--lampo`,
+`::after` inclinato, una volta al passaggio); la posizione attiva dei comandi
+segmentati si assesta (`premi`); le carte delle Statistiche salgono di 2px al
+passaggio dopo l'entrata; la ricerca si allarga a fuoco; l'anno scivola mentre
+carica; nei generatori la pagina di partenza e i gruppi del pannello si rivelano
+in sequenza una volta sola (`sale`). Tutto sotto `prefers-reduced-motion`.
+
+Seconda passata sullo stesso giorno, tre correzioni del committente:
+- la rivelazione a scatti dei generatori ("sembra un bug") e' tolta;
+- il PONTE non e' piu' la testata sopra l'anteprima: e' il primo gruppo del
+  pannello di sinistra ("Collegamento al tracker", `#ponteGrp`). Li' non
+  scorre con le pagine, quindi niente nuvoletta: `guarda()` in ponte.js non
+  parte se `#ponte` sta dentro `#side`, e `css/ponte.css` (sezione NEL
+  PANNELLO) gli toglie vetro, ombra e griglia a due colonne. Il markup di
+  #ponte e' identico a prima, spostato;
+- i GRUPPI del pannello si aprono e chiudono: il titolo e' l'interruttore,
+  `#grpTutti` nella barra del marchio li gira tutti (`js/gruppi.js`, stato in
+  `cs.gruppi.<pagina>`; CSS in `css/banco.css`). "Esporta" non si chiude.
+Le due animazioni SCENICHE, entrambe legate a un momento vero e non decorative:
+la SFOGLIATA (`sfoglia()` in ponte.js, `#pages.sfoglia`) - quando il documento
+nasce da zero pagine le prime quattordici salgono al posto una dopo l'altra con
+un accenno di prospettiva; e la FESTA (anno.js, `.blocco.festa` / `.cella.fiorisce`
+in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
+la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.
+Terza scena, IL LIBRETTO (`apriLibretto()` in ponte.js, css/ponte.css sezione
+omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela
+(sfocata) e in mezzo c'e' il documento come LIBRETTO. Chiuso, si vede solo la
+COPERTINA (pagina 0, centrata: la scena si sposta di mezza pagina); poi la
+copertina gira a sinistra (1 s) e dentro ci sono due facciate; tre fogli
+girano uno alla volta da destra a sinistra (0,9 s, pausa 0,5); alla fine tutto
+il blocco di sinistra si richiude PIANO (1,1 s) sulla copertina e il giro
+ricomincia. Otto pagine vere clonate senza id e ridotte a 150px (copertina e
+tre fogli, fronte/retro), base bianca sotto. Ciclo di 8 s. Sotto, la frase di stato e
+l'avanzamento della fascia. Si chiude in dissolvenza alla fine, bene o male.
+Storia breve, perche' e' costata tre giri: sei fogli in `alternate` (il
+ritorno indietro sembrava un bug), dodici con lo z-index animato (laggava), poi
+otto con la profondita'. Regole che ne escono: (1) durante la resa del PDF si
+anima SOLO transform e opacity - lo z-index passa dal thread principale, che
+html2canvas tiene bloccato; (2) l'ordine delle pile e' la profondita'
+(translateZ in preserve-3d): il translateZ ruota col foglio, quindi il foglio
+voltato finisce da solo sotto ai gia' voltati; (3) i filtri (drop-shadow, blur)
+stanno su cose FERME - il velo e un rettangolo dietro il libro - mai sopra
+elementi in movimento; (4) i fotogrammi con i tempi per foglio sono GENERATI da
+uno script (in ponte.css e' detto): si cambia il tempo e si rigenera.
+Il velo e' in rgba e i cloni stanno fuori da #pages: html2canvas gira proprio
+in quel momento e non deve ne' vederli ne' inciampare in un color-mix.
+
+INTERROMPERE (#ANCHOR: interrompi in ponte.js): la preparazione e la consegna
+del PDF si fermano dal bottone "Interrompi" del libretto, dal bottone della
+testata (che mentre si lavora diventa "Interrompi", vetro con filo d'ambra) o
+con Esc. Non si uccide niente a meta': `interrompi()` alza una bandiera e il
+lavoro la guarda (`controlla()`) dove puo' fermarsi pulito - prima di ogni
+lotto di pagine, prima di scaricare, prima di consegnare ogni fascicolo. Una
+consegna gia' partita finisce, e l'esito dice cosa e' arrivato ("Interrotto:
+nessun PDF prodotto" / "PDF pronto ma non consegnato" / "consegnati k su N").
+Vale per tutti e due i generatori, perche' il codice e' uno.

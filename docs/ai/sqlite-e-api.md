@@ -85,11 +85,12 @@ scritto (esclusione per `client_id` nel body).
 | POST | `/api/ping` | presenza, TTL 45 s; ritorna chi e' collegato |
 | POST | `/api/impostazioni` | per ora solo `inizio_tracciamento` (`AAAA-MM`) |
 | POST | `/api/sync` | rilegge Access. Solo admin. **Dalla 28a sessione nessuna schermata lo chiama piu'**: il bottone "Sincronizza da Access" e' stato tolto (online il `.accdb` non si raggiunge, in locale il server lo rilegge all'avvio e il PC dell'ufficio spinge alle 08:15). Resta per una chiamata a mano; timeout client 300 s |
-| GET | `/api/documenti?anno=` | i PDF delle schede: senza anno tutti, e' lo storico (#ANCHOR: documenti) |
-| GET/POST | `/api/documento` | GET `?id=` scarica il file; POST archivia un PDF del generatore (base64, max 200 MB: `MAX_PDF`) e mette la spunta `stampata` |
+| GET | `/api/documenti?anno=` | i PDF dei generatori: senza anno tutti, e' lo storico (#ANCHOR: documenti). Ogni riga porta `tipo`: `schede` \| `registro` |
+| GET/POST | `/api/documento` | GET `?id=` scarica il file; POST archivia un PDF di un generatore (base64, max 200 MB: `MAX_PDF`). Body `tipo`: `schede` (default) mette la spunta `stampata`; `registro` (il registro componenti per il cliente) archivia e basta, `mese` null |
+| GET/POST | `/api/dizionario` | il vocabolario dei componenti del registro (#ANCHOR: dizionario). GET -> `{voci}`; POST `{codice, nome?, descrizione?, priorita?, operatore}`: si mandano SOLO i campi da toccare (`nome` vuoto = torna alla descrizione del gestionale, `priorita` vuota o 0 = nessuna; 1..10 altrimenti, 400 fuori intervallo). Nome e priorita' sono indipendenti; senza ne' l'uno ne' l'altra la riga sparisce (`voce.rimossa`) |
 | POST | `/api/documento_elimina` | `{id}`: un PDF solo. La spunta resta |
 | POST | `/api/documenti_elimina` | in blocco, per fare spazio: `{anno}` (solo admin) **oppure** `{id_service}` (chiunque), mai insieme. Prima i file, poi le righe; le spunte restano. Ritorna `{eliminati, n, bytes}` |
-| GET | `/api/stream?client_id=` | SSE. Eventi: `cella`, `celle`, `sync`, `presenze`, `documento`, `documenti` |
+| GET | `/api/stream?client_id=` | SSE. Eventi: `cella`, `celle`, `sync`, `presenze`, `documento`, `documenti`, `dizionario` |
 
 Il payload di una cella usa le sigle, non i nomi: `{s, c, k, r, rev, by, at,
 nota}` (`_cella_out` in `api.py`, `SIGLA` in `stato.js`).

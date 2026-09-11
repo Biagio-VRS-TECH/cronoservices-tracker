@@ -67,18 +67,18 @@ def run(pal,mode,surface,nomi=None):
 if __name__=='__main__':
     # 1) i quattro passi della cella  (--st-*)
     passi=['stampata','controllata','rapportino','ricambi']
-    run(['#8B8D91','#00AEEF','#A0307E','#5B67D6'],'light','#FFFFFF',passi)
-    run(['#6E7175','#35C4FF','#CC5FA8','#7B85EA'],'dark','#16181B',passi)
+    run(['#B8860B','#0D96CF','#A0307E','#5B67D6'],'light','#FFFFFF',passi)   # primo passo: oro dalla 28a
+    run(['#E2B83C','#2FB3EA','#CC5FA8','#7B85EA'],'dark','#151719',passi)
     # 2) le classi temporali nelle celle  (--cl-*)
     cl=['dovute','stime','da rinnovare','pre-tracc.']
-    run(['#00AEEF','#0E7FA8','#C0392B','#8B8D91'],'light','#FFFFFF',cl)
-    run(['#35C4FF','#1D89B4','#F2705F','#6E7175'],'dark','#16181B',cl)
+    run(['#0D96CF','#085F87','#C0392B','#8B8D91'],'light','#FFFFFF',cl)
+    run(['#2FB3EA','#15759D','#F2705F','#6E7175'],'dark','#151719',cl)
     # 3) il completamento: UNA tinta (--completa), che non deve confondersi con
     #    nessuno dei quattro passi. Il terzo passo era proprio questo verde.
     print()
     print("--- --completa contro i quattro passi (distanza minima, CVD inclusa) ---")
-    for mode,sup,comp,pal in (('light','#FFFFFF','#00A37A',['#8B8D91','#00AEEF','#A0307E','#5B67D6']),
-                              ('dark','#16181B','#22C39A',['#6E7175','#35C4FF','#CC5FA8','#7B85EA'])):
+    for mode,sup,comp,pal in (('light','#FFFFFF','#00A37A',['#B8860B','#0D96CF','#A0307E','#5B67D6']),
+                              ('dark','#151719','#22C39A',['#E2B83C','#2FB3EA','#CC5FA8','#7B85EA'])):
         for nome,h in zip(passi,pal):
             d=min(dE(comp,h),dE(comp,h,'protan'),dE(comp,h,'deutan'))
             print("  %-6s %s vs %-11s %s: %5.1f %s" % (mode,comp,nome,h,d,
@@ -113,7 +113,7 @@ if __name__=='__main__':
     print()
     print("--- rampa --ar-1..--ar-4 (chiarezza monotona + gradi vicini) ---")
     for mode, allerta, vuoto, sup in (('light', '#C2600B', '#E4E5E8', '#FFFFFF'),
-                                      ('dark', '#E0913C', '#24262A', '#16181B')):
+                                      ('dark', '#E0913C', '#24262A', '#151719')):
         ramp = [_mix(allerta, vuoto, .30), _mix(allerta, vuoto, .53),
                 _mix(allerta, vuoto, .76), allerta]
         Ls = [oklch(c)[0] for c in ramp]

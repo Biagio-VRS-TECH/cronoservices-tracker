@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registro componenti · Crono Mappature VRS</title>
+<link rel="icon" href="/assets/icona.svg">
+<link rel="stylesheet" href="/css/fonti.css">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/banco.css">
+<link rel="stylesheet" href="/css/ponte.css">
+<link rel="stylesheet" href="registro.css">
+
+<!-- SheetJS 0.18.5 (Apache-2.0): lettura di .xls/.xlsx. html2canvas e jsPDF:
+     il PDF, li usa web/js/ponte.js. Percorsi assoluti: la pagina sta in una
+     sottocartella, ma le librerie sono condivise col generatore di schede. -->
+<script src="/lib/xlsx.min.js"></script>
+<script src="/lib/html2canvas.min.js"></script>
+<script src="/lib/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div id="app">
+<aside id="side">
+  <div id="brandbar"><div class="bb-riga">
+    <a class="bb-indietro" href="/" title="Torna a Crono Mappature (il tracker)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Tracker</a>
+    <span class="bb-spazio"></span>
+    <button type="button" id="tourBtn" title="Tutorial: la guida passo passo dell'applicazione" aria-label="Apri il tutorial guidato">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.75.3-1.1.9-1.1 1.7v.4"/><path d="M12 17.2h.01"/></svg>
+    </button>
+    <button type="button" id="grpTutti" title="Chiudi tutti i gruppi" aria-label="Chiudi tutti i gruppi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/><path d="M7 20l5-5 5 5" opacity=".45"/></svg></button>
+    <div id="themeSeg" role="group" aria-label="Aspetto dell'applicazione">
+      <button type="button" data-theme="auto" title="Segui il sistema" aria-label="Aspetto: segui il sistema">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v16.8"/><path d="M12 20.4a8.4 8.4 0 0 0 0-16.8" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button type="button" data-theme="light" title="Chiaro" aria-label="Aspetto: chiaro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4.3"/><path d="M12 2.4v2.6M12 19v2.6M2.4 12H5M19 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>
+      </button>
+      <button type="button" data-theme="dark" title="Scuro" aria-label="Aspetto: scuro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 14.6A8.6 8.6 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/></svg>
+      </button>
+    </div></div>
+    <div class="bb-marchio"><img src="/assets/logo.webp" alt="VRS Group"><h1>Registro componenti<span>Documento per il cliente</span></h1></div>
+  </div>
+
+  <!-- Il PONTE col tracker (js/ponte.js, css/ponte.css) e' il primo gruppo del
+       pannello: a quale sito del tracker appartiene il lavoro, e il bottone che
+       consegna. Stava sopra l'anteprima come testata; il committente lo ha voluto
+       qui, fra i gruppi, richiudibile come gli altri (js/gruppi.js). -->
+  <div class="grp grp-ponte" id="ponteGrp">
+    <h2>Collegamento al tracker</h2>
+  <div id="ponte" hidden>
+    <div class="pn-corpo">
+      <p class="pn-rotta">
+        <span id="ponteCosa">consegna a</span>
+        <span class="pn-come" id="ponteCome" hidden></span>
+        <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
+      </p>
+      <div id="ponteSito" hidden>
+        <h2 id="ponteCliente"></h2>
+        <p class="pn-meta" id="ponteMeta"></p>
+      </div>
+      <div class="pn-cerca" id="ponteCerca">
+        <input id="ponteQ" list="ponteLista" autocomplete="off"
+               placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
+               aria-label="Sito del tracker a cui collegare il registro">
+        <datalist id="ponteLista"></datalist>
+      </div>
+    </div>
+    <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
+    <div class="ponte-scelte" id="ponteScelte" hidden>
+      <header><span>Probabilmente e&rsquo; uno di questi</span><button type="button" class="pn-mini" id="ponteChiudiScelte">chiudi</button></header>
+      <ul></ul>
+    </div>
+  </div>
+  </div>
+  <div class="grp" id="fileGrp">
+    <h2>1 · Export del gestionale</h2>
+    <div id="drop" role="button" tabindex="0" aria-controls="file"><b>Trascina qui il file</b>.xls &middot; .xlsx<br><span style="color:var(--ui-tx3)">oppure clicca per sceglierlo</span></div>
+    <input type="file" id="file" accept=".xls,.xlsx,.xlsm" hidden aria-label="Export .xls del gestionale">
+    <div id="fileinfo"></div>
+    <button type="button" class="xrow" id="dropFile" title="Togli il file e torna alla schermata iniziale" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      <span>Togli il file</span>
+    </button>
+  </div>
+
+  <div class="grp" id="docGrp">
+    <h2>2 · Documento</h2>
+    <label for="docTitle" class="hint" style="margin:0 0 6px">Intestatario del registro</label>
+    <input type="text" id="docTitle" readonly placeholder="Dal sito collegato, oppure dalla cella A1">
+    <p class="hint">Lo prende dal <b>sito collegato</b> nel tracker; senza sito, dal nome cliente in <b>A1</b> dell&rsquo;export.</p>
+    <label class="row" for="corpo">Corpo del testo
+      <select id="corpo">
+        <option value="10">10 pt</option>
+        <option value="10.5" selected>10,5 pt</option>
+        <option value="11">11 pt</option>
+      </select>
+    </label>
+    <label class="row sw" for="volHtml"><span>Scarica anche la versione digitale HTML</span><input type="checkbox" id="volHtml"></label>
+    <p class="hint">Un file solo, con ricerca e indice laterale: si apre col doppio clic, anche senza rete.</p>
+  </div>
+
+  <div class="grp" id="checkGrp">
+    <h2>3 · Controlli e anomalie</h2>
+    <p class="hint" style="margin:0 0 10px">Uso interno VRS: niente di questo entra nel documento del cliente.</p>
+    <div id="quadratura" hidden></div>
+    <ul id="controlli"></ul>
+    <div id="anomalie" tabindex="0" aria-label="Elenco delle anomalie"></div>
+    <div class="duebtn">
+      <button type="button" class="btn sec" id="scaricaAnomalie" disabled>Anomalie (.txt)</button>
+      <button type="button" class="btn sec" id="scaricaDati" disabled>Dati (.json)</button>
+    </div>
+  </div>
+
+  <div class="grp" id="exportGrp">
+    <h2>Esporta</h2>
+    <button class="btn" id="print" disabled title="Produce il PDF, lo scarica e lo archivia nel tracker sul sito collegato">Esporta e salva</button>
+    <div class="zoomrow">
+      <button type="button" class="ico" id="zoomOut" title="Riduci anteprima" aria-label="Riduci anteprima">&#8722;</button>
+      <button type="button" class="btn sec" id="zoomVal" style="margin:0" title="Clicca per adattare la pagina alla colonna">Zoom 100%</button>
+      <button type="button" class="ico" id="zoomIn" title="Ingrandisci anteprima" aria-label="Ingrandisci anteprima">+</button>
+    </div>
+  </div>
+</aside>
+
+<main id="main">
+  <div id="viste" role="tablist" aria-label="Viste del banco" hidden>
+    <button type="button" role="tab" id="tabAnteprima" aria-selected="true" aria-controls="vistaAnteprima">Anteprima<span class="conta" id="contaPagine"></span></button>
+    <button type="button" role="tab" id="tabNomi" aria-selected="false" aria-controls="vistaNomi">Nomi dei componenti<span class="conta" id="contaNomi"></span></button>
+  </div>
+
+  <div id="banco">
+    <div id="empty-state">
+      <div class="kick">Nessun file caricato</div>
+      <h2>Il registro dei componenti, pronto per il cliente</h2>
+      <p>Carica l&rsquo;export <b>.xls</b> del gestionale: il libretto A4 si impagina da solo &mdash; copertina, sommario con i numeri di pagina, quadro d&rsquo;insieme, una sezione per piano e la legenda finale.</p>
+      <div class="acts">
+        <button type="button" class="btn" id="pickFile">Scegli il file</button>
+        <button type="button" class="btn sec" id="startTutorial">Avvia il tutorial</button>
+      </div>
+      <p class="foot">.xls &middot; .xlsx &nbsp;&middot;&nbsp; niente esce dal browser (tranne il PDF che consegni al tracker), e funziona anche senza rete</p>
+    </div>
+    <div id="vistaAnteprima" role="tabpanel" aria-labelledby="tabAnteprima">
+      <div id="zoomwrap"><div id="pages"></div></div>
+    </div>
+    <div id="vistaNomi" role="tabpanel" aria-labelledby="tabNomi" hidden>
+      <div id="nomi">
+        <div class="testa">
+          <h2>Nomi dei componenti</h2>
+          <p>Il nome che il cliente legge nel Registro. Si scrive e si preme <b>Invio</b> (o si esce dalla casella): il dizionario viene salvato subito e il documento si aggiorna da solo, in secondo piano. Casella vuota = descrizione originale del gestionale; <b>cliccando</b> in una casella vuota la descrizione ci viene trascritta, cos&igrave; si accorcia invece di riscriverla (se non la si tocca, non viene salvato niente). <b>Esc</b> annulla.</p>
+          <p>L&rsquo;<b>ordine nel quadro</b> &egrave; un numero da 1 a 10: decide chi compare per primo nel quadro d&rsquo;insieme. Non compare nel documento, e la legenda resta sempre alfabetica. L&rsquo;elenco non si riordina mentre si lavora.</p>
+        </div>
+        <table>
+          <thead><tr>
+            <th scope="col">Codice</th>
+            <th scope="col">Descrizione del gestionale</th>
+            <th scope="col">Nome nel Registro</th>
+            <th scope="col">Ordine nel quadro</th>
+            <th scope="col" style="text-align:right">Pezzi</th>
+          </tr></thead>
+          <tbody id="nomiCorpo"></tbody>
+        </table>
+        <p id="nomiStato" role="status"></p>
+      </div>
+    </div>
+  </div>
+</main>
+<!-- La colonna dell'albero (css/banco.css, js/albero.js): cosa entra nel
+     registro. Compare a file caricato; il separatore qui non si trascina. -->
+<div id="treegrip" class="fermo" role="separator" aria-orientation="vertical" hidden></div>
+<aside id="treecol" hidden>
+  <div class="grp" id="filterGrp">
+    <h2>4 &middot; Cosa entra nel registro</h2>
+    <div id="treebar">
+      <label class="pick" title="Includi o escludi tutto"><input type="checkbox" id="selAll" checked><span>Tutto l'impianto</span></label>
+      <button type="button" class="ico" id="collAll" title="Comprimi tutto" aria-label="Comprimi tutto"></button>
+    </div>
+    <div id="tree"></div>
+  </div>
+</aside>
+</div>
+
+<!-- ASPETTO: la stessa setTheme del generatore di schede, e la stessa chiave
+     del tracker (`cs.tema`, #ANCHOR: tema-unico in js/app.js): un tema solo per
+     le tre pagine, che si segue anche a scheda aperta. Script classico
+     e non modulo: il tema si applica prima che i moduli (differiti) partano,
+     altrimenti si vedrebbe un lampo di scuro. window.setTheme e' anche quello
+     che js/ponte.js chiama per seguire il tema del tracker. -->
+<script>
+var SYS_LIGHT = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+var THEME = 'auto';
+function setTheme(t, save, dolce){
+  THEME = (['auto','light','dark'].indexOf(t) >= 0) ? t : 'auto';
+  var light = (THEME === 'light') || (THEME === 'auto' && !!(SYS_LIGHT && SYS_LIGHT.matches));
+  var r = document.documentElement;
+  var applica = function(){
+    r.setAttribute('data-theme', THEME);
+    r.classList.toggle('lt', light);
+    /* i fogli condivisi (css/theme.css, css/banco.css) leggono data-tema */
+    r.setAttribute('data-tema', light ? 'chiaro' : 'scuro');
+  };
+  /* scelto a mano o arrivato da un'altra scheda: sfuma (View Transitions) invece di scattare */
+  if (dolce && document.startViewTransition && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) document.startViewTransition(applica);
+  else applica();
+  Array.prototype.forEach.call(document.querySelectorAll('#themeSeg button'), function(b){
+    b.setAttribute('aria-pressed', b.getAttribute('data-theme') === THEME ? 'true' : 'false');
+  });
+  if (save) { try { localStorage.setItem('cs.tema', THEME === 'auto' ? '' : THEME === 'dark' ? 'scuro' : 'chiaro'); } catch(e){} }
+}
+function temaDaChiave(){
+  var t = null;
+  try { t = localStorage.getItem('cs.tema'); } catch(e){}
+  return t === 'scuro' ? 'dark' : t === 'chiaro' ? 'light' : 'auto';
+}
+window.setTheme = setTheme;
+document.getElementById('themeSeg').onclick = function(e){
+  var b = e.target.closest ? e.target.closest('button[data-theme]') : null;
+  if (b) setTheme(b.getAttribute('data-theme'), true, true);
+};
+if (SYS_LIGHT) {
+  var onSys = function(){ if (THEME === 'auto') setTheme('auto', false); };
+  if (SYS_LIGHT.addEventListener) SYS_LIGHT.addEventListener('change', onSys);
+  else if (SYS_LIGHT.addListener) SYS_LIGHT.addListener(onSys);
+}
+setTheme(temaDaChiave(), false);
+window.addEventListener('storage', function(e){ if (e.key === 'cs.tema') setTheme(temaDaChiave(), false, true); });
+</script>
+
+<script src="/js/gruppi.js"></script>
+<script src="/js/tour.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

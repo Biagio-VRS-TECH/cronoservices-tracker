@@ -73,13 +73,38 @@
 .blocco {
   margin-top: 8px; border-radius: var(--r-carta);
   background: var(--superficie);
-  box-shadow: var(--ombra-1);
+  box-shadow: var(--ombra-1), inset 0 0 0 1px var(--bordo-lieve), inset 0 1px 0 var(--lucido);
   transition: box-shadow var(--medio), background var(--medio);
 }
 .blocco:first-of-type { margin-top: 10px; }
 .blocco.completo {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--completa) 40%, transparent),
               0 8px 22px -12px color-mix(in srgb, var(--completa) 55%, transparent);
+}
+/* LA FESTA (anno.js, aggiorna dopo la spunta): quando l'ULTIMA spunta chiude la
+   mappatura di un cliente, la carta si accende di verde e una luce la
+   attraversa da sinistra a destra, una volta sola. E' il momento che il lavoro
+   aspettava tutto l'anno, e merita un secondo di scena. La luce e' un
+   `background-position` che corre, non un elemento che trasla: niente
+   sconfina dalla carta. */
+.blocco.festa { animation: festa-alone 1.4s var(--molla) both; }
+@keyframes festa-alone {
+  25% { box-shadow: 0 0 0 2px var(--completa),
+                    0 14px 44px -8px color-mix(in srgb, var(--completa) 75%, transparent); }
+}
+.blocco.festa.completo .riga-cli {
+  background-image: linear-gradient(100deg, transparent 38%,
+    color-mix(in srgb, var(--completa) 38%, transparent) 50%, transparent 62%);
+  background-size: 300% 100%; background-repeat: no-repeat;
+  animation: festa-luce 1.2s var(--molla) .1s both;
+}
+@keyframes festa-luce { from { background-position: 100% 0; } to { background-position: 0 0; } }
+/* la capsula che diventa completa fiorisce: cresce e manda un alone, poi si posa */
+.cella.fiorisce { animation: fiorisce .8s var(--molla) both; z-index: 4; }
+@keyframes fiorisce {
+  35% { transform: scale(1.45);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--completa) 55%, transparent),
+                    0 0 28px 4px color-mix(in srgb, var(--completa) 60%, transparent); }
 }
 .blocco.completo .riga-cli {
   background: linear-gradient(90deg,
@@ -243,6 +268,14 @@
   transition: box-shadow var(--rapido), background var(--rapido), transform var(--rapido);
 }
 .cella:hover { transform: scale(1.15); box-shadow: var(--ombra-2); z-index: 3; }
+/* il SATIN: un velo bianco che si spegne prima di meta' altezza, sopra tutta
+   la capsula. E' quello che fa una capsula smaltata invece che quattro
+   rettangolini colorati. Assoluto, quindi fuori dalla griglia dei segmenti;
+   `::before` perche' `::after` e' del segno della nota. */
+.cella::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--satin); pointer-events: none;
+}
 .cella .seg {
   border-radius: 2.5px; background: transparent;
   transform: scaleX(.001); transform-origin: left center;
@@ -375,12 +408,12 @@
 
 /* ==========================================================  POPOVER ===== */
 .pop {
-  position: fixed; z-index: 70; width: 268px; padding: 12px;
-  background: var(--superficie); border: 1px solid var(--bordo);
-  border-radius: var(--r-3); box-shadow: var(--ombra-3);
+  position: fixed; z-index: 70; width: 272px; padding: 14px;
+  background: var(--superficie); border: 1px solid var(--bordo-lieve);
+  border-radius: var(--r-3); box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
   animation: entra 180ms var(--molla) both;
 }
-.pop h3 { margin: 0; font-size: var(--t-mini); font-weight: 600; letter-spacing: -.01em; }
+.pop h3 { margin: 0; font-size: var(--t-base); font-weight: 600; letter-spacing: -.015em; }
 .pop .pop-sotto { margin: 2px 0 10px; font-size: var(--t-micro); color: var(--tenue);
   font-family: var(--f-dato); }
 .passi { display: flex; flex-direction: column; gap: 2px; }
@@ -433,21 +466,26 @@
 /* ==========================================================  VISTA MESE == */
 .mese-testa { padding: 22px 18px 14px; display: flex; align-items: center; gap: 22px;
   flex-wrap: wrap; }
-.mese-titolo { font-size: var(--t-titolo); font-weight: 700; letter-spacing: -.03em;
-  line-height: 1; margin: 0; min-width: 240px; }
-.mese-titolo span { color: var(--tenue-2); font-family: var(--f-dato); font-weight: 400; }
+/* Il nome del mese e' il titolo della pagina: display serif, come l'anno in
+   testa. L'anno accanto resta un dato, quindi monospazio. */
+.mese-titolo { font-family: var(--f-display); font-size: var(--t-titolo); font-weight: 600;
+  letter-spacing: var(--tr-display); line-height: 1.05; margin: 0; min-width: 240px; }
+.mese-titolo span { color: var(--tenue-2); font-family: var(--f-dato); font-weight: 400;
+  font-size: 24px; letter-spacing: -.02em; }
 /* I dodici mesi in una pista: l'indicatore (`::before`) scivola sotto il mese
    scelto con `--i`, cosi' il cambio di mese si vede come un movimento e non
    come un lampeggio. */
+/* il vassoio dei dodici mesi: stesso incavo dei comandi segmentati della
+   barra, e il cursore e' la posizione d'inchiostro che scorre */
 .mese-nav {
   position: relative; display: flex; gap: 2px; padding: 3px;
-  background: var(--superficie); border-radius: var(--r-tonda);
-  box-shadow: 0 0 0 1px var(--bordo);
+  background: var(--pista-fondo); border-radius: var(--r-tonda);
+  box-shadow: var(--pista-incavo);
 }
 .mese-nav::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; width: 36px;
   left: calc(3px + var(--i, 0) * 38px); border-radius: var(--r-tonda);
-  background: var(--inchiostro); box-shadow: var(--ombra-1);
+  background: var(--btn-fondo); box-shadow: var(--btn-lucido), var(--btn-ombra);
   transition: left var(--medio);
 }
 .mese-nav button {
@@ -456,8 +494,8 @@
   color: var(--tenue); text-transform: uppercase; letter-spacing: .04em;
   transition: color var(--rapido), background var(--rapido);
 }
-.mese-nav button:hover { background: var(--fondo); color: var(--inchiostro); }
-.mese-nav button[aria-pressed="true"] { color: var(--fondo); background: transparent; }
+.mese-nav button:hover { background: color-mix(in srgb, var(--superficie) 60%, transparent); color: var(--inchiostro); }
+.mese-nav button[aria-pressed="true"] { color: var(--btn-testo); background: transparent; }
 .mese-nav button[aria-pressed="true"]:hover { background: transparent; }
 .mese-testa .riepilogo { margin-left: auto; }
 
@@ -474,11 +512,11 @@
 .scheda {
   position: relative;
   display: flex; align-items: center; gap: 14px; padding: 10px 14px; margin-bottom: 6px;
-  background: var(--superficie); border: 1px solid transparent; border-radius: var(--r-carta);
+  background: var(--superficie); border: 1px solid var(--bordo-lieve); border-radius: var(--r-carta);
   box-shadow: var(--ombra-1);
   transition: border-color var(--rapido), box-shadow var(--rapido), background var(--rapido);
 }
-.scheda:hover { box-shadow: var(--ombra-2); }
+.scheda:hover { box-shadow: var(--ombra-2); border-color: var(--bordo); }
 /* un collega ha questa scheda aperta (#ANCHOR: fuoco): bordo del suo colore e
    le sue iniziali all'angolo */
 .scheda.altrui { border-color: var(--tinta, var(--marchio)); }
@@ -529,8 +567,8 @@
    bianco con la sua casella colorata. A scheda finita la pista diventa verde. */
 .passi-riga {
   display: flex; gap: 2px; flex: none; padding: 3px;
-  background: color-mix(in srgb, var(--st-vuoto) 55%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-vuoto) 90%, transparent);
+  background: var(--pista-fondo);
+  box-shadow: var(--pista-incavo);
   border-radius: var(--r-tonda);
   transition: background var(--medio), box-shadow var(--medio);
 }
@@ -544,8 +582,8 @@
   border-color: color-mix(in srgb, var(--bordo-forte) 80%, transparent); }
 .passi-riga .passo .et { font-size: var(--t-micro); font-weight: 600; }
 .passi-riga .passo[aria-checked="true"], .passi-riga .passo[aria-checked="mixed"] {
-  background: var(--superficie); color: var(--inchiostro);
-  box-shadow: 0 0 0 1px var(--bordo), var(--ombra-1); }
+  background: var(--vetro-fondo); color: var(--inchiostro);
+  box-shadow: 0 0 0 1px var(--bordo-lieve), inset 0 1px 0 var(--lucido), var(--ombra-1); }
 .scheda.finita .passi-riga { background: color-mix(in srgb, var(--completa) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--completa) 30%, transparent); }
 /* Nel cassetto la colonna e' stretta (520px meno i margini): i quattro passi
@@ -595,11 +633,11 @@
   :root { --col-min: 210px; --rientro: 8px; }
   .riga-cli .tag:not(.aperti):not(.completo) { display: none; }
   .riga-srv .srv-loc { display: none; }
-  .riga-srv .doc-chip { display: none; }
+  .riga-srv .doc-chips { display: none; }
   .riepilogo { display: none; }
   .mese-nav::before { display: none; }
   .mese-nav { flex-wrap: wrap; border-radius: var(--r-2); }
-  .mese-nav button[aria-pressed="true"] { background: var(--inchiostro); }
+  .mese-nav button[aria-pressed="true"] { background: var(--btn-fondo); }
 }
 @media (max-width: 760px) {
   :root { --col-min: 180px; --passo-mese: 32px; --col-tot: 54px; --rientro: 6px; }

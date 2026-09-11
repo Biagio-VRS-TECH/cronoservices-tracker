@@ -3,6 +3,135 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-11 (30a sessione) - undici difetti dopo la prova
+
+Branch `registro-componenti-premium`, stesso della 29a. Il committente ha
+provato e ha elencato undici punti; tutti chiusi, con queste misure:
+
+1. **"Mostra chiusi" non si illuminava.** `aria-pressed="true"` c'era, ma
+   `.pill.debole` (stessa specificita', scritta dopo) rimetteva sfondo
+   trasparente. Regola `.pill.debole[aria-pressed="true"]` in `base.css`.
+2. **Tutto sovrapposto nel pannello (lo screenshot) / le scritte si
+   accavallano scorrendo.** Due cause: la barra del marchio su UNA riga a
+   pannello stretto (titolo a capo, tastini schiacciati), e `#ponte` con
+   `z-index:38` (serve alla nuvoletta) dentro un pannello la cui barra aveva
+   `5`: scorrendo, la rotta del collegamento passava sopra il logo. Ora barra
+   su due righe (`banco.css`, `.bb-riga` + `.bb-marchio`) con z 40 e
+   `#side #ponte{z-index:auto}`.
+3. **"Nomi dei componenti" tremolante.** Nessuna oscillazione di layout
+   misurabile a riposo (20 fotogrammi identici, nessuna animazione); ma a ogni
+   nome salvato `rigenera()` rifaceva 122 pagine nel DOM a scheda nascosta,
+   riaprendo e richiudendo l'anteprima per misurarle: **143 ms di blocco**
+   (PerformanceObserver longtask) per ogni Invio. Ora da "Nomi" si rifa' solo
+   il modello; le pagine si impaginano tornando all'anteprima o esportando
+   (`pagineDaRifare`, `assicuraPagine`, hook `pagine()` del ponte). Se il
+   tremolio fosse un'altra cosa, serve sapere QUANDO trema (a riposo, al
+   passaggio del mouse, digitando).
+4. **PDF raggruppati nel tracker**: `sezDocumenti` in `cassetto.js` itera
+   `TIPI` e fa un gruppo per tipo (`.doc-tipo-gruppo`, occhiello + conto).
+5. **Esporta fermo in basso**: `#side` colonna flex, `#exportGrp` con
+   `margin-top:auto` + `position:sticky;bottom:0` (nelle schede il margine
+   era `18px -20px 0`, ora `auto -20px 0`).
+6. **Tastino apri/chiudi tutti i gruppi**: `#grpTutti` c'era gia' (29a) ma
+   schiacciato fra logo e tema; ora sta nella riga dei comandi, 30x28, con
+   il tooltip. **Freccia indietro**: il bottone `.bb-indietro` "Tracker", al
+   posto del link di 10px nella rotta del ponte (rimosso).
+7. **Via "Salva nel tracker"** (`#ponteSalva`, `.pn-azione`) dalle due pagine;
+   `disegna()` in `ponte.js` ora regola il bottone del generatore
+   (`titoloSenzaSito` quando manca il sito). Interrompere: libretto o Esc.
+8. **Doppia barra di scorrimento** (schede): quando la barra blu `#docScroll`
+   e' visibile e non `.cramped`, e non c'e' scorrimento orizzontale,
+   `body.ds-attiva` nasconde quella nativa di `#banco` (`syncNativeScrollbar`).
+9. **Albero nel registro**: `js/albero.js` (porting di buildTree/syncTree),
+   colonna `#treecol` in `registro/index.html`, `costruisciAlbero`/
+   `exportFiltrato`/`saltaA` in `registro/app.js`. Le stanze escluse tolgono
+   le righe prima di `costruisciRegistro`; `righeDati` scende dello stesso
+   numero, cosi' la quadratura non fallisce; la legenda dei Nomi resta quella
+   completa. Il nome salta alla pagina del piano o del reparto (id gia' in
+   `impagina.js`). Trappola pagata: le chiavi con `\u0000` NON vanno in un
+   attributo HTML (il parser mette U+FFFD): l'albero tiene le chiavi in JS e
+   negli attributi solo gli indici.
+10. **Tutorial registro**: motore condiviso `js/tour.js` (estratto dalle
+    schede, che ora lo usano anche loro), 12 passi in `registro/app.js`,
+    esempio `ESEMPIO_GUIDA` letto con `interpretaRiga`, parte da solo alla
+    prima apertura (`cs.registro.tourSeen`), bottone nella schermata vuota.
+
+Verificato nel browser (data/prova.db, 1100 e 1400 px): pillola accesa;
+pannello a 330px senza accavallamenti; Esporta in fondo a gruppi chiusi; tour
+schede 18 passi con l'esempio che si toglie; registro con albero, esclusione
+di una stanza, salto alla pagina, salvataggio di un nome da "Nomi" con
+impaginazione al ritorno; cassetto con il gruppo "Schede tecnici - 2
+documenti". SW `crono-guscio-v25`.
+
+## Fatto il 2026-09-11 (29a sessione) - il registro dei componenti entra nell'app, un ponte solo, un look solo
+
+Branch `registro-componenti-premium`. Richiesta: *"adesso hai questo
+generatore di registri di componenti da mandare ai clienti, e voglio che viene
+integrato in cronoservice online [...] il tastino 'schede tecnici' fosse piu'
+generico e cliccando ti fa scegliere [...] si collega anche lui al sito
+corretto ma non spunta nessuna casella, pero' il pdf viene anch'esso salvato
+nel db [...] rinnovassi l'intero sito dandogli a tutto un look unico premium
+con un font premium e palette colori coordinata, stesso logo vrs tech ovunque"*.
+
+### 1. Il generatore del registro nel browser (`web/registro/`)
+
+Porting del programma Python di `Desktop/Claude/mappatura` (che resta la
+versione da PC singolo, con Chromium che stampa un PDF vettoriale). Handoff
+in `web/registro/HANDOFF.md`. Numeri: RIZZATO 23 righe / 4 pagine / 16 ms;
+CASA GEROSA 178 / 12 / 25 ms; sintetico 3200 / 122 / 91 ms; quadratura OK su
+tutti; tutti i numeri del sommario verificati contro la pagina vera.
+Consegna provata: `documento.tipo === 'registro'`, `mese` null, nessuna
+spunta, chip del libretto accanto al sito.
+
+### 2. Il tracker: "Genera PDF", due icone, dizionario
+
+- `#documenti` (era `#schede`) apre un `menu()` a due voci (`apriGeneratori`
+  in app.js); il cassetto ha "Documenti PDF" con i due generatori gia'
+  puntati sul sito e il tipo in capsula su ogni carta.
+- `documenti.js`: `TIPI`, `tipoDi`, `ICO_REGISTRO`, `ICONA_TIPO`,
+  `urlGeneratore(s, tipo)`, `htmlChipDocumento` rende un `.doc-chips` con un
+  chip per tipo, `salvaDocumento({tipo})`.
+- db.py/api.py/06-documenti.sql/nuvola.js: colonna `tipo`, `registra_documento(..., p_tipo)`,
+  `salva_documento` mette la spunta solo per le schede.
+- `dizionario_componenti` (SQLite + `08-dizionario.sql`), `/api/dizionario`
+  GET/POST, RPC `app_dizionario`/`imposta_voce_dizionario`, seme
+  `app/dizionario-seme.json`. Provato in locale: nome, priorita', rimozione,
+  400 fuori intervallo.
+
+### 3. Ponte, librerie e token condivisi
+
+`web/js/ponte.js` generico (`avviaPonte`), `schede/ponte.js` ridotto a
+wrapper; `css/ponte.css` e `css/banco.css` estratti da schede/index.html;
+`web/lib/` con SheetJS (estratto, identico), html2canvas, jsPDF; `setTheme`
+delle schede scrive anche `data-tema`. **Trappola nuova**: html2canvas non
+legge `color-mix()` e a tema chiaro il fondo del banco lo usava: la resa del
+PDF moriva ("unsupported color function color") - `--ui-0` ora e' esadecimale,
+verificato l'export a tema chiaro sia nelle schede (20 pagine, 7,2 MB) sia nel
+registro.
+
+### 4. Look premium
+
+Tre caratteri self-hosted (~210 KB: Newsreader, Inter, JetBrains Mono),
+theme.css rivisto (chiaro e scuro), base/griglia/stat/stampa con la stessa
+mano, carte dei documenti con miniatura grande, logo `/assets/logo.webp` al
+posto del base64 nelle schede. Contrasti AA riverificati (dettaglio in
+`docs/ai/frontend.md`, "Idea visiva"); `valida-tavolozza.py` riallineato e
+senza FAIL. Ridisegno vista Anno misurato 12,7-26,6 ms.
+
+### Lasciato fuori / da fare
+
+- **Supabase**: rieseguire `06-documenti.sql` e poi eseguire
+  `08-dizionario.sql`. Finche' non si fa, online la consegna del registro
+  risponde "funzione non trovata" e la scheda Nomi "rotta sconosciuta".
+- Il registro non ricorda lo zoom fra le sessioni e non ha fascicoli ne'
+  filtro "cosa stampare" (e' un libretto unico dell'impianto).
+- Il `<title>` dell'HTML digitale usa il cliente di A1 mentre copertina e
+  pie' usano il sito collegato (cosmetico).
+- Il programma Python in `mappatura/` resta con il suo `dati/dizionario.json`:
+  i due vocabolari non si sincronizzano (il seme e' stato copiato una volta).
+- La registrazione del service worker fallisce nel browser incorporato
+  dell'app desktop ("unknown error"); in Chrome/Playwright e' pulita.
+
 ## Fatto il 2026-09-10 (28a sessione) - si scrive OK, la riga del cliente si legge, il PDF guarda avanti
 
 Branch `ruoli-falla-cambio-nome` (lo stesso della 25a-27a). Cinque richieste in

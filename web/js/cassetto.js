@@ -12,7 +12,7 @@ import { chiama } from './api.js';
 import {
   documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
   eliminaDocumenti,
-  urlGeneratore, dimensione, ICO_PDF,
+  urlGeneratore, dimensione, ICO_PDF, ICONA_TIPO, TIPI, tipoDi,
 } from './documenti.js';
 import {
   st, cella, statoCella, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE, toccaPasso,
@@ -174,34 +174,52 @@ function disegna() {
   );
 }
 
-/** Le schede tecnici del sito: il bottone che apre il generatore gia' puntato
- *  su questo impianto, e i PDF gia' stampati quest'anno con la miniatura della
- *  prima pagina. #ANCHOR: documenti */
+/** I documenti del sito: i due generatori gia' puntati su questo impianto
+ *  (schede tecnici per i tecnici, registro componenti per il cliente) e i PDF
+ *  gia' prodotti, con la miniatura della prima pagina e il tipo in evidenza.
+ *  #ANCHOR: documenti */
 function sezDocumenti() {
   const s = st.perServ.get(idAperto);
   const docs = documentiDi(idAperto);
   return h('div.sez-documenti', {},
-    h('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin:22px 0 8px' },
-      h('h3', { testo: 'Schede tecnici ' + st.anno, style: 'margin:0;font-size:var(--t-mini);font-weight:600' }),
-      h('a.pill', {
-        href: urlGeneratore(s), target: '_blank', rel: 'opener',
-        html: ICO_PDF + ' Genera dall\'Excel',
-        title: 'Apre il generatore con questo sito gia\' scelto: alla stampa il PDF ' +
-          'torna qui e la spunta "stampata" si mette da sola',
-      })),
-    /* Un documento diviso in FASCICOLI e' UNA voce: la miniatura e il titolo del
-       primo, il conto di pagine e peso di tutti, e sotto una fila di bottoni
-       "1 · 40 pag." "2 · 38 pag."... uno per fascicolo. Elimina toglie tutto
-       il documento (tutti i fascicoli), con la stessa conferma di prima. */
+    h('div.sez-doc-testa', {},
+      h('h3', { testo: 'Documenti PDF', style: 'margin:0;font-size:var(--t-mini);font-weight:600' }),
+      h('div.sez-doc-genera', {},
+        h('a.pill.mini', {
+          href: urlGeneratore(s, 'schede'), target: '_blank', rel: 'opener',
+          html: ICO_PDF + ' ' + TIPI.schede.et,
+          title: 'Apre il generatore delle schede tecnici con questo sito gia\' scelto: alla ' +
+            'consegna il PDF torna qui e la spunta "stampata" si mette da sola',
+        }),
+        h('a.pill.mini', {
+          href: urlGeneratore(s, 'registro'), target: '_blank', rel: 'opener',
+          html: ICONA_TIPO.registro + ' ' + TIPI.registro.et,
+          title: 'Apre il generatore del registro dei componenti (il documento per il cliente) ' +
+            'con questo sito gia\' scelto: il PDF si archivia qui, senza spunte',
+        }))),
+    /* DUE GRUPPI, uno per tipo (30a sessione): prima le SCHEDE PER I TECNICI,
+       poi il REGISTRO per il cliente, ognuno con il suo occhiello e il conto;
+       un gruppo vuoto non compare. Dentro, un documento diviso in FASCICOLI e'
+       UNA voce: la miniatura e il titolo del primo, il conto di pagine e peso
+       di tutti, e sotto una fila di bottoni "1 · 40 pag." "2 · 38 pag."... uno
+       per fascicolo. Elimina toglie tutto il documento (tutti i fascicoli). */
     docs.length
-      ? h('ul.doc-lista', {}, gruppiDocumenti(idAperto).map(g => {
+      ? Object.keys(TIPI).map(tipo => {
+        const gruppi = gruppiDocumenti(idAperto).filter(g => tipoDi(g.capo) === tipo);
+        if (!gruppi.length) return null;
+        return h('div.doc-tipo-gruppo', {},
+          h('h4.doc-tipo-testa', {},
+            h('span.doc-tipo.t-' + tipo, { html: ICONA_TIPO[tipo] + ' ' + TIPI[tipo].et }),
+            h('span.conta', { testo: gruppi.length === 1 ? '1 documento' : gruppi.length + ' documenti' })),
+          h('ul.doc-lista', {}, gruppi.map(g => {
         const d = g.capo, N = g.fascicoli;
         return h('li' + (N > 1 ? '.doc-gruppo' : ''), {},
           h('button.doc-mini', {
             title: N > 1 ? 'Apri il fascicolo 1' : 'Apri il PDF', 'aria-label': 'Apri ' + d.nome,
             onclick: () => apriDocumento(d),
-          }, d.anteprima ? h('img', { src: d.anteprima, alt: '' }) : h('span', { html: ICO_PDF })),
+          }, d.anteprima ? h('img', { src: d.anteprima, alt: '' }) : h('span', { html: ICONA_TIPO[tipoDi(d)] })),
           h('div.doc-info', {},
+            h('span.doc-tipo.t-' + tipoDi(d), { html: ICONA_TIPO[tipoDi(d)] + ' ' + TIPI[tipoDi(d)].et }),
             h('b', { testo: N > 1 ? titoloDocumento(d) : d.nome, title: d.nome }),
             h('span.meta', { html:
               (N > 1 ? `<b>${N} fascicoli</b> · ` : '') +
@@ -230,9 +248,10 @@ function sezDocumenti() {
                 } catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
               },
             })));
-      }))
+      })));
+      })
       : h('p', {
-          testo: 'Nessun PDF ancora: dal generatore, alla stampa, il documento arriva qui da solo.',
+          testo: 'Nessun PDF ancora: dai generatori, alla consegna, il documento arriva qui da solo.',
           style: 'color:var(--tenue);font-size:var(--t-mini);margin:0',
         }),
     /* Rifare le schede di un impianto lascia dietro le versioni vecchie, e a
