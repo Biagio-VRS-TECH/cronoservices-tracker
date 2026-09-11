@@ -99,6 +99,7 @@ export function avviaPonte(cfg = {}) {
   let siti = null;            // {id, dest, cliente, loc, cli, mese, nome} aperti dell'anno
   let pesi = null;            // rarita' delle parole fra i nomi dei siti (affinita.js)
   let inCorso = false;
+  let annulla = false;        // chiesto di interrompere (#ANCHOR: interrompi)
   let stretta = 0;            // 0 testata larga, 1 nuvoletta: il cursore di guarda()
   let aggiorna = () => { };   // lo riscrive guarda(); prima non fa niente
   let rimisura = () => { };   // idem: rimisura la pillola al fotogramma dopo
@@ -289,9 +290,10 @@ export function avviaPonte(cfg = {}) {
     }
 
     const salva = $('#ponteSalva');
-    salva.disabled = inCorso || !conSito || !pagineDi().length;
-    salva.title = P.titoloSalva;
-    salva.querySelector('span').textContent = inCorso ? 'Salvo…' : 'Salva nel tracker';
+    salva.disabled = inCorso ? annulla : (!conSito || !pagineDi().length);
+    salva.title = inCorso ? 'Ferma la preparazione e la consegna del PDF (anche con Esc)' : P.titoloSalva;
+    salva.classList.toggle('ferma', inCorso);
+    salva.querySelector('span').textContent = inCorso ? (annulla ? 'Interrompo…' : 'Interrompi') : 'Salva nel tracker';
 
     // la lista dei probabili
     const pan = $('#ponteScelte');
@@ -341,7 +343,7 @@ export function avviaPonte(cfg = {}) {
         ? `Collegato a mano: il file “${ultimoFile}” non somiglia a questo sito.` : 'Collegato.');
     });
 
-    $('#ponteSalva').onclick = () => esportaESalva({ scarica: false });
+    $('#ponteSalva').onclick = () => inCorso ? interrompi() : (() => esportaESalva({ scarica: false }))();
     guarda();
     /* le pagine cambiate dal generatore: cambia "quante pagine ci sono", quindi
        il bottone si accende o si spegne. Non durante la resa del PDF: quelle
@@ -358,6 +360,7 @@ export function avviaPonte(cfg = {}) {
       }).observe(pages, { childList: true, subtree: true });
     }
     addEventListener('keydown', e => { if (e.key === 'Escape' && esitoCorrente?.cand) { chiudiLista(); disegna(); } });
+    addEventListener('keydown', e => { if (e.key === 'Escape' && inCorso) interrompi(); });
   }
 
   /* ------------------------------------------------------------ la sfogliata --
@@ -566,8 +569,28 @@ export function avviaPonte(cfg = {}) {
     return base.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) + coda + '.pdf';
   }
 
+  /* ---------------------------------------------------------- interrompi --
+     Il lavoro si puo' fermare: dal bottone "Interrompi" del libretto, dal
+     bottone della testata (che mentre si lavora diventa "Interrompi") o con
+     Esc. Non si uccide niente a meta': si alza una bandiera e il lavoro la
+     guarda ai punti in cui si puo' fermare pulito - prima di ogni lotto di
+     pagine da rendere, prima di scaricare, prima di consegnare ogni
+     fascicolo. Una consegna gia' partita finisce; l'esito dice cosa e'
+     arrivato. #ANCHOR: interrompi */
+  function interrompi() {
+    if (!inCorso || annulla) return;
+    annulla = true;
+    esitoCorrente = { tono: 'lavoro', testo: 'Interrompo…' };
+    disegna(); aggiornaLibretto();
+  }
+  function controlla() {
+    if (!annulla) return;
+    const e = new Error('interrotto'); e.interrotto = true; throw e;
+  }
+
   /** L'avanzamento e' la fascia stessa che si riempie dietro alla frase. */
   function progresso(fatte, totale) {
+    controlla();
     esitoCorrente = { tono: 'lavoro', testo: `Preparo il PDF · ${fatte} di ${totale} pagine` };
     disegna();
     $('#ponteStato').style.setProperty('--p', totale ? (fatte / totale * 100).toFixed(1) + '%' : '0%');
@@ -587,14 +610,17 @@ export function avviaPonte(cfg = {}) {
       if (!collegato) { esito('errore', 'Collega prima un sito.'); $('#ponteQ')?.focus(); return; }
       if (!sessione) return esito('errore', 'Sessione del tracker non trovata: entra nel tracker e riprova.');
     }
-    inCorso = true;
+    inCorso = true; annulla = false;
     document.body.classList.add('ponte-lavora');
     aggiorna(true);
     apriLibretto();
     const t0 = performance.now();
+    let N = 0, consegnati = 0;
     try {
       const docs = await generaPdfs(progresso);
-      const N = docs.length, inFascicoli = docs[0].fascicoli > 1;
+      controlla();
+      N = docs.length;
+      const inFascicoli = docs[0].fascicoli > 1;
       const gruppo = inFascicoli ? crypto.randomUUID().replace(/-/g, '') : null;
       const pagine = docs.reduce((n, d) => n + d.pagine, 0);
       const bytes = docs.reduce((n, d) => n + d.blob.size, 0);
@@ -612,6 +638,7 @@ export function avviaPonte(cfg = {}) {
       }
       let r = null;
       for (const [i, d] of docs.entries()) {
+        controlla();
         esitoCorrente = { tono: 'lavoro', testo: N > 1 ? `Consegno al tracker · fascicolo ${i + 1} di ${N}…` : 'Consegno al tracker…' };
         disegna();
         $('#ponteStato').style.setProperty('--p', '100%');
@@ -623,6 +650,7 @@ export function avviaPonte(cfg = {}) {
           gruppo, fascicolo: inFascicoli ? d.fascicolo : null, fascicoli: inFascicoli ? d.fascicoli : null,
         });
         r = r || ri;                    // la spunta la mette il primo; gli altri trovano "gia' cosi'"
+        consegnati++;
       }
       const mese = P.spunta && r?.mese ? MESI[r.mese - 1] : '';
       const sec = ((performance.now() - t0) / 1000).toFixed(1).replace('.', ',');
@@ -633,9 +661,15 @@ export function avviaPonte(cfg = {}) {
       esito('ok', `${scarica ? (N > 1 ? 'Scaricati e salvati' : 'Scaricato e salvato') : (N > 1 ? 'Salvati' : 'Salvato')} nel tracker` +
         (N > 1 ? ` · ${N} fascicoli` : '') + ` · ${pagine} pag., ${mb} MB in ${sec} s` + coda);
     } catch (e) {
-      esito('errore', 'Non salvato: ' + (e?.message || e));
+      if (e?.interrotto) {
+        esito('dubbio', consegnati
+          ? `Interrotto: consegnati ${consegnati} fascicoli su ${N}, gli altri no.`
+          : (N ? 'Interrotto: PDF pronto ma non consegnato.' : 'Interrotto: nessun PDF prodotto.'));
+      } else {
+        esito('errore', 'Non salvato: ' + (e?.message || e));
+      }
     } finally {
-      inCorso = false;
+      inCorso = false; annulla = false;
       document.body.classList.remove('ponte-lavora');
       chiudiLibretto();
       disegna();
@@ -653,22 +687,24 @@ export function avviaPonte(cfg = {}) {
      I cloni perdono gli id (non devono farsi trovare dai getElementById dei
      generatori) e stanno FUORI da #pages: html2canvas fotografa solo le pagine
      vere e non li vede. */
-  /* Un libro aperto: pagina 0 a sinistra, 3 fogli (fronte/retro = pagine 1-2,
-     3-4, 5-6) e la pagina 7 come base a destra: OTTO facciate clonate. I
-     tempi dell'animazione (css) sono scritti per 3 fogli: se il documento ha
-     meno pagine si ripetono. Sempre in avanti, poi il libro si chiude e si
-     riapre da capo - l'attesa puo' durare anche un minuto. */
-  const FOGLI = 3;
+  /* Un LIBRETTO: chiuso mostra la copertina (pagina 0); si apre - la copertina
+     gira e dietro ha la pagina 1 - e poi girano tre fogli (pagine 2-3, 4-5,
+     6-7): otto facciate clonate, con una base bianca sotto. I tempi
+     dell'animazione (css) sono scritti per 4 fogli copertina compresa: se il
+     documento ha meno pagine si ripetono. Si richiude piano sulla copertina e
+     ricomincia - l'attesa puo' durare anche un minuto. */
+  const FOGLI = 4;
   function apriLibretto() {
     chiudiLibretto(true);
     const main = $(selScorr)?.parentElement || $('#main');
-    const fonte = pagineDi().slice(0, 2 * FOGLI + 2);
+    const fonte = pagineDi().slice(0, 2 * FOGLI);
     if (!main || !fonte.length) return;
     const pagina = i => fonte[i % fonte.length];
     const largo = fonte[0].offsetWidth || 794, alto = fonte[0].offsetHeight || 1123;
     const W = 150, S = W / largo, Hh = Math.round(alto * S);
     const faccia = (i, classe) => {
       const f = document.createElement('div'); f.className = 'lb-faccia ' + (classe || '');
+      if (i == null) return f;                       // la base bianca
       const c = pagina(i).cloneNode(true);
       c.removeAttribute('id'); c.classList.remove('flash');
       c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
@@ -678,23 +714,30 @@ export function avviaPonte(cfg = {}) {
     const lb = document.createElement('div');
     lb.id = 'libretto'; lb.className = 'libretto'; lb.setAttribute('aria-hidden', 'true');
     lb.style.setProperty('--lb-w', W + 'px'); lb.style.setProperty('--lb-h', Hh + 'px');
+    const scena = document.createElement('div'); scena.className = 'lb-scena';
     const libro = document.createElement('div'); libro.className = 'lb-libro';
-    const ombra = document.createElement('i'); ombra.className = 'lb-ombra';
-    const sx = document.createElement('div'); sx.className = 'lb-sx'; sx.appendChild(faccia(0));
-    const dx = document.createElement('div'); dx.className = 'lb-dx'; dx.appendChild(faccia(2 * FOGLI + 1));
+    const ombraDx = document.createElement('i'); ombraDx.className = 'lb-ombra dx';
+    const ombraSx = document.createElement('i'); ombraSx.className = 'lb-ombra sx';
+    const dx = document.createElement('div'); dx.className = 'lb-dx'; dx.appendChild(faccia(null));
     for (let k = 0; k < FOGLI; k++) {
-      const f = document.createElement('div'); f.className = 'lb-foglia'; f.dataset.k = String(k);
-      /* il primo foglio (k=0) sta in cima alla pila di destra; voltato, il suo
-         translateZ gira con lui e lo manda in fondo alla pila di sinistra */
+      const f = document.createElement('div');
+      f.className = 'lb-foglia' + (k ? '' : ' copertina'); f.dataset.k = String(k);
+      /* la copertina (k=0) sta in cima alla pila di destra; voltata, il suo
+         translateZ gira con lei e la manda in fondo alla pila di sinistra; al
+         richiudersi torna in cima da sola */
       f.style.setProperty('--z', ((FOGLI - k) * 0.6).toFixed(1) + 'px');
-      f.append(faccia(2 * k + 1, 'lb-fronte'), faccia(2 * k + 2, 'lb-retro'));
+      f.append(faccia(2 * k, 'lb-fronte'), faccia(2 * k + 1, 'lb-retro'));
       dx.appendChild(f);
     }
     const dorso = document.createElement('i'); dorso.className = 'lb-dorso';
-    libro.append(ombra, sx, dx, dorso);
+    libro.append(ombraDx, ombraSx, dx, dorso);
+    scena.appendChild(libro);
     const frase = document.createElement('p'); frase.className = 'lb-frase'; frase.appendChild(document.createElement('span'));
     const barra = document.createElement('div'); barra.className = 'lb-barra'; barra.appendChild(document.createElement('i'));
-    lb.append(libro, frase, barra);
+    const stop = document.createElement('button'); stop.type = 'button'; stop.className = 'lb-stop';
+    stop.innerHTML = 'Interrompi<kbd>Esc</kbd>'; stop.setAttribute('aria-hidden', 'false');
+    stop.onclick = interrompi;
+    lb.append(scena, frase, barra, stop);
     main.appendChild(lb);
     aggiornaLibretto();
   }
@@ -702,6 +745,8 @@ export function avviaPonte(cfg = {}) {
     const lb = $('#libretto');
     if (!lb) return;
     lb.querySelector('.lb-frase span').textContent = esitoCorrente?.testo || 'Preparo il PDF…';
+    const stop = lb.querySelector('.lb-stop');
+    if (stop) stop.disabled = annulla;
     const p = $('#ponteStato')?.style.getPropertyValue('--p');
     lb.style.setProperty('--p', p || '0%');
   }

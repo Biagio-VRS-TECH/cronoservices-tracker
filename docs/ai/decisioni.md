@@ -1131,12 +1131,13 @@ in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
 la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.
 Terza scena, IL LIBRETTO (`apriLibretto()` in ponte.js, css/ponte.css sezione
 omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela
-(sfocata) e in mezzo il documento e' un LIBRO APERTO a due facciate - otto
-pagine vere clonate senza id e ridotte a 150px: pagina 0 a sinistra, tre fogli
-fronte/retro, l'ottava come base a destra. I fogli girano uno alla volta da
-destra a sinistra (giro 0,9 s), poi il libro si CHIUDE verso chi guarda, resta
-un attimo di taglio (li' i fogli tornano a destra senza che si veda) e si
-RIAPRE da capo: sempre in avanti, ciclo di 6,6 s. Sotto, la frase di stato e
+(sfocata) e in mezzo c'e' il documento come LIBRETTO. Chiuso, si vede solo la
+COPERTINA (pagina 0, centrata: la scena si sposta di mezza pagina); poi la
+copertina gira a sinistra (1 s) e dentro ci sono due facciate; tre fogli
+girano uno alla volta da destra a sinistra (0,9 s, pausa 0,5); alla fine tutto
+il blocco di sinistra si richiude PIANO (1,1 s) sulla copertina e il giro
+ricomincia. Otto pagine vere clonate senza id e ridotte a 150px (copertina e
+tre fogli, fronte/retro), base bianca sotto. Ciclo di 8 s. Sotto, la frase di stato e
 l'avanzamento della fascia. Si chiude in dissolvenza alla fine, bene o male.
 Storia breve, perche' e' costata tre giri: sei fogli in `alternate` (il
 ritorno indietro sembrava un bug), dodici con lo z-index animato (laggava), poi
@@ -1150,3 +1151,13 @@ elementi in movimento; (4) i fotogrammi con i tempi per foglio sono GENERATI da
 uno script (in ponte.css e' detto): si cambia il tempo e si rigenera.
 Il velo e' in rgba e i cloni stanno fuori da #pages: html2canvas gira proprio
 in quel momento e non deve ne' vederli ne' inciampare in un color-mix.
+
+INTERROMPERE (#ANCHOR: interrompi in ponte.js): la preparazione e la consegna
+del PDF si fermano dal bottone "Interrompi" del libretto, dal bottone della
+testata (che mentre si lavora diventa "Interrompi", vetro con filo d'ambra) o
+con Esc. Non si uccide niente a meta': `interrompi()` alza una bandiera e il
+lavoro la guarda (`controlla()`) dove puo' fermarsi pulito - prima di ogni
+lotto di pagine, prima di scaricare, prima di consegnare ogni fascicolo. Una
+consegna gia' partita finisce, e l'esito dice cosa e' arrivato ("Interrotto:
+nessun PDF prodotto" / "PDF pronto ma non consegnato" / "consegnati k su N").
+Vale per tutti e due i generatori, perche' il codice e' uno.

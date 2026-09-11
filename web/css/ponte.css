@@ -77,6 +77,12 @@
 #ponte .btn svg{width:15px;height:15px}
 #ponte .btn[disabled]{opacity:.38;cursor:default;box-shadow:none}
 body.ponte-lavora #print{opacity:.6;pointer-events:none}
+/* mentre si lavora il bottone che consegna diventa "Interrompi": vetro con il
+   filo d'ambra, non l'inchiostro del comando primario (#ANCHOR: interrompi) */
+#ponte .btn.ferma{background:var(--vetro-fondo);color:var(--warn);
+  border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);box-shadow:inset 0 1px 0 var(--ui-lucido)}
+#ponte .btn.ferma:hover{background:color-mix(in srgb,var(--warn) 10%,transparent);transform:none}
+#ponte .btn.ferma::after{display:none}
 
 /* ---- LA NUVOLETTA ----
    Non due stati con un salto in mezzo: **una sola forma con un cursore**.
@@ -290,21 +296,26 @@ body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!i
 
 /* ---------- IL LIBRETTO (ponte.js, apriLibretto) ----------
    Mentre il PDF si prepara e viaggia verso il tracker, l'anteprima si vela
-   (sfocata) e in mezzo il documento e' un LIBRO APERTO a due facciate: le
-   prime otto pagine vere, clonate e ridotte a 150px l'una. Tre fogli girano
-   uno dopo l'altro da destra a sinistra (fronte = pagina di destra, retro =
-   la pagina che compare a sinistra), poi il libro si CHIUDE verso chi guarda,
-   resta un attimo di taglio e si RIAPRE da capo: sempre in avanti, mai
-   all'indietro. Un ciclo dura 6.6 s e si ripete finche' il lavoro va.
+   (sfocata) e in mezzo c'e' il documento come LIBRETTO: chiuso, si vede solo
+   la COPERTINA (la prima pagina). Poi si apre - la copertina gira a sinistra e
+   dentro ci sono due facciate - e tre fogli girano uno dopo l'altro da destra
+   a sinistra (fronte = pagina di destra, retro = quella che compare a
+   sinistra). Alla fine tutto il blocco di sinistra si richiude, piano, sulla
+   copertina, e il giro ricomincia. Otto pagine vere clonate e ridotte a 150px
+   (copertina fronte/retro, tre fogli fronte/retro), sotto ai fogli una base
+   bianca. Un ciclo dura 8.0 s e si ripete finche' il lavoro va.
    Fluidita' prima di tutto: html2canvas blocca il thread principale proprio
-   in quel momento, quindi si anima SOLO `transform` (e l'opacita' dell'ombra
-   che scende sul foglio). L'ordine delle pile e' la profondita' (translateZ in
-   uno spazio preserve-3d: il foglio girato finisce sotto ai gia' girati da
-   solo, perche' il translateZ ruota con lui), non lo z-index. Il velo sfocato
-   e' fermo, l'ombra e' un rettangolo fermo dietro il libro con drop-shadow:
-   niente filtri sopra cose in movimento. I fotogrammi sono GENERATI (tempi:
-   primo giro a 0.5 s, giro 0.9 s, pausa 0.5 s, chiusura 0.6 s): per
-   cambiarli si rigenera lo script, non si ritocca a mano.
+   in quel momento, quindi si anima SOLO `transform` (e qualche opacita'):
+   l'ordine delle pile e' la profondita' (translateZ in uno spazio
+   preserve-3d: il translateZ gira col foglio, quindi il foglio voltato finisce
+   da solo sotto ai gia' voltati, e la copertina, che gira per prima, torna in
+   cima quando il libro si richiude), non lo z-index. Il velo sfocato e' fermo,
+   le ombre sono rettangoli fermi dietro il libro con drop-shadow (quella di
+   sinistra compare e sparisce solo in opacita'); la scena si sposta di mezza
+   pagina per tenere il libretto centrato sia chiuso sia aperto. Niente filtri
+   sopra cose in movimento. I fotogrammi sono GENERATI (tempi: chiuso 0.6 s,
+   apertura 1.0 s, giro 0.9 s, pausa 0.5 s, chiusura 1.1 s, coda 0.6 s):
+   per cambiarli si rigenera lo script, non si ritocca a mano.
    Il velo e' in rgba, non color-mix: html2canvas gira in questo momento. */
 .libretto{position:absolute;inset:0;z-index:36;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:22px;pointer-events:none;
@@ -318,54 +329,68 @@ body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!i
 @keyframes lb-esce{to{opacity:0}}
 .libretto.chiude .lb-libro{animation:lb-via .45s var(--ease) both}
 @keyframes lb-via{to{transform:translateY(-8px) scale(1.03)}}
+/* la scena: si sposta di mezza pagina quando il libro e' chiuso, cosi' la
+   copertina sola sta al centro come poi il libro aperto */
+.lb-scena{will-change:transform;animation:lb-scena 8.0s linear infinite}
 .lb-libro{position:relative;width:calc(var(--lb-w,150px) * 2);height:var(--lb-h,212px);
   perspective:1400px;transform-style:preserve-3d}
-/* l'ombra: ferma, dietro tutto */
-.lb-ombra{position:absolute;inset:2px -2px -2px;border-radius:4px;background:rgba(0,0,0,.35);
+/* le ombre: ferme, dietro tutto; quella di sinistra c'e' solo a libro aperto */
+.lb-ombra{position:absolute;top:2px;bottom:-2px;width:50%;border-radius:4px;background:rgba(0,0,0,.35);
   transform:translateZ(-14px);filter:drop-shadow(0 30px 34px rgba(0,0,0,.55)) blur(2px)}
 :root.lt .lb-ombra{background:rgba(15,20,24,.2);filter:drop-shadow(0 24px 30px rgba(15,20,24,.32)) blur(2px)}
-/* le due meta': la sinistra e' la pagina 0, la destra la base su cui stanno i
-   fogli. Tutte e due girano sul dorso quando il libro si chiude */
-.lb-sx,.lb-dx{position:absolute;top:0;bottom:0;width:50%;transform-style:preserve-3d;
-  animation:6.6s linear infinite;will-change:transform}
-.lb-sx{left:0;transform-origin:right center;animation-name:lb-chiudi-sx}
-.lb-dx{right:0;transform-origin:left center;animation-name:lb-chiudi-dx}
+.lb-ombra.dx{right:-2px}
+.lb-ombra.sx{left:-2px;opacity:0;will-change:opacity;animation:lb-ombra-sx 8.0s linear infinite}
+/* la meta' destra: la base bianca e, sopra, i fogli (la copertina per prima) */
+.lb-dx{position:absolute;top:0;bottom:0;right:0;width:50%;transform-style:preserve-3d}
 .lb-faccia{position:absolute;inset:0;overflow:hidden;background:#fff;backface-visibility:hidden;contain:paint}
 .lb-faccia>*{pointer-events:none}
-.lb-sx .lb-faccia{border-radius:4px 1px 1px 4px;box-shadow:inset -10px 0 14px -12px rgba(0,0,0,.45)}
 .lb-dx>.lb-faccia{border-radius:1px 4px 4px 1px;box-shadow:inset 10px 0 14px -12px rgba(0,0,0,.45)}
 /* il foglio: fronte a destra, retro (gia' voltato di 180) che si vede a sinistra */
 .lb-foglia{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;
-  transform:translateZ(var(--z));will-change:transform;animation:6.6s linear infinite}
+  transform:translateZ(var(--z));will-change:transform;animation:8.0s linear infinite}
 .lb-foglia .lb-fronte{border-radius:1px 4px 4px 1px;box-shadow:inset 10px 0 14px -12px rgba(0,0,0,.45)}
 .lb-foglia .lb-retro{transform:rotateY(180deg);border-radius:4px 1px 1px 4px;box-shadow:inset -10px 0 14px -12px rgba(0,0,0,.45)}
+/* la copertina ha il bordo di un libretto: un filo piu' scuro e l'angolo */
+.lb-foglia.copertina .lb-fronte{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),inset 10px 0 14px -12px rgba(0,0,0,.45)}
 /* l'ombra che scende sul foglio mentre gira: solo opacita' */
 .lb-foglia::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:1px 4px 4px 1px;
   background:linear-gradient(90deg,rgba(0,0,0,.28),transparent 55%);opacity:0;will-change:opacity;
-  animation:6.6s linear infinite}
+  animation:8.0s linear infinite}
 .lb-foglia[data-k="0"]{animation-name:lb-foglia-0}
 .lb-foglia[data-k="0"]::after{animation-name:lb-ombra-0}
-@keyframes lb-foglia-0{0%,7.58%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 21.21%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
-@keyframes lb-ombra-0{0%,7.58%{opacity:0} 14.39%{opacity:1} 21.21%,100%{opacity:0}}
+@keyframes lb-foglia-0{0%,7.5%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 20%,78.75%{transform:rotateY(-180deg) translateZ(var(--z));animation-timing-function:cubic-bezier(.45,.05,.2,1)} 92.5%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-0{0%,7.5%{opacity:0} 13.75%{opacity:1} 20%,100%{opacity:0}}
 .lb-foglia[data-k="1"]{animation-name:lb-foglia-1}
 .lb-foglia[data-k="1"]::after{animation-name:lb-ombra-1}
-@keyframes lb-foglia-1{0%,28.79%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 42.42%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
-@keyframes lb-ombra-1{0%,28.79%{opacity:0} 35.61%{opacity:1} 42.42%,100%{opacity:0}}
+@keyframes lb-foglia-1{0%,26.25%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 37.5%,78.75%{transform:rotateY(-180deg) translateZ(var(--z));animation-timing-function:cubic-bezier(.45,.05,.2,1)} 92.5%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-1{0%,26.25%{opacity:0} 31.87%{opacity:1} 37.5%,100%{opacity:0}}
 .lb-foglia[data-k="2"]{animation-name:lb-foglia-2}
 .lb-foglia[data-k="2"]::after{animation-name:lb-ombra-2}
-@keyframes lb-foglia-2{0%,50%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 63.64%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
-@keyframes lb-ombra-2{0%,50%{opacity:0} 56.82%{opacity:1} 63.64%,100%{opacity:0}}
-@keyframes lb-chiudi-sx{0%,71.21%{transform:rotateY(0) translateZ(-3px);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 80.3%,82.58%{transform:rotateY(88deg) translateZ(-3px);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 91.67%,100%{transform:rotateY(0) translateZ(-3px)}}
-@keyframes lb-chiudi-dx{0%,71.21%{transform:rotateY(0);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 80.3%,82.58%{transform:rotateY(-88deg);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 91.67%,100%{transform:rotateY(0)}}
+@keyframes lb-foglia-2{0%,43.75%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 55%,78.75%{transform:rotateY(-180deg) translateZ(var(--z));animation-timing-function:cubic-bezier(.45,.05,.2,1)} 92.5%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-2{0%,43.75%{opacity:0} 49.38%{opacity:1} 55%,100%{opacity:0}}
+.lb-foglia[data-k="3"]{animation-name:lb-foglia-3}
+.lb-foglia[data-k="3"]::after{animation-name:lb-ombra-3}
+@keyframes lb-foglia-3{0%,61.25%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 72.5%,78.75%{transform:rotateY(-180deg) translateZ(var(--z));animation-timing-function:cubic-bezier(.45,.05,.2,1)} 92.5%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-3{0%,61.25%{opacity:0} 66.88%{opacity:1} 72.5%,100%{opacity:0}}
+@keyframes lb-scena{0%,7.5%{transform:translateX(-75px);animation-timing-function:cubic-bezier(.5,.05,.3,1)} 20%,78.75%{transform:translateX(0);animation-timing-function:cubic-bezier(.45,.05,.2,1)} 92.5%,100%{transform:translateX(-75px)}}
+@keyframes lb-ombra-sx{0%,7.5%{opacity:0} 20%,78.75%{opacity:1} 92.5%,100%{opacity:0}}
 /* il dorso, davanti a tutto */
 .lb-dorso{position:absolute;left:calc(50% - 2px);top:-2px;bottom:-2px;width:4px;border-radius:2px;
-  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));transform:translateZ(2px)}
+  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));transform:translateZ(3px)}
 .lb-frase{margin:0;font:600 10.5px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;
   color:var(--ui-tx2);text-align:center;max-width:70%}
 .lb-barra{width:calc(var(--lb-w,150px) * 2);height:3px;border-radius:2px;background:rgba(127,127,127,.25);overflow:hidden}
 .lb-barra i{display:block;height:100%;width:var(--p,0%);border-radius:inherit;
   background:linear-gradient(90deg,var(--acc-hi),var(--acc));transition:width .3s var(--ease)}
+/* INTERROMPI: l'unica cosa del velo che si puo' cliccare. Vetro, piccolo,
+   sotto la barra; Esc fa lo stesso. Mentre si interrompe resta ma si spegne. */
+.lb-stop{pointer-events:auto;margin-top:2px;padding:7px 14px;border-radius:999px;font:600 12px/1 var(--f-ui);
+  color:var(--ui-tx);background:var(--vetro-fondo);border:1px solid var(--ui-filo);cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+.lb-stop:hover{border-color:var(--warn);color:var(--warn)}
+.lb-stop:disabled{opacity:.45;cursor:default}
+.lb-stop kbd{font:inherit;font-size:10px;color:var(--ui-tx3);margin-left:6px}
 @media (prefers-reduced-motion:reduce){
-  .lb-sx,.lb-dx,.lb-foglia,.lb-foglia::after{animation:none}
+  .lb-scena,.lb-ombra.sx,.lb-foglia,.lb-foglia::after{animation:none}
   .libretto,.libretto.chiude,.libretto.chiude .lb-libro{animation:none}
 }
