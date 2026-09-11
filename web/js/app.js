@@ -1332,14 +1332,21 @@ function temaIniziale() {
   const t = localStorage.getItem('cs.tema');
   if (t) document.documentElement.dataset.tema = t;
   addEventListener('storage', e => {
-    if (e.key === 'cs.tema') document.documentElement.dataset.tema = e.newValue || '';
+    if (e.key === 'cs.tema') inDissolvenza(() => { document.documentElement.dataset.tema = e.newValue || ''; });
   });
+}
+/* il cambio di tema sfuma (View Transitions) invece di scattare; dove l'API
+   manca, o chi legge ha chiesto meno movimento, si applica e basta */
+function inDissolvenza(fn) {
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.startViewTransition(fn);
+  } else fn();
 }
 function giraTema() {
   const ora = document.documentElement.dataset.tema;
   const scuroSistema = matchMedia('(prefers-color-scheme: dark)').matches;
   const next = !ora ? (scuroSistema ? 'chiaro' : 'scuro') : ora === 'scuro' ? 'chiaro' : 'scuro';
-  document.documentElement.dataset.tema = next;
+  inDissolvenza(() => { document.documentElement.dataset.tema = next; });
   localStorage.setItem('cs.tema', next);
 }
 

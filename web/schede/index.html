@@ -272,11 +272,35 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
   box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
 .btn.sec:hover{background:var(--ui-1);border-color:var(--ui-4);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
 .btn:disabled,.btn:disabled:hover{opacity:.38;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2);box-shadow:none;transform:none}
+
+/* il lampo sui bottoni, come nel tracker (css/base.css): una striscia di luce
+   che attraversa il bottone al passaggio. --lampo vive in css/theme.css */
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:34%;
+  background:linear-gradient(100deg,transparent,var(--lampo),transparent);
+  transform:skewX(-18deg) translateX(-160%);pointer-events:none}
+.btn:hover::after{animation:lampo .75s var(--ease) both}
+.btn.sec::after,.btn:disabled::after{display:none}
+@keyframes lampo{to{transform:skewX(-18deg) translateX(420%)}}
+/* la pagina di partenza si rivela una riga alla volta, e i gruppi del pannello
+   entrano in sequenza: una volta sola, all'apertura */
+@keyframes sale{from{opacity:0;transform:translateY(8px)}}
+#empty-state>*{animation:sale .5s var(--ease) both}
+#empty-state>:nth-child(2){animation-delay:.06s}
+#empty-state>:nth-child(3){animation-delay:.12s}
+#empty-state>:nth-child(4){animation-delay:.18s}
+#empty-state>:nth-child(5){animation-delay:.24s}
+#side .grp{animation:sale .45s var(--ease) both}
+#side .grp:nth-of-type(2){animation-delay:.05s}
+#side .grp:nth-of-type(3){animation-delay:.1s}
+#side .grp:nth-of-type(4){animation-delay:.15s}
+#side .grp:nth-of-type(5){animation-delay:.2s}
+#drop:hover,#drop.hot{transform:translateY(-1px)}
 /* il comando di stampa e' l'uscita del lavoro: e' una fascia appoggiata in
    fondo al pannello, larga quanto il pannello (i margini negativi annullano il
    suo respiro laterale), che resta a portata di clic anche quando le
    impostazioni sono piu' lunghe dello schermo */
-#exportGrp{position:sticky;bottom:0;z-index:4;background:var(--ui-1);
+#exportGrp{animation:none;position:sticky;bottom:0;z-index:4;background:var(--ui-1);
   border-top:1px solid var(--ui-filo);margin:18px -20px 0;padding:14px 20px 16px;
   box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 
@@ -3121,14 +3145,19 @@ document.getElementById('startTutorial').onclick=function(){ startTour(); };
    memoria del browser: la stampa non lo vede, il foglio A4 e' bianco sempre. */
 var THEME='auto';
 var SYS_LIGHT=(window.matchMedia?window.matchMedia('(prefers-color-scheme:light)'):null);
-function setTheme(t,save){
+function setTheme(t,save,dolce){
   THEME=(['auto','light','dark'].indexOf(t)>=0)?t:'auto';
   var light=(THEME==='light')||(THEME==='auto'&&!!(SYS_LIGHT&&SYS_LIGHT.matches));
   var r=document.documentElement;
-  r.setAttribute('data-theme',THEME);
-  r.classList.toggle('lt',light);
-  /* i fogli condivisi (css/theme.css, css/banco.css) leggono data-tema: qui e' sempre esplicito */
-  r.setAttribute('data-tema',light?'chiaro':'scuro');
+  var applica=function(){
+    r.setAttribute('data-theme',THEME);
+    r.classList.toggle('lt',light);
+    /* i fogli condivisi (css/theme.css, css/banco.css) leggono data-tema: qui e' sempre esplicito */
+    r.setAttribute('data-tema',light?'chiaro':'scuro');
+  };
+  /* scelto a mano o arrivato da un'altra scheda: sfuma (View Transitions) invece di scattare */
+  if(dolce&&document.startViewTransition&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)) document.startViewTransition(applica);
+  else applica();
   Array.prototype.forEach.call(document.querySelectorAll('#themeSeg button'),function(b){
     b.setAttribute('aria-pressed',b.getAttribute('data-theme')===THEME?'true':'false');
   });
@@ -3143,7 +3172,7 @@ function temaDaChiave(){
 }
 document.getElementById('themeSeg').onclick=function(e){
   var b=e.target.closest?e.target.closest('button[data-theme]'):null;
-  if(b) setTheme(b.getAttribute('data-theme'),true);
+  if(b) setTheme(b.getAttribute('data-theme'),true,true);
 };
 /* col tema su "segui il sistema", il passaggio giorno/notte del computer
    arriva mentre l'app e' aperta */
@@ -3156,7 +3185,7 @@ if(SYS_LIGHT){
    Poi si resta in ascolto: cambiato nel tracker o nell'altro generatore, si
    cambia anche qui, senza ricaricare */
 setTheme(temaDaChiave(),false);
-window.addEventListener('storage',function(e){ if(e.key==='cs.tema') setTheme(temaDaChiave(),false); });
+window.addEventListener('storage',function(e){ if(e.key==='cs.tema') setTheme(temaDaChiave(),false,true); });
 
 /* ============ IMPOSTAZIONI PREDEFINITE (salvate nel browser) ============ */
 var LS_KEY='vrsSchedeCampo.defaults.v2';

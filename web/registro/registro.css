@@ -123,6 +123,30 @@ label.row select{flex:0 0 auto}
   box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
 .btn.sec:hover{background:var(--ui-1);border-color:var(--ui-4);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
 .btn:disabled,.btn:disabled:hover{opacity:.38;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2);box-shadow:none;transform:none}
+
+/* il lampo sui bottoni, come nel tracker (css/base.css): una striscia di luce
+   che attraversa il bottone al passaggio. --lampo vive in css/theme.css */
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:34%;
+  background:linear-gradient(100deg,transparent,var(--lampo),transparent);
+  transform:skewX(-18deg) translateX(-160%);pointer-events:none}
+.btn:hover::after{animation:lampo .75s var(--ease) both}
+.btn.sec::after,.btn:disabled::after{display:none}
+@keyframes lampo{to{transform:skewX(-18deg) translateX(420%)}}
+/* la pagina di partenza si rivela una riga alla volta, e i gruppi del pannello
+   entrano in sequenza: una volta sola, all'apertura */
+@keyframes sale{from{opacity:0;transform:translateY(8px)}}
+#empty-state>*{animation:sale .5s var(--ease) both}
+#empty-state>:nth-child(2){animation-delay:.06s}
+#empty-state>:nth-child(3){animation-delay:.12s}
+#empty-state>:nth-child(4){animation-delay:.18s}
+#empty-state>:nth-child(5){animation-delay:.24s}
+#side .grp{animation:sale .45s var(--ease) both}
+#side .grp:nth-of-type(2){animation-delay:.05s}
+#side .grp:nth-of-type(3){animation-delay:.1s}
+#side .grp:nth-of-type(4){animation-delay:.15s}
+#side .grp:nth-of-type(5){animation-delay:.2s}
+#drop:hover,#drop.hot{transform:translateY(-1px)}
 .duebtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .duebtn .btn{margin-top:10px}
 
@@ -152,7 +176,7 @@ label.row select{flex:0 0 auto}
 .etichetta.info{background:var(--ui-2);color:var(--ui-tx3);border:1px solid var(--ui-3)}
 
 /* il comando di uscita resta a portata di clic anche a pannello lungo */
-#exportGrp{position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
+#exportGrp{animation:none;position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
   padding-bottom:18px;border-top:1px solid var(--ui-filo);z-index:4;
   box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 .zoomrow{display:flex;gap:8px;align-items:center;margin-top:10px}

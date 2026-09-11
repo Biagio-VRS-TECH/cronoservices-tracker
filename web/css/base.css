@@ -94,9 +94,9 @@ button { background: none; border: 0; cursor: pointer; }
   font-family: var(--f-display); font-size: var(--t-titolo); font-weight: 600;
   letter-spacing: -.035em; line-height: 1; padding: 0 5px;
   font-variant-numeric: tabular-nums; font-feature-settings: normal;
-  transition: opacity var(--medio);
+  transition: opacity var(--medio), transform var(--medio);
 }
-.anno-scelta .anno.caricando { opacity: .45; }
+.anno-scelta .anno.caricando { opacity: .45; transform: translateY(-3px); }
 .frecc {
   width: 28px; height: 28px; border-radius: var(--r-1); color: var(--tenue);
   display: grid; place-items: center; transition: var(--rapido);
@@ -118,8 +118,10 @@ button { background: none; border: 0; cursor: pointer; }
   /* un incavo nel vetro della testa, non un riquadro appoggiato sopra */
   background: var(--pista-fondo); border: 1px solid transparent;
   box-shadow: var(--pista-incavo);
-  border-radius: var(--r-tonda); transition: var(--rapido);
+  border-radius: var(--r-tonda); transition: var(--rapido), width var(--medio);
 }
+/* a fuoco il campo si allarga: e' il gesto che dice "adesso si cerca" */
+.cerca input:focus { width: clamp(220px, 30vw, 400px); }
 .cerca input::-webkit-search-cancel-button { display: none; }
 .cerca input:hover { border-color: var(--bordo); }
 .cerca input:focus { background: var(--superficie); border-color: var(--marchio); outline: none;
@@ -208,7 +210,10 @@ button { background: none; border: 0; cursor: pointer; }
 .gruppo button[aria-pressed="true"], .gruppo button[aria-pressed="true"]:hover {
   background: var(--btn-fondo); color: var(--btn-testo); font-weight: 600;
   box-shadow: var(--btn-lucido), var(--btn-ombra);
+  animation: premi var(--medio) both;
 }
+/* la posizione appena scelta si assesta: parte un soffio piu' piccola */
+@keyframes premi { from { transform: scale(.93); } }
 .sep { width: 1px; height: 20px; background: var(--bordo); margin: 0 4px; }
 
 /* Il filtro di stato e' un segmented control come le viste, ma ogni posizione
@@ -405,6 +410,18 @@ select.pill {
 .bottone:hover { background: var(--btn-fondo-hover);
   box-shadow: var(--btn-lucido), var(--ombra-2); transform: translateY(-1px); }
 .bottone:active { transform: translateY(0); box-shadow: var(--btn-lucido); }
+/* il lampo: una striscia di luce inclinata che attraversa il bottone al
+   passaggio, una volta sola. Sta in un ::after assoluto, quindi non tocca
+   testo e icone. */
+.bottone { position: relative; overflow: hidden; }
+.bottone::after {
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 34%;
+  background: linear-gradient(100deg, transparent, var(--lampo), transparent);
+  transform: skewX(-18deg) translateX(-160%); pointer-events: none;
+}
+.bottone:hover::after { animation: lampo .75s var(--molla) both; }
+.bottone.piatto::after, .bottone:disabled::after { display: none; }
+@keyframes lampo { to { transform: skewX(-18deg) translateX(420%); } }
 .bottone.piatto { background: none; color: var(--tenue); box-shadow: none; }
 .bottone.piatto:hover { background: var(--fondo); color: var(--inchiostro); }
 /* Il bottone di un'azione che non si disfa: colore d'allerta, non di marchio. */

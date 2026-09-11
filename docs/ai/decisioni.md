@@ -1101,3 +1101,13 @@ Cosa NON e' cambiato, di proposito: i quattro colori dei passi, il verde di
 "completa", ambra e rosso; il DOCUMENTO stampato dei due generatori (e' carta,
 non interfaccia); il vincolo html2canvas sul fondo del banco in esadecimale
 (`--ui-0`, `--fondo-banco`: ora `#ECEAE5` / `#0F1215`).
+
+Movimento (stessa sessione, su richiesta "qualche dinamicita' qua e la'"): poco e
+sempre con un senso. Il cambio tema SFUMA con `document.startViewTransition`
+(tracker `inDissolvenza()`, generatori `setTheme(t, save, dolce)`), anche quando
+arriva da un'altra scheda; sui bottoni d'inchiostro passa un LAMPO (`--lampo`,
+`::after` inclinato, una volta al passaggio); la posizione attiva dei comandi
+segmentati si assesta (`premi`); le carte delle Statistiche salgono di 2px al
+passaggio dopo l'entrata; la ricerca si allarga a fuoco; l'anno scivola mentre
+carica; nei generatori la pagina di partenza e i gruppi del pannello si rivelano
+in sequenza una volta sola (`sale`). Tutto sotto `prefers-reduced-motion`.

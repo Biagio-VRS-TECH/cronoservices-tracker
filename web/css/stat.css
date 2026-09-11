@@ -715,6 +715,10 @@
               opacity 560ms var(--molla) calc(var(--r, 0) * 70ms),
               transform 560ms var(--molla) calc(var(--r, 0) * 70ms);
 }
+/* entrata fatta, la carta risponde alla mano: si alza di 2px al passaggio, con
+   una transizione corta e senza il ritardo di gruppo dell'entrata */
+.carta.entrata { transition: box-shadow var(--medio), border-color var(--medio), transform var(--medio); }
+.carta.entrata:hover { transform: translateY(-2px); }
 /* Ciambelle e quadrante entrano ruotando sul proprio centro: `transform-box`
    serve perche' in SVG l'origine di default e' quella del viewBox. */
 .torta .fette, .quadrante .settori {
