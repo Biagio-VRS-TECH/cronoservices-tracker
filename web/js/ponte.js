@@ -653,12 +653,13 @@ export function avviaPonte(cfg = {}) {
      I cloni perdono gli id (non devono farsi trovare dai getElementById dei
      generatori) e stanno FUORI da #pages: html2canvas fotografa solo le pagine
      vere e non li vede. */
-  /* Dodici fogli sempre, perche' i tempi dell'animazione (css) sono scritti per
-     dodici: se il documento ne ha meno, le pagine si ripetono. E' un giro
+  /* Otto fogli sempre, perche' i tempi dell'animazione (css) sono scritti per
+     otto: se il documento ne ha meno, le pagine si ripetono. E' un giro
      INFINITO in avanti: il foglio girato torna sotto la pila coperto dagli
      altri, quindi non c'e' ne' fine ne' ricomincio da vedere - l'attesa puo'
-     durare anche un minuto. */
-  const FOGLI = 12;
+     durare anche un minuto. Erano dodici: dodici cloni di pagine piene, con lo
+     z-index animato (thread principale, bloccato da html2canvas), laggavano. */
+  const FOGLI = 8;
   function apriLibretto() {
     chiudiLibretto(true);
     const main = $(selScorr)?.parentElement || $('#main');
@@ -698,7 +699,7 @@ export function avviaPonte(cfg = {}) {
     if (!lb) return;
     if (subito) { lb.remove(); return; }
     lb.classList.add('chiude');
-    setTimeout(() => lb.remove(), 800);
+    setTimeout(() => lb.remove(), 500);   // la dissolvenza dura .45s
   }
 
   /** Il PDF sul computer, col nome con cui il tracker lo archivia. */

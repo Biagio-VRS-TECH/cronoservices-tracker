@@ -1131,12 +1131,17 @@ in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
 la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.
 Terza scena, IL LIBRETTO (`apriLibretto()` in ponte.js, css/ponte.css sezione
 omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela e in
-mezzo il documento sfoglia - dodici fogli (le prime pagine vere, clonate senza
+mezzo il documento sfoglia - otto fogli (le prime pagine vere, clonate senza
 id e ridotte a 190px, ripetute se sono meno) girano sul dorso SEMPRE IN AVANTI,
 uno ogni 0,6 s, in un giro infinito senza cuciture: il foglio girato torna in
-fondo alla pila coperto dagli altri e risale con lo z-index animato (prima era
-`alternate` su sei fogli: il ritorno indietro sembrava un bug, e con attese di
-25-50 s sei fogli erano pochi); sotto la frase di stato e
+fondo alla pila coperto dagli altri e risale con la PROFONDITA' (translateZ in
+uno spazio preserve-3d), non con lo z-index. Storia: sei fogli in `alternate`
+(il ritorno indietro sembrava un bug, e con attese di 25-50 s erano pochi), poi
+dodici con lo z-index animato: laggava, perche' lo z-index passa dal thread
+principale che html2canvas tiene bloccato. Regola che ne esce: durante la resa
+del PDF si anima SOLO transform/opacity, niente z-index, niente filter o
+backdrop-filter sopra cose in movimento. La chiusura e' una dissolvenza, i
+fogli non si fermano di colpo; sotto la frase di stato e
 l'avanzamento della fascia. Si chiude da solo alla fine, bene o male che vada.
 Il velo e' in rgba e i cloni stanno fuori da #pages: html2canvas gira proprio
 in quel momento e non deve ne' vederli ne' inciampare in un color-mix.
