@@ -79,6 +79,22 @@
 #side .grp.chiuso > :not(h2){display:none!important}
 #side .grp.chiuso{padding-bottom:14px}
 #side .grp.chiuso > h2{margin-bottom:0}
+/* L'ENTRATA DEI GRUPPI (js/gruppi.js, entrata()): i pannelli salgono uno dopo
+   l'altro e il filo del titolo corre da sinistra a destra. Il turno di ognuno
+   e' --entra-k, che scrive il JS: e' la posizione nella colonna, non un ordine
+   scritto qui, perche' coi file caricati i gruppi visibili sono di piu'. */
+#side .grp.entra,#treecol .grp.entra{animation:grp-entra .46s var(--ease) both;
+  animation-delay:calc(var(--entra-k,0) * 90ms)}
+@keyframes grp-entra{from{opacity:0;transform:translateY(12px)}}
+#side .grp.entra>h2::after,#treecol .grp.entra>h2::after{
+  animation:grp-filo .46s var(--ease) both;transform-origin:left center;
+  animation-delay:calc(var(--entra-k,0) * 90ms)}
+@keyframes grp-filo{from{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){
+  #side .grp.entra,#treecol .grp.entra,
+  #side .grp.entra>h2::after,#treecol .grp.entra>h2::after{animation:none}
+}
+
 #grpTutti{flex:0 0 auto;width:28px;height:24px;padding:0;border:1px solid var(--ui-3);border-radius:8px;
   background:var(--ui-2);color:var(--ui-tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:background .13s,border-color .13s,color .13s}

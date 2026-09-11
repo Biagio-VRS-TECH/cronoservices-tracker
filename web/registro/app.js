@@ -218,6 +218,8 @@ async function leggiFile(f) {
   $('#viste').hidden = false;
   $('#dropFile').hidden = false;
   ricostruisci({ nuovoExport: true });
+  /* il banco si riapparecchia: i gruppi rientrano a scalare (js/gruppi.js) */
+  window.entrataGruppi?.();
   ponte.riconosci(nomeFileCaricato, exportCorrente.cliente);
 }
 

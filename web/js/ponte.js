@@ -708,8 +708,20 @@ export function avviaPonte(cfg = {}) {
     const pagina = i => fonte[i % fonte.length];
     const largo = fonte[0].offsetWidth || 794, alto = fonte[0].offsetHeight || 1123;
     const W = 150, S = W / largo, Hh = Math.round(alto * S);
+    /* Una pagina vera vive dentro un contenitore che le porta il CSS (le
+       CLASSI: nel registro la carta e' `.pages .page`) e le misure del
+       documento (il `--corpo`). Il clone se le porta dietro, se no esce nudo:
+       testo minuscolo e nessuna impaginazione - era il difetto del libretto
+       del registro. Si copiano le classi e le sole variabili, mai lo stile
+       intero: quel contenitore porta anche lo zoom dell'anteprima. */
+    const cont = fonte[0].parentElement;
+    const classiCont = cont ? [...cont.classList] : [];
+    const varCont = cont ? [...cont.style].filter(n => n.startsWith('--'))
+      .map(n => [n, cont.style.getPropertyValue(n)]) : [];
     const faccia = (i, classe) => {
       const f = document.createElement('div'); f.className = 'lb-faccia ' + (classe || '');
+      f.classList.add(...classiCont);
+      for (const [n, v] of varCont) f.style.setProperty(n, v);
       if (i == null) return f;                       // la base bianca
       const c = pagina(i).cloneNode(true);
       c.removeAttribute('id'); c.classList.remove('flash');

@@ -106,6 +106,48 @@
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--completa) 55%, transparent),
                     0 0 28px 4px color-mix(in srgb, var(--completa) 60%, transparent); }
 }
+/* L'ONDA delle azioni di massa (anno.js, onda()): la cella si accende - o si
+   spegne - quando l'onda la raggiunge. Il ritardo lo scrive il JS in --onda,
+   perche' e' la POSIZIONE sullo schermo a decidere il turno, non l'ordine. */
+.cella.onda-su { animation: onda-su .62s var(--molla) both; animation-delay: var(--onda, 0ms); z-index: 4; }
+@keyframes onda-su {
+  40% { transform: scale(1.38);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--completa) 50%, transparent),
+                    0 0 22px 3px color-mix(in srgb, var(--completa) 50%, transparent); }
+}
+.cella.onda-giu { animation: onda-giu .62s var(--molla) both; animation-delay: var(--onda, 0ms); z-index: 4; }
+@keyframes onda-giu {
+  40% { transform: scale(.62); opacity: .35;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--allerta) 45%, transparent); }
+}
+/* il FRONTE: una banda di luce inclinata che attraversa la griglia. Sta sopra
+   la griglia e sotto le finestre (velo 80, avvisi 90), non prende clic, e il
+   JS la toglie da sola. Verde quando si completa, ambra quando si azzera. */
+.onda-velo {
+  position: fixed; z-index: 44; pointer-events: none; overflow: hidden;
+  animation: onda-velo .95s ease-out both;
+  --tinta-onda: var(--completa);
+}
+.onda-velo.giu { --tinta-onda: var(--allerta); }
+.onda-velo::before {
+  content: ""; position: absolute; top: -14%; bottom: -14%; left: 0; width: 26%;
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--tinta-onda) 30%, transparent) 58%,
+    color-mix(in srgb, var(--tinta-onda) 62%, transparent) 80%,
+    transparent 85%);
+  animation: onda-fronte .95s cubic-bezier(.36, 0, .22, 1) both;
+}
+@keyframes onda-fronte {
+  from { transform: translateX(-110%) skewX(-9deg); }
+  to   { transform: translateX(420%) skewX(-9deg); }
+}
+@keyframes onda-velo { 70% { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cella.onda-su, .cella.onda-giu, .onda-velo, .onda-velo::before { animation: none; }
+  .onda-velo { display: none; }
+}
+
 .blocco.completo .riga-cli {
   background: linear-gradient(90deg,
     color-mix(in srgb, var(--completa) 10%, var(--superficie)),

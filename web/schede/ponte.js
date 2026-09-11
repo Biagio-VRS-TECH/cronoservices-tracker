@@ -21,6 +21,8 @@ const caricaOriginale = window.loadRows;
 if (typeof caricaOriginale === 'function') {
   window.loadRows = function (rows, name, label) {
     const r = caricaOriginale.apply(this, arguments);
+    /* il banco si riapparecchia: i gruppi rientrano a scalare (js/gruppi.js) */
+    if (r !== false) window.entrataGruppi?.();
     /* il titolo del FOGLIO, non quello che c'e' scritto nel campo: se il campo
        lo riempie il sito ancora collegato (titleFromSite), il file nuovo
        verrebbe riconosciuto con il nome del sito vecchio */

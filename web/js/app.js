@@ -527,6 +527,9 @@ function massa(modo) {
         if (!voci.length) return;
         const n = spuntaMolte(voci, completa ? 'Completamento di massa' : 'Azzeramento di massa', 'massa');
         disegna();
+        /* il colpo si VEDE: l'onda attraversa le celle toccate
+           (#ANCHOR: onda-massa in anno.js) */
+        if (st.vista === 'anno') vAnno.onda(celle, completa ? 'su' : 'giu');
         const uno = n === 1;
         const detto = completa ? (uno ? 'messa' : 'messe') : (uno ? 'rimossa' : 'rimosse');
         avviso(`${n} ${uno ? 'spunta' : 'spunte'} ${detto}.`, {

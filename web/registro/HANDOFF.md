@@ -100,8 +100,21 @@ Quando un reparto continua, la testata si ripete con **"(segue)"**
 - **`table-layout: fixed` ovunque**, anche nel quadro d'insieme: col layout
   automatico una riga misurata in una tabella con 200 righe cambia altezza
   quando finisce in una tabella con 3. Le larghezze del quadro si calcolano in
-  `misureQuadro()`: la colonna "Totale" si misura sulla **parola**, non sui
-  numeri (a 13mm usciva dal foglio).
+  `misureQuadro()`, e si MISURANO tutte (31a sessione): un righello fuori
+  schermo con il CSS vero del documento da' la larghezza di ogni parola
+  dell'intestazione, ogni colonna di piano prende la sua parola piu' lunga,
+  "Totale" si misura sulla **parola** e non sui numeri (a 13mm usciva dal
+  foglio) e i nomi dei componenti si tengono il resto, mai meno di 42mm. Con
+  larghezze fisse e `white-space: nowrap` un piano dal nome lungo
+  ("INTERRATO") non stringeva: **sbordava sopra la colonna vicina**;
+- **la carta e' `.pages .page`, con la CLASSE** (`<div id="pages"
+  class="pages">`), non con l'id. Le pagine vengono CLONATE fuori da `#pages`:
+  il libretto dell'attesa (`js/ponte.js`) e il righello di `misureQuadro`. Con
+  l'id quei cloni uscivano nudi - testo di sistema, nessuna impaginazione - ed
+  e' esattamente il difetto che il committente ha visto nel libretto del
+  registro. `cssDocumento()` taglia su `.pages .page` per il file HTML
+  autonomo, e `apriLibretto` copia sul clone le classi del contenitore e le
+  sue variabili (`--corpo`);
 
 ## 4. La versione digitale HTML
 

@@ -3,6 +3,56 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-11 (31a sessione) - il quadro che si accavallava e tre animazioni
+
+Branch `registro-componenti-premium`, stesso della 29a e della 30a. Quattro
+richieste dopo la seconda prova.
+
+1. **Nel registro di CASA DI RIPOSO UMBERTO I i piani del quadro d'insieme si
+   sovrappongono.** Misurato: colonne da 11,5mm fisse contro intestazioni che
+   ne volevano 16,7 ("ESTERNO") e 19,8 ("INTERRATO"); con
+   `table-layout: fixed` e `white-space: nowrap` il testo non stringe e non va
+   a capo, esce dalla cella e finisce sopra la vicina. Ora `misureQuadro`
+   (`web/registro/impagina.js`) **misura davvero**: un righello fuori schermo
+   con il CSS del documento (`div.pages > div.page > table.matrice`) da' la
+   larghezza di ogni parola; ogni colonna prende la parola piu' lunga della sua
+   intestazione piu' mezzo millimetro di respiro, l'intestazione va a capo fra
+   le parole (`thead th.n{white-space:normal;overflow-wrap:anywhere}`), la
+   colonna dei nomi si prende il resto. Se i piani sono tanti le colonne si
+   stringono in proporzione, mai sotto gli 8mm e mai sotto i 42mm dei nomi.
+   Provato con UMBERTO I (6 piani): 62,8mm ai nomi, 13,6-21,9mm ai piani,
+   nessuna cella che sborda, 13 pagine, zero pagine sfondate.
+2. **Il libretto del generatore componenti non rispecchia il contenuto e ha un
+   font piccolo.** I fogli che girano sono CLONI delle pagine vere, e stanno
+   fuori da `#pages`; la carta del registro era scritta `#pages .page`, quindi
+   ai cloni non arrivava nemmeno una regola: testo di sistema a 14px, niente
+   impaginazione. Due mosse: la sezione DOCUMENTO di `registro.css` ora si
+   scrive **`.pages .page`** (classe: `<div id="pages" class="pages">`, e
+   `cssDocumento()` taglia sulla stringa nuova), e `apriLibretto` in
+   `js/ponte.js` copia sul clone le **classi** del contenitore e le sue
+   **variabili** (`--corpo`), mai lo stile intero (li' c'e' lo zoom
+   dell'anteprima). Il libretto delle schede non e' stato toccato: la sua
+   carta era gia' `.page`, e infatti funzionava.
+3. **Animazione scenica per Completa tutte / Azzera tutte** (tracker):
+   `onda(chiavi, verso)` in `js/anno.js` (#ANCHOR: onda-massa), chiamata da
+   `massa()` dopo `disegna()`. Un fronte di luce inclinato attraversa la
+   griglia in 0,95 s - verde se si completa, ambra se si azzera - e le celle
+   toccate **che si vedono** fioriscono o si spengono al suo passaggio (il
+   ritardo e' la loro posizione sotto il fronte, non il posto nell'elenco). Il
+   fronte c'e' sempre, anche quando nessuna cella toccata e' in vista: sono
+   sparse su duecento clienti e quasi mai capitano nella schermata aperta - la
+   prima versione, solo per celle, non si vedeva mai.
+4. **Animazione scenica del caricamento dei gruppi** (generatori):
+   `entrataGruppi()` in `js/gruppi.js`, CSS in `css/banco.css`. I gruppi del
+   pannello (compreso quello dell'albero in `#treecol`) salgono uno dopo
+   l'altro, 90 ms l'uno dall'altro, e il filo del titolo corre da sinistra a
+   destra. Parte all'apertura della pagina e di nuovo a ogni file caricato
+   (`leggiFile` nel registro, il wrapper di `loadRows` nelle schede), che e'
+   il momento in cui i gruppi si riempiono davvero.
+
+Tutte e due le animazioni si spengono con `prefers-reduced-motion: reduce`.
+Service worker `crono-guscio-v26`.
+
 ## Fatto il 2026-09-11 (30a sessione) - undici difetti dopo la prova
 
 Branch `registro-componenti-premium`, stesso della 29a. Il committente ha

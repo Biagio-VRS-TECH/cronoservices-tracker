@@ -89,17 +89,54 @@ function htmlCopertina(reg, o) {
 const titoloPagina = (h2, destra) =>
   `<div class="pagina-titolo"><h2>${h2}</h2><div class="destra">${destra}</div></div>`;
 
-/** Larghezze delle colonne del quadro d'insieme: la colonna dei nomi si prende
- *  quello che resta, e se i piani sono tanti le colonne dei numeri si
- *  stringono invece di far sfondare la tabella. */
-function misureQuadro(nCol) {
-  let num = 11.5;
-  /* "Totale" e' la parola piu' lunga dell'intestazione e non va a capo: la sua
-     colonna si misura su quella, non sui numeri (a 13mm usciva dal foglio) */
-  const tot = 17;
-  let nome = UTILE_L - tot - nCol * num;
-  while (nome < 42 && num > 7) { num -= 0.5; nome = UTILE_L - tot - nCol * num; }
-  return { nome: Math.max(nome, 24), num, tot };
+/** Un RIGHELLO fuori schermo, con il CSS vero del documento (per questo porta
+ *  la classe `pages`: la carta e' `.pages .page`), misura in millimetri quanto
+ *  e' larga ogni parola dell'intestazione del quadro. */
+function misuraParole(parole, corpo) {
+  const righello = document.createElement('div');
+  righello.className = 'pages';
+  righello.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none';
+  righello.style.setProperty('--corpo', corpo + 'pt');
+  righello.innerHTML = '<div class="page"><i class="mm" style="display:block;width:100mm"></i>' +
+    '<table class="doc-tab matrice" style="table-layout:auto;width:auto;margin:0"><thead><tr>' +
+    parole.map(w => `<th class="n" style="white-space:nowrap">${esc(w)}</th>`).join('') +
+    '</tr></thead></table></div>';
+  document.body.appendChild(righello);
+  const mm = righello.querySelector('.mm').getBoundingClientRect().width / 100 || (96 / 25.4);
+  const l = [...righello.querySelectorAll('th')].map(th => th.getBoundingClientRect().width / mm);
+  righello.remove();
+  return l;
+}
+
+/** Larghezze delle colonne del quadro d'insieme. Ogni colonna di piano e'
+ *  larga quanto la PAROLA PIU' LUNGA della sua intestazione (che va a capo fra
+ *  una parola e l'altra), e la colonna dei nomi si prende quello che resta.
+ *  Le misure sono vere, non stimate: a larghezza fissa i piani dal nome lungo
+ *  ("INTERRATO", "NUOVO NODO" di CASA DI RIPOSO UMBERTO I) uscivano dalla loro
+ *  colonna e si accavallavano con quella accanto - `white-space:nowrap` su una
+ *  tabella `table-layout:fixed` non stringe niente, sborda e basta.
+ *  Se i piani sono tanti le colonne si stringono in proporzione (e allora le
+ *  parole si spezzano) pur di lasciare ai nomi dei componenti i loro 42mm. */
+function misureQuadro(etichette, corpo) {
+  const MIN_NOME = 42, MIN = 8, MAX = 30;
+  const piatte = [], dove = [];
+  etichette.forEach((t, i) => String(t || '').split(/\s+/).filter(Boolean)
+    .forEach(w => { piatte.push(w); dove.push(i); }));
+  /* "Totale" e' la parola piu' lunga dell'ultima colonna e non va a capo: la
+     sua larghezza si misura su quella, non sui numeri (a 13mm usciva dal foglio) */
+  piatte.push('Totale');
+  const m = misuraParole(piatte, corpo);
+  /* mezzo millimetro di respiro: la misura e' al pixel, e una colonna larga
+     ESATTAMENTE quanto la parola la spezza lo stesso al primo arrotondamento */
+  const tot = Math.max(17, m.pop() + 0.5);
+  const larghe = etichette.map(() => 0);
+  m.forEach((w, k) => { larghe[dove[k]] = Math.max(larghe[dove[k]], w); });
+  let num = larghe.map(w => Math.min(Math.max(w + 0.5, 9.5), MAX));
+  const spazio = UTILE_L - tot - MIN_NOME;
+  const somma = num.reduce((a, b) => a + b, 0);
+  if (somma > spazio) { const k = spazio / somma; num = num.map(w => Math.max(MIN, w * k)); }
+  const nome = Math.max(24, UTILE_L - tot - num.reduce((a, b) => a + b, 0));
+  return { nome, num, tot };
 }
 
 /** Tutto il documento in una stringa sola: e' quello che finisce nel
@@ -136,14 +173,19 @@ function htmlDocumento(reg, o) {
     <colgroup><col><col style="width:30mm"><col style="width:12mm"></colgroup>${som.join('')}</table>`);
 
   /* --- quadro d'insieme --- */
-  const m = misureQuadro(reg.matriceColonne.length);
+  const etichetteQ = reg.matriceColonne.map(
+    s => s.tipo === 'piano' ? s.titolo.replace('Piano ', '') : s.etichettaBreve);
+  const m = misureQuadro(etichetteQ, o.corpo);
   p.push(`<div data-u="blocco" data-lega="1" class="stacco" id="quadro">${titoloPagina('Quadro d’insieme', 'Quantità di ogni tipo di componente, per piano')}</div>`);
-  const colsQ = `<colgroup><col style="width:${m.nome}mm">` +
-    reg.matriceColonne.map(() => `<col style="width:${m.num}mm">`).join('') +
-    `<col style="width:${m.tot}mm"></colgroup>`;
+  /* le colonne dei numeri si arrotondano per ECCESSO (se no la parola si
+     spezza), quella dei nomi per difetto: la somma non deve sfondare i 178mm */
+  const mmq = x => (Math.ceil(x * 10) / 10) + 'mm';
+  const colsQ = `<colgroup><col style="width:${Math.floor(m.nome * 10) / 10}mm">` +
+    m.num.map(w => `<col style="width:${mmq(w)}">`).join('') +
+    `<col style="width:${mmq(m.tot)}"></colgroup>`;
   const testaQ = `<thead><tr>
     <th class="nome">Componente</th>
-    ${reg.matriceColonne.map(s => `<th class="n"><span class="sopra">Piano</span>${esc(s.tipo === 'piano' ? s.titolo.replace('Piano ', '') : s.etichettaBreve)}</th>`).join('')}
+    ${etichetteQ.map(e => `<th class="n"><span class="sopra">Piano</span>${esc(e)}</th>`).join('')}
     <th class="n tot">Totale</th></tr></thead>`;
   const righeQ = reg.matriceRighe.map((r, i) =>
     `<tbody data-u="riga"${i === 0 ? ' data-ancora="quadro"' : ''}><tr>` +
@@ -364,7 +406,7 @@ function impaginaDavvero(reg, o, cont, t0) {
 
 /** Il CSS del DOCUMENTO sta in registro.css, fra due segnalibri, e da li' viene
  *  preso anche per il file HTML autonomo: una sola fonte, niente doppioni che
- *  divergono. I selettori `#pages .page` diventano `.doc`. */
+ *  divergono. I selettori `.pages .page` diventano `.doc`. */
 async function cssDocumento() {
   const testo = await fetch('registro.css').then(r => r.text());
   /* i segnalibri sono l'APERTURA di due commenti, non due commenti interi (il
@@ -376,7 +418,7 @@ async function cssDocumento() {
   const da = testo.indexOf('*/', a) + 2;
   const fino = testo.lastIndexOf('/*', b);
   if (da < 2 || fino < da) return '';
-  return testo.slice(da, fino).split('#pages .page').join('.doc');
+  return testo.slice(da, fino).split('.pages .page').join('.doc');
 }
 
 /* Quel poco che la versione digitale ha in piu': non e' carta, e' una pagina da

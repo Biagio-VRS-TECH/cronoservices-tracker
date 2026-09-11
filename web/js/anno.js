@@ -414,6 +414,49 @@ function dipingi(n, id, mese) {
     `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}${er ? ' ' + er + '.' : ''}`);
 }
 
+/** L'ONDA delle azioni di massa (#ANCHOR: massa in app.js). Dopo un "Completa
+ *  tutte" o un "Azzera tutte" la griglia e' gia' ridisegnata, e centinaia di
+ *  spunte sono comparse (o sparite) tutte insieme, senza un movimento: qui un
+ *  FRONTE DI LUCE attraversa la griglia da sinistra a destra e, al suo
+ *  passaggio, le celle toccate che si vedono si accendono - o si spengono -
+ *  una dopo l'altra. Si fa vedere quanto e' stato largo il colpo.
+ *  Il fronte c'e' SEMPRE, anche quando nessuna delle celle toccate e' in
+ *  vista: sono sparse su duecento clienti, quasi mai capitano nella schermata
+ *  che si sta guardando. Il turno di ogni cella e' la sua POSIZIONE sotto il
+ *  fronte, non il suo posto nell'elenco. `verso`: 'su' completa, 'giu' azzera.
+ *  #ANCHOR: onda-massa */
+export function onda(chiavi, verso) {
+  if (!radice || !chiavi || !chiavi.size) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const giu = verso === 'giu';
+  const alto = innerHeight, largo = innerWidth || 1;
+  const r = radice.getBoundingClientRect();
+  const x = Math.max(r.left, 0), y = Math.max(r.top, 0);
+  const w = Math.min(r.right, largo) - x, h = Math.min(r.bottom, alto) - y;
+  if (w > 0 && h > 0) {
+    const velo = document.createElement('div');
+    velo.className = 'onda-velo' + (giu ? ' giu' : '');
+    velo.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+    document.body.appendChild(velo);
+    setTimeout(() => velo.remove(), 1400);   // il fronte e la sua dissolvenza
+  }
+  const classe = giu ? 'onda-giu' : 'onda-su';
+  for (const k of chiavi) {
+    const n = radice.querySelector(`.cella[data-cella="${k}"]`);
+    if (!n) continue;
+    const c = n.getBoundingClientRect();
+    if (c.bottom < y || c.top > alto) continue;      // fuori dallo schermo
+    /* la banda e' inclinata: chi sta in alto la incontra un filo prima */
+    const t = c.left / largo + (c.top / alto) * 0.12;
+    n.style.setProperty('--onda', Math.round(t * 700) + 'ms');
+    n.classList.add(classe);
+    n.addEventListener('animationend', () => {
+      n.classList.remove(classe);
+      n.style.removeProperty('--onda');
+    }, { once: true });
+  }
+}
+
 /** Un collega ha aperto (o lasciato) una cella (#ANCHOR: fuoco): anello del suo
  *  colore e iniziali. `prima`/`dopo` sono chiavi "id-mese", anche vuote. */
 export function aggiornaFuoco(prima, dopo) {

@@ -108,7 +108,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/spunte.js` | 148 | popover della cella |
 | `js/affinita.js` | 170 | somiglianza fra nomi scritti male (normalizzazione, Damerau-Levenshtein per parola, pesi di rarita'): ricerca, riconoscimento file nel generatore, doppioni. #ANCHOR: affinita |
 | `js/documenti.js` | 420 | i PDF dei due generatori: modello, `TIPI` (`schede` \| `registro`, #ANCHOR: tipi-documento), un chip per tipo accanto al sito, apertura, consegna. #ANCHOR: documenti |
-| `js/gruppi.js` | 55 | i gruppi del pannello dei generatori si aprono e chiudono (titolo = interruttore, `#grpTutti` li gira tutti); stato in localStorage. Script classico. #ANCHOR: gruppi |
+| `js/gruppi.js` | 80 | i gruppi del pannello dei generatori si aprono e chiudono (titolo = interruttore, `#grpTutti` li gira tutti); stato in localStorage. E l'ENTRATA a scalare (`entrataGruppi()`, anche a file caricato). Script classico. #ANCHOR: gruppi |
 | `js/tour.js` | 190 | il TUTORIAL GUIDATO condiviso (`Tour.crea({passi, chiave, primaDi, dopo})`): velo, buco, fumetto, tasti. Script classico. #ANCHOR: tour |
 | `js/albero.js` | 160 | l'albero piano > reparto > stanza con i cerchi a tre stati (`creaAlbero`), porting del buildTree delle schede: lo usa il registro. #ANCHOR: albero |
 | `js/ponte.js` | 560 | il ponte GENERICO generatore -> tracker (`avviaPonte({tipo})`): testata di consegna, riconoscimento del sito dal file, PDF con html2canvas + jsPDF (`web/lib/`), consegna, nuvoletta. #ANCHOR: ponte |
@@ -186,7 +186,7 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
    `ponte-schede`, `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
    `conferma-ok`, `mese-stampa`, `tipi-documento`, `dizionario`, `fonti`,
-   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`.
+   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`, `onda-massa`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -209,6 +209,40 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-11 (31a sessione)
+
+Branch `registro-componenti-premium` (il terzo giro sullo stesso lavoro).
+Quattro richieste dopo la seconda prova; dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-11-31a-sessione---il-quadro-che-si-accavallava-e-tre-animazioni).
+
+**Il quadro d'insieme non si accavalla piu'** (`misureQuadro` in
+`web/registro/impagina.js`): le colonne dei piani erano tutte da 11,5mm con
+`white-space:nowrap`, e su una tabella `table-layout:fixed` un'intestazione
+piu' larga non stringe niente - sborda e si sovrappone alla vicina (CASA DI
+RIPOSO UMBERTO I: "INTERRATO", "NUOVO NODO"). Ora le larghezze si MISURANO con
+un righello fuori schermo che ha il CSS vero del documento: ogni colonna e'
+larga quanto la parola piu' lunga della sua intestazione (che va a capo fra le
+parole), il resto va ai nomi dei componenti, e se i piani sono tanti le colonne
+si stringono in proporzione lasciandone sempre 42mm ai nomi.
+
+**Il libretto del registro mostra il SUO documento.** La carta del registro era
+scritta `#pages .page`, e i cloni del libretto (js/ponte.js) stanno FUORI da
+`#pages`: uscivano nudi, testo minuscolo e nessuna impaginazione. La carta ora
+si chiama **`.pages .page`** (classe, non id: `<div id="pages" class="pages">`)
+e i cloni si portano dietro le classi e le variabili del contenitore. Il
+libretto delle schede non e' stato toccato: li' la carta era gia' `.page`.
+
+**Due animazioni nuove.** Nel tracker, dopo un **Completa tutte** o un **Azzera
+tutte** un fronte di luce attraversa la griglia e le celle toccate che si
+vedono si accendono (verde) o si spengono (ambra) al suo passaggio: prima
+centinaia di spunte comparivano senza un movimento (`onda()` in `js/anno.js`,
+#ANCHOR: onda-massa; CSS in `css/griglia.css`). Nei generatori i **gruppi del
+pannello entrano a scalare** all'apertura e di nuovo quando un file carica e si
+riempiono (`entrataGruppi()` in `js/gruppi.js`, CSS in `css/banco.css`).
+Tutte e due rispettano `prefers-reduced-motion`.
+
+Service worker `crono-guscio-v26`.
 
 ## Stato al 2026-09-11 (30a sessione)
 

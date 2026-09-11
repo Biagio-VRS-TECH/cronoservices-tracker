@@ -4,6 +4,11 @@
    si ricorda per pagina in localStorage. Il gruppo "Esporta" (#exportGrp) resta
    sempre aperto: e' l'uscita del lavoro. Script classico, non modulo: gira
    prima dei moduli e non dipende da niente. CSS in css/banco.css.
+
+   Qui sta anche l'ENTRATA: all'apertura della pagina, e ogni volta che un file
+   entra e i gruppi si riempiono (i generatori chiamano `entrataGruppi()`), i
+   pannelli salgono uno dopo l'altro e il filo del titolo corre. Il banco che
+   si apparecchia, e l'ordine in cui si lavora che si legge da solo.
    #ANCHOR: gruppi */
 (function () {
   var side = document.getElementById('side');
@@ -43,10 +48,37 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); gira(); }
     });
   });
+  /* ---- l'entrata a scalare ---------------------------------------------
+     Il ritardo di ognuno e' il suo posto nella colonna (--entra-k), scritto
+     qui perche' i gruppi visibili cambiano: col file caricato ci sono anche
+     l'albero e i controlli. Chi ha chiesto meno movimento non vede niente. */
+  function entrata() {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var elenco = Array.prototype.filter.call(
+      document.querySelectorAll('#side .grp, #treecol .grp'),
+      function (g) { return g.offsetParent !== null; });
+    elenco.forEach(function (g, i) {
+      g.classList.remove('entra');
+      g.style.setProperty('--entra-k', i);
+    });
+    void side.offsetWidth;          // un reflow solo: poi partono tutti insieme
+    elenco.forEach(function (g) {
+      g.classList.add('entra');
+      g.addEventListener('animationend', function via(e) {
+        if (e.target !== g) return;   // il filo del titolo e' un ::after dell'h2
+        g.classList.remove('entra');
+        g.style.removeProperty('--entra-k');
+        g.removeEventListener('animationend', via);
+      });
+    });
+  }
+  window.entrataGruppi = entrata;
+
   if (tutti) tutti.addEventListener('click', function () {
     var chiudi = !tuttiChiusi();
     gruppi.forEach(function (g) { metti(g, chiudi); });
     salva(); aggiornaTutti();
   });
   aggiornaTutti();
+  entrata();
 })();
