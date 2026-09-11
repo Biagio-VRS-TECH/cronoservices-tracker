@@ -62,3 +62,26 @@
   --acc-lo: var(--marchio-tenue);
   --acc-ink: var(--su-marchio);
 }
+
+/* ---- GRUPPI RICHIUDIBILI (js/gruppi.js) ----------------------------------
+   Il titolo di ogni gruppo del pannello e' anche il suo interruttore: un clic
+   lo chiude (resta solo la riga del titolo, con la freccetta girata) e un
+   altro lo riapre; il bottone in cima (#grpTutti) li apre o chiude tutti.
+   Lo stato si ricorda per pagina nel browser. Il gruppo "Esporta" non si
+   chiude: e' l'uscita del lavoro e sta sempre a portata di clic. */
+#side .grp > h2[role="button"]{cursor:pointer;user-select:none}
+#side .grp > h2[role="button"]::before{content:"";width:6px;height:6px;flex:none;margin:0 3px 2px 1px;
+  border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);
+  transition:transform .22s var(--ease),color .13s}
+#side .grp.chiuso > h2[role="button"]::before{transform:rotate(-45deg) translateY(1px)}
+#side .grp > h2[role="button"]:hover{color:var(--ui-tx)}
+#side .grp > h2[role="button"]:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:4px}
+#side .grp.chiuso > :not(h2){display:none!important}
+#side .grp.chiuso{padding-bottom:14px}
+#side .grp.chiuso > h2{margin-bottom:0}
+#grpTutti{flex:0 0 auto;width:28px;height:24px;padding:0;border:1px solid var(--ui-3);border-radius:8px;
+  background:var(--ui-2);color:var(--ui-tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .13s,border-color .13s,color .13s}
+#grpTutti svg{width:14px;height:14px;display:block;transition:transform .24s var(--ease)}
+#grpTutti.chiusi svg{transform:rotate(180deg)}
+#grpTutti:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}

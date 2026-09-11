@@ -242,3 +242,48 @@ body.ponte-lavora #print{opacity:.6;pointer-events:none}
   .pn-strip{padding-left:13px;padding-right:13px}
   .ponte-scelte{left:13px;right:13px}
 }
+
+/* ---------- NEL PANNELLO ----------
+   Dall'11 settembre 2026 la testata sta nel pannello di sinistra, primo gruppo
+   (#ponteGrp), su richiesta del committente. Qui non scorre con le pagine:
+   niente nuvoletta (--r resta 0, guarda() in ponte.js non parte), niente
+   vetro, niente ombra - e' una sezione del pannello come le altre. Resta la
+   spina di stato, appoggiata al bordo sinistro del pannello. */
+#side #ponte{--r:0!important;width:auto!important;margin:0!important;padding:0!important;
+  grid-template-columns:minmax(0,1fr);column-gap:0;border:0;border-radius:0;
+  background:none;box-shadow:none;backdrop-filter:none;transition:none;font-size:12.8px}
+#side #ponte::after{display:none}
+#side #ponte::before{left:calc(-1 * var(--side-pad,20px));top:2px;bottom:2px;height:auto;
+  transform:none;width:3px;border-radius:0 2px 2px 0}
+#side .pn-corpo{padding:0!important;gap:6px}
+#side .pn-rotta{gap:4px 8px}
+#side .pn-rotta #ponteCambia{margin-left:auto}
+#side #ponte h2{font-size:17px}
+#side .pn-meta{font-size:12px}
+#side .pn-azione{grid-column:1;padding:10px 0 0!important}
+#side #ponte .btn{width:100%;justify-content:center;padding:10px 14px!important;font-size:13px!important;
+  border-radius:var(--r2)!important}
+#side #ponte .btn svg{width:15px!important;height:15px!important}
+#side .pn-strip{margin-top:8px;padding:6px 9px 7px!important;border:0!important;border-radius:var(--r1);
+  background:var(--ui-2);font-size:12px}
+#side .pn-strip::before{border-radius:inherit}
+#side .ponte-scelte{position:static;margin-top:8px;padding:8px;border:1px solid var(--ui-filo);
+  border-radius:var(--r2);box-shadow:var(--ui-ombra-1);animation:none}
+#side .ponte-scelte li button{grid-template-columns:56px minmax(0,1fr);gap:10px;padding:7px 8px}
+#side .sc-meta{display:none}
+/* la fascia di stato fa da avanzamento: nel pannello e' l'unica cosa che si
+   muove mentre si prepara il PDF, quindi e' un filo piu' alta */
+body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!important}
+
+/* ---------- LA SFOGLIATA ----------
+   Quando il documento nasce (ponte.js, sfoglia()) le prime pagine salgono al
+   loro posto una dopo l'altra, con un accenno di prospettiva: fogli posati
+   sul banco. `--k` e' l'ordine, lo scrive il JS per le prime quattordici. */
+#pages.sfoglia{perspective:1600px}
+#pages.sfoglia .page{animation:pagina-posata .85s var(--ease) both;
+  animation-delay:calc(var(--k,0) * 70ms);transform-origin:50% 100%}
+@keyframes pagina-posata{
+  from{opacity:0;transform:translateY(36px) rotateX(7deg) scale(.985)}
+  60%{opacity:1}
+}
+@media (prefers-reduced-motion:reduce){#pages.sfoglia .page{animation:none}}

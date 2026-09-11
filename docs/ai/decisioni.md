@@ -1111,3 +1111,21 @@ segmentati si assesta (`premi`); le carte delle Statistiche salgono di 2px al
 passaggio dopo l'entrata; la ricerca si allarga a fuoco; l'anno scivola mentre
 carica; nei generatori la pagina di partenza e i gruppi del pannello si rivelano
 in sequenza una volta sola (`sale`). Tutto sotto `prefers-reduced-motion`.
+
+Seconda passata sullo stesso giorno, tre correzioni del committente:
+- la rivelazione a scatti dei generatori ("sembra un bug") e' tolta;
+- il PONTE non e' piu' la testata sopra l'anteprima: e' il primo gruppo del
+  pannello di sinistra ("Collegamento al tracker", `#ponteGrp`). Li' non
+  scorre con le pagine, quindi niente nuvoletta: `guarda()` in ponte.js non
+  parte se `#ponte` sta dentro `#side`, e `css/ponte.css` (sezione NEL
+  PANNELLO) gli toglie vetro, ombra e griglia a due colonne. Il markup di
+  #ponte e' identico a prima, spostato;
+- i GRUPPI del pannello si aprono e chiudono: il titolo e' l'interruttore,
+  `#grpTutti` nella barra del marchio li gira tutti (`js/gruppi.js`, stato in
+  `cs.gruppi.<pagina>`; CSS in `css/banco.css`). "Esporta" non si chiude.
+Le due animazioni SCENICHE, entrambe legate a un momento vero e non decorative:
+la SFOGLIATA (`sfoglia()` in ponte.js, `#pages.sfoglia`) - quando il documento
+nasce da zero pagine le prime quattordici salgono al posto una dopo l'altra con
+un accenno di prospettiva; e la FESTA (anno.js, `.blocco.festa` / `.cella.fiorisce`
+in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
+la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.

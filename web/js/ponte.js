@@ -348,8 +348,32 @@ export function avviaPonte(cfg = {}) {
        mutazioni sono le nostre (rendiPagine sposta le pagine di lotto in lotto
        in un contenitore d'appoggio) e `progresso` ridisegna gia' per conto suo. */
     const pages = $('#pages');
-    if (pages) new MutationObserver(() => { if (!inCorso) disegna(); }).observe(pages, { childList: true, subtree: true });
+    if (pages) {
+      let prima = pages.querySelectorAll('.page').length;
+      new MutationObserver(() => {
+        if (!inCorso) disegna();
+        const n = pages.querySelectorAll('.page').length;
+        if (prima === 0 && n > 0) sfoglia(pages);
+        prima = n;
+      }).observe(pages, { childList: true, subtree: true });
+    }
     addEventListener('keydown', e => { if (e.key === 'Escape' && esitoCorrente?.cand) { chiudiLista(); disegna(); } });
+  }
+
+  /* ------------------------------------------------------------ la sfogliata --
+     Quando il documento NASCE (da zero pagine a qualcuna: il file appena
+     caricato) le prime pagine salgono al loro posto una dopo l'altra, come
+     fogli posati sul banco (css/ponte.css, #pages.sfoglia). Solo allora: le
+     impaginazioni successive, a ogni impostazione toccata, non si muovono. */
+  function sfoglia(pages) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const pg = [...pages.querySelectorAll('.page')].slice(0, 14);
+    pg.forEach((p, i) => p.style.setProperty('--k', String(i)));
+    pages.classList.add('sfoglia');
+    setTimeout(() => {
+      pages.classList.remove('sfoglia');
+      pg.forEach(p => p.style.removeProperty('--k'));
+    }, 900 + pg.length * 70);
   }
 
   /* ------------------------------------------------ la testata che si chiude --
@@ -370,6 +394,9 @@ export function avviaPonte(cfg = {}) {
 
   function guarda() {
     const dock = $('#ponte');
+    /* dentro il pannello di sinistra (#side) la testata e' un gruppo come gli
+       altri: non scorre con le pagine, quindi niente nuvoletta e niente misure */
+    if (dock.closest('#side')) return;
     const secco = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let attesa = false, inMisura = false, larghezzaMisurata = -1;
 

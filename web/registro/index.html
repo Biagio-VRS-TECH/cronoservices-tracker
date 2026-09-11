@@ -24,6 +24,7 @@
   <div id="brandbar">
     <img src="/assets/logo.webp" alt="VRS Group">
     <h1>Registro componenti<span>Documento per il cliente</span></h1>
+    <button type="button" id="grpTutti" title="Chiudi tutti i gruppi" aria-label="Chiudi tutti i gruppi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/><path d="M7 20l5-5 5 5" opacity=".45"/></svg></button>
     <div id="themeSeg" role="group" aria-label="Aspetto dell'applicazione">
       <button type="button" data-theme="auto" title="Segui il sistema" aria-label="Aspetto: segui il sistema">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v16.8"/><path d="M12 20.4a8.4 8.4 0 0 0 0-16.8" fill="currentColor" stroke="none"/></svg>
@@ -37,6 +38,47 @@
     </div>
   </div>
 
+  <!-- Il PONTE col tracker (js/ponte.js, css/ponte.css) e' il primo gruppo del
+       pannello: a quale sito del tracker appartiene il lavoro, e il bottone che
+       consegna. Stava sopra l'anteprima come testata; il committente lo ha voluto
+       qui, fra i gruppi, richiudibile come gli altri (js/gruppi.js). -->
+  <div class="grp grp-ponte" id="ponteGrp">
+    <h2>Collegamento al tracker</h2>
+  <div id="ponte" hidden>
+    <div class="pn-corpo">
+      <p class="pn-rotta">
+        <a href="/" title="Torna a Crono Mappature">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          Crono Mappature</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span id="ponteCosa">consegna a</span>
+        <span class="pn-come" id="ponteCome" hidden></span>
+        <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
+      </p>
+      <div id="ponteSito" hidden>
+        <h2 id="ponteCliente"></h2>
+        <p class="pn-meta" id="ponteMeta"></p>
+      </div>
+      <div class="pn-cerca" id="ponteCerca">
+        <input id="ponteQ" list="ponteLista" autocomplete="off"
+               placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
+               aria-label="Sito del tracker a cui collegare il registro">
+        <datalist id="ponteLista"></datalist>
+      </div>
+    </div>
+    <div class="pn-azione">
+      <button type="button" class="btn" id="ponteSalva" disabled
+              title="Produce il PDF del registro e lo archivia nel tracker sul sito collegato">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
+        <span>Salva nel tracker</span></button>
+    </div>
+    <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
+    <div class="ponte-scelte" id="ponteScelte" hidden>
+      <header><span>Probabilmente e&rsquo; uno di questi</span><button type="button" class="pn-mini" id="ponteChiudiScelte">chiudi</button></header>
+      <ul></ul>
+    </div>
+  </div>
+  </div>
   <div class="grp" id="fileGrp">
     <h2>1 · Export del gestionale</h2>
     <div id="drop" role="button" tabindex="0" aria-controls="file"><b>Trascina qui il file</b>.xls &middot; .xlsx<br><span style="color:var(--ui-tx3)">oppure clicca per sceglierlo</span></div>
@@ -88,41 +130,6 @@
 </aside>
 
 <main id="main">
-  <div id="ponte" hidden>
-    <div class="pn-corpo">
-      <p class="pn-rotta">
-        <a href="/" title="Torna a Crono Mappature">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-          Crono Mappature</a>
-        <span class="sep" aria-hidden="true">/</span>
-        <span id="ponteCosa">consegna a</span>
-        <span class="pn-come" id="ponteCome" hidden></span>
-        <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
-      </p>
-      <div id="ponteSito" hidden>
-        <h2 id="ponteCliente"></h2>
-        <p class="pn-meta" id="ponteMeta"></p>
-      </div>
-      <div class="pn-cerca" id="ponteCerca">
-        <input id="ponteQ" list="ponteLista" autocomplete="off"
-               placeholder="A quale sito del tracker appartiene? Cliente, destinazione o #id…"
-               aria-label="Sito del tracker a cui collegare il registro">
-        <datalist id="ponteLista"></datalist>
-      </div>
-    </div>
-    <div class="pn-azione">
-      <button type="button" class="btn" id="ponteSalva" disabled
-              title="Produce il PDF del registro e lo archivia nel tracker sul sito collegato">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
-        <span>Salva nel tracker</span></button>
-    </div>
-    <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
-    <div class="ponte-scelte" id="ponteScelte" hidden>
-      <header><span>Probabilmente e&rsquo; uno di questi</span><button type="button" class="pn-mini" id="ponteChiudiScelte">chiudi</button></header>
-      <ul></ul>
-    </div>
-  </div>
-
   <div id="viste" role="tablist" aria-label="Viste del banco" hidden>
     <button type="button" role="tab" id="tabAnteprima" aria-selected="true" aria-controls="vistaAnteprima">Anteprima<span class="conta" id="contaPagine"></span></button>
     <button type="button" role="tab" id="tabNomi" aria-selected="false" aria-controls="vistaNomi">Nomi dei componenti<span class="conta" id="contaNomi"></span></button>
@@ -211,6 +218,7 @@ setTheme(temaDaChiave(), false);
 window.addEventListener('storage', function(e){ if (e.key === 'cs.tema') setTheme(temaDaChiave(), false, true); });
 </script>
 
+<script src="/js/gruppi.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

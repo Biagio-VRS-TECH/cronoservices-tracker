@@ -395,7 +395,14 @@ function dipingi(n, id, mese) {
     n.setAttribute('data-' + SIGLA[k], v === 1 ? 1 : v === PROPOSTA ? 3 : e.ered[k] ? 2 : 0);
   }
   n.classList.toggle('attesa', e.attesa.length > 0);
+  /* la capsula che DIVENTA completa sotto la mano fiorisce una volta
+     (css/griglia.css, .fiorisce): e' il momento che si aspettava */
+  const eraCompleta = n.classList.contains('completa');
   n.classList.toggle('completa', e.completa);
+  if (e.completa && !eraCompleta && n.isConnected) {
+    n.classList.add('fiorisce');
+    n.addEventListener('animationend', () => n.classList.remove('fiorisce'), { once: true });
+  }
   n.classList.toggle('ritardo', e.ritardo);
   n.classList.toggle('con-nota', !!e.c.nota);
   n.classList.toggle('sospesa', CAMPI.some(x => st.sospese.has(`${id}-${mese}-${x}`)));
@@ -479,7 +486,15 @@ function aggiornaTotali(id) {
   const completo = pg.tot > 0 && pg.fatti === pg.tot;
   t2.innerHTML = pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;';
   t2.classList.toggle('pieno', completo);
+  /* LA FESTA: l'ultima spunta che chiude la mappatura del cliente accende la
+     carta e una luce verde la attraversa, una volta (css/griglia.css) */
+  const eraCompleto = sez.classList.contains('completo');
   sez.classList.toggle('completo', completo);
+  if (completo && !eraCompleto) {
+    sez.classList.remove('festa'); void sez.offsetWidth;
+    sez.classList.add('festa');
+    sez.addEventListener('animationend', () => sez.classList.remove('festa'), { once: true });
+  }
   aggiornaRigaTotali();
 }
 

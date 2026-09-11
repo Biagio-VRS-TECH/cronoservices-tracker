@@ -37,7 +37,7 @@ button,select,input{font-family:inherit}
 
 /* ==================================================== APPLICAZIONE: guscio */
 #app{display:flex;height:100vh;overflow:hidden;background:var(--fondo-banco)}
-#side{width:400px;flex:0 0 400px;background:var(--ui-1);border-right:1px solid var(--ui-3);
+#side{--side-pad:22px;width:400px;flex:0 0 400px;background:var(--ui-1);border-right:1px solid var(--ui-3);
   padding:0 22px;position:sticky;top:0;height:100vh;overflow:auto;
   display:flex;flex-direction:column;
   scrollbar-width:thin;scrollbar-color:var(--ui-4) transparent}
@@ -133,20 +133,6 @@ label.row select{flex:0 0 auto}
 .btn:hover::after{animation:lampo .75s var(--ease) both}
 .btn.sec::after,.btn:disabled::after{display:none}
 @keyframes lampo{to{transform:skewX(-18deg) translateX(420%)}}
-/* la pagina di partenza si rivela una riga alla volta, e i gruppi del pannello
-   entrano in sequenza: una volta sola, all'apertura */
-@keyframes sale{from{opacity:0;transform:translateY(8px)}}
-#empty-state>*{animation:sale .5s var(--ease) both}
-#empty-state>:nth-child(2){animation-delay:.06s}
-#empty-state>:nth-child(3){animation-delay:.12s}
-#empty-state>:nth-child(4){animation-delay:.18s}
-#empty-state>:nth-child(5){animation-delay:.24s}
-#side .grp{animation:sale .45s var(--ease) both}
-#side .grp:nth-of-type(2){animation-delay:.05s}
-#side .grp:nth-of-type(3){animation-delay:.1s}
-#side .grp:nth-of-type(4){animation-delay:.15s}
-#side .grp:nth-of-type(5){animation-delay:.2s}
-#drop:hover,#drop.hot{transform:translateY(-1px)}
 .duebtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .duebtn .btn{margin-top:10px}
 
@@ -176,7 +162,7 @@ label.row select{flex:0 0 auto}
 .etichetta.info{background:var(--ui-2);color:var(--ui-tx3);border:1px solid var(--ui-3)}
 
 /* il comando di uscita resta a portata di clic anche a pannello lungo */
-#exportGrp{animation:none;position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
+#exportGrp{position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
   padding-bottom:18px;border-top:1px solid var(--ui-filo);z-index:4;
   box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 .zoomrow{display:flex;gap:8px;align-items:center;margin-top:10px}
