@@ -1131,8 +1131,12 @@ in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
 la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.
 Terza scena, IL LIBRETTO (`apriLibretto()` in ponte.js, css/ponte.css sezione
 omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela e in
-mezzo il documento sfoglia - le prime sei pagine vere, clonate senza id e
-ridotte a 190px, girano sul dorso avanti e indietro; sotto la frase di stato e
+mezzo il documento sfoglia - dodici fogli (le prime pagine vere, clonate senza
+id e ridotte a 190px, ripetute se sono meno) girano sul dorso SEMPRE IN AVANTI,
+uno ogni 0,6 s, in un giro infinito senza cuciture: il foglio girato torna in
+fondo alla pila coperto dagli altri e risale con lo z-index animato (prima era
+`alternate` su sei fogli: il ritorno indietro sembrava un bug, e con attese di
+25-50 s sei fogli erano pochi); sotto la frase di stato e
 l'avanzamento della fascia. Si chiude da solo alla fine, bene o male che vada.
 Il velo e' in rgba e i cloni stanno fuori da #pages: html2canvas gira proprio
 in quel momento e non deve ne' vederli ne' inciampare in un color-mix.

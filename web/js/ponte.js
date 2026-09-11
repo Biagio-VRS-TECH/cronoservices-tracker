@@ -653,12 +653,18 @@ export function avviaPonte(cfg = {}) {
      I cloni perdono gli id (non devono farsi trovare dai getElementById dei
      generatori) e stanno FUORI da #pages: html2canvas fotografa solo le pagine
      vere e non li vede. */
-  const FOGLI = 6;
+  /* Dodici fogli sempre, perche' i tempi dell'animazione (css) sono scritti per
+     dodici: se il documento ne ha meno, le pagine si ripetono. E' un giro
+     INFINITO in avanti: il foglio girato torna sotto la pila coperto dagli
+     altri, quindi non c'e' ne' fine ne' ricomincio da vedere - l'attesa puo'
+     durare anche un minuto. */
+  const FOGLI = 12;
   function apriLibretto() {
     chiudiLibretto(true);
     const main = $(selScorr)?.parentElement || $('#main');
-    const pagine = pagineDi().slice(0, FOGLI);
-    if (!main || !pagine.length) return;
+    const fonte = pagineDi().slice(0, FOGLI);
+    if (!main || !fonte.length) return;
+    const pagine = Array.from({ length: FOGLI }, (_, i) => fonte[i % fonte.length]);
     const largo = pagine[0].offsetWidth || 794, alto = pagine[0].offsetHeight || 1123;
     const W = 190, S = W / largo, Hh = Math.round(alto * S);
     const lb = document.createElement('div');

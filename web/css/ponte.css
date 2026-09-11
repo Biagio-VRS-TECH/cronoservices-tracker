@@ -290,10 +290,18 @@ body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!i
 
 /* ---------- IL LIBRETTO (ponte.js, apriLibretto) ----------
    Mentre il PDF si prepara e viaggia verso il tracker, l'anteprima si vela e
-   in mezzo il documento sfoglia: le prime pagine vere, clonate e ridotte a
-   190px, girano una dopo l'altra sul dorso (avanti, poi indietro: `alternate`
-   evita il salto del ritorno). Sotto, la frase di stato e l'avanzamento.
-   Il velo e' in rgba, non color-mix: html2canvas gira in questo momento. */
+   in mezzo il documento sfoglia: dodici fogli (le prime pagine vere, clonate e
+   ridotte a 190px) che girano sul dorso SEMPRE IN AVANTI, uno ogni 0,6 s.
+   Il giro e' infinito e senza cuciture: ogni foglio, finito di girare, e'
+   invisibile (rovescio nascosto), torna piatto in fondo alla pila coperto
+   dagli altri e risale di un grado alla volta con lo z-index animato, finche'
+   e' di nuovo in cima e gira. Tutto in CSS sul compositor: html2canvas blocca
+   il thread principale proprio in quel momento e un giro guidato dal JS
+   scatterebbe. I tempi sono per DODICI fogli (ciclo 7,2 s, giro 0,55 s =
+   7,6%): ponte.js ne mette sempre dodici, ripetendo le pagine se sono meno.
+   Niente preserve-3d: in uno spazio 3D condiviso i fogli complanari si
+   ordinerebbero a caso, qui comanda lo z-index. Il velo e' in rgba, non
+   color-mix: html2canvas gira in questo momento. */
 .libretto{position:absolute;inset:0;z-index:36;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:20px;pointer-events:none;
   background:rgba(15,18,21,.78);backdrop-filter:blur(7px) saturate(1.1);
@@ -303,30 +311,37 @@ body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!i
 .libretto.chiude{animation:lb-esce .5s var(--ease) .2s both}
 @keyframes lb-esce{to{opacity:0}}
 .lb-libro{position:relative;width:var(--lb-w,190px);height:var(--lb-h,269px);perspective:1500px;
-  transform-style:preserve-3d;filter:drop-shadow(0 34px 44px rgba(0,0,0,.5))}
+  filter:drop-shadow(0 34px 44px rgba(0,0,0,.5))}
 :root.lt .lb-libro{filter:drop-shadow(0 24px 36px rgba(15,20,24,.28))}
 .lb-foglio{position:absolute;inset:0;overflow:hidden;background:#fff;border-radius:2px 5px 5px 2px;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.07);transform-origin:left center;backface-visibility:hidden;
-  z-index:calc(20 - var(--i,0));
-  animation:lb-sfoglia 1.7s cubic-bezier(.6,.05,.3,1) infinite alternate;
-  animation-delay:calc(var(--i,0) * .19s)}
+  animation:lb-giro 7.2s linear infinite;
+  /* il foglio i parte a i passi dalla cima: ritardo negativo, cosi' la pila e'
+     gia' in ordine al primo fotogramma e il primo gira subito */
+  animation-delay:calc(var(--i,0) * .6s - 7.2s)}
 .lb-foglio>*{pointer-events:none}
 /* l'ombra che scende sul foglio mentre gira */
 .lb-foglio::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(90deg,rgba(0,0,0,.22),transparent 40%);opacity:0;
-  animation:lb-ombra 1.7s cubic-bezier(.6,.05,.3,1) infinite alternate;animation-delay:inherit}
-@keyframes lb-sfoglia{0%,28%{transform:rotateY(0)} 72%,100%{transform:rotateY(-178deg)}}
-@keyframes lb-ombra{0%,28%{opacity:0} 50%{opacity:1} 72%,100%{opacity:0}}
+  background:linear-gradient(90deg,rgba(0,0,0,.24),transparent 45%);opacity:0;
+  animation:lb-ombra 7.2s linear infinite;animation-delay:inherit}
+@keyframes lb-giro{
+  0%   {transform:rotateY(0);z-index:40;animation-timing-function:cubic-bezier(.55,.05,.35,1)}
+  7.6% {transform:rotateY(-180deg);z-index:40}
+  7.7% {transform:rotateY(0);z-index:1}
+  100% {transform:rotateY(0);z-index:30}
+}
+@keyframes lb-ombra{0%{opacity:0} 3.8%{opacity:1} 7.6%,100%{opacity:0}}
 /* il dorso: la costa scura su cui girano i fogli */
 .lb-dorso{position:absolute;left:-3px;top:-2px;bottom:-2px;width:5px;border-radius:2px;
-  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));z-index:30}
+  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));z-index:60}
 .lb-frase{margin:0;font:600 10.5px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;
   color:var(--ui-tx2);text-align:center;max-width:70%}
 .lb-barra{width:var(--lb-w,190px);height:3px;border-radius:2px;background:rgba(127,127,127,.25);overflow:hidden}
 .lb-barra i{display:block;height:100%;width:var(--p,0%);border-radius:inherit;
   background:linear-gradient(90deg,var(--acc-hi),var(--acc));transition:width .3s var(--ease)}
-.libretto.chiude .lb-foglio,.libretto.chiude .lb-foglio::after{animation:lb-posa .45s var(--ease) both}
-@keyframes lb-posa{to{transform:rotateY(0) scale(.94);opacity:1}}
+.libretto.chiude .lb-foglio{animation:lb-posa .45s var(--ease) both}
+.libretto.chiude .lb-foglio::after{animation:none;opacity:0}
+@keyframes lb-posa{to{transform:rotateY(0) scale(.94)}}
 @media (prefers-reduced-motion:reduce){
   .lb-foglio,.lb-foglio::after{animation:none}
   .libretto,.libretto.chiude{animation:none}
