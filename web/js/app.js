@@ -517,16 +517,19 @@ function massa(modo) {
         `${completa ? 'mettere' : 'togliere'}, su <b>${celle.size}</b> ` +
         `${celle.size === 1 ? 'mappatura' : 'mappature'} di <b>${serv.size}</b> service.`
         : `Non c'è niente da ${completa ? 'completare' : 'azzerare'} con questi filtri.`;
+      const spunte = `${voci.length} ${voci.length === 1 ? 'spunta' : 'spunte'}`;
       bottone.textContent = voci.length
-        ? (completa ? `Completa ${voci.length} spunte` : `Azzera ${voci.length} spunte`)
+        ? (completa ? `Completa ${spunte}` : `Azzera ${spunte}`)
         : 'Chiudi';
       ok.hidden = !voci.length;
       if (voci.length) ok.rivedi(); else bottone.disabled = false;
       bottone.onclick = () => {
         chiudi();
         if (!voci.length) return;
+        /* `spuntaMolte` emette 'rilegge' da se': la griglia e' gia' ridisegnata
+           quando si torna qui, e un `disegna()` in piu' era un secondo
+           ridisegno di tutta la pagina per niente */
         const n = spuntaMolte(voci, completa ? 'Completamento di massa' : 'Azzeramento di massa', 'massa');
-        disegna();
         /* il colpo si VEDE: l'onda attraversa le celle toccate
            (#ANCHOR: onda-massa in anno.js) */
         if (st.vista === 'anno') vAnno.onda(celle, completa ? 'su' : 'giu');
@@ -536,8 +539,7 @@ function massa(modo) {
           tono: completa ? 'ok' : 'allerta', durata: 15000,
           azione: {
             et: 'Annulla', fn: () => {
-              const m = annullaUltima();
-              disegna();
+              const m = annullaUltima();      // ridisegna da se' ('rilegge')
               avviso(`Annullato: ${m} spunte riportate come prima.`);
             }
           },

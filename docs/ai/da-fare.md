@@ -3,6 +3,45 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-11 (31a sessione, seconda passata) - Azzera che lasciava indietro, e la griglia ridisegnata dieci volte
+
+Due difetti visti subito dopo:
+
+1. **"Azzera tutte" lasciava qualche spunta.** `passiPresenti` (`js/anno.js`)
+   saltava le celle non `spuntabile` e i service non `APERTO`: una spunta su un
+   mese che oggi non e' piu' previsto - la **cella orfana**, il calendario del
+   contratto e' cambiato dopo che la spunta era stata messa - o su un sito
+   chiuso rimesso a schermo da "Mostra chiusi" non veniva nemmeno guardata, e
+   restava li' per sempre. Ora si toglie **tutto quello che c'e' su quello che
+   si sta vedendo**: si legge `cella` (il valore) invece di `statoCella` (la
+   classe del mese), e i filtri restano l'unico confine, come dice la finestra.
+   `passiMancanti` NON cambia: completare un mese non previsto creerebbe altre
+   celle orfane. Provato sul db di prova: dopo l'azzeramento restavano **1**
+   spunta (sito chiuso, mese non previsto), che con "Mostra chiusi" acceso ora
+   si toglie; prima quella stessa passata ne trovava 0 e non c'era modo di
+   togliere quella spunta dall'interfaccia.
+2. **La pagina si ridisegnava a ogni blocco.** `spuntaMolte` spedisce a blocchi
+   da 250 e `esitoConferma` emetteva una `rilegge` per ognuno: **11 ridisegni
+   di tutta la griglia** in fila su 2364 spunte (misurati con un
+   MutationObserver su `#area`), lo scorrimento che salta in cima e l'onda
+   spazzata via. Tre misure:
+   - il taglio dei blocchi non cade piu' in mezzo a una cella (i quattro passi
+     della stessa cella partono insieme): la risposta di un blocco porta la
+     cella **com'era a quel punto**, quindi una cella spezzata tornava a meta'
+     e sembrava sempre diversa da quella gia' scritta in locale - era una
+     `rilegge` garantita per ogni blocco;
+   - `esitoConferma` confronta lo stato **prima** del blocco con quello
+     **dopo** (`cambiaAVista`: i quattro passi e la nota, non `rev`/`by`/`at`
+     che cambiano sempre e non si disegnano) e ridisegna solo se il server ha
+     detto qualcosa di diverso - un merge, una proposta, una nota;
+   - via i due `disegna()` di troppo in `massa()` e nel bottone *Annulla*:
+     `spuntaMolte` e `annullaUltima` emettono gia' `rilegge`.
+
+   Risultato misurato: **1 ridisegno** invece di 11, l'onda resta in piedi, la
+   coda si svuota lo stesso (0 in sospeso a fine giro).
+
+Di passaggio: il bottone della finestra diceva "Azzera 1 spunte".
+
 ## Fatto il 2026-09-11 (31a sessione) - il quadro che si accavallava e tre animazioni
 
 Branch `registro-componenti-premium`, stesso della 29a e della 30a. Quattro

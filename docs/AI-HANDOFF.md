@@ -242,6 +242,18 @@ pannello entrano a scalare** all'apertura e di nuovo quando un file carica e si
 riempiono (`entrataGruppi()` in `js/gruppi.js`, CSS in `css/banco.css`).
 Tutte e due rispettano `prefers-reduced-motion`.
 
+**Seconda passata, stesso giorno: le azioni di massa.** *Azzera tutte*
+lasciava indietro le spunte sulle celle **orfane** (un mese che oggi non e'
+piu' previsto) e sui siti chiusi: `passiPresenti` (`js/anno.js`) guardava solo
+le celle `spuntabile` di un service `APERTO`, e da li' non si tornava piu'
+indietro. Ora toglie tutto quello che c'e' su quello che si sta vedendo (i
+filtri restano l'unico confine); `passiMancanti` non cambia, perche' completare
+un mese non previsto creerebbe altre orfane. E la griglia **si ridisegnava una
+volta per blocco** da 250 (11 volte su 2364 spunte): ora i blocchi non spezzano
+mai una cella, `esitoConferma` confronta lo stato prima/dopo il blocco
+(`cambiaAVista`) e ridisegna solo se il server ha detto qualcosa di diverso -
+un ridisegno in tutto.
+
 Service worker `crono-guscio-v26`.
 
 ## Stato al 2026-09-11 (30a sessione)

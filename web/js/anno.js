@@ -577,17 +577,24 @@ export function passiMancanti(soloReali = true) {
   return voci;
 }
 
-/** Passi da togliere nel set filtrato: per "Azzera". */
+/** Passi da togliere nel set filtrato: per "Azzera".
+ *  Qui, a differenza di `passiMancanti`, NON si guarda ne' `spuntabile` ne' lo
+ *  stato del service: si toglie tutto quello che c'e' su quello che si sta
+ *  vedendo. Una spunta puo' stare su un mese che oggi non e' piu' previsto (la
+ *  cella ORFANA: il calendario del contratto e' cambiato dopo che era stata
+ *  messa, vedi `htmlCella`) oppure su un sito chiuso, che "Mostra chiusi"
+ *  rimette a schermo: quelle restavano spuntate per sempre, perche' "Azzera
+ *  tutte" non le guardava nemmeno. Se una spunta si vede, si deve poter
+ *  togliere. Si legge `cella` e non `statoCella`: serve il valore, non la
+ *  classe del mese. */
 export function passiPresenti() {
   const voci = [];
   for (const g of gruppiFiltrati()) {
     for (const s of g.srvs) {
-      if (s.stato !== 'APERTO') continue;
       for (let m = 1; m <= 12; m++) {
-        const e = statoCella(s.id, m);
-        if (!e.spuntabile) continue;
+        const c = cella(s.id, m);
         for (const campo of CAMPI) {
-          if (e.c[SIGLA[campo]] !== 0) voci.push({ id: s.id, mese: m, campo, valore: 0 });   // anche le proposte
+          if (c[SIGLA[campo]] !== 0) voci.push({ id: s.id, mese: m, campo, valore: 0 });   // anche le proposte
         }
       }
     }
