@@ -275,7 +275,7 @@ Spariscono pero' anche i **Ripristina**, che leggono proprio quelle righe.
 
 ---
 
-## 6. Le schede tecnici e i loro PDF
+## 6. I PDF dei generatori (schede tecnici e registro componenti)
 
 Il generatore di schede (`/schede/`) alla stampa consegna il PDF al tracker.
 Online serve una tabella e un bucket in piu': **SQL Editor** → esegui
@@ -294,6 +294,21 @@ Impostazioni e *Elimina tutti* nel cassetto - rispondono "rotta sconosciuta"
 online, mentre in locale funzionano subito. Gli oggetti nel bucket li cancella
 il client prima della chiamata: e' lo stesso ordine di `elimina_documento`, e
 serve a non lasciare file orfani, che sono proprio lo spazio da liberare.
+
+**Dopo la 29a sessione (2026-09-11) vanno eseguiti, in ordine: `06-documenti.sql`
+(di nuovo) e `08-dizionario.sql` (nuovo).** Il 06 aggiunge la colonna
+`documenti.tipo` (`'schede'` | `'registro'`) e la nuova firma di
+`registra_documento(..., p_tipo)`: il generatore del REGISTRO DEI COMPONENTI
+(`/registro/`, il documento per il cliente) archivia il suo PDF sul sito
+**senza** mettere la spunta "stampata", e il tracker lo mostra con un'icona sua
+(libretto). Il 08 crea `dizionario_componenti` (codice articolo -> nome
+leggibile + priorita' nel quadro d'insieme), le due RPC `app_dizionario()` e
+`imposta_voce_dizionario(...)`, e semina le 24 voci che l'ufficio aveva gia'
+costruito col programma locale. Finche' il 06 nuovo non e' eseguito, la
+consegna del registro online risponde "funzione non trovata" (la firma con
+`p_tipo` non esiste ancora); finche' il 08 non c'e', il generatore del registro
+si apre ma la scheda *Nomi dei componenti* dice "rotta sconosciuta" e il
+documento usa le descrizioni del gestionale.
 
 ### Il tetto per file: 200 MB, e i tre posti dove vive
 

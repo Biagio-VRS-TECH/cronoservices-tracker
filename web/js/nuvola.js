@@ -254,6 +254,7 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
         p_bytes: b.bytes || 0, p_pagine: b.pagine || 0, p_anteprima: b.anteprima || null,
         p_gruppo: b.gruppo || null, p_fascicolo: num(b.fascicolo) || null,
         p_fascicoli: num(b.fascicoli) || null,
+        p_tipo: b.tipo === 'registro' ? 'registro' : 'schede',
       }, ms);
     case '/api/documento_elimina':
       return rpc('elimina_documento', { p_id: b.id }, ms);
@@ -261,6 +262,15 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('elimina_documenti', { p_anno: num(b.anno) || null,
                                         p_id_service: num(b.id_service) || null },
                  Math.max(ms, 60000));
+
+    // il dizionario dei componenti del registro (cloud/08-dizionario.sql, #ANCHOR: dizionario)
+    case '/api/dizionario':
+      if (metodo === 'GET') return rpc('app_dizionario', {}, ms);
+      return rpc('imposta_voce_dizionario', {
+        p_codice: b.codice, p_campi: Object.keys(b).filter(k => k === 'nome' || k === 'priorita'),
+        p_nome: b.nome ?? null, p_descrizione: b.descrizione ?? null,
+        p_priorita: b.priorita === '' || b.priorita == null ? null : Number(b.priorita),
+      }, ms);
 
     case '/api/sync':
       // Il .accdb sta sul PC dell'ufficio e da qui non si raggiunge: e' quel PC
@@ -369,6 +379,8 @@ const docDa = r => ({
   id: r.id, id_service: r.id_service, anno: r.anno, mese: r.mese, nome: r.nome,
   percorso: r.percorso, bytes: r.bytes, pagine: r.pagine, anteprima: r.anteprima,
   creato_il: r.creato_il, creato_da: r.creato_da,
+  gruppo: r.gruppo, fascicolo: r.fascicolo, fascicoli: r.fascicoli,
+  tipo: r.tipo || 'schede',
 });
 const cellaDa = r => ({
   s: r.stampata, c: r.controllata, k: r.corretta, r: r.ricambi,

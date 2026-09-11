@@ -10,14 +10,21 @@ body {
   background-image: var(--velo);
   background-repeat: no-repeat;
   font: 400 var(--t-base)/1.45 var(--f-ui);
+  font-feature-settings: var(--f-ui-feat);
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   overscroll-behavior: none;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { background: none; border: 0; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; border-radius: var(--r-1); }
+/* Il fuoco e' sempre visibile e sempre lo stesso: un anello cyan staccato di
+   2px piu' un alone tenue, cosi' si legge anche sopra una superficie tinta. */
+:focus-visible {
+  outline: 2px solid var(--marchio); outline-offset: 2px; border-radius: var(--r-1);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--marchio) 14%, transparent);
+}
 ::selection { background: var(--marchio-tenue); color: var(--inchiostro); }
-.dato { font-family: var(--f-dato); font-variant-numeric: tabular-nums; }
+.dato { font-family: var(--f-dato); font-variant-numeric: tabular-nums;
+  font-feature-settings: normal; letter-spacing: -.01em; }
 .solo-lettori { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 [hidden] { display: none !important; }
 
@@ -48,36 +55,48 @@ button { background: none; border: 0; cursor: pointer; }
 .banner a:hover { background: color-mix(in srgb, currentColor 34%, transparent); }
 
 /* ---------------------------------------------------------- intestazione -- */
+/* La testa e' di vetro, ma con una mano piu' fine: il gradiente di superficie,
+   un filo di luce interno sul bordo alto e un bordo basso a bassa opacita'
+   raddoppiato da un'ombra cortissima. Non un pannello, un vetro appoggiato. */
 .testa {
   position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; gap: 18px;
-  padding: 10px 18px; min-height: 60px;
+  padding: 10px 18px; min-height: 62px;
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--superficie) 92%, transparent),
-    color-mix(in srgb, var(--superficie) 74%, transparent));
-  backdrop-filter: saturate(1.7) blur(16px);
-  border-bottom: 1px solid var(--bordo);
+    color-mix(in srgb, var(--superficie) 94%, transparent),
+    color-mix(in srgb, var(--superficie) 72%, transparent));
+  backdrop-filter: saturate(1.7) blur(18px);
+  border-bottom: 1px solid var(--bordo-lieve);
+  box-shadow: inset 0 1px 0 var(--lucido), 0 1px 0 color-mix(in srgb, var(--inchiostro) 4%, transparent);
 }
-.marca { display: flex; align-items: center; gap: 10px; min-width: 0; flex: none; }
+.marca { display: flex; align-items: center; gap: 11px; min-width: 0; flex: none; }
 .marca img, .marca svg { height: 26px; width: auto; display: block; }
 .marca-testo { display: flex; flex-direction: column; line-height: 1.05; }
-.marca-testo b { font-size: var(--t-base); letter-spacing: -.01em; }
-.marca-testo span { font-size: var(--t-micro); color: var(--tenue); letter-spacing: .09em; text-transform: uppercase; }
+/* Il nome dell'applicazione e' scritto, non etichettato: display serif, peso
+   medio, tracking appena negativo. E' la prima cosa che dice "VRS". */
+.marca-testo b {
+  font-family: var(--f-display); font-weight: var(--p-display);
+  font-size: var(--t-med); letter-spacing: var(--tr-display);
+}
+.marca-testo span { font-size: var(--t-micro); color: var(--tenue); letter-spacing: .11em;
+  text-transform: uppercase; font-family: var(--f-dato); font-weight: 500; margin-top: 2px; }
 
-/* L'anno e' l'elemento display della pagina: grande, monospazio, compresso. */
-.anno-scelta { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+/* L'anno e' l'elemento display della pagina: grande, in Newsreader, compresso.
+   Il monospazio resta ai dati dentro le viste; qui l'anno e' un titolo. */
+.anno-scelta { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
 .anno-scelta .anno {
-  font-family: var(--f-dato); font-size: var(--t-titolo); font-weight: 700;
-  letter-spacing: -.04em; line-height: 1; padding: 0 4px;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--f-display); font-size: var(--t-titolo); font-weight: 600;
+  letter-spacing: -.035em; line-height: 1; padding: 0 5px;
+  font-variant-numeric: tabular-nums; font-feature-settings: normal;
   transition: opacity var(--medio);
 }
 .anno-scelta .anno.caricando { opacity: .45; }
 .frecc {
-  width: 26px; height: 26px; border-radius: var(--r-1); color: var(--tenue);
+  width: 28px; height: 28px; border-radius: var(--r-1); color: var(--tenue);
   display: grid; place-items: center; transition: var(--rapido);
 }
 .frecc:hover { background: var(--marchio-tenue); color: var(--marchio-scuro); }
+.frecc:active { transform: scale(.92); }
 .frecc[disabled] { opacity: .25; cursor: default; }
 
 .testa-spazio { flex: 1; }
@@ -90,10 +109,12 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .cerca input {
   width: clamp(160px, 24vw, 320px); padding: 7px 30px 7px 32px;
-  background: var(--fondo); border: 1px solid var(--bordo);
+  background: color-mix(in srgb, var(--fondo) 70%, transparent);
+  border: 1px solid var(--bordo-lieve);
   border-radius: var(--r-tonda); transition: var(--rapido);
 }
 .cerca input::-webkit-search-cancel-button { display: none; }
+.cerca input:hover { border-color: var(--bordo); background: var(--fondo); }
 .cerca input:focus { background: var(--superficie); border-color: var(--marchio); outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
 .cerca-x {
@@ -107,7 +128,7 @@ button { background: none; border: 0; cursor: pointer; }
 /* stato del collegamento: spia + chi c'e' + etichetta, tutto cliccabile */
 .stato-coll {
   display: flex; align-items: center; gap: 8px; padding: 5px 11px;
-  border: 1px solid var(--bordo); border-radius: var(--r-tonda);
+  border: 1px solid var(--bordo-lieve); border-radius: var(--r-tonda);
   font-size: var(--t-mini); color: var(--inchiostro-2); transition: var(--rapido);
   white-space: nowrap;
 }
@@ -158,18 +179,23 @@ button { background: none; border: 0; cursor: pointer; }
 
 /* ------------------------------------------------------- barra strumenti -- */
 .strumenti {
-  position: sticky; top: 60px; z-index: 35;
+  position: sticky; top: 62px; z-index: 35;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 18px; background: var(--superficie); border-bottom: 1px solid var(--bordo);
+  padding: 8px 18px; background: var(--superficie); border-bottom: 1px solid var(--bordo-lieve);
 }
-.gruppo { display: flex; background: var(--fondo); border-radius: var(--r-2); padding: 2px; gap: 2px; }
+.gruppo {
+  display: flex; background: var(--fondo); border-radius: var(--r-2); padding: 2px; gap: 2px;
+  box-shadow: inset 0 0 0 1px var(--bordo-lieve);
+}
 .gruppo button {
-  padding: 5px 12px; border-radius: 7px; font-size: var(--t-mini); font-weight: 500;
+  padding: 5px 12px; border-radius: var(--r-1); font-size: var(--t-mini); font-weight: 500;
   color: var(--tenue); transition: var(--rapido); white-space: nowrap;
 }
 .gruppo button:hover { color: var(--inchiostro); }
+.gruppo button:active { transform: translateY(.5px); }
 .gruppo button[aria-pressed="true"] {
-  background: var(--superficie); color: var(--inchiostro); box-shadow: var(--ombra-1);
+  background: var(--superficie); color: var(--inchiostro); font-weight: 600;
+  box-shadow: var(--ombra-1), inset 0 0 0 1px var(--bordo-lieve);
 }
 /* La vista attiva porta un trattino cyan sotto l'etichetta: nel segmented
    control il solo fondo bianco si perdeva sul fondo chiaro della barra. */
@@ -198,11 +224,13 @@ button { background: none; border: 0; cursor: pointer; }
    sull'attivo. */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: var(--r-tonda); border: 1px solid transparent;
+  padding: 5px 12px; border-radius: var(--r-tonda); border: 1px solid transparent;
   background: var(--fondo); font-size: var(--t-mini); font-weight: 500;
   color: var(--inchiostro-2); transition: var(--rapido); white-space: nowrap;
 }
-.pill:hover { border-color: var(--bordo); background: var(--superficie-2); color: var(--inchiostro); }
+.pill:hover { border-color: var(--bordo); background: var(--superficie-2); color: var(--inchiostro);
+  box-shadow: var(--ombra-1); }
+.pill:active { transform: translateY(.5px); box-shadow: none; }
 .pill[aria-pressed="true"] {
   background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
   color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
@@ -213,7 +241,7 @@ button { background: none; border: 0; cursor: pointer; }
 /* la tendina resta una pillola, ma con la freccina: senza, sembrava un'etichetta */
 select.pill {
   padding-right: 22px; appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236E7175' stroke-width='1.5' stroke-linecap='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23616C76' stroke-width='1.5' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat; background-position: right 8px center;
 }
 
@@ -293,9 +321,10 @@ select.pill {
 }
 .avviso {
   pointer-events: auto; display: flex; align-items: center; gap: 12px;
-  padding: 9px 12px 9px 14px; border-radius: var(--r-tonda);
+  padding: 10px 12px 10px 15px; border-radius: var(--r-tonda);
   background: var(--inchiostro); color: var(--fondo);
-  box-shadow: var(--ombra-3); font-size: var(--t-mini); max-width: 92vw;
+  box-shadow: var(--ombra-3), inset 0 1px 0 rgba(255,255,255,.09);
+  font-size: var(--t-mini); max-width: 92vw;
   animation: sali var(--medio) both;
 }
 @keyframes sali { from { opacity: 0; transform: translateY(10px) scale(.97); } }
@@ -310,14 +339,17 @@ select.pill {
 
 /* ---------------------------------------------------------------- modale -- */
 .velo {
-  position: fixed; inset: 0; z-index: 80; background: rgba(15,20,26,.4);
-  backdrop-filter: blur(3px); display: grid; place-items: center; padding: 20px;
+  position: fixed; inset: 0; z-index: 80;
+  background: color-mix(in srgb, var(--inchiostro) 46%, transparent);
+  backdrop-filter: blur(4px) saturate(1.1); display: grid; place-items: center; padding: 20px;
   animation: sfuma var(--rapido) both;
 }
 @keyframes sfuma { from { opacity: 0; } }
 .foglio {
-  background: var(--superficie); border-radius: var(--r-3); box-shadow: var(--ombra-3);
-  width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 22px;
+  background: var(--superficie); border-radius: var(--r-3);
+  box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
+  border: 1px solid var(--bordo-lieve);
+  width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 24px;
   animation: entra var(--medio) both;
 }
 @keyframes entra { from { opacity: 0; transform: translateY(12px) scale(.98); } }
@@ -328,19 +360,28 @@ select.pill {
   width: min(1160px, 100%); max-height: 92vh; overflow: hidden;
   display: flex; flex-direction: column; padding: 22px 24px 24px;
 }
-.foglio h2 { margin: 0 0 4px; font-size: var(--t-grande); letter-spacing: -.02em; }
+/* I titoli delle finestre sono in display: e' la stessa voce del nome dell'app
+   e dell'anno in testa, e distingue una domanda da un comando. */
+.foglio h2 {
+  margin: 0 0 5px; font-family: var(--f-display); font-weight: var(--p-display);
+  font-size: 24px; line-height: 1.15; letter-spacing: var(--tr-display);
+}
 .foglio p.sotto { margin: 0 0 18px; color: var(--tenue); }
 .campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo);
-  border-radius: var(--r-2); background: var(--fondo); }
+  border-radius: var(--r-2); background: var(--fondo); transition: var(--rapido); }
+.campo:hover { border-color: var(--bordo-forte); }
 .campo:focus { outline: none; border-color: var(--marchio); background: var(--superficie);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
 .bottone {
-  padding: 9px 16px; border-radius: var(--r-2);
+  padding: 9px 17px; border-radius: var(--r-2);
   background: var(--marchio); color: var(--su-marchio);
   font-weight: 650; font-size: var(--t-mini); transition: var(--rapido);
+  box-shadow: var(--ombra-1), inset 0 1px 0 rgba(255,255,255,.28);
 }
-.bottone:hover { background: color-mix(in srgb, var(--marchio) 82%, var(--su-marchio)); }
-.bottone.piatto { background: none; color: var(--tenue); }
+.bottone:hover { background: color-mix(in srgb, var(--marchio) 82%, var(--su-marchio));
+  box-shadow: var(--alone-marchio); }
+.bottone:active { transform: translateY(1px); box-shadow: none; }
+.bottone.piatto { background: none; color: var(--tenue); box-shadow: none; }
 .bottone.piatto:hover { background: var(--fondo); color: var(--inchiostro); }
 /* Il bottone di un'azione che non si disfa: colore d'allerta, non di marchio. */
 .bottone.pericolo { background: var(--allerta); color: var(--su-allerta); }
@@ -349,27 +390,31 @@ select.pill {
    ma leggibile - deve dire "non ancora", non sparire. */
 .bottone:disabled, .bottone:disabled:hover {
   background: var(--st-vuoto); color: var(--tenue); cursor: not-allowed;
+  box-shadow: none; transform: none;
 }
 .righe-scelta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 
 /* --------------------------------------------------------------- tendina -- */
 .tendina {
-  position: fixed; z-index: 78; min-width: 250px; padding: 5px;
-  background: var(--superficie); border: 1px solid var(--bordo);
-  border-radius: var(--r-2); box-shadow: var(--ombra-3);
+  position: fixed; z-index: 78; min-width: 252px; padding: 6px;
+  background: var(--superficie); border: 1px solid var(--bordo-lieve);
+  border-radius: var(--r-3); box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
   animation: entra 160ms var(--molla) both;
 }
 .voce {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-  padding: 8px 10px; border-radius: var(--r-1); font-size: var(--t-mini);
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 8px 11px; border-radius: var(--r-2); font-size: var(--t-mini);
   transition: var(--rapido);
 }
-.voce:hover { background: var(--marchio-tenue); }
-.voce-ico { display: flex; width: 14px; color: var(--tenue); flex: none; }
+.voce:hover { background: var(--marchio-tenue); color: var(--marchio-scuro); }
+.voce:hover .voce-ico { color: var(--marchio-scuro); }
+.voce-ico { display: flex; width: 14px; color: var(--tenue); flex: none; transition: var(--rapido); }
 .voce-et { flex: 1; }
+/* la nota a destra spiega la voce: e' prosa, quindi resta in Inter */
 .voce-nota { font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
 .voce.pericolo:hover { background: var(--allerta-tenue); color: var(--allerta); }
-.voce-sep { display: block; height: 1px; margin: 5px 8px; background: var(--bordo); }
+.voce.pericolo:hover .voce-ico { color: var(--allerta); }
+.voce-sep { display: block; height: 1px; margin: 6px 9px; background: var(--bordo-lieve); }
 
 /* --------------------------------------------------------- testi minori -- */
 .tit-p { margin: 0 0 6px; font-size: var(--t-mini); font-weight: 600; }
@@ -430,12 +475,13 @@ code.lan {
 .cassetto {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 85;
   width: min(520px, 100%); background: var(--superficie);
-  border-left: 1px solid var(--bordo); box-shadow: var(--ombra-3);
+  border-left: 1px solid var(--bordo-lieve); box-shadow: var(--ombra-3);
   display: flex; flex-direction: column;
   animation: scorri var(--medio) both;
 }
 @keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
-.cassetto header { padding: 18px 20px 14px; border-bottom: 1px solid var(--bordo); }
+.cassetto header { padding: 20px 22px 15px; border-bottom: 1px solid var(--bordo-lieve);
+  background: linear-gradient(180deg, var(--superficie-2), var(--superficie)); }
 
 /* ---- Possibili doppioni (Azioni): coppie di nomi che si somigliano ---- */
 .dop-titolo { margin: 18px 0 8px; font-size: var(--t-mini); font-weight: 600; color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; }
@@ -458,45 +504,107 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
    Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,
    non verde: dice "c'e' il documento", non "e' a posto". #ANCHOR: documenti */
 .doc-chip {
-  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 24px;
-  padding: 0 5px; border: 0; border-radius: var(--r-1); cursor: pointer;
+  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 22px;
+  padding: 0 6px; border: 1px solid color-mix(in srgb, var(--marchio) 22%, transparent);
+  border-radius: var(--r-1); cursor: pointer;
   color: var(--marchio-scuro); background: var(--marchio-tenue);
   font: 600 var(--t-micro)/1 var(--f-dato); transition: var(--rapido);
 }
 .doc-chip:hover, .doc-chip:focus-visible { box-shadow: var(--alone-marchio); outline: 0;
-  background: color-mix(in srgb, var(--marchio) 22%, var(--superficie)); }
+  border-color: color-mix(in srgb, var(--marchio) 55%, transparent);
+  background: color-mix(in srgb, var(--marchio) 20%, var(--superficie));
+  transform: translateY(-1px); }
 .doc-chip i { font-style: normal; padding-left: 1px; }
-.doc-chip.vuoto { display: none; }
+.doc-chips { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.doc-chips.vuoto { display: none; }
 .doc-chip.altro-anno { opacity: .55; }    /* l'ultimo PDF e' di un altro anno */
+/* Il REGISTRO dei componenti (documento per il cliente) ha il suo colore: il
+   verde del completamento no (non e' un passo), il cyan no (e' delle schede):
+   il grafite del marchio, come una cosa archiviata. #ANCHOR: tipi-documento */
+.doc-chip.t-registro { color: var(--inchiostro-2);
+  background: color-mix(in srgb, var(--inchiostro-2) 12%, transparent);
+  border-color: color-mix(in srgb, var(--inchiostro-2) 20%, transparent); }
+.doc-chip.t-registro:hover, .doc-chip.t-registro:focus-visible {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--inchiostro-2) 40%, transparent);
+  border-color: color-mix(in srgb, var(--inchiostro-2) 45%, transparent);
+  background: color-mix(in srgb, var(--inchiostro-2) 18%, var(--superficie)); }
+/* nel cassetto: il tipo del documento sopra il nome, e i due generatori in testa */
+.doc-tipo {
+  display: inline-flex; align-items: center; gap: 5px; font: 600 var(--t-micro)/1 var(--f-dato);
+  text-transform: uppercase; letter-spacing: .1em; color: var(--marchio-scuro);
+  margin-bottom: 5px; padding: 3px 7px 3px 5px; border-radius: var(--r-tonda);
+  background: var(--marchio-tenue);
+}
+.doc-tipo.t-registro { color: var(--inchiostro-2);
+  background: color-mix(in srgb, var(--inchiostro-2) 11%, transparent); }
+.sez-doc-testa { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; margin: 24px 0 10px; }
+/* Le intestazioni di sezione del cassetto sono OCCHIELLI, come nelle
+   Statistiche: monospazio maiuscoletto spaziato. La misura e il peso arrivano
+   dallo stile in linea di cassetto.js, qui si cambia solo la voce. */
+.cassetto .corpo h3 { font-family: var(--f-dato); text-transform: uppercase;
+  letter-spacing: .14em; color: var(--tenue); }
+.sez-doc-genera { display: flex; gap: 6px; flex-wrap: wrap; }
+.sez-doc-genera .pill svg { color: var(--marchio-scuro); }
+/* L'ANTEPRIMA AL PASSAGGIO: la prima pagina, grande abbastanza da riconoscere
+   il documento senza aprirlo (152px, quasi mezza A4), in una cornice di carta -
+   bordo, ombra profonda, il nome sotto in monospazio. */
 .doc-anteprima {
   position: fixed; z-index: 120; pointer-events: none; opacity: 0;
-  transform: translateY(-4px) scale(.98); transition: var(--rapido);
+  transform: translateY(-6px) scale(.97); transition: var(--rapido);
   background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-2);
-  box-shadow: var(--ombra-3); padding: 6px; width: 132px;
-  display: flex; flex-direction: column; gap: 5px;
+  box-shadow: var(--ombra-3); padding: 7px; width: 166px;
+  display: flex; flex-direction: column; gap: 6px;
 }
 .doc-anteprima.vista { opacity: 1; transform: none; }
-.doc-anteprima img { width: 120px; aspect-ratio: 210 / 297; object-fit: cover;
-  border: 1px solid var(--bordo); border-radius: 3px; background: #fff; display: block; }
-.doc-anteprima span { font-size: var(--t-micro); color: var(--tenue); overflow: hidden;
+.doc-anteprima img {
+  width: 152px; aspect-ratio: 210 / 297; object-fit: cover; object-position: top center;
+  border: 1px solid var(--bordo-forte); border-radius: var(--r-0); background: #fff; display: block;
+  box-shadow: 0 6px 16px -8px rgba(16,26,36,.5);
+}
+.doc-anteprima span { font: var(--t-micro)/1.3 var(--f-dato); color: var(--tenue); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
-/* nel cassetto: l'elenco dei PDF del sito con la miniatura vera */
-.doc-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.doc-lista li { display: flex; align-items: center; gap: 12px; padding: 8px 10px;
-  border: 1px solid var(--bordo); border-radius: var(--r-2); background: var(--superficie-2); }
-.doc-mini { flex: none; width: 44px; height: 62px; padding: 0; border: 1px solid var(--bordo);
-  border-radius: 3px; background: #fff; cursor: pointer; overflow: hidden;
-  display: grid; place-items: center; color: var(--marchio-scuro); transition: var(--rapido); }
-.doc-mini:hover { box-shadow: var(--alone-marchio); transform: translateY(-1px); }
-.doc-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.doc-info { flex: 1; min-width: 0; font-size: var(--t-mini); }
-.doc-info b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.doc-info .meta { color: var(--tenue); font-size: var(--t-micro); line-height: 1.5; }
+/* ---- I PDF DEL SITO SONO CARTE ----------------------------------------------
+   Un documento si riconosce dalla sua prima pagina, non da una riga di testo:
+   ogni voce e' una carta con la miniatura VERA grande e incorniciata come un
+   foglio (bordo di carta, ombra, l'angolo piegato in alto a destra), il titolo
+   in chiaro e tutti i dati - pagine, peso, chi e quando - in monospazio. */
+.doc-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.doc-lista li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: start;
+  padding: 12px; border: 1px solid var(--bordo-lieve); border-radius: var(--r-3);
+  background: var(--superficie); box-shadow: var(--ombra-1);
+  transition: border-color var(--rapido), box-shadow var(--rapido);
+}
+.doc-lista li:hover { border-color: var(--bordo); box-shadow: var(--ombra-2); }
+.doc-mini {
+  position: relative; flex: none; width: 78px; height: 110px; padding: 0;
+  border: 1px solid var(--bordo-forte); border-radius: var(--r-0); background: #fff;
+  cursor: pointer; overflow: hidden; display: grid; place-items: center;
+  color: var(--marchio-scuro); box-shadow: var(--ombra-2);
+  transition: transform var(--rapido), box-shadow var(--rapido), border-color var(--rapido);
+}
+/* l'angolo piegato: e' il segno che quella cosa e' un foglio, e sta dove sta
+   sempre - in alto a destra della prima pagina */
+.doc-mini::after {
+  content: ""; position: absolute; top: 0; right: 0; width: 16px; height: 16px;
+  background: linear-gradient(225deg,
+    color-mix(in srgb, var(--fondo) 88%, var(--bordo-forte)) 0 50%, transparent 50%);
+  box-shadow: -1px 1px 0 color-mix(in srgb, var(--bordo-forte) 70%, transparent);
+}
+.doc-mini:hover { transform: translateY(-2px); border-color: var(--marchio);
+  box-shadow: var(--ombra-2), var(--alone-marchio); }
+.doc-mini img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.doc-info { min-width: 0; font-size: var(--t-mini); }
+.doc-info b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; font-size: var(--t-base); letter-spacing: -.01em; }
+.doc-info .meta { margin-top: 4px; color: var(--tenue);
+  font: var(--t-micro)/1.6 var(--f-dato); font-variant-numeric: tabular-nums; }
 .doc-info .dato { font-family: var(--f-dato); }
-.doc-azioni { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.doc-azioni { flex: none; display: flex; flex-direction: column; gap: 5px; align-items: stretch; }
 /* un documento in fascicoli: la fila dei fascicoli sotto i dati, uno per bottone */
-.doc-gruppo .fascicoli { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
-.doc-gruppo .fascicoli .pill { padding: 2px 8px; font-size: var(--t-micro); gap: 0; }
+.doc-gruppo .fascicoli { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.doc-gruppo .fascicoli .pill { padding: 2px 9px; font-size: var(--t-micro); gap: 0; }
 .doc-gruppo .fascicoli .pill b { font-family: var(--f-dato); font-weight: 700; }
 .doc-gruppo .fascicoli .pill span { color: var(--tenue); }
 .doc-gruppo .meta > b { color: var(--inchiostro-2); font-weight: 600; }
@@ -508,12 +616,18 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   border-radius: var(--r-tonda); color: var(--tenue); display: grid; place-items: center; }
 .chiudi:hover { background: var(--fondo); color: var(--inchiostro); }
 
-.dettaglio { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: var(--t-mini); }
-.dettaglio dt { color: var(--tenue); }
+/* Il nome del cliente in testa al cassetto e' un titolo, quindi display serif
+   (la misura e il tracking arrivano dallo stile in linea di cassetto.js). */
+.cassetto header h2 { font-family: var(--f-display); font-weight: var(--p-display); line-height: 1.15; }
+/* La scheda dei dati si legge come un listino: etichetta tecnica a sinistra in
+   monospaziato maiuscoletto, valore a destra. */
+.dettaglio { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; font-size: var(--t-mini); }
+.dettaglio dt { color: var(--tenue-2); font: 500 var(--t-micro)/1.5 var(--f-dato);
+  text-transform: uppercase; letter-spacing: .07em; }
 .dettaglio dd { margin: 0; }
 
 .storia { list-style: none; margin: 10px 0 0; padding: 0; }
-.storia li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--bordo);
+.storia li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--bordo-lieve);
   font-size: var(--t-mini); align-items: baseline; }
 .storia time { font-family: var(--f-dato); color: var(--tenue); font-size: var(--t-micro); flex: none; }
 

@@ -23,7 +23,7 @@ import { chiudiPop, rinfrescaPop } from './spunte.js';
 import { chiudiCassetto } from './cassetto.js';
 import {
   eventoDocumento, eventoDocumentiEliminati, ricaricaDocumenti, ascoltaAltreSchede,
-  collegaChip, rinfrescaChip, urlGeneratore, ICO_PDF,
+  collegaChip, rinfrescaChip, urlGeneratore, ICO_PDF, ICO_REGISTRO, TIPI,
   riepilogoDocumenti, eliminaDocumenti, dimensione,
 } from './documenti.js';
 import { doppioni } from './affinita.js';
@@ -240,7 +240,7 @@ function icone() {
   $('#anno-su').innerHTML = ICO.dx;
   $('#cerca-ico').innerHTML = ICO.cerca;
   $('#tema').innerHTML = ICO.tema;
-  $('#schede').innerHTML = ICO_PDF + ' Schede tecnici';
+  $('#documenti').innerHTML = ICO_PDF + ' Genera PDF';
 }
 
 function collegaTesta() {
@@ -252,7 +252,7 @@ function collegaTesta() {
   $('#tema').onclick = giraTema;
   $('#io').onclick = mostraChiSono;
   $('#aiuto').onclick = mostraAiuto;
-  $('#schede').onclick = () => open(urlGeneratore(null), '_blank');
+  $('#documenti').onclick = e => apriGeneratori(e.currentTarget);
   $('#azioni').onclick = e => apriAzioni(e.currentTarget);
   $('#approva').onclick = mostraApprovazioni;
   $('#collegamento').onclick = pannelloCollegamento;
@@ -362,6 +362,20 @@ async function vaiOggi() {
   if (st.vista === 'anno') {
     $('.crono-testa .m.oggi')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
+}
+
+/* ------------------------------------------------------------ generatori - */
+/* I due generatori di PDF (#ANCHOR: tipi-documento in js/documenti.js): un
+   bottone solo in barra, e la scelta nel menu. Si aprono in un'altra scheda del
+   browser senza sito: lo riconoscono dal nome dell'Excel, o si sceglie li'. Dal
+   cassetto di un sito invece partono gia' puntati su quello. */
+function apriGeneratori(bottone) {
+  menu(bottone, [
+    { et: TIPI.schede.et, ico: ICO_PDF, nota: 'fogli di campo per i tecnici',
+      fn: () => open(urlGeneratore(null, 'schede'), '_blank') },
+    { et: TIPI.registro.et, ico: ICO_REGISTRO, nota: 'documento per il cliente',
+      fn: () => open(urlGeneratore(null, 'registro'), '_blank') },
+  ]);
 }
 
 /* ------------------------------------------------------- azioni di massa - */
@@ -1413,15 +1427,18 @@ function mostraAiuto() {
           'se la mappatura si fa lì.'
       }),
 
-      h('h3.tit-p', { testo: 'Il PDF delle schede e la spunta "Stampata"' }),
+      h('h3.tit-p', { testo: 'I due PDF: schede tecnici e registro componenti' }),
       h('p.nota-t', {
         style: 'margin-bottom:18px',
-        testo: 'Quando il generatore consegna un PDF, la spunta "Stampata" si mette ' +
-          'da sola sulla PRIMA VISITA IN ARRIVO di quel sito, mai su un mese già ' +
-          'passato — anche se la mappatura è in ritardo. Il foglio stampato oggi ' +
-          'serve al prossimo giro, ed è lì che va segnato. I passi si accumulano, ' +
-          'quindi vale lo stesso per la scadenza: l’icona del PDF accanto al nome ' +
-          'del sito apre l’ultimo documento archiviato.',
+        testo: 'Da "Genera PDF" (o dal cassetto del sito) partono due generatori. ' +
+          'Le SCHEDE TECNICI sono i fogli di campo per i tecnici: quando il PDF ' +
+          'viene consegnato, la spunta "Stampata" si mette da sola sulla PRIMA ' +
+          'VISITA IN ARRIVO di quel sito, mai su un mese già passato — anche se la ' +
+          'mappatura è in ritardo, perché il foglio stampato oggi serve al ' +
+          'prossimo giro. Il REGISTRO DEI COMPONENTI è il documento per il ' +
+          'cliente: si archivia sul sito e basta, nessuna spunta. Le due icone ' +
+          'accanto al nome del sito (foglio = schede, libretto = registro) aprono ' +
+          'l’ultimo documento di quel tipo; nel cassetto ci sono tutti.',
       }),
 
       h('h3.tit-p', { testo: 'Perché gli anni non sono identici' }),

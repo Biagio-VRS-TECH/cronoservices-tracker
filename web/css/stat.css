@@ -49,8 +49,8 @@
 .carta {
   position: relative; min-width: 0;
   background: var(--vetro);
-  border: 1px solid var(--bordo);
-  border-radius: 18px;
+  border: 1px solid var(--bordo-lieve);
+  border-radius: var(--r-3);
   padding: 20px 22px 22px;
   box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-1);
 }
@@ -69,8 +69,11 @@
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 14px; margin-bottom: 18px;
 }
+/* Il titolo di una carta e' una domanda scritta, non un'etichetta: display
+   serif in peso medio, come tutti i titoli dell'applicazione. */
 .carta-testa h3 {
-  margin: 0; font-size: var(--t-med); font-weight: 650; letter-spacing: -.024em;
+  margin: 0; font-family: var(--f-display); font-size: 18px; font-weight: var(--p-display);
+  line-height: 1.2; letter-spacing: var(--tr-display);
 }
 .carta-testa p {
   margin: 5px 0 0; font-size: var(--t-mini); color: var(--tenue);
@@ -127,10 +130,11 @@
 @keyframes spazzata { to { transform: rotate(1turn); } }
 .eroe-testo { position: relative; z-index: 1; min-width: 0; }
 .eroe-titolo {
-  margin: 12px 0 0; font: 600 26px/1.15 var(--f-ui); letter-spacing: -.03em;
-  color: var(--inchiostro-2);
+  margin: 12px 0 0; font: var(--p-display) 28px/1.2 var(--f-display);
+  letter-spacing: var(--tr-display); color: var(--inchiostro-2);
 }
-.eroe-titolo b { font-weight: 800; color: var(--inchiostro); font-size: 34px; }
+.eroe-titolo b { font-weight: 700; color: var(--inchiostro); font-size: 38px;
+  font-variant-numeric: tabular-nums; }
 .eroe-frase {
   margin: 8px 0 0; font-size: var(--t-mini); color: var(--tenue); line-height: 1.5;
   max-width: 62ch;
@@ -153,11 +157,12 @@
   background: var(--bordo-forte);
 }
 .tessera .t-n {
-  display: block; font: 700 30px/1 var(--f-ui); letter-spacing: -.035em;
+  display: block; font: 600 32px/1 var(--f-display); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
 }
 .tessera .t-et {
   display: block; margin-top: 7px;
-  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  font: 600 var(--t-micro)/1.2 var(--f-dato); letter-spacing: .12em; text-transform: uppercase;
   color: var(--inchiostro-2);
 }
 .tessera .t-nota {
@@ -190,9 +195,10 @@
 }
 .q-mese.oggi { fill: var(--marchio-scuro); font-weight: 700; }
 .q-sopra { font: 500 10.5px var(--f-dato); fill: var(--tenue); text-anchor: middle; letter-spacing: .04em; }
-.q-cifra { font: 800 40px var(--f-ui); fill: var(--inchiostro); text-anchor: middle; letter-spacing: -.045em; }
+/* la cifra al centro del quadrante e' IL numero della pagina: display serif */
+.q-cifra { font: 600 44px var(--f-display); fill: var(--inchiostro); text-anchor: middle; letter-spacing: -.04em; }
 .q-sotto {
-  font: 700 8px var(--f-ui); fill: var(--tenue); text-anchor: middle;
+  font: 700 8px var(--f-dato); fill: var(--tenue); text-anchor: middle;
   text-transform: uppercase; letter-spacing: .2em;
 }
 
@@ -202,10 +208,11 @@
   padding: 14px 15px 13px; border-radius: 13px; min-width: 0;
   background: var(--superficie-2); border: 1px solid var(--bordo);
 }
-.ritmo-n { display: block; font: 700 34px/1 var(--f-ui); letter-spacing: -.04em; }
+.ritmo-n { display: block; font: 600 36px/1 var(--f-display); letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums; }
 .ritmo-et {
   display: block; margin-top: 7px;
-  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  font: 600 var(--t-micro)/1.2 var(--f-dato); letter-spacing: .12em; text-transform: uppercase;
   color: var(--inchiostro-2);
 }
 .ritmo-nota { display: block; margin-top: 3px; font-size: var(--t-micro); color: var(--tenue-2); line-height: 1.35; }
@@ -242,10 +249,11 @@
   border-color: color-mix(in srgb, var(--marchio) 45%, transparent);
 }
 .agenda-conta[disabled] { opacity: .45; cursor: default; }
-.agenda-n { display: block; font: 700 28px/1 var(--f-ui); letter-spacing: -.035em; }
+.agenda-n { display: block; font: 600 30px/1 var(--f-display); letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; }
 .agenda-et {
   display: block; margin-top: 6px;
-  font: 600 var(--t-micro)/1.2 var(--f-ui); letter-spacing: .1em; text-transform: uppercase;
+  font: 600 var(--t-micro)/1.2 var(--f-dato); letter-spacing: .12em; text-transform: uppercase;
   color: var(--inchiostro-2);
 }
 /* La carta e' alta quanto la sua fila (a fianco ci sono due carte impilate):
@@ -324,9 +332,9 @@
 }
 .torta-avvolge:hover path { opacity: .5; }
 .torta path:hover { opacity: 1; }
-.torta-n { text-anchor: middle; font: 800 19px var(--f-ui); fill: var(--inchiostro); letter-spacing: -.03em; }
+.torta-n { text-anchor: middle; font: 600 21px var(--f-display); fill: var(--inchiostro); letter-spacing: -.03em; }
 .torta-et {
-  text-anchor: middle; font: 600 8px var(--f-ui); fill: var(--tenue);
+  text-anchor: middle; font: 600 8px var(--f-dato); fill: var(--tenue);
   text-transform: uppercase; letter-spacing: .14em;
 }
 .legenda-t { flex: 1; min-width: 158px; display: grid; gap: 3px; align-content: center; }
@@ -603,7 +611,7 @@
 .anello { display: block; width: 58px; height: 58px; overflow: visible; }
 .anello .fette { transform-box: fill-box; transform-origin: center; transition: opacity 480ms var(--molla), transform 700ms var(--molla); }
 .carta:not(.entrata) .anello .fette { opacity: 0; transform: rotate(-90deg) scale(.7); }
-.anello-n { text-anchor: middle; font: 800 13px var(--f-ui); fill: var(--inchiostro); letter-spacing: -.03em; }
+.anello-n { text-anchor: middle; font: 600 14px var(--f-display); fill: var(--inchiostro); letter-spacing: -.03em; }
 .anello-testo { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .anello-et { font-size: var(--t-mini); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .anello-v { font-size: var(--t-micro); color: var(--tenue); font-variant-numeric: tabular-nums; }
@@ -647,7 +655,7 @@
 .legenda-tessere .vc:hover { transform: translateY(-2px); border-color: var(--bordo-forte); }
 .legenda-tessere .vc i { display: none; }
 .legenda-tessere .vc span { font-size: var(--t-micro); color: var(--tenue); }
-.legenda-tessere .vc b { margin-left: 0; font: 700 22px/1 var(--f-ui); letter-spacing: -.03em; }
+.legenda-tessere .vc b { margin-left: 0; font: 600 24px/1 var(--f-display); letter-spacing: -.03em; }
 .stack { height: 18px; }
 .stack i { border-radius: 4px; }
 .legenda .vc.compl i { background: var(--completa); }

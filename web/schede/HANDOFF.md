@@ -2,9 +2,25 @@
 
 > **Dal 2026-09-08 il generatore vive qui, dentro Crono Mappature** (era
 > `Desktop/Claude/exel pdf converter/Schede-Tecnici-Generatore.html`, che resta
-> come copia vecchia). Il legame col tracker e' in `ponte.js` e nella sezione
-> `PONTE col tracker` del CSS/HTML: vedi `docs/ai/da-fare.md` (16a sessione).
-> Le librerie PDF stanno in `lib/`. Il resto del file e' quello descritto sotto.
+> come copia vecchia). Il legame col tracker e' in `ponte.js`: vedi
+> `docs/ai/da-fare.md` (16a sessione).
+>
+> **Dal 2026-09-11 (29a sessione) il file condivide quattro cose con il
+> generatore del registro (`web/registro/`)**, e non le ha piu' dentro:
+> - le librerie (`SheetJS`, `html2canvas`, `jsPDF`) stanno in **`web/lib/`**
+>   (`/lib/xlsx.min.js` ecc., percorsi assoluti). SheetJS era incorporato nel
+>   file: l'ha estratto la 29a, e' identico (0.18.5);
+> - il ponte vero e' **`web/js/ponte.js`** (`avviaPonte({tipo})`), il
+>   `ponte.js` di questa cartella e' un wrapper che aggancia `loadRows`,
+>   `unloadFile`, `aggiornaTitoloSito`;
+> - il CSS della testata (`#ponte`, la nuvoletta, la lista dei probabili) e' in
+>   **`web/css/ponte.css`**; i token dell'app (`--ui-*`, `--acc*`, `--mono`,
+>   `--r1..3`, `--ease`, `--rail*`) in **`web/css/banco.css`**, derivati da
+>   `css/theme.css` (il marchio si cambia solo la'). `:root.lt` qui dentro
+>   resta la classe che le regole del file guardano, ma `setTheme` scrive anche
+>   `data-tema` = `chiaro`|`scuro`, che e' quello che leggono i fogli condivisi;
+> - i caratteri (`css/fonti.css`): `body` usa `var(--f-ui)`.
+> Il resto del file e' quello descritto sotto.
 
 Recap per sessioni IA. **Regola del file: solo lo stretto necessario.** Niente
 racconti, niente "perché" già leggibili nei commenti del codice. Qui vanno solo
@@ -352,12 +368,13 @@ compariva prima di avere fascicoli.
 ## 9. Provare una modifica
 
 ```bash
-cd "C:/Users/utente27/Desktop/Claude/exel pdf converter" && python -m http.server 8731
+cd C:/Users/utente27/Desktop/Claude/cronoservice/app && python server.py --no-sync --porta 8775 --db ../data/prova.db
 ```
 
-`http://127.0.0.1:8731/Schede-Tecnici-Generatore.html`, **Ctrl+F5** (la cache
-fa sembrare che la modifica non abbia effetto). Il doppio clic sul file funziona
-ma su `file://` alcuni browser bloccano il fetch dei file di prova.
+`http://127.0.0.1:8775/schede/`, **Ctrl+F5** (la cache fa sembrare che la
+modifica non abbia effetto). Dal 2026-09-11 la pagina carica CSS e librerie
+con percorsi assoluti (`/css/...`, `/lib/...`): serve il server dell'app, non
+`file://` ne' un `http.server` aperto dentro `web/schede/`.
 
 Caricare un file di prova da automazione senza input file:
 

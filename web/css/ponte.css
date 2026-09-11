@@ -1,0 +1,244 @@
+/* ponte.css - la TESTATA di consegna dei generatori (web/js/ponte.js): schede tecnici e
+   registro componenti la condividono. Era la sezione `PONTE col tracker` di
+   web/schede/index.html; vive nei token del banco di lavoro (css/banco.css: --ui-*, --acc*),
+   mai in quelli del documento; in stampa non esiste. #ANCHOR: css-ponte */
+/* ---------- PONTE col tracker (ponte.js) ----------
+   Non e' una barra di comandi che galleggia sopra il documento: e' la TESTATA
+   della colonna dell'anteprima, cioe' l'etichetta di consegna appiccicata alla
+   risma di fogli. Sta fuori dal riquadro che scorre (#banco), quindi resta in
+   vista da sola e non copre mai una pagina.
+   Si legge in tre gradi: la ROTTA in monospazio (da dove si viene, dove va il
+   lavoro), il NOME del sito grande, i dati in una riga che va a capo - un
+   indirizzo lungo si legge tutto, niente e' tagliato con i puntini.
+   La SPINA a sinistra e' l'unica cosa che cambia colore ed e' l'unica che si
+   muove: dice lo stato del collegamento e, mentre si prepara il PDF, scorre.
+   La FASCIA in basso compare solo quando c'e' qualcosa da dire, e durante il
+   lavoro e' anche l'avanzamento (--p). Vive nei token dell'app, mai in quelli
+   del documento; in stampa non esiste. */
+#ponte{position:relative;z-index:38;flex:none;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  border-bottom:1px solid var(--ui-filo);
+  font-size:13px;color:var(--ui-tx2)}
+#ponte [hidden]{display:none!important}
+
+/* la spina: 3px sul bordo sinistro, tutta l'altezza. Sostituisce il led e il
+   filo che c'erano prima - un segnale solo, grande abbastanza da vedersi con
+   la coda dell'occhio mentre si guarda una pagina */
+#ponte::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--ui-4);transition:background .3s}
+#ponte.t-ok::before{background:var(--acc)}
+#ponte.t-dubbio::before,#ponte.t-lista::before{background:var(--warn)}
+#ponte.t-nessuno::before,#ponte.t-errore::before{background:var(--scadenza)}
+#ponte.t-lavoro::before{background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));
+  background-size:100% 220%;animation:pn-scorre 1.4s linear infinite}
+@keyframes pn-scorre{to{background-position:0 -220%}}
+
+/* la rotta, il nome, i dati */
+.pn-corpo{grid-column:1;min-width:0;padding:10px 0 10px 15px;
+  display:flex;flex-direction:column;gap:3px}
+.pn-rotta{margin:0;display:flex;align-items:center;flex-wrap:wrap;
+  font:700 10px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ui-tx3)}
+.pn-rotta a{color:var(--ui-tx3);text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.pn-rotta a svg{transition:transform .2s var(--ease)}
+.pn-rotta a:hover{color:var(--acc)}
+.pn-rotta a:hover svg{transform:translateX(-2px)}
+.pn-rotta .sep{opacity:.4}
+.pn-rotta #ponteCambia{margin-left:auto}
+/* da dove viene il collegamento: "a mano" e' l'unico che merita un colore,
+   perche' e' l'unico che nessuno ha verificato */
+.pn-come{letter-spacing:.12em;border-radius:999px;
+  color:var(--acc);background:var(--acc-lo);border:1px solid color-mix(in srgb,var(--acc) 28%,transparent)}
+.pn-come.mano{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);
+  border-color:color-mix(in srgb,var(--warn) 34%,transparent)}
+#ponte h2{margin:0;font:560 19px/1.2 var(--f-display);letter-spacing:-.022em;color:var(--ui-tx);
+  overflow-wrap:anywhere}
+/* i dati del sito: una riga sola che VA A CAPO. Niente text-overflow: su un
+   sito con l'indirizzo lungo i puntini nascondevano proprio la parte che
+   distingue un impianto dall'altro */
+.pn-meta{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;
+  font-size:12.5px;color:var(--ui-tx2);overflow-wrap:anywhere}
+.pn-meta .dest{color:var(--ui-tx)}
+.pn-meta .dato{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--ui-tx3)}
+#ponte .pn-mini{background:none;border:0;padding:0;font:inherit;font-size:12px;
+  color:var(--ui-tx3);cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+  text-decoration-color:var(--ui-4)}
+#ponte .pn-mini:hover{color:var(--acc);text-decoration-color:currentColor}
+
+/* la ricerca, quando il sito non c'e' ancora */
+.pn-cerca{display:flex;min-width:0}
+#ponte input{flex:1;min-width:0;background:var(--ui-2);border:1px solid var(--ui-3);
+  color:var(--ui-tx);border-radius:var(--r2);padding:9px 12px;font-size:13px;font-family:inherit}
+#ponte input:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-lo)}
+
+/* il bottone che consegna */
+.pn-azione{grid-column:2;display:flex;align-items:center;padding:10px 15px 10px 0}
+#ponte .btn{width:auto;margin:0;padding:10px 16px 10px 13px;font-size:13px;white-space:nowrap;
+  border-radius:var(--r2);display:inline-flex;align-items:center;gap:8px}
+#ponte .btn svg{width:15px;height:15px}
+#ponte .btn[disabled]{opacity:.38;cursor:default;box-shadow:none}
+body.ponte-lavora #print{opacity:.6;pointer-events:none}
+
+/* ---- LA NUVOLETTA ----
+   Non due stati con un salto in mezzo: **una sola forma con un cursore**.
+   `--r` va da 0 (testata larga) a 1 (pillola) e a muoverlo e' lo scorrimento,
+   un valore per fotogramma (`guarda()` in ponte.js). Tutto quello che cambia e'
+   scritto qui come interpolazione su `--r`: la trasformazione e' continua e sta
+   in piedi a qualunque punto la si fermi.
+
+   Cosa si muove, e perche' cosi':
+   - la LARGHEZZA da tutta la colonna a `--wpill`, la misura naturale della
+     pillola: e' l'unica cosa che il CSS non puo' sapere da solo, la prende JS
+     una volta sola (`misuraPillola()`) e la scrive qui;
+   - la BANDA si chiude da se'. La testata resta nel FLUSSO, quindi si accorcia
+     insieme al suo contenuto; il margine negativo in fondo toglie quel che
+     resta (`--hpill` + lo stacco), cosi' a `--r:1` la banda vale zero e le
+     pagine passano SOTTO la pillola. In mezzo, l'anteprima si riprende
+     l'altezza a poco a poco invece di ereditarla di colpo;
+   - le righe che spariscono (rotta, dati, fascia) collassano con la
+     `line-height` invece che con un'altezza fissa: funziona con una riga come
+     con tre, che e' il caso vero di un indirizzo lungo. Il nome del sito non
+     viene mai tagliato - se non ci sta, va a capo anche dentro la pillola;
+   - la SPINA di 3px alta tutta la testata diventa il punto di stato di 7px sul
+     fianco della pillola: stesso segnale, una forma sola;
+   - l'OMBRA cresce da un filo di 1px sotto la banda a un'ombra profonda: e'
+     lei a dire "adesso questa cosa sta sopra al foglio".
+   `@property` serve a far interpolare `--r` come numero: senza, il ritorno
+   forzato a 0 (niente sito, lista aperta, PDF in corso) sarebbe uno scatto. */
+@property --r{syntax:"<number>";inherits:true;initial-value:0}
+#ponte{--r:0;
+  width:calc(100% + (var(--wpill,100%) - 100%) * var(--r));
+  margin:calc(14px * var(--r)) auto calc((var(--hpill,34px) + 14px) * var(--r) * -1);
+  column-gap:calc(20px - 9px * var(--r));
+  padding-left:calc(3px + 15px * var(--r));
+  border-bottom-color:color-mix(in srgb,var(--ui-3) calc(100% - var(--r) * 100%),transparent);
+  border-radius:calc(999px * var(--r));
+  background:color-mix(in srgb,var(--ui-1) calc(88% - 22% * var(--r)),transparent);
+  box-shadow:0 calc(1px + 17px * var(--r)) calc(40px * var(--r)) calc(-14px * var(--r))
+             rgba(0,0,0,calc(.12 + .58 * var(--r)));
+  transition:--r .18s linear}
+@supports (backdrop-filter:blur(1px)){
+  #ponte{backdrop-filter:blur(calc(18px * var(--r))) saturate(calc(1 + .6 * var(--r)))}
+}
+:root.lt #ponte{
+  background:color-mix(in srgb,var(--ui-1) calc(96% - 20% * var(--r)),transparent);
+  box-shadow:0 calc(1px + 15px * var(--r)) calc(36px * var(--r)) calc(-16px * var(--r))
+             rgba(15,20,24,calc(.06 + .28 * var(--r)))}
+/* il contorno completo appartiene alla pillola: sulla banda non c'e' */
+#ponte::after{content:"";position:absolute;inset:0;pointer-events:none;
+  border:1px solid color-mix(in srgb,var(--ui-4) 60%,transparent);
+  border-radius:inherit;opacity:var(--r)}
+:root.lt #ponte::after{border-color:color-mix(in srgb,var(--ui-4) 80%,transparent)}
+
+/* la spina che diventa punto */
+#ponte::before{top:50%;bottom:auto;transform:translateY(-50%);
+  left:calc(9px * var(--r));
+  width:calc(3px + 4px * var(--r));
+  height:calc(100% - (100% - 7px) * var(--r));
+  border-radius:calc(50% * var(--r))}
+
+/* Le righe che si chiudono. La `line-height` a zero le fa collassare qualunque
+   sia il numero di righe a cui erano andate a capo - ed e' il motivo per cui e'
+   lei e non un'altezza fissa: un indirizzo lungo va a capo due o tre volte.
+   Ma la line-height non tocca quello che ha una misura sua: l'icona della
+   freccia e il bottone "cambia sito" tenevano la rotta alta 30px anche a
+   sipario chiuso, e la pillola restava un rettangolo. Percio' dentro la rotta
+   tutto e' in `em` e a chiudersi e' il CORPO del testo: a zero, sparisce anche
+   quello che dentro ci sta appeso. */
+.pn-rotta,.pn-meta,.pn-strip{overflow:hidden}
+.pn-rotta{font-size:calc(10px * (1 - var(--r)));
+  line-height:calc(1.3 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2);
+  gap:calc(4px * (1 - var(--r))) calc(9px * (1 - var(--r)))}
+.pn-rotta a svg{width:1.2em;height:1.2em}
+.pn-rotta .pn-mini{font-size:1.2em}
+.pn-meta{line-height:calc(1.45 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2);
+  gap:calc(1px * (1 - var(--r))) calc(10px * (1 - var(--r)))}
+.pn-strip{line-height:calc(1.4 * (1 - var(--r)));opacity:calc(1 - var(--r) * 2)}
+.pn-come{font-size:.95em;padding:.2em .7em;opacity:calc(1 - var(--r) * 3)}
+
+.pn-corpo{padding:calc(10px - 3px * var(--r)) 0 calc(10px - 3px * var(--r))
+                  calc(15px + 3px * var(--r));
+  gap:calc(3px * (1 - var(--r)))}
+#ponte h2{font-size:calc(19px - 4px * var(--r));
+  font-weight:calc(560 - 60 * var(--r));
+  letter-spacing:calc(-.022em * (1 - var(--r)))}
+.pn-azione{padding:calc(10px * (1 - var(--r))) calc(15px - 8px * var(--r))
+                   calc(10px * (1 - var(--r))) 0}
+#ponte .btn{padding:calc(10px - 3px * var(--r)) calc(16px - 2px * var(--r))
+                    calc(10px - 3px * var(--r)) calc(13px - 2px * var(--r));
+  font-size:calc(13px - .5px * var(--r));
+  border-radius:calc(var(--r2) + (999px - var(--r2)) * var(--r))}
+#ponte .btn svg{width:calc(15px - 2px * var(--r));height:calc(15px - 2px * var(--r))}
+body.ponte-lavora #print{opacity:.6;pointer-events:none}
+
+/* la misura della pillola: un fotogramma a --r:1 e larghezza naturale, poi
+   tutto com'era. La fa `misuraPillola()`, non a ogni scorrimento. Il tetto e'
+   qui e non nel calcolo: cosi' `--wpill` arriva gia' limitato */
+#ponte.misura{width:max-content!important;max-width:min(86%,600px)!important;
+  --r:1!important;transition:none!important;visibility:hidden}
+/* durante la misura le righe che si chiudono vanno tolte del tutto: la
+   line-height a zero annulla l'altezza ma NON la larghezza, e la riga dei dati
+   di un indirizzo lungo faceva risultare la pillola larga quanto la testata */
+#ponte.misura .pn-rotta,#ponte.misura .pn-meta,#ponte.misura .pn-strip{display:none}
+
+@media (prefers-reduced-motion:reduce){#ponte{transition:none}}
+
+/* la fascia: l'esito, e mentre si lavora anche l'avanzamento. Il riempimento
+   sta DIETRO al testo, cosi' la frase resta leggibile per tutta la barra */
+.pn-strip{grid-column:1/-1;position:relative;overflow:hidden;margin:0;
+  padding:calc(6px * (1 - var(--r))) 15px calc(7px * (1 - var(--r)));
+  border-top:calc(1px * (1 - var(--r))) solid
+             color-mix(in srgb,var(--ui-3) calc(100% - var(--r) * 100%),transparent);
+  font-size:12.5px;color:var(--ui-tx2)}
+.pn-strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p,0);
+  background:color-mix(in srgb,var(--acc) 14%,transparent);transition:width .25s var(--ease)}
+.pn-strip span{position:relative}
+.pn-strip.entra span{animation:pn-entra .3s var(--ease) both}
+@keyframes pn-entra{from{opacity:0;transform:translateY(3px)}}
+.pn-strip.ok{color:var(--completa-testo)}
+:root.lt .pn-strip.ok{color:var(--completa-testo)}
+.pn-strip.dubbio,.pn-strip.lista{color:var(--warn)}
+.pn-strip.nessuno,.pn-strip.errore{color:var(--scadenza)}
+:root.lt .pn-strip.nessuno,:root.lt .pn-strip.errore{color:var(--scadenza)}
+
+/* la lista dei probabili: cala da sotto la testata, sopra le pagine */
+.ponte-scelte{position:absolute;left:15px;right:15px;top:100%;z-index:31;
+  border-radius:0 0 var(--r3) var(--r3);padding:10px 10px 8px;
+  background:var(--ui-1);border:1px solid var(--ui-filo);border-top:0;
+  box-shadow:var(--ui-ombra-3);animation:pn-entra .26s var(--ease) both}
+.ponte-scelte header{display:flex;align-items:center;justify-content:space-between;
+  padding:2px 6px 8px;font:700 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ui-tx3)}
+.ponte-scelte ul{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.ponte-scelte li button{width:100%;display:grid;grid-template-columns:74px minmax(0,1fr) auto;
+  align-items:center;gap:12px;text-align:left;background:transparent;border:1px solid transparent;
+  border-radius:var(--r1);padding:8px 10px;color:var(--ui-tx);cursor:pointer;font-family:inherit;
+  transition:background .15s,border-color .15s}
+.ponte-scelte li button:hover,.ponte-scelte li button:focus-visible{background:var(--ui-2);border-color:var(--ui-3);outline:0}
+.sc-aff{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--ui-tx2)}
+.sc-aff i{flex:1;height:4px;border-radius:2px;background:var(--ui-3);position:relative;overflow:hidden}
+.sc-aff i::after{content:"";position:absolute;inset:0;width:var(--a);background:linear-gradient(90deg,var(--warn),var(--acc))}
+.sc-nome{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.sc-nome b{font-size:13px;overflow-wrap:anywhere}
+.sc-nome span{font-size:12px;color:var(--ui-tx2);overflow-wrap:anywhere}
+.sc-meta{font-family:var(--mono);font-size:10.5px;color:var(--ui-tx3);white-space:nowrap;align-self:center}
+@media (prefers-reduced-motion:reduce){
+  #ponte.t-lavoro::before{animation:none}
+  .pn-strip.entra span,.ponte-scelte{animation:none}
+}
+/* l'anteprima puo' essere stretta anche su uno schermo largo (i due pannelli
+   laterali): la testata guarda la SUA larghezza, non quella della finestra */
+/* colonna stretta (i due pannelli laterali la stringono anche su schermi
+   larghi). Il bottone resta a fianco del nome anche qui: mandarlo a tutta
+   larghezza sotto avrebbe voluto dire cambiare la griglia a meta' corsa, e
+   `--r` non puo' interpolare una `grid-template-columns`. Si stringe tutto
+   il resto: misure, etichetta della provenienza, corpo del nome. */
+@container (max-width:470px){
+  .pn-come{display:none}
+  .pn-corpo{padding:calc(9px - 2px * var(--r)) 0 calc(8px - 1px * var(--r))
+                    calc(13px + 3px * var(--r))}
+  .pn-azione{padding:calc(9px * (1 - var(--r))) calc(12px - 5px * var(--r))
+                     calc(9px * (1 - var(--r))) 0}
+  #ponte h2{font-size:calc(17px - 1.5px * var(--r))}
+  .pn-meta{font-size:12px;gap:1px 8px}
+  .pn-strip{padding-left:13px;padding-right:13px}
+  .ponte-scelte{left:13px;right:13px}
+}

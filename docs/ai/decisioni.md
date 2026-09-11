@@ -1033,3 +1033,40 @@ un posto (#ANCHOR: ruoli), e questo file non ne ha una copia sua che un giorno
 divergerebbe: il difetto della 25a sessione era esattamente una copia divergente
 - il client che si calcolava il ruolo per conto suo dal nome digitato. Fare due
 volte lo stesso errore nella stessa sessione sarebbe stato un peccato.
+
+## 25. Due documenti, un ponte, un tipo: il registro non e' un passo della mappatura (29a sessione)
+
+Il **Registro dei componenti** - il documento per il cliente che elenca cosa e'
+installato e dove, nato come programma Python sul PC dell'ufficio
+(`Desktop/Claude/mappatura`) - entra nell'app come **secondo generatore**,
+`web/registro/`, accanto alle schede tecnici. Tre scelte lo tengono semplice:
+
+1. **Un ponte solo.** Tutto quello che lega un generatore al tracker (testata di
+   consegna, riconoscimento del sito dal nome del file, PDF con html2canvas +
+   jsPDF, consegna, nuvoletta) e' in `web/js/ponte.js`, generico: `avviaPonte({
+   tipo })`. `schede/ponte.js` e' rimasto un wrapper di trenta righe che aggancia
+   le funzioni globali di quel file. Il markup della testata e' identico nelle due
+   pagine, il CSS e' uno (`css/ponte.css`) e i token del banco di lavoro
+   (`--ui-*`, `--acc*`) non hanno piu' valori propri: `css/banco.css` li deriva
+   da `theme.css`. Un marchio, una tavolozza, tre pagine.
+2. **Il tipo sta sul documento, e lo decide il server.** `documenti.tipo` e'
+   `'schede'` o `'registro'`; `registra_documento`/`salva_documento` mettono la
+   spunta "stampata" solo per le schede. Il registro e' un documento per il
+   cliente, non un passo della mappatura: si archivia sul sito, nessuna casella
+   si tocca, e il tracker lo mostra con un'icona sua (libretto, grafite) accanto
+   a quella delle schede (foglio, cyan). Non si e' fatto un secondo modello ne'
+   una seconda tabella: e' lo stesso storico, con due icone.
+3. **Il dizionario e' condiviso, come le spunte.** I nomi leggibili dei codici
+   articolo e la priorita' nel quadro d'insieme vivevano in un JSON sul PC
+   dell'ufficio: online sarebbero rimasti a chi ha quel PC. Ora stanno in
+   `dizionario_componenti` (SQLite e Postgres, `08-dizionario.sql`), dietro
+   `/api/dizionario`, con lo stesso contratto del vecchio `Dizionario` Python
+   (nome e priorita' indipendenti, riga che sparisce quando non resta niente).
+   Il vocabolario di partenza e' seminato dal JSON (`app/dizionario-seme.json`),
+   una volta sola, dove il codice non c'e' ancora.
+
+Con questo cade il vincolo "font di sistema, nessun webfont": l'app deve
+partire offline, e lo fa lo stesso, perche' i tre caratteri (Newsreader, Inter,
+JetBrains Mono, ~210 KB in tutto, `web/assets/fonti/`) sono serviti dal sito,
+non da una CDN. Il vincolo che resta e' quello vero: nessun `npm`, nessuna
+build, nessuna dipendenza esterna a tempo di esecuzione.

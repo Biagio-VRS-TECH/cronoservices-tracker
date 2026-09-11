@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16181B" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#14191E" media="(prefers-color-scheme: dark)">
 <title>Crono Mappature · VRS</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/assets/icona.svg">
+<link rel="preload" href="/assets/fonti/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonti/newsreader-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonti/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/fonti.css">
 <link rel="stylesheet" href="/css/theme.css">
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/griglia.css">
@@ -87,10 +91,11 @@
 
     <span class="sep"></span>
 
-    <!-- Il generatore delle schede tecnici (web/schede/): stessa origine, si
-         apre in un'altra scheda e riconsegna il PDF al tracker. -->
-    <button class="pill" id="schede"
-            title="Apri il generatore delle schede tecnici da Excel (nuova scheda)">Schede tecnici</button>
+    <!-- I due generatori di PDF (web/schede/ per i tecnici, web/registro/ per il
+         cliente): stessa origine, si aprono in un'altra scheda del browser e
+         riconsegnano il PDF al tracker. Il bottone apre la scelta. -->
+    <button class="pill" id="documenti" aria-expanded="false"
+            title="Genera un PDF dall'Excel: schede tecnici o registro componenti (nuova scheda)">Genera PDF</button>
     <button class="pill" id="azioni" aria-expanded="false">Azioni</button>
     <!-- Solo per chi approva (approvatore o amministratore), e solo se c'e' qualcosa in attesa: le spunte
          di rapportino/ricambi proposte dagli operatori (#ANCHOR: approvazioni in js/app.js) -->
@@ -116,11 +121,11 @@
 .marca img { height: 30px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="chiaro"]) .marca img {
-    background: #fff; padding: 3px 5px; border-radius: 6px;
+    background: #fff; padding: 3px 5px; border-radius: var(--r-1);
   }
 }
 :root[data-tema="scuro"] .marca img {
-  background: #fff; padding: 3px 5px; border-radius: 6px;
+  background: #fff; padding: 3px 5px; border-radius: var(--r-1);
 }
 /* segnaposto se il file del logo manca */
 .segno-logo { width: 26px; height: 26px; border-radius: 7px; display: block;

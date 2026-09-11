@@ -12,25 +12,32 @@
      neutra di tutta l'app, cosi' l'insieme e' riconoscibilmente VRS.       */
   --marchio:        #00AEEF;   /* cyan del logo: riempimenti, focus, "controllata" */
   --marchio-scuro:  #00719B;   /* testo e hover: il cyan puro non ha contrasto su bianco */
-  --marchio-tenue:  #E1F6FE;   /* riempimenti leggeri, righe selezionate   */
+  --marchio-tenue:  #E2F5FD;   /* riempimenti leggeri, righe selezionate   */
   --su-marchio:     #00323F;   /* cio' che sta SOPRA il cyan pieno: il bianco
-                                  su #00AEEF fa 2,5:1, questo cyan profondo 4,8:1 */
+                                  su #00AEEF fa 2,5:1, questo cyan profondo 5,4:1 */
   --accento:        #00A37A;   /* completato: verde che sta bene accanto al cyan */
   --accento-scuro:  #007A5C;   /* dove serve testo bianco sul verde (avvisi)    */
   /* ---------------------------------------------------------------------- */
 
-  /* Fondi e inchiostri - famiglia dei grigi del logo */
-  --fondo:      #F5F6F7;
+  /* Fondi e inchiostri. I grigi del logo restano la famiglia, ma virano di un
+     soffio verso il blu: e' l'unico modo di avere un inchiostro GRAFITE-NAVY
+     profondo (non un nero neutro, che accanto al cyan sembra spento) senza
+     aggiungere un secondo colore. Tutti i rapporti sono stati rimisurati e
+     stanno sopra i valori di prima. */
+  --fondo:      #F2F5F7;
   --superficie: #FFFFFF;
-  --superficie-2:#FAFBFB;
-  --bordo:      #E4E5E7;
-  --bordo-forte:#C9CACC;
-  --inchiostro: #1C1D1F;
-  --inchiostro-2:#58595B;      /* grigio scuro del logo */
-  --tenue:      #6E7175;       /* 4,9:1 su bianco: passa AA sul testo piccolo */
-  --tenue-2:    #707377;       /* famiglia del grigio chiaro del logo: 4,6:1 su bianco, il
-                                  minimo per il testo micro (id, localita', totali) */
+  --superficie-2:#F8FAFB;
+  --bordo:      #E2E7EB;
+  --bordo-forte:#C3CBD2;
+  --inchiostro: #121A21;       /* grafite-navy: 17,6:1 su bianco */
+  --inchiostro-2:#47535E;      /* il grigio scuro del logo, raffreddato: 7,9:1 */
+  --tenue:      #616C76;       /* 5,4:1 su bianco, 4,9:1 sul fondo: AA ovunque */
+  --tenue-2:    #66707A;       /* testo micro (id, localita', totali): 5,0:1 su
+                                  bianco, 4,6:1 sul fondo. Il minimo, verificato */
   --su-allerta: #FFFFFF;       /* testo sopra l'ambra pieno (banner, avvisi) */
+  /* Il filo a bassa opacita': e' il bordo di tutta l'interfaccia premium - si
+     vede il salto di superficie, non una linea disegnata. */
+  --bordo-lieve: color-mix(in srgb, var(--bordo) 62%, transparent);
   color-scheme: light;
 
   /* Stati della catena mappatura, nell'ordine dei quattro passi:
@@ -116,12 +123,26 @@
   --lucido: rgba(255,255,255,.7);
   --punti:  color-mix(in srgb, var(--bordo-forte) 55%, transparent);
 
-  /* Tipografia: sistema per la prosa, monospazio per ogni dato.
-     Nessun webfont: l'app deve funzionare senza rete. */
-  --f-ui:  "Segoe UI Variable Text", "Segoe UI", -apple-system,
+  /* Tipografia (css/fonti.css, file in web/assets/fonti/, nessuna CDN): tre
+     voci sole per tutta l'app e per i documenti che genera.
+       --f-display  Newsreader, serif editoriale: titoli, cifre eroe, copertine
+       --f-ui       Inter: prosa e comandi
+       --f-dato     JetBrains Mono: ogni dato, id, ora, conteggio
+     I fallback sono i font di sistema di prima: se il woff2 non arriva l'app
+     resta leggibile e uguale a se stessa. */
+  --f-display: "Newsreader Variable", "Constantia", "Cambria", "Georgia", serif;
+  --f-ui:  "Inter Variable", "Segoe UI Variable Text", "Segoe UI", -apple-system,
            BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-  --f-dato:"Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono",
-           Consolas, "Liberation Mono", monospace;
+  --f-dato:"JetBrains Mono Variable", "Cascadia Mono", "Cascadia Code", ui-monospace,
+           "SF Mono", Consolas, "Liberation Mono", monospace;
+  /* Inter: cifre a larghezza fissa dove serve le chiede .dato; qui si accende
+     solo la "a" a un piano e il "l" con la coda, la voce piu' calma del font */
+  --f-ui-feat: "cv05", "cv11";
+  /* La mano del display: Newsreader sta bene nei pesi medi, non in grassetto, e
+     vuole il tracking appena negativo. Questi due token tengono i titoli e le
+     cifre eroe coerenti in tutta l'app senza ripetere i valori venti volte. */
+  --p-display: 560;
+  --tr-display: -.022em;
 
   --t-micro: 10.5px;
   --t-mini:  11.5px;
@@ -138,14 +159,21 @@
   --rientro:    12px;    /* aria ai lati delle carte cliente nella vista Anno */
   --r-carta:    10px;    /* raggio delle carte cliente e delle schede del mese */
 
-  --r-1: 5px;
-  --r-2: 9px;
-  --r-3: 14px;
+  /* Raggi in progressione costante: 3 - 6 - 10 - 16. Un oggetto piccolo dentro
+     uno grande scende di un grado, cosi' le curve restano concentriche. */
+  --r-0: 3px;
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 16px;
   --r-tonda: 999px;
 
-  --ombra-1: 0 1px 2px rgba(15,20,26,.06), 0 1px 1px rgba(15,20,26,.04);
-  --ombra-2: 0 4px 14px rgba(15,20,26,.10), 0 1px 3px rgba(15,20,26,.06);
-  --ombra-3: 0 18px 48px rgba(15,20,26,.18), 0 2px 8px rgba(15,20,26,.08);
+  /* Ombre a due livelli: un contatto corto che stacca l'oggetto dalla
+     superficie, e una diffusione lunga e molto tenue che gli da' l'aria
+     intorno. Una sola ombra netta fa un oggetto incollato, due lo fanno
+     appoggiato. */
+  --ombra-1: 0 1px 1.5px rgba(16,26,36,.05), 0 2px 6px -3px rgba(16,26,36,.07);
+  --ombra-2: 0 1px 2px rgba(16,26,36,.05), 0 8px 22px -10px rgba(16,26,36,.17);
+  --ombra-3: 0 2px 6px -2px rgba(16,26,36,.08), 0 26px 60px -22px rgba(16,26,36,.32);
 
   --molla: cubic-bezier(.2,.9,.28,1);
   --rapido: 140ms var(--molla);
@@ -155,20 +183,20 @@
 /* Tema scuro: automatico da sistema, forzabile con data-tema sul <html> */
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="chiaro"]) {
-    --fondo:      #0D0E10;
-    --superficie: #16181B;
-    --superficie-2:#1B1E21;
-    --bordo:      #292B2F;
-    --bordo-forte:#3C3F44;
-    --inchiostro: #EDEEF0;
-    --inchiostro-2:#C6C8CB;
-    --tenue:      #92959A;
-    --tenue-2:    #9A9DA2;       /* 5,1:1 sulla superficie scura */
+    --fondo:      #0B0F13;
+    --superficie: #14191E;
+    --superficie-2:#1A2026;
+    --bordo:      #262E35;
+    --bordo-forte:#3A444D;
+    --inchiostro: #EDF1F4;       /* 15,6:1 sulla superficie */
+    --inchiostro-2:#C2CBD3;      /* 10,8:1 */
+    --tenue:      #8E99A3;       /* 6,1:1 sulla superficie scura */
+    --tenue-2:    #96A1AB;       /* 6,7:1 sulla superficie scura */
   --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
   color-scheme: dark;
     --marchio:       #35C4FF;
     --marchio-scuro: #8FDCFF;
-    --marchio-tenue: #0B2C3B;
+    --marchio-tenue: #0A2C3C;
     --accento:       #22C39A;
     --completa-testo: var(--accento);
     --st-stampata:   #E2B83C;   /* oro rischiarato per il fondo scuro */
@@ -184,26 +212,26 @@
               color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
     --lucido: rgba(255,255,255,.06);
     --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
-    --ombra-1: 0 1px 2px rgba(0,0,0,.5);
-    --ombra-2: 0 4px 16px rgba(0,0,0,.55);
-    --ombra-3: 0 18px 48px rgba(0,0,0,.65);
+    --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
+    --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
+    --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
   }
 }
 :root[data-tema="scuro"] {
-  --fondo:      #0D0E10;
-  --superficie: #16181B;
-  --superficie-2:#1B1E21;
-  --bordo:      #292B2F;
-  --bordo-forte:#3C3F44;
-  --inchiostro: #EDEEF0;
-  --inchiostro-2:#C6C8CB;
-  --tenue:      #92959A;
-  --tenue-2:    #9A9DA2;       /* 5,1:1 sulla superficie scura */
+  --fondo:      #0B0F13;
+  --superficie: #14191E;
+  --superficie-2:#1A2026;
+  --bordo:      #262E35;
+  --bordo-forte:#3A444D;
+  --inchiostro: #EDF1F4;
+  --inchiostro-2:#C2CBD3;
+  --tenue:      #8E99A3;       /* 6,1:1 sulla superficie scura */
+  --tenue-2:    #96A1AB;       /* 6,7:1 sulla superficie scura */
   --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
   color-scheme: dark;
   --marchio:       #35C4FF;
   --marchio-scuro: #8FDCFF;
-  --marchio-tenue: #0B2C3B;
+  --marchio-tenue: #0A2C3C;
   --accento:       #22C39A;
   --completa-testo: var(--accento);
   --st-stampata:   #E2B83C;
@@ -219,7 +247,7 @@
             color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
   --lucido: rgba(255,255,255,.06);
   --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
-  --ombra-1: 0 1px 2px rgba(0,0,0,.5);
-  --ombra-2: 0 4px 16px rgba(0,0,0,.55);
-  --ombra-3: 0 18px 48px rgba(0,0,0,.65);
+  --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
+  --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
+  --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
 }

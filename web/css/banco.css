@@ -1,0 +1,64 @@
+/* banco.css - il BANCO DI LAVORO dei generatori (web/schede/, web/registro/).
+   I due generatori preparano fogli A4: l'app intorno e' un piano di lavoro su
+   cui l'unica cosa luminosa sono le pagine. Questi token (--ui-*, --acc*) sono
+   i nomi che il loro CSS usa da sempre; qui NON hanno piu' valori propri, ma
+   sono derivati dai token del tracker (css/theme.css): un marchio, una
+   tavolozza, un font, tre pagine. Il tema lo decide `data-tema` sul <html>
+   (setTheme nei generatori lo scrive sempre esplicito). #ANCHOR: css-banco */
+:root {
+  /* Piano di lavoro, dietro le pagine. ESADECIMALE, non color-mix: html2canvas
+     legge il fondo di <body> e #app anche fotografando una sola pagina e non sa
+     interpretare `color(srgb ...)` - la resa del PDF moriva prima di disegnare
+     ("unsupported color function color", trovato nella 29a sessione sul
+     registro). Vale il fondo del tracker scurito di un soffio. */
+  --ui-0: #EDF0F3;
+  --ui-1: var(--superficie);      /* pannelli laterali */
+  --ui-2: var(--superficie-2);    /* campi e riquadri rialzati */
+  --ui-3: var(--bordo);           /* bordi */
+  --ui-4: var(--bordo-forte);     /* bordi in evidenza */
+  --ui-tx:  var(--inchiostro);
+  --ui-tx2: var(--inchiostro-2);
+  --ui-tx3: var(--tenue);
+  /* l'accento come TESTO e come bottone: sul chiaro il cyan puro non ha
+     contrasto, si usa il cyan profondo del marchio */
+  --acc: var(--marchio-scuro);
+  --acc-hi: color-mix(in srgb, var(--marchio-scuro) 70%, var(--inchiostro));
+  --acc-lo: var(--marchio-tenue);
+  --acc-ink: #FFFFFF;
+  --warn: var(--allerta);
+  --mono: var(--f-dato);
+  --r1: var(--r-1); --r2: var(--r-2); --r3: var(--r-3);
+  --ease: var(--molla);
+  --rail: var(--bordo);
+  --rail-on: color-mix(in srgb, var(--marchio) 44%, transparent);
+  /* Ombre e fili del banco: sono quelli del tracker, cosi' i pannelli dei
+     generatori hanno la stessa mano delle carte della griglia. Il filo a bassa
+     opacita' e' il bordo di tutta l'interfaccia premium. */
+  --ui-filo: var(--bordo-lieve);
+  --ui-ombra-1: var(--ombra-1);
+  --ui-ombra-2: var(--ombra-2);
+  --ui-ombra-3: var(--ombra-3);
+  --ui-lucido: var(--lucido);
+}
+/* Tema scuro: le pagine bianche restano l'unica luce. L'accento torna il cyan
+   pieno (sul fondo scuro legge bene) con l'inchiostro profondo sopra. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="chiaro"]) {
+    --ui-0: #0F1317;
+    --ui-1: var(--superficie);
+    --ui-2: var(--superficie-2);
+    --acc: var(--marchio);
+    --acc-hi: var(--marchio-scuro);
+    --acc-lo: var(--marchio-tenue);
+    --acc-ink: var(--su-marchio);
+  }
+}
+:root[data-tema="scuro"] {
+  --ui-0: #0F1317;
+  --ui-1: var(--superficie);
+  --ui-2: var(--superficie-2);
+  --acc: var(--marchio);
+  --acc-hi: var(--marchio-scuro);
+  --acc-lo: var(--marchio-tenue);
+  --acc-ink: var(--su-marchio);
+}
