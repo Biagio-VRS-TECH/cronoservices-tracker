@@ -27,9 +27,9 @@ scorre. */
    deve fotografare solo una .page. Stesse tinte di --ui-0, in esadecimale.
    Lo stesso vale per web/schede/ (body e #app hanno la stessa regola): li' il
    difetto c'e' ancora, e si vede solo a tema chiaro. */
-:root{--fondo-banco:#F1F2F3}
-:root[data-tema="scuro"]{--fondo-banco:#0F1317}
-@media (prefers-color-scheme:dark){:root:not([data-tema="chiaro"]){--fondo-banco:#0F1317}}
+:root{--fondo-banco:#ECEAE5}
+:root[data-tema="scuro"]{--fondo-banco:#0F1215}
+@media (prefers-color-scheme:dark){:root:not([data-tema="chiaro"]){--fondo-banco:#0F1215}}
 body{margin:0;font-family:var(--f-ui);color:var(--ui-tx);background:var(--fondo-banco)}
 button,select,input{font-family:inherit}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -48,7 +48,7 @@ button,select,input{font-family:inherit}
 #banco{flex:1 1 auto;min-height:0;overflow:auto;padding:30px 20px 60px}
 
 #brandbar{display:flex;align-items:center;gap:12px;padding:18px 0 15px;position:sticky;top:0;z-index:5;
-  background:var(--ui-1);border-bottom:1px solid var(--ui-3)}
+  background:var(--ui-1);border-bottom:1px solid var(--ui-filo)}
 #brandbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
   background:linear-gradient(90deg,var(--acc),rgba(0,168,228,0) 72%)}
 #brandbar img{height:38px;width:auto}
@@ -77,8 +77,8 @@ label.row{display:flex;align-items:center;justify-content:space-between;gap:10px
   cursor:pointer;transition:background .12s}
 label.row:hover{background:var(--ui-2)}
 label.row select{flex:0 0 auto}
-#side select,#side input[type=text]{background:var(--ui-2);color:var(--ui-tx);border:1px solid var(--ui-3);
-  border-radius:var(--r1);padding:7px 9px;font-size:13px}
+#side select,#side input[type=text]{background:var(--pista-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);
+  box-shadow:var(--pista-incavo);border-radius:var(--r1);padding:7px 9px;font-size:13px}
 #side input[type=text]{width:100%;display:block}
 #side input[readonly]{color:var(--ui-tx2);cursor:default}
 .hint{font-size:11.8px;color:var(--ui-tx3);line-height:1.5;margin:8px 0 0}
@@ -88,12 +88,12 @@ label.row select{flex:0 0 auto}
 .sw input[type=checkbox]{appearance:none;width:34px;height:19px;border-radius:999px;background:var(--ui-3);
   position:relative;cursor:pointer;transition:background .16s var(--ease);flex:0 0 auto;margin:0;border:0}
 .sw input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;
-  background:var(--ui-1);transition:transform .16s var(--ease)}
+  background:#fff;box-shadow:0 1px 2.5px rgba(0,0,0,.3);transition:transform .16s var(--ease)}
 .sw input[type=checkbox]:checked{background:var(--acc)}
 .sw input[type=checkbox]:checked::after{transform:translateX(15px)}
 
-#drop{border:1px dashed var(--ui-4);border-radius:10px;padding:26px 14px;text-align:center;font-size:12.8px;
-  color:var(--ui-tx2);cursor:pointer;background:var(--ui-2);transition:.15s}
+#drop{border:1px dashed var(--ui-4);border-radius:var(--r2);padding:26px 14px;text-align:center;font-size:12.8px;
+  color:var(--ui-tx2);cursor:pointer;background:var(--pista-fondo);box-shadow:var(--pista-incavo);transition:.15s}
 #drop:hover,#drop.hot{border-color:var(--acc);border-style:solid;background:var(--acc-lo);color:var(--acc-hi)}
 #drop b{display:block;font-size:14px;margin-bottom:4px;color:var(--ui-tx)}
 #drop:hover b,#drop.hot b{color:var(--acc-hi)}
@@ -111,13 +111,18 @@ label.row select{flex:0 0 auto}
 .xrow svg{width:12px;height:12px;display:block}
 .xrow:hover{border-color:var(--warn);color:var(--warn);background:var(--ui-1)}
 
-.btn{display:block;width:100%;padding:11px;border:0;border-radius:7px;background:var(--acc);color:var(--acc-ink);
-  font-size:14px;font-weight:700;letter-spacing:.01em;cursor:pointer;margin-top:8px;transition:.13s}
-.btn:hover{background:var(--acc-hi)}
-.btn.sec{background:var(--ui-2);color:var(--ui-tx);border:1px solid var(--ui-3);font-weight:600;font-size:12.6px;padding:8px}
-.btn.sec:hover{background:var(--ui-3);border-color:var(--ui-4)}
-.btn:disabled{opacity:.32;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2)}
-.btn:disabled:hover{background:var(--ui-3)}
+/* il bottone primario e' d'INCHIOSTRO (avorio con la luce spenta), come nel
+   tracker: pieno scuro, filo di luce sul bordo alto, ombra corta. I secondari
+   sono di vetro. I token --btn-* vivono in css/theme.css */
+.btn{display:block;width:100%;padding:12px 14px;border:0;border-radius:var(--r2);background:var(--btn-fondo);color:var(--btn-testo);
+  font-size:13.5px;font-weight:600;letter-spacing:.02em;cursor:pointer;margin-top:8px;
+  box-shadow:var(--btn-lucido),var(--btn-ombra);transition:background .13s,box-shadow .13s,transform .13s}
+.btn:hover{background:var(--btn-fondo-hover);box-shadow:var(--btn-lucido),var(--ui-ombra-2);transform:translateY(-1px)}
+.btn:active{transform:none;box-shadow:var(--btn-lucido)}
+.btn.sec{background:var(--vetro-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);font-weight:600;font-size:12.6px;padding:8px;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
+.btn.sec:hover{background:var(--ui-1);border-color:var(--ui-4);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
+.btn:disabled,.btn:disabled:hover{opacity:.38;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2);box-shadow:none;transform:none}
 .duebtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .duebtn .btn{margin-top:10px}
 
@@ -148,12 +153,14 @@ label.row select{flex:0 0 auto}
 
 /* il comando di uscita resta a portata di clic anche a pannello lungo */
 #exportGrp{position:sticky;bottom:0;background:var(--ui-1);margin-top:auto;
-  padding-bottom:18px;border-top:1px solid var(--ui-3);z-index:4}
+  padding-bottom:18px;border-top:1px solid var(--ui-filo);z-index:4;
+  box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 .zoomrow{display:flex;gap:8px;align-items:center;margin-top:10px}
 .zoomrow .btn{margin:0}
-.ico{width:34px;height:34px;flex:0 0 34px;border:1px solid var(--ui-3);background:var(--ui-2);color:var(--ui-tx2);
-  border-radius:var(--r1);cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center}
-.ico:hover{border-color:var(--ui-4);color:var(--ui-tx)}
+.ico{width:34px;height:34px;flex:0 0 34px;border:1px solid var(--ui-filo);background:var(--vetro-fondo);color:var(--ui-tx2);
+  border-radius:var(--r1);cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+.ico:hover{border-color:var(--ui-4);color:var(--ui-tx);background:var(--ui-1);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
 .ico:disabled{opacity:.3;cursor:not-allowed}
 
 /* ---- le due viste del banco ---- */

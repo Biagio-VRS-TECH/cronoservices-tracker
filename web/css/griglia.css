@@ -73,7 +73,7 @@
 .blocco {
   margin-top: 8px; border-radius: var(--r-carta);
   background: var(--superficie);
-  box-shadow: var(--ombra-1), inset 0 0 0 1px var(--bordo-lieve);
+  box-shadow: var(--ombra-1), inset 0 0 0 1px var(--bordo-lieve), inset 0 1px 0 var(--lucido);
   transition: box-shadow var(--medio), background var(--medio);
 }
 .blocco:first-of-type { margin-top: 10px; }
@@ -243,6 +243,14 @@
   transition: box-shadow var(--rapido), background var(--rapido), transform var(--rapido);
 }
 .cella:hover { transform: scale(1.15); box-shadow: var(--ombra-2); z-index: 3; }
+/* il SATIN: un velo bianco che si spegne prima di meta' altezza, sopra tutta
+   la capsula. E' quello che fa una capsula smaltata invece che quattro
+   rettangolini colorati. Assoluto, quindi fuori dalla griglia dei segmenti;
+   `::before` perche' `::after` e' del segno della nota. */
+.cella::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--satin); pointer-events: none;
+}
 .cella .seg {
   border-radius: 2.5px; background: transparent;
   transform: scaleX(.001); transform-origin: left center;
@@ -442,15 +450,17 @@
 /* I dodici mesi in una pista: l'indicatore (`::before`) scivola sotto il mese
    scelto con `--i`, cosi' il cambio di mese si vede come un movimento e non
    come un lampeggio. */
+/* il vassoio dei dodici mesi: stesso incavo dei comandi segmentati della
+   barra, e il cursore e' la posizione d'inchiostro che scorre */
 .mese-nav {
   position: relative; display: flex; gap: 2px; padding: 3px;
-  background: var(--superficie); border-radius: var(--r-tonda);
-  box-shadow: 0 0 0 1px var(--bordo-lieve), var(--ombra-1);
+  background: var(--pista-fondo); border-radius: var(--r-tonda);
+  box-shadow: var(--pista-incavo);
 }
 .mese-nav::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; width: 36px;
   left: calc(3px + var(--i, 0) * 38px); border-radius: var(--r-tonda);
-  background: var(--inchiostro); box-shadow: var(--ombra-1);
+  background: var(--btn-fondo); box-shadow: var(--btn-lucido), var(--btn-ombra);
   transition: left var(--medio);
 }
 .mese-nav button {
@@ -459,8 +469,8 @@
   color: var(--tenue); text-transform: uppercase; letter-spacing: .04em;
   transition: color var(--rapido), background var(--rapido);
 }
-.mese-nav button:hover { background: var(--fondo); color: var(--inchiostro); }
-.mese-nav button[aria-pressed="true"] { color: var(--fondo); background: transparent; }
+.mese-nav button:hover { background: color-mix(in srgb, var(--superficie) 60%, transparent); color: var(--inchiostro); }
+.mese-nav button[aria-pressed="true"] { color: var(--btn-testo); background: transparent; }
 .mese-nav button[aria-pressed="true"]:hover { background: transparent; }
 .mese-testa .riepilogo { margin-left: auto; }
 
@@ -532,8 +542,8 @@
    bianco con la sua casella colorata. A scheda finita la pista diventa verde. */
 .passi-riga {
   display: flex; gap: 2px; flex: none; padding: 3px;
-  background: color-mix(in srgb, var(--st-vuoto) 55%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-vuoto) 90%, transparent);
+  background: var(--pista-fondo);
+  box-shadow: var(--pista-incavo);
   border-radius: var(--r-tonda);
   transition: background var(--medio), box-shadow var(--medio);
 }
@@ -547,8 +557,8 @@
   border-color: color-mix(in srgb, var(--bordo-forte) 80%, transparent); }
 .passi-riga .passo .et { font-size: var(--t-micro); font-weight: 600; }
 .passi-riga .passo[aria-checked="true"], .passi-riga .passo[aria-checked="mixed"] {
-  background: var(--superficie); color: var(--inchiostro);
-  box-shadow: 0 0 0 1px var(--bordo), var(--ombra-1); }
+  background: var(--vetro-fondo); color: var(--inchiostro);
+  box-shadow: 0 0 0 1px var(--bordo-lieve), inset 0 1px 0 var(--lucido), var(--ombra-1); }
 .scheda.finita .passi-riga { background: color-mix(in srgb, var(--completa) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--completa) 30%, transparent); }
 /* Nel cassetto la colonna e' stretta (520px meno i margini): i quattro passi
@@ -602,7 +612,7 @@
   .riepilogo { display: none; }
   .mese-nav::before { display: none; }
   .mese-nav { flex-wrap: wrap; border-radius: var(--r-2); }
-  .mese-nav button[aria-pressed="true"] { background: var(--inchiostro); }
+  .mese-nav button[aria-pressed="true"] { background: var(--btn-fondo); }
 }
 @media (max-width: 760px) {
   :root { --col-min: 180px; --passo-mese: 32px; --col-tot: 54px; --rientro: 6px; }

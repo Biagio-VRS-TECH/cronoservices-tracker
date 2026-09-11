@@ -94,7 +94,7 @@ body.resizing{cursor:col-resize;user-select:none}
 /* Lo STESSO logo del tracker (web/assets/logo.webp), non piu' una copia in
    base64. E' trasparente e la parola GROUP e' grigio scuro: sul banco di lavoro
    scuro serve la piastrina bianca, con la luce accesa (.lt) no. */
-#brandbar img{height:30px;width:auto;background:#fff;padding:3px 5px;border-radius:var(--r1)}
+#brandbar img{height:30px;width:auto;background:var(--ui-tx);padding:3px 5px;border-radius:var(--r1)}
 :root.lt #brandbar img{background:none;padding:0}
 /* il nome dell'applicazione e' un titolo: display serif, come nel tracker */
 #brandbar h1{font-family:var(--f-display);font-weight:560;font-size:17px;margin:0;
@@ -183,16 +183,15 @@ label.row.off:hover{background:none}
    dentro un riquadro con i colori del tema - e quindi cambiava faccia fra
    giorno e notte. Un ID non puo' ricapitare per caso in una pagina. */
 #themeSeg{position:relative;margin-left:auto;flex:0 0 auto;display:flex;padding:2px;
-  border:1px solid var(--ui-3);border-radius:11px;background:var(--ui-2)}
+  border:0;border-radius:11px;background:var(--pista-fondo);box-shadow:var(--pista-incavo)}
 #themeSeg button{position:relative;z-index:1;width:26px;height:22px;padding:0;border:0;background:none;
   color:var(--ui-tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .18s}
 #themeSeg button svg{width:13px;height:13px;display:block}
 #themeSeg button:hover{color:var(--ui-tx2)}
-#themeSeg button[aria-pressed=true]{color:var(--acc)}
+#themeSeg button[aria-pressed=true]{color:var(--btn-testo)}
 #themeSeg .ind{position:absolute;top:2px;left:2px;width:26px;height:22px;border-radius:9px;
-  background:var(--ui-1);box-shadow:0 1px 3px rgba(0,0,0,.3);
+  background:var(--btn-fondo);box-shadow:var(--btn-lucido),var(--btn-ombra);
   transition:transform .26s var(--ease)}
-:root.lt #themeSeg .ind{box-shadow:0 1px 2px rgba(15,20,24,.14),0 0 0 1px rgba(15,20,24,.05)}
 :root[data-theme=light] #themeSeg .ind{transform:translateX(26px)}
 :root[data-theme=dark] #themeSeg .ind{transform:translateX(52px)}
 
@@ -202,22 +201,22 @@ label.row.off:hover{background:none}
    si vede che ×3 sta fra ×2 e ×4 - e l'indicatore che scorre dice che e'
    sempre la stessa cosa a cambiare posto. La posizione la calcola il JS
    (setSplitEvery): cinque segmenti in larghezza uguale. */
-.xseg{position:relative;display:flex;padding:2px;border:1px solid var(--ui-3);
-  border-radius:var(--r2);background:var(--ui-2)}
+.xseg{position:relative;display:flex;padding:2px;border:0;
+  border-radius:var(--r2);background:var(--pista-fondo);box-shadow:var(--pista-incavo)}
 .xseg button{position:relative;z-index:1;flex:1 1 0;min-width:0;padding:7px 0;border:0;background:none;
   cursor:pointer;font:700 12.5px/1 var(--mono);letter-spacing:.03em;color:var(--ui-tx3);
   transition:color .18s}
 .xseg button:hover{color:var(--ui-tx2)}
-.xseg button[aria-checked=true]{color:var(--acc)}
+.xseg button[aria-checked=true]{color:var(--btn-testo)}
 .xseg .ind{position:absolute;top:2px;bottom:2px;left:2px;width:calc((100% - 4px)/5);
-  border-radius:7px;background:var(--ui-1);box-shadow:0 1px 3px rgba(0,0,0,.3);
+  border-radius:7px;background:var(--btn-fondo);box-shadow:var(--btn-lucido),var(--btn-ombra);
   transition:transform .26s var(--ease)}
-:root.lt .xseg .ind{box-shadow:0 1px 2px rgba(15,20,24,.14),0 0 0 1px rgba(15,20,24,.05)}
 /* a stampa non divisa il comando resta in vista, sbiadito: sparendo si
    cercherebbe dove e' finito (come le pagine vuote per fascicolo) */
 .optgrp.off{opacity:.42}
 .optgrp.off .xseg button{cursor:default}
-select,input[type=number],input[type=text]{background:var(--ui-2);color:var(--ui-tx);border:1px solid var(--ui-3);border-radius:var(--r1)}
+select,input[type=number],input[type=text]{background:var(--pista-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);
+  box-shadow:var(--pista-incavo);border-radius:var(--r1)}
 label.row select{margin-left:auto;font-size:12.8px;padding:4px 26px 4px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%2398A4B0' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 8px center;background-size:9px}
@@ -243,7 +242,7 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 .tick input[type=checkbox]:checked+span{color:var(--ui-tx)}
 
 #drop{border:1px dashed var(--ui-4);border-radius:var(--r2);padding:24px 14px;text-align:center;font-size:12.8px;
-  color:var(--ui-tx2);cursor:pointer;background:var(--ui-2);transition:.15s}
+  color:var(--ui-tx2);cursor:pointer;background:var(--pista-fondo);box-shadow:var(--pista-incavo);transition:.15s}
 #drop:hover,#drop.hot{border-color:var(--acc);border-style:solid;background:var(--acc-lo);color:var(--acc-hi)}
 #drop b{display:block;font-size:14px;margin-bottom:4px;color:var(--ui-tx)}
 #drop:hover b,#drop.hot b{color:var(--acc-hi)}
@@ -260,23 +259,26 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 .xrow svg{width:12px;height:12px;display:block}
 .xrow:hover{border-color:var(--warn);color:var(--warn);background:var(--ui-1)}
 
-.btn{display:block;width:100%;padding:11px;border:0;border-radius:var(--r2);background:var(--acc);color:var(--acc-ink);
-  font-size:14px;font-weight:700;letter-spacing:.01em;cursor:pointer;margin-top:8px;
-  box-shadow:var(--ui-ombra-1),inset 0 1px 0 rgba(255,255,255,.22);
+/* il bottone primario e' d'INCHIOSTRO (avorio con la luce spenta), come nel
+   tracker: pieno scuro, filo di luce sul bordo alto, ombra corta. I secondari
+   sono di vetro. I token --btn-* vivono in css/theme.css */
+.btn{display:block;width:100%;padding:12px 14px;border:0;border-radius:var(--r2);background:var(--btn-fondo);color:var(--btn-testo);
+  font-size:13.5px;font-weight:600;letter-spacing:.02em;cursor:pointer;margin-top:8px;
+  box-shadow:var(--btn-lucido),var(--btn-ombra);
   transition:background .13s,box-shadow .13s,transform .13s}
-.btn:hover{background:var(--acc-hi);box-shadow:var(--ui-ombra-2)}
-.btn:active{transform:translateY(1px);box-shadow:none}
-.btn.sec{background:var(--ui-2);color:var(--ui-tx);border:1px solid var(--ui-3);font-weight:600;box-shadow:none}
-.btn.sec:hover{background:var(--ui-3);border-color:var(--ui-4)}
-.btn:disabled{opacity:.32;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2)}
-.btn:disabled:hover{background:var(--ui-3)}
+.btn:hover{background:var(--btn-fondo-hover);box-shadow:var(--btn-lucido),var(--ui-ombra-2);transform:translateY(-1px)}
+.btn:active{transform:none;box-shadow:var(--btn-lucido)}
+.btn.sec{background:var(--vetro-fondo);color:var(--ui-tx);border:1px solid var(--ui-filo);font-weight:600;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
+.btn.sec:hover{background:var(--ui-1);border-color:var(--ui-4);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
+.btn:disabled,.btn:disabled:hover{opacity:.38;cursor:not-allowed;background:var(--ui-3);color:var(--ui-tx2);box-shadow:none;transform:none}
 /* il comando di stampa e' l'uscita del lavoro: e' una fascia appoggiata in
    fondo al pannello, larga quanto il pannello (i margini negativi annullano il
    suo respiro laterale), che resta a portata di clic anche quando le
    impostazioni sono piu' lunghe dello schermo */
 #exportGrp{position:sticky;bottom:0;z-index:4;background:var(--ui-1);
   border-top:1px solid var(--ui-filo);margin:18px -20px 0;padding:14px 20px 16px;
-  box-shadow:0 -10px 24px -20px rgba(0,0,0,.6)}
+  box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 
 /* nella sua colonna l'albero non ha nulla sotto di se': prende tutta l'altezza
    residua e scorre al suo interno, quindi aprire o chiudere le tendine non
@@ -355,10 +357,11 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
 
 /* tastini icona (impostazioni, albero) */
 .iconrow{display:flex;gap:8px;margin-top:12px}
-.ico{width:38px;height:32px;flex:0 0 auto;padding:0;border:1px solid var(--ui-3);border-radius:var(--r2);background:var(--ui-2);color:var(--ui-tx2);
-  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.13s}
+.ico{width:38px;height:32px;flex:0 0 auto;padding:0;border:1px solid var(--ui-filo);border-radius:var(--r2);background:var(--vetro-fondo);color:var(--ui-tx2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.13s;
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1)}
 .ico svg{width:16px;height:16px;display:block}
-.ico:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}
+.ico:hover{background:var(--ui-1);border-color:var(--ui-4);color:var(--ui-tx);box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-2)}
 .ico.ok{background:#0E3324;border-color:#2E8B57;color:#5FD39B}
 :root.lt .ico.ok{background:#E6F6EC;border-color:#48A870;color:#186B3C}
 .hint{font-size:11.8px;color:var(--ui-tx3);line-height:1.5;margin:8px 0 0}
@@ -3129,7 +3132,14 @@ function setTheme(t,save){
   Array.prototype.forEach.call(document.querySelectorAll('#themeSeg button'),function(b){
     b.setAttribute('aria-pressed',b.getAttribute('data-theme')===THEME?'true':'false');
   });
-  if(save){ try{ localStorage.setItem('vrsSchedeCampo.theme',THEME); }catch(e){} }
+  /* la chiave e' quella del tracker (#ANCHOR: tema-unico in js/app.js): 'chiaro',
+     'scuro', vuoto = segui il sistema. Un tema solo per le tre pagine */
+  if(save){ try{ localStorage.setItem('cs.tema',THEME==='auto'?'':THEME==='dark'?'scuro':'chiaro'); }catch(e){} }
+}
+function temaDaChiave(){
+  var t=null;
+  try{ t=localStorage.getItem('cs.tema'); }catch(e){}
+  return t==='scuro'?'dark':t==='chiaro'?'light':'auto';
 }
 document.getElementById('themeSeg').onclick=function(e){
   var b=e.target.closest?e.target.closest('button[data-theme]'):null;
@@ -3142,12 +3152,11 @@ if(SYS_LIGHT){
   if(SYS_LIGHT.addEventListener) SYS_LIGHT.addEventListener('change',onSys);
   else if(SYS_LIGHT.addListener) SYS_LIGHT.addListener(onSys);
 }
-/* il tema si applica prima di tutto il resto: nessun lampo di scuro all'apertura */
-(function(){
-  var t=null;
-  try{ t=localStorage.getItem('vrsSchedeCampo.theme'); }catch(e){}
-  setTheme(t||'auto',false);
-})();
+/* il tema si applica prima di tutto il resto: nessun lampo di scuro all'apertura.
+   Poi si resta in ascolto: cambiato nel tracker o nell'altro generatore, si
+   cambia anche qui, senza ricaricare */
+setTheme(temaDaChiave(),false);
+window.addEventListener('storage',function(e){ if(e.key==='cs.tema') setTheme(temaDaChiave(),false); });
 
 /* ============ IMPOSTAZIONI PREDEFINITE (salvate nel browser) ============ */
 var LS_KEY='vrsSchedeCampo.defaults.v2';

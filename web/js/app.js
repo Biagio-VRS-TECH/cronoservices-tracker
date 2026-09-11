@@ -1322,9 +1322,18 @@ function mostraDoppioni() {
 }
 
 /* ----------------------------------------------------------------- tema -- */
+/* UN TEMA SOLO per le tre pagine (#ANCHOR: tema-unico). La chiave e' `cs.tema`
+   ('chiaro' | 'scuro' | vuoto = segui il sistema) e la leggono anche i due
+   generatori (web/schede/, web/registro/), che prima avevano una chiave loro
+   e, appena si sceglieva qualcosa li', smettevano di seguire il tracker. Il
+   passaggio fra schede aperte e' l'evento `storage`: si cambia in una pagina
+   e le altre si voltano da sole, senza ricaricare. */
 function temaIniziale() {
   const t = localStorage.getItem('cs.tema');
   if (t) document.documentElement.dataset.tema = t;
+  addEventListener('storage', e => {
+    if (e.key === 'cs.tema') document.documentElement.dataset.tema = e.newValue || '';
+  });
 }
 function giraTema() {
   const ora = document.documentElement.dataset.tema;

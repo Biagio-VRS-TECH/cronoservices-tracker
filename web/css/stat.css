@@ -81,8 +81,9 @@
 }
 .link-tab {
   flex: none; font-size: var(--t-micro); color: var(--tenue);
-  border: 1px solid var(--bordo); border-radius: var(--r-tonda);
-  padding: 4px 11px; transition: var(--rapido); background: var(--superficie-2);
+  border: 1px solid var(--bordo-lieve); border-radius: var(--r-tonda);
+  padding: 4px 11px; transition: var(--rapido); background: var(--vetro-fondo);
+  box-shadow: inset 0 1px 0 var(--lucido), 0 1px 1px rgba(16,20,26,.04);
 }
 .link-tab:hover { color: var(--marchio-scuro); border-color: var(--marchio); }
 /* Quando una carta ha piu' di un comando (l'elenco per sito ne ha due, piu' il
@@ -206,7 +207,8 @@
 .ritmo-due { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ritmo-fig {
   padding: 14px 15px 13px; border-radius: 13px; min-width: 0;
-  background: var(--superficie-2); border: 1px solid var(--bordo);
+  background: var(--vetro-fondo); border: 1px solid var(--bordo-lieve);
+  box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-1);
 }
 .ritmo-n { display: block; font: 600 36px/1 var(--f-display); letter-spacing: -.035em;
   font-variant-numeric: tabular-nums; }
@@ -361,14 +363,21 @@
   font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue);
   font-variant-numeric: tabular-nums; flex: none;
 }
+/* Le piste sono un INCAVO (inchiostro a bassa opacita' con l'ombra interna), e
+   il riempimento porta il SATIN: e' cosi' che una barra ha volume senza un
+   colore in piu'. Il riflesso e' un `::after` assoluto sul riempimento. */
 .pista {
-  height: 9px; border-radius: var(--r-tonda); background: var(--st-vuoto);
-  overflow: hidden;
+  height: 10px; border-radius: var(--r-tonda); background: var(--pista-fondo);
+  box-shadow: var(--pista-incavo); overflow: hidden;
 }
 .pista i {
-  display: block; height: 100%; width: var(--w, 0);
+  position: relative; display: block; height: 100%; width: var(--w, 0);
   background: var(--t, var(--completa)); border-radius: var(--r-tonda);
   transition: width 720ms var(--molla);
+}
+.pista i::after, .barra-pista i::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--satin); pointer-events: none;
 }
 
 /* -- barre orizzontali ---------------------------------------------------- */
@@ -382,8 +391,8 @@
   white-space: nowrap;
 }
 .barra-pista {
-  height: 10px; border-radius: var(--r-tonda); background: var(--st-vuoto);
-  overflow: hidden;
+  height: 10px; border-radius: var(--r-tonda); background: var(--pista-fondo);
+  box-shadow: var(--pista-incavo); overflow: hidden;
 }
 .barra-pista i {
   position: relative; display: block; height: 100%; width: var(--w, 0);

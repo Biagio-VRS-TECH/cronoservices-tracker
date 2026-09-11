@@ -10,30 +10,37 @@
      Estratti dal logo (web/assets/logo.webp): cyan #00AEEF, grigio scuro
      #58595B, grigio chiaro #A7A9AC. I grigi del logo sono anche la scala
      neutra di tutta l'app, cosi' l'insieme e' riconoscibilmente VRS.       */
-  --marchio:        #00AEEF;   /* cyan del logo: riempimenti, focus, "controllata" */
-  --marchio-scuro:  #00719B;   /* testo e hover: il cyan puro non ha contrasto su bianco */
-  --marchio-tenue:  #E2F5FD;   /* riempimenti leggeri, righe selezionate   */
-  --su-marchio:     #00323F;   /* cio' che sta SOPRA il cyan pieno: il bianco
-                                  su #00AEEF fa 2,5:1, questo cyan profondo 5,4:1 */
+  /* Il cyan puro del logo (#00AEEF) resta nel logo. Nell'interfaccia il blu e'
+     una LAGUNA: stessa tonalita' (cosi' i quattro passi restano distinti fra
+     loro, indaco e verde compresi) ma piu' profonda e piu' satura - il cyan
+     da schermo era piatto, questo ha corpo. 3,6:1 su bianco come riempimento
+     (il cyan faceva 2,5), e il tono scuro per il testo. 30a sessione. */
+  --marchio:        #0D96CF;   /* laguna: riempimenti, focus, "controllata" */
+  --marchio-scuro:  #085F87;   /* testo e hover: 6,6:1 su bianco */
+  --marchio-tenue:  #E0F1F9;   /* riempimenti leggeri, righe selezionate   */
+  --marchio-notte:  #0A2E44;   /* il fondo della laguna: tinge l'inchiostro dei bottoni */
+  --su-marchio:     #03293A;   /* cio' che sta SOPRA la laguna piena: 5,9:1 */
   --accento:        #00A37A;   /* completato: verde che sta bene accanto al cyan */
   --accento-scuro:  #007A5C;   /* dove serve testo bianco sul verde (avvisi)    */
   /* ---------------------------------------------------------------------- */
 
-  /* Fondi e inchiostri. I grigi del logo restano la famiglia, ma virano di un
-     soffio verso il blu: e' l'unico modo di avere un inchiostro GRAFITE-NAVY
-     profondo (non un nero neutro, che accanto al cyan sembra spento) senza
-     aggiungere un secondo colore. Tutti i rapporti sono stati rimisurati e
-     stanno sopra i valori di prima. */
-  --fondo:      #F2F5F7;
+  /* Fondi e inchiostri (30a sessione, restyling premium). Il fondo non e' piu'
+     un grigio freddo da pannello di controllo ma una PORCELLANA calda, e
+     l'inchiostro e' una grafite neutra profonda: e' l'accostamento della carta
+     di pregio - avorio, nero, un solo colore vivo (il cyan del marchio) che
+     cosi' brilla di piu' perche' non ha intorno altri toni freddi. I grigi
+     intermedi seguono la stessa temperatura. Rapporti rimisurati: inchiostro
+     17,8:1 su bianco, testo tenue 5,4:1 su bianco e 4,8:1 sul fondo. */
+  --fondo:      #F3F1EC;
   --superficie: #FFFFFF;
-  --superficie-2:#F8FAFB;
-  --bordo:      #E2E7EB;
-  --bordo-forte:#C3CBD2;
-  --inchiostro: #121A21;       /* grafite-navy: 17,6:1 su bianco */
-  --inchiostro-2:#47535E;      /* il grigio scuro del logo, raffreddato: 7,9:1 */
-  --tenue:      #616C76;       /* 5,4:1 su bianco, 4,9:1 sul fondo: AA ovunque */
-  --tenue-2:    #66707A;       /* testo micro (id, localita', totali): 5,0:1 su
-                                  bianco, 4,6:1 sul fondo. Il minimo, verificato */
+  --superficie-2:#F8F6F2;
+  --bordo:      #E4E0D8;
+  --bordo-forte:#C9C3B8;
+  --inchiostro: #15181C;       /* grafite: 17,8:1 su bianco */
+  --inchiostro-2:#4A4F55;      /* 8,3:1 su bianco, 7,3:1 sul fondo */
+  --tenue:      #666B70;       /* 5,4:1 su bianco, 4,8:1 sul fondo: AA ovunque */
+  --tenue-2:    #666B70;       /* testo micro (id, localita', totali): come --tenue,
+                                  il minimo verificato anche sul fondo */
   --su-allerta: #FFFFFF;       /* testo sopra l'ambra pieno (banner, avvisi) */
   /* Il filo a bassa opacita': e' il bordo di tutta l'interfaccia premium - si
      vede il salto di superficie, non una linea disegnata. */
@@ -91,7 +98,7 @@
      l'ambra dell'arretrato: sono due cose diverse); il pre-tracciamento e' il
      neutro, come nella griglia. */
   --cl-previsto: var(--marchio);
-  --cl-stima:    #0E7FA8;
+  --cl-stima:    #085F87;   /* la laguna a un grado piu' scuro: stessa cosa, meno certa */
   --cl-rinnovo:  var(--scadenza);
   --cl-pretrac:  #8B8D91;    /* il grigio che era di `stampata`: pre-tracciamento resta neutro */
 
@@ -116,7 +123,7 @@
      quello che tiene insieme testa di vetro e fondo. */
   --velo: radial-gradient(1100px 380px at 8% -10%,
             color-mix(in srgb, var(--marchio) 7%, transparent), transparent 68%);
-  --filo: linear-gradient(90deg, var(--marchio), var(--completa));
+  --filo: linear-gradient(90deg, var(--marchio-scuro), var(--marchio) 45%, var(--completa));
   /* Vetro delle carte della vista Statistiche: la superficie lasciata un po'
      trasparente sul velo, e il riflesso di 1px sul bordo alto. */
   --vetro:  color-mix(in srgb, var(--superficie) 86%, transparent);
@@ -178,31 +185,69 @@
   --molla: cubic-bezier(.2,.9,.28,1);
   --rapido: 140ms var(--molla);
   --medio:  240ms var(--molla);
+
+  /* ---- MATERIA (30a sessione) -------------------------------------------
+     Tre materiali soli, e ogni comando dell'app e dei generatori e' fatto di
+     uno di questi. E' quello che fa leggere l'insieme come un oggetto di
+     pregio invece che come un modulo web:
+       INCHIOSTRO  il bottone primario, la posizione attiva dei comandi
+                   segmentati, il cursore del mese: un pieno scuro tinto del
+                   fondo della laguna (--marchio-notte) con un filo
+                   di luce sul bordo alto e un'ombra corta. In tema scuro si
+                   inverte in AVORIO con testo inchiostro. Il cyan smette di
+                   fare da bottone e torna a fare solo il SEGNALE (stati, fuoco,
+                   pillole accese).
+       VETRO       pillole, campi e carte: la superficie sfumata di un soffio
+                   verso il basso, filo a bassa opacita', ombra di contatto.
+       SATIN       il riflesso sui riempimenti (capsule, barre, pista): un velo
+                   bianco che si spegne prima di meta' altezza. Da' volume a
+                   una barra senza aggiungere un colore.
+     Le PISTE (il vuoto di una barra, il fondo di un campo, il vassoio di un
+     comando segmentato) sono un incavo: tinta dell'inchiostro a bassa
+     opacita' con un'ombra interna corta. */
+  --btn-fondo:       linear-gradient(180deg, #2A3844 0%, #16222C 55%, #0F1920 100%);
+  --btn-fondo-hover: linear-gradient(180deg, #34444F 0%, #1E2C37 55%, #16222C 100%);
+  --btn-testo:   #FFFFFF;
+  --btn-accento: var(--marchio);   /* cifre e icone SOPRA il bottone d'inchiostro: 6,5:1 */
+  --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.20);
+  --btn-ombra:   0 1px 2px rgba(10,30,44,.22), 0 8px 18px -10px rgba(10,46,68,.6);
+  --vetro-fondo: linear-gradient(180deg, var(--superficie), var(--superficie-2));
+  --satin: linear-gradient(180deg, rgba(255,255,255,.38), rgba(255,255,255,.10) 46%, rgba(255,255,255,0));
+  --pista-fondo:  color-mix(in srgb, var(--inchiostro) 7%, transparent);
+  --pista-incavo: inset 0 1px 2px rgba(16,20,26,.10),
+                  inset 0 0 0 1px color-mix(in srgb, var(--inchiostro) 5%, transparent);
+  /* il filo di platino: la riga di luce sul bordo alto di testa, fogli e carte,
+     che si spegne verso i due lati. Non e' un colore, e' inchiostro al 18%. */
+  --filo-platino: linear-gradient(90deg, transparent,
+                    color-mix(in srgb, var(--inchiostro) 18%, transparent) 28%,
+                    color-mix(in srgb, var(--inchiostro) 18%, transparent) 72%, transparent);
 }
 
 /* Tema scuro: automatico da sistema, forzabile con data-tema sul <html> */
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="chiaro"]) {
-    --fondo:      #0B0F13;
-    --superficie: #14191E;
-    --superficie-2:#1A2026;
-    --bordo:      #262E35;
-    --bordo-forte:#3A444D;
-    --inchiostro: #EDF1F4;       /* 15,6:1 sulla superficie */
-    --inchiostro-2:#C2CBD3;      /* 10,8:1 */
-    --tenue:      #8E99A3;       /* 6,1:1 sulla superficie scura */
-    --tenue-2:    #96A1AB;       /* 6,7:1 sulla superficie scura */
+    /* carbone caldo, non blu-nero: lo stesso passo del tema chiaro (porcellana
+       e grafite) letto al negativo. Inchiostro avorio 15,4:1 sulla superficie */
+    --fondo:      #0C0E11;
+    --superficie: #151719;
+    --superficie-2:#1B1E21;
+    --bordo:      #272B2F;
+    --bordo-forte:#3B4147;
+    --inchiostro: #EEEDE9;       /* 15,4:1 sulla superficie */
+    --inchiostro-2:#C4C6C6;      /* 10,5:1 */
+    --tenue:      #8F949A;       /* 5,9:1 sulla superficie scura */
+    --tenue-2:    #969BA0;       /* 6,4:1 sulla superficie scura */
   --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
   color-scheme: dark;
-    --marchio:       #35C4FF;
-    --marchio-scuro: #8FDCFF;
-    --marchio-tenue: #0A2C3C;
+    --marchio:       #2FB3EA;
+    --marchio-scuro: #86D3F5;
+    --marchio-tenue: #0A2B3B;
     --accento:       #22C39A;
     --completa-testo: var(--accento);
     --st-stampata:   #E2B83C;   /* oro rischiarato per il fondo scuro */
     --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
     --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
-    --cl-stima:    #1D89B4;
+    --cl-stima:    #15759D;
     --st-vuoto:      #24262A;
     --allerta:       #E0913C;
     --allerta-tenue: #2A1F12;
@@ -214,30 +259,43 @@
     --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
     --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
     --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
+    /* la materia al negativo: il bottone d'inchiostro diventa AVORIO (e' l'unica
+       cosa chiara oltre alle pagine), il satin si abbassa perche' sul buio un
+       velo bianco pesa il triplo */
+    --btn-fondo:       linear-gradient(180deg, #FFFFFF 0%, #EEEEEB 60%, #E3E4E1 100%);
+    --btn-fondo-hover: linear-gradient(180deg, #FFFFFF 0%, #F7F7F5 60%, #EDEEEB 100%);
+    --btn-testo:   #0E1114;
+    --btn-accento: #00719B;      /* cyan profondo sull'avorio: 4,9:1 */
+    --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.10);
+    --btn-ombra:   0 1px 2px rgba(0,0,0,.55), 0 10px 22px -12px rgba(0,0,0,.9);
+    --satin: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04) 46%, rgba(255,255,255,0));
+    --pista-fondo:  rgba(255,255,255,.07);
+    --pista-incavo: inset 0 1px 2px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.04);
+    --filo-platino: linear-gradient(90deg, transparent, rgba(255,255,255,.17) 28%, rgba(255,255,255,.17) 72%, transparent);
     --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
   }
 }
 :root[data-tema="scuro"] {
-  --fondo:      #0B0F13;
-  --superficie: #14191E;
-  --superficie-2:#1A2026;
-  --bordo:      #262E35;
-  --bordo-forte:#3A444D;
-  --inchiostro: #EDF1F4;
-  --inchiostro-2:#C2CBD3;
-  --tenue:      #8E99A3;       /* 6,1:1 sulla superficie scura */
-  --tenue-2:    #96A1AB;       /* 6,7:1 sulla superficie scura */
+  --fondo:      #0C0E11;
+  --superficie: #151719;
+  --superficie-2:#1B1E21;
+  --bordo:      #272B2F;
+  --bordo-forte:#3B4147;
+  --inchiostro: #EEEDE9;
+  --inchiostro-2:#C4C6C6;
+  --tenue:      #8F949A;       /* 5,9:1 sulla superficie scura */
+  --tenue-2:    #969BA0;       /* 6,4:1 sulla superficie scura */
   --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
   color-scheme: dark;
-  --marchio:       #35C4FF;
-  --marchio-scuro: #8FDCFF;
-  --marchio-tenue: #0A2C3C;
+  --marchio:       #2FB3EA;
+  --marchio-scuro: #86D3F5;
+  --marchio-tenue: #0A2B3B;
   --accento:       #22C39A;
   --completa-testo: var(--accento);
   --st-stampata:   #E2B83C;
   --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
   --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
-  --cl-stima:    #1D89B4;
+  --cl-stima:    #15759D;
   --st-vuoto:      #24262A;
   --allerta:       #E0913C;
   --allerta-tenue: #2A1F12;
@@ -249,5 +307,18 @@
   --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
   --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
   --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
+  /* la materia al negativo: il bottone d'inchiostro diventa AVORIO (e' l'unica
+     cosa chiara oltre alle pagine), il satin si abbassa perche' sul buio un
+     velo bianco pesa il triplo */
+  --btn-fondo:       linear-gradient(180deg, #FFFFFF 0%, #EEEEEB 60%, #E3E4E1 100%);
+  --btn-fondo-hover: linear-gradient(180deg, #FFFFFF 0%, #F7F7F5 60%, #EDEEEB 100%);
+  --btn-testo:   #0E1114;
+  --btn-accento: #00719B;      /* cyan profondo sull'avorio: 4,9:1 */
+  --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.10);
+  --btn-ombra:   0 1px 2px rgba(0,0,0,.55), 0 10px 22px -12px rgba(0,0,0,.9);
+  --satin: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04) 46%, rgba(255,255,255,0));
+  --pista-fondo:  rgba(255,255,255,.07);
+  --pista-incavo: inset 0 1px 2px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.04);
+  --filo-platino: linear-gradient(90deg, transparent, rgba(255,255,255,.17) 28%, rgba(255,255,255,.17) 72%, transparent);
   --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
 }

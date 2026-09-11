@@ -105,13 +105,8 @@ export function avviaPonte(cfg = {}) {
   let ultimoFile = '';        // il testo con cui si e' riconosciuto (nome file / titolo)
   let esitoCorrente = null;   // {tono, testo, cand}
 
-  /* ----------------------------------------------------------------- tema -- */
-  (function tema() {
-    const t = localStorage.getItem('cs.tema');
-    const mio = localStorage.getItem('vrsSchedeCampo.theme');
-    if (!t || mio) return;
-    window.setTheme?.(t === 'scuro' ? 'dark' : 'light', false);
-  })();
+  /* tema: niente da fare qui. I generatori leggono la stessa chiave del tracker
+     (`cs.tema`, #ANCHOR: tema-unico in js/app.js) nel loro script di testa. */
 
   /* --------------------------------------------------------------- i siti -- */
   async function caricaSiti() {

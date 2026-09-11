@@ -11,7 +11,7 @@
      interpretare `color(srgb ...)` - la resa del PDF moriva prima di disegnare
      ("unsupported color function color", trovato nella 29a sessione sul
      registro). Vale il fondo del tracker scurito di un soffio. */
-  --ui-0: #EDF0F3;
+  --ui-0: #ECEAE5;   /* la porcellana del tracker, scurita di un soffio */
   --ui-1: var(--superficie);      /* pannelli laterali */
   --ui-2: var(--superficie-2);    /* campi e riquadri rialzati */
   --ui-3: var(--bordo);           /* bordi */
@@ -44,7 +44,7 @@
    pieno (sul fondo scuro legge bene) con l'inchiostro profondo sopra. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="chiaro"]) {
-    --ui-0: #0F1317;
+    --ui-0: #0F1215;
     --ui-1: var(--superficie);
     --ui-2: var(--superficie-2);
     --acc: var(--marchio);
@@ -54,7 +54,7 @@
   }
 }
 :root[data-tema="scuro"] {
-  --ui-0: #0F1317;
+  --ui-0: #0F1215;
   --ui-1: var(--superficie);
   --ui-2: var(--superficie-2);
   --acc: var(--marchio);

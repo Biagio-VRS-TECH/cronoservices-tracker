@@ -1070,3 +1070,34 @@ partire offline, e lo fa lo stesso, perche' i tre caratteri (Newsreader, Inter,
 JetBrains Mono, ~210 KB in tutto, `web/assets/fonti/`) sono serviti dal sito,
 non da una CDN. Il vincolo che resta e' quello vero: nessun `npm`, nessuna
 build, nessuna dipendenza esterna a tempo di esecuzione.
+
+## 26. Il restyling premium: porcellana, laguna, tre materiali, un tema solo (30a sessione)
+
+Il committente: "non sembra di lusso". Il cyan puro del logo e il grigio freddo
+da pannello di controllo facevano un cruscotto, non un oggetto di pregio. Cosa
+e' cambiato, e dove vive (tutto in `css/theme.css`, il resto lo eredita):
+
+- **Neutri**: fondo PORCELLANA calda (`#F3F1EC`) e inchiostro GRAFITE neutro
+  (`#15181C`); in notte carbone caldo (`#0C0E11` / `#151719`) e avorio. E' la
+  carta di pregio: avorio, nero, un colore vivo solo. Contrasti rimisurati
+  (inchiostro 17,8:1, tenue 5,4:1 su bianco e 4,8:1 sul fondo).
+- **Il blu**: da cyan (`#00AEEF`) a LAGUNA (`#0D96CF`, notte `#2FB3EA`), stessa
+  tonalita' - cosi' i quattro passi restano distinti anche in CVD - ma piu'
+  profonda: 3,3:1 su bianco come riempimento (il cyan faceva 2,5, sotto la
+  soglia). `--cl-stima` scende a `#085F87` per restare a distanza 15 dal
+  "previsto". `valida-tavolozza.py` aggiornato e rilanciato: tutto ok.
+- **Tre materiali** (`--btn-*`, `--vetro-fondo`, `--satin`, `--pista-*`,
+  `--filo-platino`): INCHIOSTRO per il bottone primario e la posizione attiva
+  dei comandi segmentati (pieno scuro tinto del fondo della laguna, filo di
+  luce sul bordo alto; in notte si inverte in AVORIO); VETRO per pillole,
+  campi e carte; SATIN sui riempimenti di capsule e barre. Il cyan non e' piu'
+  un bottone: e' solo il segnale. Le piste sono un incavo, non un grigio.
+- **Un tema solo** (#ANCHOR: tema-unico in `js/app.js`): chiave `cs.tema` per
+  tracker e generatori, con l'evento `storage` che gira le schede aperte. La
+  vecchia `vrsSchedeCampo.theme` faceva divergere i generatori appena si
+  sceglieva qualcosa li'; `ponte.js` non traduce piu' fra due chiavi.
+
+Cosa NON e' cambiato, di proposito: i quattro colori dei passi, il verde di
+"completa", ambra e rosso; il DOCUMENTO stampato dei due generatori (e' carta,
+non interfaccia); il vincolo html2canvas sul fondo del banco in esadecimale
+(`--ui-0`, `--fondo-banco`: ora `#ECEAE5` / `#0F1215`).

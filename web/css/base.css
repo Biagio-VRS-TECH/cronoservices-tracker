@@ -69,6 +69,12 @@ button { background: none; border: 0; cursor: pointer; }
   border-bottom: 1px solid var(--bordo-lieve);
   box-shadow: inset 0 1px 0 var(--lucido), 0 1px 0 color-mix(in srgb, var(--inchiostro) 4%, transparent);
 }
+/* il filo di platino sul bordo basso della testa: si accende al centro e si
+   spegne ai lati, come la costa di un oggetto lucido */
+.testa::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: var(--filo-platino); pointer-events: none;
+}
 .marca { display: flex; align-items: center; gap: 11px; min-width: 0; flex: none; }
 .marca img, .marca svg { height: 26px; width: auto; display: block; }
 .marca-testo { display: flex; flex-direction: column; line-height: 1.05; }
@@ -109,12 +115,13 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .cerca input {
   width: clamp(160px, 24vw, 320px); padding: 7px 30px 7px 32px;
-  background: color-mix(in srgb, var(--fondo) 70%, transparent);
-  border: 1px solid var(--bordo-lieve);
+  /* un incavo nel vetro della testa, non un riquadro appoggiato sopra */
+  background: var(--pista-fondo); border: 1px solid transparent;
+  box-shadow: var(--pista-incavo);
   border-radius: var(--r-tonda); transition: var(--rapido);
 }
 .cerca input::-webkit-search-cancel-button { display: none; }
-.cerca input:hover { border-color: var(--bordo); background: var(--fondo); }
+.cerca input:hover { border-color: var(--bordo); }
 .cerca input:focus { background: var(--superficie); border-color: var(--marchio); outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
 .cerca-x {
@@ -129,6 +136,7 @@ button { background: none; border: 0; cursor: pointer; }
 .stato-coll {
   display: flex; align-items: center; gap: 8px; padding: 5px 11px;
   border: 1px solid var(--bordo-lieve); border-radius: var(--r-tonda);
+  background: var(--vetro-fondo); box-shadow: inset 0 1px 0 var(--lucido);
   font-size: var(--t-mini); color: var(--inchiostro-2); transition: var(--rapido);
   white-space: nowrap;
 }
@@ -181,27 +189,25 @@ button { background: none; border: 0; cursor: pointer; }
 .strumenti {
   position: sticky; top: 62px; z-index: 35;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 18px; background: var(--superficie); border-bottom: 1px solid var(--bordo-lieve);
+  padding: 8px 18px; background: var(--vetro-fondo); border-bottom: 1px solid var(--bordo-lieve);
 }
+/* I comandi segmentati (viste, stato) sono un VASSOIO incavato con dentro una
+   posizione d'INCHIOSTRO: il pieno scuro col filo di luce e' l'unica cosa in
+   rilievo della barra, e dice da lontano dove si e'. Il trattino cyan che
+   c'era sotto l'etichetta non serve piu'. */
 .gruppo {
-  display: flex; background: var(--fondo); border-radius: var(--r-2); padding: 2px; gap: 2px;
-  box-shadow: inset 0 0 0 1px var(--bordo-lieve);
+  display: flex; background: var(--pista-fondo); border-radius: var(--r-tonda); padding: 3px; gap: 2px;
+  box-shadow: var(--pista-incavo);
 }
 .gruppo button {
-  padding: 5px 12px; border-radius: var(--r-1); font-size: var(--t-mini); font-weight: 500;
+  padding: 5px 13px; border-radius: var(--r-tonda); font-size: var(--t-mini); font-weight: 500;
   color: var(--tenue); transition: var(--rapido); white-space: nowrap;
 }
 .gruppo button:hover { color: var(--inchiostro); }
 .gruppo button:active { transform: translateY(.5px); }
-.gruppo button[aria-pressed="true"] {
-  background: var(--superficie); color: var(--inchiostro); font-weight: 600;
-  box-shadow: var(--ombra-1), inset 0 0 0 1px var(--bordo-lieve);
-}
-/* La vista attiva porta un trattino cyan sotto l'etichetta: nel segmented
-   control il solo fondo bianco si perdeva sul fondo chiaro della barra. */
-.gruppo button[aria-pressed="true"]::after {
-  content: ''; display: block; height: 2px; margin: 4px auto -1px; width: 60%;
-  border-radius: var(--r-tonda); background: var(--filo);
+.gruppo button[aria-pressed="true"], .gruppo button[aria-pressed="true"]:hover {
+  background: var(--btn-fondo); color: var(--btn-testo); font-weight: 600;
+  box-shadow: var(--btn-lucido), var(--btn-ombra);
 }
 .sep { width: 1px; height: 20px; background: var(--bordo); margin: 0 4px; }
 
@@ -215,34 +221,42 @@ button { background: none; border: 0; cursor: pointer; }
   font-family: var(--f-dato); font-size: var(--t-micro); font-weight: 600;
   color: var(--tenue-2); font-style: normal;
 }
-.gruppo.stati button[aria-pressed="true"] .n { color: var(--marchio-scuro); }
-.gruppo.stati button[aria-pressed="true"]::after { width: 100%; }
+.gruppo.stati button[aria-pressed="true"] .n { color: var(--btn-accento); }
 .gruppo.stati button[data-stato="ritardo"] .n { color: var(--allerta); }
+/* l'ambra sull'inchiostro non si legge: sulla posizione attiva si schiarisce
+   verso il testo del bottone */
+.gruppo.stati button[data-stato="ritardo"][aria-pressed="true"] .n {
+  color: color-mix(in srgb, var(--allerta) 55%, var(--btn-testo)); }
 
-/* Le pillole dei filtri sono piatte: fondo tenue, niente bordo. Sette bordi in
-   fila pesavano piu' della griglia. Il bordo compare solo al passaggio e
-   sull'attivo. */
+/* Le pillole dei filtri sono di VETRO: superficie sfumata di un soffio, filo a
+   bassa opacita', un riflesso di 1px sul bordo alto. Al passaggio si alzano
+   di mezzo pixel e prendono l'ombra di contatto. */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: var(--r-tonda); border: 1px solid transparent;
-  background: var(--fondo); font-size: var(--t-mini); font-weight: 500;
+  padding: 5px 12px; border-radius: var(--r-tonda); border: 1px solid var(--bordo-lieve);
+  background: var(--vetro-fondo); font-size: var(--t-mini); font-weight: 500;
   color: var(--inchiostro-2); transition: var(--rapido); white-space: nowrap;
+  box-shadow: inset 0 1px 0 var(--lucido), 0 1px 1px rgba(16,20,26,.04);
 }
-.pill:hover { border-color: var(--bordo); background: var(--superficie-2); color: var(--inchiostro);
-  box-shadow: var(--ombra-1); }
+.pill:hover { border-color: var(--bordo-forte); background: var(--superficie); color: var(--inchiostro);
+  box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-1); transform: translateY(-.5px); }
 .pill:active { transform: translateY(.5px); box-shadow: none; }
 .pill[aria-pressed="true"] {
   background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
   color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
 }
-.pill.debole { background: transparent; color: var(--tenue); }
-.pill.debole:hover { border-style: dashed; }
+.pill.debole { background: transparent; color: var(--tenue); border-color: transparent; box-shadow: none; }
+.pill.debole:hover { border-style: dashed; border-color: var(--bordo-forte); box-shadow: none; }
 .pill.mini { padding: 3px 9px; min-height: 24px; font-size: var(--t-micro); }
 /* la tendina resta una pillola, ma con la freccina: senza, sembrava un'etichetta */
 select.pill {
   padding-right: 22px; appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23616C76' stroke-width='1.5' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat; background-position: right 8px center;
+  /* la freccina E il vetro: `background-image` da solo avrebbe spento la
+     sfumatura della pillola lasciando la tendina trasparente */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23666B70' stroke-width='1.5' stroke-linecap='round'/></svg>"),
+                    var(--vetro-fondo);
+  background-repeat: no-repeat; background-position: right 8px center, 0 0;
+  background-size: 10px 6px, 100% 100%;
 }
 
 .stato-sync { display: flex; align-items: center; gap: 7px; font-size: var(--t-mini); color: var(--tenue); }
@@ -257,13 +271,13 @@ select.pill {
    Sta dentro `.strumenti` (che e' sticky, quindi posizionata) e copre il bordo
    inferiore, cosi' non aggiunge una riga al layout. */
 .filo {
-  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: var(--bordo); overflow: hidden; z-index: 1;
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
+  background: var(--pista-fondo); overflow: hidden; z-index: 1;
 }
 .filo i {
   display: block; height: 100%; width: var(--w, 0);
   background: var(--filo); border-radius: 0 var(--r-tonda) var(--r-tonda) 0;
-  box-shadow: 0 0 10px -1px color-mix(in srgb, var(--completa) 70%, transparent);
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--completa) 45%, transparent);
   transition: width 900ms var(--molla);
   position: relative;
 }
@@ -346,11 +360,17 @@ select.pill {
 }
 @keyframes sfuma { from { opacity: 0; } }
 .foglio {
+  position: relative;
   background: var(--superficie); border-radius: var(--r-3);
   box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
   border: 1px solid var(--bordo-lieve);
   width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 24px;
   animation: entra var(--medio) both;
+}
+/* il filo di platino sul bordo alto del foglio, come sulla testa dell'app */
+.foglio::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: var(--filo-platino); pointer-events: none;
 }
 @keyframes entra { from { opacity: 0; transform: translateY(12px) scale(.98); } }
 /* Foglio grande, per gli elenchi che non stanno in 520px: l'elenco per sito
@@ -367,20 +387,24 @@ select.pill {
   font-size: 24px; line-height: 1.15; letter-spacing: var(--tr-display);
 }
 .foglio p.sotto { margin: 0 0 18px; color: var(--tenue); }
-.campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo);
-  border-radius: var(--r-2); background: var(--fondo); transition: var(--rapido); }
+.campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo-lieve);
+  border-radius: var(--r-2); background: var(--pista-fondo); box-shadow: var(--pista-incavo);
+  transition: var(--rapido); }
 .campo:hover { border-color: var(--bordo-forte); }
 .campo:focus { outline: none; border-color: var(--marchio); background: var(--superficie);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
+/* Il bottone primario e' d'INCHIOSTRO (avorio in tema scuro): il pieno scuro
+   col filo di luce sul bordo alto e l'ombra corta. Il cyan non e' piu' un
+   bottone: resta il segnale. Al passaggio si alza di un pixel. */
 .bottone {
-  padding: 9px 17px; border-radius: var(--r-2);
-  background: var(--marchio); color: var(--su-marchio);
-  font-weight: 650; font-size: var(--t-mini); transition: var(--rapido);
-  box-shadow: var(--ombra-1), inset 0 1px 0 rgba(255,255,255,.28);
+  padding: 9px 18px; border-radius: var(--r-2);
+  background: var(--btn-fondo); color: var(--btn-testo);
+  font-weight: 600; font-size: var(--t-mini); letter-spacing: .01em; transition: var(--rapido);
+  box-shadow: var(--btn-lucido), var(--btn-ombra);
 }
-.bottone:hover { background: color-mix(in srgb, var(--marchio) 82%, var(--su-marchio));
-  box-shadow: var(--alone-marchio); }
-.bottone:active { transform: translateY(1px); box-shadow: none; }
+.bottone:hover { background: var(--btn-fondo-hover);
+  box-shadow: var(--btn-lucido), var(--ombra-2); transform: translateY(-1px); }
+.bottone:active { transform: translateY(0); box-shadow: var(--btn-lucido); }
 .bottone.piatto { background: none; color: var(--tenue); box-shadow: none; }
 .bottone.piatto:hover { background: var(--fondo); color: var(--inchiostro); }
 /* Il bottone di un'azione che non si disfa: colore d'allerta, non di marchio. */

@@ -165,8 +165,9 @@
 </main>
 </div>
 
-<!-- ASPETTO: la stessa setTheme del generatore di schede, e la stessa chiave in
-     localStorage, cosi' i due generatori condividono la scelta. Script classico
+<!-- ASPETTO: la stessa setTheme del generatore di schede, e la stessa chiave
+     del tracker (`cs.tema`, #ANCHOR: tema-unico in js/app.js): un tema solo per
+     le tre pagine, che si segue anche a scheda aperta. Script classico
      e non modulo: il tema si applica prima che i moduli (differiti) partano,
      altrimenti si vedrebbe un lampo di scuro. window.setTheme e' anche quello
      che js/ponte.js chiama per seguire il tema del tracker. -->
@@ -184,7 +185,12 @@ function setTheme(t, save){
   Array.prototype.forEach.call(document.querySelectorAll('#themeSeg button'), function(b){
     b.setAttribute('aria-pressed', b.getAttribute('data-theme') === THEME ? 'true' : 'false');
   });
-  if (save) { try { localStorage.setItem('vrsSchedeCampo.theme', THEME); } catch(e){} }
+  if (save) { try { localStorage.setItem('cs.tema', THEME === 'auto' ? '' : THEME === 'dark' ? 'scuro' : 'chiaro'); } catch(e){} }
+}
+function temaDaChiave(){
+  var t = null;
+  try { t = localStorage.getItem('cs.tema'); } catch(e){}
+  return t === 'scuro' ? 'dark' : t === 'chiaro' ? 'light' : 'auto';
 }
 window.setTheme = setTheme;
 document.getElementById('themeSeg').onclick = function(e){
@@ -196,11 +202,8 @@ if (SYS_LIGHT) {
   if (SYS_LIGHT.addEventListener) SYS_LIGHT.addEventListener('change', onSys);
   else if (SYS_LIGHT.addListener) SYS_LIGHT.addListener(onSys);
 }
-(function(){
-  var t = null;
-  try { t = localStorage.getItem('vrsSchedeCampo.theme'); } catch(e){}
-  setTheme(t || 'auto', false);
-})();
+setTheme(temaDaChiave(), false);
+window.addEventListener('storage', function(e){ if (e.key === 'cs.tema') setTheme(temaDaChiave(), false); });
 </script>
 
 <script type="module" src="app.js"></script>
