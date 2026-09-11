@@ -653,34 +653,45 @@ export function avviaPonte(cfg = {}) {
      I cloni perdono gli id (non devono farsi trovare dai getElementById dei
      generatori) e stanno FUORI da #pages: html2canvas fotografa solo le pagine
      vere e non li vede. */
-  /* Otto fogli sempre, perche' i tempi dell'animazione (css) sono scritti per
-     otto: se il documento ne ha meno, le pagine si ripetono. E' un giro
-     INFINITO in avanti: il foglio girato torna sotto la pila coperto dagli
-     altri, quindi non c'e' ne' fine ne' ricomincio da vedere - l'attesa puo'
-     durare anche un minuto. Erano dodici: dodici cloni di pagine piene, con lo
-     z-index animato (thread principale, bloccato da html2canvas), laggavano. */
-  const FOGLI = 8;
+  /* Un libro aperto: pagina 0 a sinistra, 3 fogli (fronte/retro = pagine 1-2,
+     3-4, 5-6) e la pagina 7 come base a destra: OTTO facciate clonate. I
+     tempi dell'animazione (css) sono scritti per 3 fogli: se il documento ha
+     meno pagine si ripetono. Sempre in avanti, poi il libro si chiude e si
+     riapre da capo - l'attesa puo' durare anche un minuto. */
+  const FOGLI = 3;
   function apriLibretto() {
     chiudiLibretto(true);
     const main = $(selScorr)?.parentElement || $('#main');
-    const fonte = pagineDi().slice(0, FOGLI);
+    const fonte = pagineDi().slice(0, 2 * FOGLI + 2);
     if (!main || !fonte.length) return;
-    const pagine = Array.from({ length: FOGLI }, (_, i) => fonte[i % fonte.length]);
-    const largo = pagine[0].offsetWidth || 794, alto = pagine[0].offsetHeight || 1123;
-    const W = 190, S = W / largo, Hh = Math.round(alto * S);
+    const pagina = i => fonte[i % fonte.length];
+    const largo = fonte[0].offsetWidth || 794, alto = fonte[0].offsetHeight || 1123;
+    const W = 150, S = W / largo, Hh = Math.round(alto * S);
+    const faccia = (i, classe) => {
+      const f = document.createElement('div'); f.className = 'lb-faccia ' + (classe || '');
+      const c = pagina(i).cloneNode(true);
+      c.removeAttribute('id'); c.classList.remove('flash');
+      c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+      c.style.cssText = `transform:scale(${S});transform-origin:0 0;width:${largo}px;height:${alto}px;margin:0;box-shadow:none;`;
+      f.appendChild(c); return f;
+    };
     const lb = document.createElement('div');
     lb.id = 'libretto'; lb.className = 'libretto'; lb.setAttribute('aria-hidden', 'true');
     lb.style.setProperty('--lb-w', W + 'px'); lb.style.setProperty('--lb-h', Hh + 'px');
     const libro = document.createElement('div'); libro.className = 'lb-libro';
-    pagine.forEach((p, i) => {
-      const f = document.createElement('div'); f.className = 'lb-foglio'; f.style.setProperty('--i', String(i));
-      const c = p.cloneNode(true);
-      c.removeAttribute('id'); c.classList.remove('flash');
-      c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-      c.style.cssText = `transform:scale(${S});transform-origin:0 0;width:${largo}px;height:${alto}px;margin:0;box-shadow:none;`;
-      f.appendChild(c); libro.appendChild(f);
-    });
-    const dorso = document.createElement('i'); dorso.className = 'lb-dorso'; libro.appendChild(dorso);
+    const ombra = document.createElement('i'); ombra.className = 'lb-ombra';
+    const sx = document.createElement('div'); sx.className = 'lb-sx'; sx.appendChild(faccia(0));
+    const dx = document.createElement('div'); dx.className = 'lb-dx'; dx.appendChild(faccia(2 * FOGLI + 1));
+    for (let k = 0; k < FOGLI; k++) {
+      const f = document.createElement('div'); f.className = 'lb-foglia'; f.dataset.k = String(k);
+      /* il primo foglio (k=0) sta in cima alla pila di destra; voltato, il suo
+         translateZ gira con lui e lo manda in fondo alla pila di sinistra */
+      f.style.setProperty('--z', ((FOGLI - k) * 0.6).toFixed(1) + 'px');
+      f.append(faccia(2 * k + 1, 'lb-fronte'), faccia(2 * k + 2, 'lb-retro'));
+      dx.appendChild(f);
+    }
+    const dorso = document.createElement('i'); dorso.className = 'lb-dorso';
+    libro.append(ombra, sx, dx, dorso);
     const frase = document.createElement('p'); frase.className = 'lb-frase'; frase.appendChild(document.createElement('span'));
     const barra = document.createElement('div'); barra.className = 'lb-barra'; barra.appendChild(document.createElement('i'));
     lb.append(libro, frase, barra);

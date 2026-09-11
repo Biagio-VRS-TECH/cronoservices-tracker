@@ -1130,18 +1130,23 @@ un accenno di prospettiva; e la FESTA (anno.js, `.blocco.festa` / `.cella.fioris
 in griglia.css) - l'ultima spunta che chiude la mappatura di un cliente accende
 la carta e una luce verde la attraversa una volta, mentre la capsula fiorisce.
 Terza scena, IL LIBRETTO (`apriLibretto()` in ponte.js, css/ponte.css sezione
-omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela e in
-mezzo il documento sfoglia - otto fogli (le prime pagine vere, clonate senza
-id e ridotte a 190px, ripetute se sono meno) girano sul dorso SEMPRE IN AVANTI,
-uno ogni 0,6 s, in un giro infinito senza cuciture: il foglio girato torna in
-fondo alla pila coperto dagli altri e risale con la PROFONDITA' (translateZ in
-uno spazio preserve-3d), non con lo z-index. Storia: sei fogli in `alternate`
-(il ritorno indietro sembrava un bug, e con attese di 25-50 s erano pochi), poi
-dodici con lo z-index animato: laggava, perche' lo z-index passa dal thread
-principale che html2canvas tiene bloccato. Regola che ne esce: durante la resa
-del PDF si anima SOLO transform/opacity, niente z-index, niente filter o
-backdrop-filter sopra cose in movimento. La chiusura e' una dissolvenza, i
-fogli non si fermano di colpo; sotto la frase di stato e
-l'avanzamento della fascia. Si chiude da solo alla fine, bene o male che vada.
+omonima): per tutta l'attesa della consegna al tracker l'anteprima si vela
+(sfocata) e in mezzo il documento e' un LIBRO APERTO a due facciate - otto
+pagine vere clonate senza id e ridotte a 150px: pagina 0 a sinistra, tre fogli
+fronte/retro, l'ottava come base a destra. I fogli girano uno alla volta da
+destra a sinistra (giro 0,9 s), poi il libro si CHIUDE verso chi guarda, resta
+un attimo di taglio (li' i fogli tornano a destra senza che si veda) e si
+RIAPRE da capo: sempre in avanti, ciclo di 6,6 s. Sotto, la frase di stato e
+l'avanzamento della fascia. Si chiude in dissolvenza alla fine, bene o male.
+Storia breve, perche' e' costata tre giri: sei fogli in `alternate` (il
+ritorno indietro sembrava un bug), dodici con lo z-index animato (laggava), poi
+otto con la profondita'. Regole che ne escono: (1) durante la resa del PDF si
+anima SOLO transform e opacity - lo z-index passa dal thread principale, che
+html2canvas tiene bloccato; (2) l'ordine delle pile e' la profondita'
+(translateZ in preserve-3d): il translateZ ruota col foglio, quindi il foglio
+voltato finisce da solo sotto ai gia' voltati; (3) i filtri (drop-shadow, blur)
+stanno su cose FERME - il velo e un rettangolo dietro il libro - mai sopra
+elementi in movimento; (4) i fotogrammi con i tempi per foglio sono GENERATI da
+uno script (in ponte.css e' detto): si cambia il tempo e si rigenera.
 Il velo e' in rgba e i cloni stanno fuori da #pages: html2canvas gira proprio
 in quel momento e non deve ne' vederli ne' inciampare in un color-mix.

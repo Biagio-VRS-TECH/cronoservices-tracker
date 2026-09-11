@@ -289,67 +289,83 @@ body.ponte-lavora #side .pn-strip{padding-top:8px!important;padding-bottom:9px!i
 @media (prefers-reduced-motion:reduce){#pages.sfoglia .page{animation:none}}
 
 /* ---------- IL LIBRETTO (ponte.js, apriLibretto) ----------
-   Mentre il PDF si prepara e viaggia verso il tracker, l'anteprima si vela e
-   in mezzo il documento sfoglia: otto fogli (le prime pagine vere, clonate e
-   ridotte a 190px) che girano sul dorso SEMPRE IN AVANTI, uno ogni 0,6 s, in
-   un giro infinito senza cuciture.
-   TUTTO SUL COMPOSITOR, ed e' il punto: html2canvas blocca il thread
-   principale proprio mentre il libretto gira. Quindi si anima SOLO `transform`
-   (e un'opacita'): l'ordine della pila non e' lo z-index (animarlo passa dal
-   thread principale e scattava) ma la PROFONDITA' - uno spazio 3D condiviso
-   (preserve-3d) in cui ogni foglio sta a un translateZ diverso: il foglio
-   girato, invisibile sul rovescio, torna in fondo (-8px) coperto dagli altri
-   e risale piano verso 0 finche' e' di nuovo in cima e gira. Niente filtri
-   (drop-shadow, backdrop blur) sopra elementi in movimento: l'ombra del
-   libretto e' un rettangolo fermo dietro la pila.
-   I tempi sono per OTTO fogli (ciclo 4,8 s, giro 0,55 s = 11,4%): ponte.js ne
-   mette sempre otto, ripetendo le pagine se sono meno. Il velo e' in rgba, non
-   color-mix: html2canvas gira in questo momento. */
+   Mentre il PDF si prepara e viaggia verso il tracker, l'anteprima si vela
+   (sfocata) e in mezzo il documento e' un LIBRO APERTO a due facciate: le
+   prime otto pagine vere, clonate e ridotte a 150px l'una. Tre fogli girano
+   uno dopo l'altro da destra a sinistra (fronte = pagina di destra, retro =
+   la pagina che compare a sinistra), poi il libro si CHIUDE verso chi guarda,
+   resta un attimo di taglio e si RIAPRE da capo: sempre in avanti, mai
+   all'indietro. Un ciclo dura 6.6 s e si ripete finche' il lavoro va.
+   Fluidita' prima di tutto: html2canvas blocca il thread principale proprio
+   in quel momento, quindi si anima SOLO `transform` (e l'opacita' dell'ombra
+   che scende sul foglio). L'ordine delle pile e' la profondita' (translateZ in
+   uno spazio preserve-3d: il foglio girato finisce sotto ai gia' girati da
+   solo, perche' il translateZ ruota con lui), non lo z-index. Il velo sfocato
+   e' fermo, l'ombra e' un rettangolo fermo dietro il libro con drop-shadow:
+   niente filtri sopra cose in movimento. I fotogrammi sono GENERATI (tempi:
+   primo giro a 0.5 s, giro 0.9 s, pausa 0.5 s, chiusura 0.6 s): per
+   cambiarli si rigenera lo script, non si ritocca a mano.
+   Il velo e' in rgba, non color-mix: html2canvas gira in questo momento. */
 .libretto{position:absolute;inset:0;z-index:36;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:20px;pointer-events:none;
-  background:rgba(15,18,21,.88);animation:lb-entra .3s var(--ease) both}
-:root.lt .libretto{background:rgba(236,234,229,.9)}
+  justify-content:center;gap:22px;pointer-events:none;
+  background:rgba(15,18,21,.72);backdrop-filter:blur(8px) saturate(1.1);
+  animation:lb-entra .3s var(--ease) both}
+:root.lt .libretto{background:rgba(236,234,229,.74)}
 @keyframes lb-entra{from{opacity:0}}
-/* la chiusura e' una dissolvenza e basta: i fogli continuano a girare mentre
-   il velo sfuma e il libretto sale di poco. Fermarli di colpo era uno scatto */
+/* la chiusura del velo e' una dissolvenza mentre il libro sale di poco: i fogli
+   continuano a girare, niente si ferma di colpo */
 .libretto.chiude{animation:lb-esce .45s var(--ease) both}
 @keyframes lb-esce{to{opacity:0}}
 .libretto.chiude .lb-libro{animation:lb-via .45s var(--ease) both}
 @keyframes lb-via{to{transform:translateY(-8px) scale(1.03)}}
-.lb-libro{position:relative;width:var(--lb-w,190px);height:var(--lb-h,269px);
-  perspective:1500px;transform-style:preserve-3d}
-/* l'ombra: un rettangolo fermo dietro la pila, non un filtro sui fogli */
-.lb-libro::before{content:"";position:absolute;inset:0;border-radius:3px;background:#000;
-  transform:translateZ(-12px);box-shadow:0 34px 44px rgba(0,0,0,.55)}
-:root.lt .lb-libro::before{box-shadow:0 24px 36px rgba(15,20,24,.3)}
-.lb-foglio{position:absolute;inset:0;overflow:hidden;background:#fff;border-radius:2px 5px 5px 2px;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.07);transform-origin:left center;backface-visibility:hidden;
-  will-change:transform;contain:paint;
-  animation:lb-giro 4.8s linear infinite;
-  /* il foglio i parte a i passi dalla cima: ritardo negativo, cosi' la pila e'
-     gia' in ordine al primo fotogramma e il primo gira subito */
-  animation-delay:calc(var(--i,0) * .6s - 4.8s)}
-.lb-foglio>*{pointer-events:none}
-/* l'ombra che scende sul foglio mentre gira: solo opacita', sul compositor */
-.lb-foglio::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(90deg,rgba(0,0,0,.24),transparent 45%);opacity:0;will-change:opacity;
-  animation:lb-ombra 4.8s linear infinite;animation-delay:inherit}
-@keyframes lb-giro{
-  0%    {transform:rotateY(0) translateZ(0);animation-timing-function:cubic-bezier(.55,.05,.35,1)}
-  11.4% {transform:rotateY(-180deg) translateZ(0)}
-  11.5% {transform:rotateY(0) translateZ(-8px)}
-  100%  {transform:rotateY(0) translateZ(-.6px)}
-}
-@keyframes lb-ombra{0%{opacity:0} 5.7%{opacity:1} 11.4%,100%{opacity:0}}
-/* il dorso: la costa scura su cui girano i fogli, davanti a tutto */
-.lb-dorso{position:absolute;left:-3px;top:-2px;bottom:-2px;width:5px;border-radius:2px;
-  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));transform:translateZ(1px)}
+.lb-libro{position:relative;width:calc(var(--lb-w,150px) * 2);height:var(--lb-h,212px);
+  perspective:1400px;transform-style:preserve-3d}
+/* l'ombra: ferma, dietro tutto */
+.lb-ombra{position:absolute;inset:2px -2px -2px;border-radius:4px;background:rgba(0,0,0,.35);
+  transform:translateZ(-14px);filter:drop-shadow(0 30px 34px rgba(0,0,0,.55)) blur(2px)}
+:root.lt .lb-ombra{background:rgba(15,20,24,.2);filter:drop-shadow(0 24px 30px rgba(15,20,24,.32)) blur(2px)}
+/* le due meta': la sinistra e' la pagina 0, la destra la base su cui stanno i
+   fogli. Tutte e due girano sul dorso quando il libro si chiude */
+.lb-sx,.lb-dx{position:absolute;top:0;bottom:0;width:50%;transform-style:preserve-3d;
+  animation:6.6s linear infinite;will-change:transform}
+.lb-sx{left:0;transform-origin:right center;animation-name:lb-chiudi-sx}
+.lb-dx{right:0;transform-origin:left center;animation-name:lb-chiudi-dx}
+.lb-faccia{position:absolute;inset:0;overflow:hidden;background:#fff;backface-visibility:hidden;contain:paint}
+.lb-faccia>*{pointer-events:none}
+.lb-sx .lb-faccia{border-radius:4px 1px 1px 4px;box-shadow:inset -10px 0 14px -12px rgba(0,0,0,.45)}
+.lb-dx>.lb-faccia{border-radius:1px 4px 4px 1px;box-shadow:inset 10px 0 14px -12px rgba(0,0,0,.45)}
+/* il foglio: fronte a destra, retro (gia' voltato di 180) che si vede a sinistra */
+.lb-foglia{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;
+  transform:translateZ(var(--z));will-change:transform;animation:6.6s linear infinite}
+.lb-foglia .lb-fronte{border-radius:1px 4px 4px 1px;box-shadow:inset 10px 0 14px -12px rgba(0,0,0,.45)}
+.lb-foglia .lb-retro{transform:rotateY(180deg);border-radius:4px 1px 1px 4px;box-shadow:inset -10px 0 14px -12px rgba(0,0,0,.45)}
+/* l'ombra che scende sul foglio mentre gira: solo opacita' */
+.lb-foglia::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:1px 4px 4px 1px;
+  background:linear-gradient(90deg,rgba(0,0,0,.28),transparent 55%);opacity:0;will-change:opacity;
+  animation:6.6s linear infinite}
+.lb-foglia[data-k="0"]{animation-name:lb-foglia-0}
+.lb-foglia[data-k="0"]::after{animation-name:lb-ombra-0}
+@keyframes lb-foglia-0{0%,7.58%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 21.21%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-0{0%,7.58%{opacity:0} 14.39%{opacity:1} 21.21%,100%{opacity:0}}
+.lb-foglia[data-k="1"]{animation-name:lb-foglia-1}
+.lb-foglia[data-k="1"]::after{animation-name:lb-ombra-1}
+@keyframes lb-foglia-1{0%,28.79%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 42.42%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-1{0%,28.79%{opacity:0} 35.61%{opacity:1} 42.42%,100%{opacity:0}}
+.lb-foglia[data-k="2"]{animation-name:lb-foglia-2}
+.lb-foglia[data-k="2"]::after{animation-name:lb-ombra-2}
+@keyframes lb-foglia-2{0%,50%{transform:rotateY(0) translateZ(var(--z));animation-timing-function:cubic-bezier(.5,.05,.3,1)} 63.64%,81.44%{transform:rotateY(-180deg) translateZ(var(--z))} 81.59%,100%{transform:rotateY(0) translateZ(var(--z))}}
+@keyframes lb-ombra-2{0%,50%{opacity:0} 56.82%{opacity:1} 63.64%,100%{opacity:0}}
+@keyframes lb-chiudi-sx{0%,71.21%{transform:rotateY(0) translateZ(-3px);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 80.3%,82.58%{transform:rotateY(88deg) translateZ(-3px);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 91.67%,100%{transform:rotateY(0) translateZ(-3px)}}
+@keyframes lb-chiudi-dx{0%,71.21%{transform:rotateY(0);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 80.3%,82.58%{transform:rotateY(-88deg);animation-timing-function:cubic-bezier(.6,.05,.3,1)} 91.67%,100%{transform:rotateY(0)}}
+/* il dorso, davanti a tutto */
+.lb-dorso{position:absolute;left:calc(50% - 2px);top:-2px;bottom:-2px;width:4px;border-radius:2px;
+  background:linear-gradient(180deg,var(--acc-hi),var(--acc),var(--acc-hi));transform:translateZ(2px)}
 .lb-frase{margin:0;font:600 10.5px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;
   color:var(--ui-tx2);text-align:center;max-width:70%}
-.lb-barra{width:var(--lb-w,190px);height:3px;border-radius:2px;background:rgba(127,127,127,.25);overflow:hidden}
+.lb-barra{width:calc(var(--lb-w,150px) * 2);height:3px;border-radius:2px;background:rgba(127,127,127,.25);overflow:hidden}
 .lb-barra i{display:block;height:100%;width:var(--p,0%);border-radius:inherit;
   background:linear-gradient(90deg,var(--acc-hi),var(--acc));transition:width .3s var(--ease)}
 @media (prefers-reduced-motion:reduce){
-  .lb-foglio,.lb-foglio::after{animation:none}
+  .lb-sx,.lb-dx,.lb-foglia,.lb-foglia::after{animation:none}
   .libretto,.libretto.chiude,.libretto.chiude .lb-libro{animation:none}
 }
