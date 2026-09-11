@@ -571,6 +571,7 @@ export function avviaPonte(cfg = {}) {
     esitoCorrente = { tono: 'lavoro', testo: `Preparo il PDF · ${fatte} di ${totale} pagine` };
     disegna();
     $('#ponteStato').style.setProperty('--p', totale ? (fatte / totale * 100).toFixed(1) + '%' : '0%');
+    aggiornaLibretto();
   }
 
   /** Il PDF si produce UNA volta; poi si scarica sul computer (`scarica`) e, se
@@ -589,6 +590,7 @@ export function avviaPonte(cfg = {}) {
     inCorso = true;
     document.body.classList.add('ponte-lavora');
     aggiorna(true);
+    apriLibretto();
     const t0 = performance.now();
     try {
       const docs = await generaPdfs(progresso);
@@ -612,6 +614,8 @@ export function avviaPonte(cfg = {}) {
       for (const [i, d] of docs.entries()) {
         esitoCorrente = { tono: 'lavoro', testo: N > 1 ? `Consegno al tracker · fascicolo ${i + 1} di ${N}…` : 'Consegno al tracker…' };
         disegna();
+        $('#ponteStato').style.setProperty('--p', '100%');
+        aggiornaLibretto();
         const ri = await salvaDocumento({
           id_service: ctx.id, anno: ctx.anno, mese: P.spunta ? (ctx.mese || null) : null,
           tipo: P.tipo,
@@ -633,8 +637,62 @@ export function avviaPonte(cfg = {}) {
     } finally {
       inCorso = false;
       document.body.classList.remove('ponte-lavora');
+      chiudiLibretto();
       disegna();
     }
+  }
+
+  /* ------------------------------------------------------------- il libretto --
+     Per tutta l'attesa della consegna (html2canvas, jsPDF, poi il caricamento
+     nel tracker) l'anteprima si vela e in mezzo il documento SFOGLIA: un
+     libretto piccolo fatto con le prime pagine vere, clonate e rimpicciolite,
+     che girano una dopo l'altra avanti e indietro. Sotto, la frase di stato e
+     l'avanzamento. Chiesto dal committente (11 settembre 2026): l'attesa e'
+     vera, dai cinque ai venti secondi, e cosi' si vede che e' IL SUO documento
+     che sta viaggiando. CSS in css/ponte.css, sezione IL LIBRETTO.
+     I cloni perdono gli id (non devono farsi trovare dai getElementById dei
+     generatori) e stanno FUORI da #pages: html2canvas fotografa solo le pagine
+     vere e non li vede. */
+  const FOGLI = 6;
+  function apriLibretto() {
+    chiudiLibretto(true);
+    const main = $(selScorr)?.parentElement || $('#main');
+    const pagine = pagineDi().slice(0, FOGLI);
+    if (!main || !pagine.length) return;
+    const largo = pagine[0].offsetWidth || 794, alto = pagine[0].offsetHeight || 1123;
+    const W = 190, S = W / largo, Hh = Math.round(alto * S);
+    const lb = document.createElement('div');
+    lb.id = 'libretto'; lb.className = 'libretto'; lb.setAttribute('aria-hidden', 'true');
+    lb.style.setProperty('--lb-w', W + 'px'); lb.style.setProperty('--lb-h', Hh + 'px');
+    const libro = document.createElement('div'); libro.className = 'lb-libro';
+    pagine.forEach((p, i) => {
+      const f = document.createElement('div'); f.className = 'lb-foglio'; f.style.setProperty('--i', String(i));
+      const c = p.cloneNode(true);
+      c.removeAttribute('id'); c.classList.remove('flash');
+      c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+      c.style.cssText = `transform:scale(${S});transform-origin:0 0;width:${largo}px;height:${alto}px;margin:0;box-shadow:none;`;
+      f.appendChild(c); libro.appendChild(f);
+    });
+    const dorso = document.createElement('i'); dorso.className = 'lb-dorso'; libro.appendChild(dorso);
+    const frase = document.createElement('p'); frase.className = 'lb-frase'; frase.appendChild(document.createElement('span'));
+    const barra = document.createElement('div'); barra.className = 'lb-barra'; barra.appendChild(document.createElement('i'));
+    lb.append(libro, frase, barra);
+    main.appendChild(lb);
+    aggiornaLibretto();
+  }
+  function aggiornaLibretto() {
+    const lb = $('#libretto');
+    if (!lb) return;
+    lb.querySelector('.lb-frase span').textContent = esitoCorrente?.testo || 'Preparo il PDF…';
+    const p = $('#ponteStato')?.style.getPropertyValue('--p');
+    lb.style.setProperty('--p', p || '0%');
+  }
+  function chiudiLibretto(subito = false) {
+    const lb = $('#libretto');
+    if (!lb) return;
+    if (subito) { lb.remove(); return; }
+    lb.classList.add('chiude');
+    setTimeout(() => lb.remove(), 800);
   }
 
   /** Il PDF sul computer, col nome con cui il tracker lo archivia. */
