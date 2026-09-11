@@ -197,12 +197,21 @@ function sezDocumenti() {
           title: 'Apre il generatore del registro dei componenti (il documento per il cliente) ' +
             'con questo sito gia\' scelto: il PDF si archivia qui, senza spunte',
         }))),
-    /* Un documento diviso in FASCICOLI e' UNA voce: la miniatura e il titolo del
-       primo, il conto di pagine e peso di tutti, e sotto una fila di bottoni
-       "1 · 40 pag." "2 · 38 pag."... uno per fascicolo. Elimina toglie tutto
-       il documento (tutti i fascicoli), con la stessa conferma di prima. */
+    /* DUE GRUPPI, uno per tipo (30a sessione): prima le SCHEDE PER I TECNICI,
+       poi il REGISTRO per il cliente, ognuno con il suo occhiello e il conto;
+       un gruppo vuoto non compare. Dentro, un documento diviso in FASCICOLI e'
+       UNA voce: la miniatura e il titolo del primo, il conto di pagine e peso
+       di tutti, e sotto una fila di bottoni "1 · 40 pag." "2 · 38 pag."... uno
+       per fascicolo. Elimina toglie tutto il documento (tutti i fascicoli). */
     docs.length
-      ? h('ul.doc-lista', {}, gruppiDocumenti(idAperto).map(g => {
+      ? Object.keys(TIPI).map(tipo => {
+        const gruppi = gruppiDocumenti(idAperto).filter(g => tipoDi(g.capo) === tipo);
+        if (!gruppi.length) return null;
+        return h('div.doc-tipo-gruppo', {},
+          h('h4.doc-tipo-testa', {},
+            h('span.doc-tipo.t-' + tipo, { html: ICONA_TIPO[tipo] + ' ' + TIPI[tipo].et }),
+            h('span.conta', { testo: gruppi.length === 1 ? '1 documento' : gruppi.length + ' documenti' })),
+          h('ul.doc-lista', {}, gruppi.map(g => {
         const d = g.capo, N = g.fascicoli;
         return h('li' + (N > 1 ? '.doc-gruppo' : ''), {},
           h('button.doc-mini', {
@@ -239,7 +248,8 @@ function sezDocumenti() {
                 } catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
               },
             })));
-      }))
+      })));
+      })
       : h('p', {
           testo: 'Nessun PDF ancora: dai generatori, alla consegna, il documento arriva qui da solo.',
           style: 'color:var(--tenue);font-size:var(--t-mini);margin:0',

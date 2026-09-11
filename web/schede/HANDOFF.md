@@ -725,3 +725,28 @@ le miniature — la barra no, quindi non lo paga nemmeno per il numero.
 ### 2026-09-03 — descrizioni lunghe
 - `fitDescriptions` confronta `scrollHeight`/`clientHeight` e stringe il font
   scheda per scheda fino a 7,5px
+
+
+## 12. Dalla 30a sessione: cio' che e' uscito da questo file
+
+Tre pezzi che il registro dei componenti doveva condividere non stanno piu'
+qui dentro, e questo file li carica:
+
+- **la barra del marchio** (`#brandbar`, due righe: `.bb-riga` con
+  `.bb-indietro` "Tracker", `#tourBtn`, `#grpTutti`, `#themeSeg`; sotto
+  `.bb-marchio` con logo e `h1`) e il pannello a colonna flex con
+  `#exportGrp` inchiodato in fondo: `css/banco.css`;
+- **la colonna dell'albero** (`#treegrip`, `#treecol`, `#tree`, `#treebar`,
+  i cerchi): il CSS e' in `css/banco.css`; il JS (`buildTree`, `syncTree`,
+  `applyFilter`, la maniglia) resta qui perche' salta alle pagine con
+  `ANCHORS`. Il registro usa il porting `js/albero.js`;
+- **il tutorial**: motore e markup in `js/tour.js` (`Tour.crea`), CSS in
+  `css/banco.css`. Qui restano `TOUR_STEPS` (18 passi), `TOUR_KEY`,
+  `tourDemoOn/Off`, `syncTutorialBtn`; `TOUR=Tour.crea({...})` e
+  `startTour()` lo avviano.
+
+Tolto il bottone "Salva nel tracker" della testata del ponte (`.pn-azione`)
+e il link "Crono Mappature" nella rotta: fa tutto **Esporta e salva**, e si
+torna indietro con il bottone Tracker. La barra nativa di `#banco` si nasconde
+quando c'e' quella blu (`body.ds-attiva`, `syncNativeScrollbar()` chiamata da
+`positionDocScroll` e `updateDocScroll`).

@@ -3,6 +3,66 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-11 (30a sessione) - undici difetti dopo la prova
+
+Branch `registro-componenti-premium`, stesso della 29a. Il committente ha
+provato e ha elencato undici punti; tutti chiusi, con queste misure:
+
+1. **"Mostra chiusi" non si illuminava.** `aria-pressed="true"` c'era, ma
+   `.pill.debole` (stessa specificita', scritta dopo) rimetteva sfondo
+   trasparente. Regola `.pill.debole[aria-pressed="true"]` in `base.css`.
+2. **Tutto sovrapposto nel pannello (lo screenshot) / le scritte si
+   accavallano scorrendo.** Due cause: la barra del marchio su UNA riga a
+   pannello stretto (titolo a capo, tastini schiacciati), e `#ponte` con
+   `z-index:38` (serve alla nuvoletta) dentro un pannello la cui barra aveva
+   `5`: scorrendo, la rotta del collegamento passava sopra il logo. Ora barra
+   su due righe (`banco.css`, `.bb-riga` + `.bb-marchio`) con z 40 e
+   `#side #ponte{z-index:auto}`.
+3. **"Nomi dei componenti" tremolante.** Nessuna oscillazione di layout
+   misurabile a riposo (20 fotogrammi identici, nessuna animazione); ma a ogni
+   nome salvato `rigenera()` rifaceva 122 pagine nel DOM a scheda nascosta,
+   riaprendo e richiudendo l'anteprima per misurarle: **143 ms di blocco**
+   (PerformanceObserver longtask) per ogni Invio. Ora da "Nomi" si rifa' solo
+   il modello; le pagine si impaginano tornando all'anteprima o esportando
+   (`pagineDaRifare`, `assicuraPagine`, hook `pagine()` del ponte). Se il
+   tremolio fosse un'altra cosa, serve sapere QUANDO trema (a riposo, al
+   passaggio del mouse, digitando).
+4. **PDF raggruppati nel tracker**: `sezDocumenti` in `cassetto.js` itera
+   `TIPI` e fa un gruppo per tipo (`.doc-tipo-gruppo`, occhiello + conto).
+5. **Esporta fermo in basso**: `#side` colonna flex, `#exportGrp` con
+   `margin-top:auto` + `position:sticky;bottom:0` (nelle schede il margine
+   era `18px -20px 0`, ora `auto -20px 0`).
+6. **Tastino apri/chiudi tutti i gruppi**: `#grpTutti` c'era gia' (29a) ma
+   schiacciato fra logo e tema; ora sta nella riga dei comandi, 30x28, con
+   il tooltip. **Freccia indietro**: il bottone `.bb-indietro` "Tracker", al
+   posto del link di 10px nella rotta del ponte (rimosso).
+7. **Via "Salva nel tracker"** (`#ponteSalva`, `.pn-azione`) dalle due pagine;
+   `disegna()` in `ponte.js` ora regola il bottone del generatore
+   (`titoloSenzaSito` quando manca il sito). Interrompere: libretto o Esc.
+8. **Doppia barra di scorrimento** (schede): quando la barra blu `#docScroll`
+   e' visibile e non `.cramped`, e non c'e' scorrimento orizzontale,
+   `body.ds-attiva` nasconde quella nativa di `#banco` (`syncNativeScrollbar`).
+9. **Albero nel registro**: `js/albero.js` (porting di buildTree/syncTree),
+   colonna `#treecol` in `registro/index.html`, `costruisciAlbero`/
+   `exportFiltrato`/`saltaA` in `registro/app.js`. Le stanze escluse tolgono
+   le righe prima di `costruisciRegistro`; `righeDati` scende dello stesso
+   numero, cosi' la quadratura non fallisce; la legenda dei Nomi resta quella
+   completa. Il nome salta alla pagina del piano o del reparto (id gia' in
+   `impagina.js`). Trappola pagata: le chiavi con `\u0000` NON vanno in un
+   attributo HTML (il parser mette U+FFFD): l'albero tiene le chiavi in JS e
+   negli attributi solo gli indici.
+10. **Tutorial registro**: motore condiviso `js/tour.js` (estratto dalle
+    schede, che ora lo usano anche loro), 12 passi in `registro/app.js`,
+    esempio `ESEMPIO_GUIDA` letto con `interpretaRiga`, parte da solo alla
+    prima apertura (`cs.registro.tourSeen`), bottone nella schermata vuota.
+
+Verificato nel browser (data/prova.db, 1100 e 1400 px): pillola accesa;
+pannello a 330px senza accavallamenti; Esporta in fondo a gruppi chiusi; tour
+schede 18 passi con l'esempio che si toglie; registro con albero, esclusione
+di una stanza, salto alla pagina, salvataggio di un nome da "Nomi" con
+impaginazione al ritorno; cassetto con il gruppo "Schede tecnici - 2
+documenti". SW `crono-guscio-v25`.
+
 ## Fatto il 2026-09-11 (29a sessione) - il registro dei componenti entra nell'app, un ponte solo, un look solo
 
 Branch `registro-componenti-premium`. Richiesta: *"adesso hai questo

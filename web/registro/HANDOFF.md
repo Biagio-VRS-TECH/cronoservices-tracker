@@ -169,3 +169,33 @@ PDF di CASA GEROSA: 12 pagine, 4,1 MB in 3,2 s, consegnato al tracker con
   del ponte trova un fascicolo unico da sé;
 - **niente filtro di cosa stampare**: il registro è il documento dell'impianto
   intero, per definizione.
+
+
+## Dalla 30a sessione: albero, tutorial, pagine pigre
+
+**Cosa entra nel registro** (`#treecol`, a destra, a file caricato):
+`costruisciAlbero()` in `app.js` raggruppa `exportCorrente.righe` per
+piano > reparto > stanza (stringhe cosi' come sono nell'export) e chiama
+`creaAlbero` (`js/albero.js`, CSS in `css/banco.css`). Escludere una stanza
+mette la sua chiave (`piano\0reparto\0stanza`) in `esclusi`; `exportFiltrato()`
+toglie quelle righe PRIMA di `costruisciRegistro` e abbassa `righeDati` dello
+stesso numero, cosi' la quadratura resta OK e i conteggi dicono "Esclusi
+dall'albero: N". La tabella dei Nomi usa la legenda COMPLETA (il dizionario e'
+dell'impianto). Il nome di un ramo salta alla pagina: `saltaA()` cerca
+`s.id`/`rep.id` in `reg.sezioni` e scorre `#banco` alla `.page` che li
+contiene (una stanza porta al suo reparto).
+
+**Pagine pigre**: `ricostruisci()` rifa' sempre il modello, ma impagina
+(`impaginaOra()`) solo se l'anteprima e' in vista; altrimenti `pagineDaRifare`
+e `assicuraPagine()` al ritorno (`mostraVista`) o all'export (hook `pagine()`
+del ponte). Era il "tremolio" dei Nomi: 140 ms di blocco a ogni Invio su 122
+pagine.
+
+**Tutorial**: `Tour.crea` (`js/tour.js`) con 12 passi in coda ad `app.js`,
+chiave `cs.registro.tourSeen`, parte da solo la prima volta. Senza file carica
+`ESEMPIO_GUIDA` (12 righe lette con `interpretaRiga`, `esempioGuida=true`) e
+lo toglie alla chiusura; un file vero lo scavalca.
+
+La barra del marchio, il bottone Tracker, `#grpTutti` e `#tourBtn` sono in
+`index.html` con il CSS condiviso di `css/banco.css`; il "Salva nel tracker"
+non c'e' piu' (fa tutto Esporta e salva).

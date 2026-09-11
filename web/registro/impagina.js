@@ -298,6 +298,7 @@ function impaginaDavvero(reg, o, cont, t0) {
   const apriTabella = g => {
     const t = document.createElement('table');
     t.className = g.modello.className;
+    t.dataset.g = g.id;    // il salto dall'albero (registro/app.js, saltaA) cerca la prima tabella del reparto
     t.appendChild(g.modello.querySelector('colgroup').cloneNode(true));
     if (g.thead) {
       const th = g.thead.cloneNode(true);

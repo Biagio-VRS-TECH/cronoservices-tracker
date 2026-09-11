@@ -108,6 +108,9 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/spunte.js` | 148 | popover della cella |
 | `js/affinita.js` | 170 | somiglianza fra nomi scritti male (normalizzazione, Damerau-Levenshtein per parola, pesi di rarita'): ricerca, riconoscimento file nel generatore, doppioni. #ANCHOR: affinita |
 | `js/documenti.js` | 420 | i PDF dei due generatori: modello, `TIPI` (`schede` \| `registro`, #ANCHOR: tipi-documento), un chip per tipo accanto al sito, apertura, consegna. #ANCHOR: documenti |
+| `js/gruppi.js` | 55 | i gruppi del pannello dei generatori si aprono e chiudono (titolo = interruttore, `#grpTutti` li gira tutti); stato in localStorage. Script classico. #ANCHOR: gruppi |
+| `js/tour.js` | 190 | il TUTORIAL GUIDATO condiviso (`Tour.crea({passi, chiave, primaDi, dopo})`): velo, buco, fumetto, tasti. Script classico. #ANCHOR: tour |
+| `js/albero.js` | 160 | l'albero piano > reparto > stanza con i cerchi a tre stati (`creaAlbero`), porting del buildTree delle schede: lo usa il registro. #ANCHOR: albero |
 | `js/ponte.js` | 560 | il ponte GENERICO generatore -> tracker (`avviaPonte({tipo})`): testata di consegna, riconoscimento del sito dal file, PDF con html2canvas + jsPDF (`web/lib/`), consegna, nuvoletta. #ANCHOR: ponte |
 | `schede/index.html` | 3720 | il **generatore di schede tecnici** (per i tecnici), pagina unica. Il guscio: `#app` non scorre, scorre solo `#banco`. Librerie, token dell'app e CSS del ponte sono fuori (vedi sotto). Il suo handoff e' `schede/HANDOFF.md` |
 | `schede/ponte.js` | 35 | wrapper: `avviaPonte({tipo:'schede'})` + agganci a `loadRows`/`unloadFile`/`aggiornaTitoloSito` |
@@ -120,7 +123,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
 | `css/theme.css` | 240 | **solo token**: colori, i tre caratteri (`--f-display/--f-ui/--f-dato`), misure, segnali, vetro. Il marchio si cambia qui |
 | `css/fonti.css` | 35 | i `@font-face` dei tre caratteri in `assets/fonti/`. #ANCHOR: fonti |
-| `css/banco.css` | 60 | i token del **banco di lavoro** dei generatori (`--ui-*`, `--acc*`), derivati da theme.css. `--ui-0` e' esadecimale di proposito (html2canvas non legge `color-mix`). #ANCHOR: css-banco |
+| `css/banco.css` | 250 | i token del **banco di lavoro** dei generatori (`--ui-*`, `--acc*`), derivati da theme.css; poi tutto cio' che le due pagine condividono: gruppi richiudibili, **barra del marchio** a due righe, `#side` a colonna con Esporta inchiodato in fondo, **colonna dell'albero**, **tutorial**. `--ui-0` e' esadecimale di proposito (html2canvas non legge `color-mix`). #ANCHOR: css-banco |
 | `css/ponte.css` | 300 | la testata di consegna `#ponte` e la nuvoletta, condivisa dai due generatori. #ANCHOR: css-ponte |
 | `css/base.css` | 428 | reset, testa, barra strumenti, linea di stato, diario, componenti comuni |
 | `css/griglia.css` | 539 | carte cliente, cella a 4 segmenti, riga/carta "a posto", vista mese (pista dei mesi, capsula dei passi) |
@@ -183,7 +186,7 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
    `ponte-schede`, `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
    `conferma-ok`, `mese-stampa`, `tipi-documento`, `dizionario`, `fonti`,
-   `css-banco`, `css-ponte`.
+   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -206,6 +209,40 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-11 (30a sessione)
+
+Branch `registro-componenti-premium` (lo stesso della 29a: sono correzioni a
+quel lavoro). Undici punti segnalati dal committente dopo la prova; dettaglio
+in [ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-11-30a-sessione---undici-difetti-dopo-la-prova).
+
+**Nel tracker**: "Mostra chiusi" ora si accende (`.pill.debole` vinceva su
+`[aria-pressed]`: stessa specificita', scritta dopo); nel cassetto i PDF
+stanno in **due gruppi per tipo** (schede per i tecnici, registro per il
+cliente), ognuno col suo occhiello e il conto.
+
+**Nei generatori**: la barra del marchio e' su **due righe** (`.bb-riga` con
+il bottone **Tracker** per tornare indietro, la guida, apri/chiudi tutti i
+gruppi, giorno/notte; sotto logo e nome) e sta **sopra** il ponte (z 40 contro
+il 38 della nuvoletta): a pannello stretto e scorrendo non si accavalla piu'
+niente. `#side` e' una colonna flex: **Esporta resta inchiodato in fondo**
+anche a gruppi chiusi (`margin-top:auto` + sticky). **"Salva nel tracker" non
+c'e' piu'**: Esporta e salva fa tutto (il PDF si scarica e si consegna; si
+interrompe dal libretto o con Esc). Nelle schede la barra nativa del banco si
+toglie quando c'e' quella blu (`body.ds-attiva`, `syncNativeScrollbar`).
+Tutto cio' che le due pagine condividono e' uscito da `schede/index.html`:
+`css/banco.css` (barra, albero, tutorial), `js/tour.js` (il motore della
+guida), `js/albero.js` (l'albero).
+
+**Nel registro**: la **colonna dell'albero** (`#treecol`, 4 - Cosa entra nel
+registro) toglie piani, reparti o stanze dal documento filtrando le righe
+PRIMA del modello (le righe dati scendono dello stesso numero: quadratura
+onesta; il nome salta alla pagina); il **tutorial** in dodici passi con un
+esempio che si carica da solo; e la scheda "Nomi dei componenti" **non
+rigenera piu' le pagine a ogni nome salvato** (misurati 140 ms di blocco su
+122 pagine: il "tremolio"): si segna `pagineDaRifare` e si impagina tornando
+all'anteprima o esportando (`assicuraPagine`, anche nel `pagine()` del
+ponte). Service worker `crono-guscio-v25`.
 
 ## Stato al 2026-09-11 (29a sessione)
 

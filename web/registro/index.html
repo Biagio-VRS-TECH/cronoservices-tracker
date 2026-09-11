@@ -21,9 +21,12 @@
 <body>
 <div id="app">
 <aside id="side">
-  <div id="brandbar">
-    <img src="/assets/logo.webp" alt="VRS Group">
-    <h1>Registro componenti<span>Documento per il cliente</span></h1>
+  <div id="brandbar"><div class="bb-riga">
+    <a class="bb-indietro" href="/" title="Torna a Crono Mappature (il tracker)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Tracker</a>
+    <span class="bb-spazio"></span>
+    <button type="button" id="tourBtn" title="Tutorial: la guida passo passo dell'applicazione" aria-label="Apri il tutorial guidato">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.75.3-1.1.9-1.1 1.7v.4"/><path d="M12 17.2h.01"/></svg>
+    </button>
     <button type="button" id="grpTutti" title="Chiudi tutti i gruppi" aria-label="Chiudi tutti i gruppi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/><path d="M7 20l5-5 5 5" opacity=".45"/></svg></button>
     <div id="themeSeg" role="group" aria-label="Aspetto dell'applicazione">
       <button type="button" data-theme="auto" title="Segui il sistema" aria-label="Aspetto: segui il sistema">
@@ -35,7 +38,8 @@
       <button type="button" data-theme="dark" title="Scuro" aria-label="Aspetto: scuro">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 14.6A8.6 8.6 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/></svg>
       </button>
-    </div>
+    </div></div>
+    <div class="bb-marchio"><img src="/assets/logo.webp" alt="VRS Group"><h1>Registro componenti<span>Documento per il cliente</span></h1></div>
   </div>
 
   <!-- Il PONTE col tracker (js/ponte.js, css/ponte.css) e' il primo gruppo del
@@ -47,10 +51,6 @@
   <div id="ponte" hidden>
     <div class="pn-corpo">
       <p class="pn-rotta">
-        <a href="/" title="Torna a Crono Mappature">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-          Crono Mappature</a>
-        <span class="sep" aria-hidden="true">/</span>
         <span id="ponteCosa">consegna a</span>
         <span class="pn-come" id="ponteCome" hidden></span>
         <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
@@ -65,12 +65,6 @@
                aria-label="Sito del tracker a cui collegare il registro">
         <datalist id="ponteLista"></datalist>
       </div>
-    </div>
-    <div class="pn-azione">
-      <button type="button" class="btn" id="ponteSalva" disabled
-              title="Produce il PDF del registro e lo archivia nel tracker sul sito collegato">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
-        <span>Salva nel tracker</span></button>
     </div>
     <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
     <div class="ponte-scelte" id="ponteScelte" hidden>
@@ -142,6 +136,7 @@
       <p>Carica l&rsquo;export <b>.xls</b> del gestionale: il libretto A4 si impagina da solo &mdash; copertina, sommario con i numeri di pagina, quadro d&rsquo;insieme, una sezione per piano e la legenda finale.</p>
       <div class="acts">
         <button type="button" class="btn" id="pickFile">Scegli il file</button>
+        <button type="button" class="btn sec" id="startTutorial">Avvia il tutorial</button>
       </div>
       <p class="foot">.xls &middot; .xlsx &nbsp;&middot;&nbsp; niente esce dal browser (tranne il PDF che consegni al tracker), e funziona anche senza rete</p>
     </div>
@@ -170,6 +165,19 @@
     </div>
   </div>
 </main>
+<!-- La colonna dell'albero (css/banco.css, js/albero.js): cosa entra nel
+     registro. Compare a file caricato; il separatore qui non si trascina. -->
+<div id="treegrip" class="fermo" role="separator" aria-orientation="vertical" hidden></div>
+<aside id="treecol" hidden>
+  <div class="grp" id="filterGrp">
+    <h2>4 &middot; Cosa entra nel registro</h2>
+    <div id="treebar">
+      <label class="pick" title="Includi o escludi tutto"><input type="checkbox" id="selAll" checked><span>Tutto l'impianto</span></label>
+      <button type="button" class="ico" id="collAll" title="Comprimi tutto" aria-label="Comprimi tutto"></button>
+    </div>
+    <div id="tree"></div>
+  </div>
+</aside>
 </div>
 
 <!-- ASPETTO: la stessa setTheme del generatore di schede, e la stessa chiave
@@ -219,6 +227,7 @@ window.addEventListener('storage', function(e){ if (e.key === 'cs.tema') setThem
 </script>
 
 <script src="/js/gruppi.js"></script>
+<script src="/js/tour.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

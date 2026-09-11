@@ -71,35 +71,10 @@ button,select,input{font-family:inherit}
 #sidegrip{flex:0 0 8px;position:sticky;top:0;height:100vh;cursor:col-resize;display:flex;align-items:center;justify-content:center;background:transparent;z-index:6}
 #sidegrip::before{content:"";width:3px;height:52px;border-radius:2px;background:var(--ui-3);transition:background .13s,height .13s}
 #sidegrip:hover::before,#sidegrip.drag::before{background:var(--acc);height:110px}
-/* colonna di destra dedicata solo alla struttura ad albero (punto 4): stessa
-   maniglia del pannello, ma la misura si prende dal bordo destro verso
-   sinistra. Compare a file caricato: vuota ruberebbe spazio all'anteprima */
-#treegrip{flex:0 0 8px;position:sticky;top:0;height:100vh;cursor:col-resize;display:flex;align-items:center;justify-content:center;background:transparent;z-index:6}
-#treegrip::before{content:"";width:3px;height:52px;border-radius:2px;background:var(--ui-3);transition:background .13s,height .13s}
-#treegrip:hover::before,#treegrip.drag::before{background:var(--acc);height:110px}
-#treecol{width:var(--treew);flex:0 0 var(--treew);background:var(--ui-1);border-left:1px solid var(--ui-3);
-  padding:0 16px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-/* la sezione occupa tutta la colonna: intestazione e barra in alto ferme,
-   l'albero sotto si allunga fino in fondo allo schermo */
-#treecol .grp{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:0;padding:18px 0 0}
-#treecol[hidden],#treegrip[hidden]{display:none}
+/* la colonna dell'albero (#treegrip, #treecol) e la barra del marchio
+   (#brandbar) stanno in css/banco.css: condivise con web/registro/ */
 body.resizing{cursor:col-resize;user-select:none}
 
-#brandbar{display:flex;align-items:center;gap:12px;padding:18px 0 15px;position:sticky;top:0;z-index:5;
-  background:var(--ui-1);border-bottom:1px solid var(--ui-filo)}
-/* filo luminoso che si spegne verso destra: firma il pannello senza aggiungere
-   un altro riquadro colorato */
-#brandbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-  background:linear-gradient(90deg,var(--acc),transparent 72%)}
-/* Lo STESSO logo del tracker (web/assets/logo.webp), non piu' una copia in
-   base64. E' trasparente e la parola GROUP e' grigio scuro: sul banco di lavoro
-   scuro serve la piastrina bianca, con la luce accesa (.lt) no. */
-#brandbar img{height:30px;width:auto;background:var(--ui-tx);padding:3px 5px;border-radius:var(--r1)}
-:root.lt #brandbar img{background:none;padding:0}
-/* il nome dell'applicazione e' un titolo: display serif, come nel tracker */
-#brandbar h1{font-family:var(--f-display);font-weight:560;font-size:17px;margin:0;
-  letter-spacing:-.022em;line-height:1.15;color:var(--ui-tx)}
-#brandbar span{display:block;font:600 9px/1.35 var(--mono);text-transform:uppercase;letter-spacing:.11em;color:var(--ui-tx3);margin-top:5px}
 
 /* ogni gruppo si apre con la sua etichetta e un filo che corre fino al bordo.
    La numerazione qui e' vera - 1 file, 2 intestazione, 3 stampa, 4 filtro sono
@@ -287,83 +262,16 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
    suo respiro laterale), che resta a portata di clic anche quando le
    impostazioni sono piu' lunghe dello schermo */
 #exportGrp{position:sticky;bottom:0;z-index:4;background:var(--ui-1);
-  border-top:1px solid var(--ui-filo);margin:18px -20px 0;padding:14px 20px 16px;
+  border-top:1px solid var(--ui-filo);margin:auto -20px 0;padding:14px 20px 16px;
   box-shadow:0 -12px 28px -22px rgba(0,0,0,.45)}
 
 /* nella sua colonna l'albero non ha nulla sotto di se': prende tutta l'altezza
    residua e scorre al suo interno, quindi aprire o chiudere le tendine non
    sposta niente (prima l'altezza veniva congelata da buildTree() a 420px) */
-/* ---- albero di cosa stampare ----
-   Qui non si accende un comportamento (per quello ci sono gli interruttori
-   delle impostazioni): si dice quali rami dell'impianto finiscono sulla carta.
-   Quindi ogni riga ha due comandi distinti e due gesti distinti:
-     - il CERCHIO a sinistra include o esclude il ramo. Tondo, non quadrato:
-       il quadrato del browser era la casella di un modulo da compilare, questa
-       e' una voce che entra o esce da un elenco. Pieno = dentro, vuoto = fuori,
-       trattino = solo in parte;
-     - il NOME e' un collegamento: porta l'anteprima alla prima pagina di quel
-       piano / reparto / stanza.
-   La struttura ad albero non e' fatta di rientri a caso ma di un BINARIO
-   verticale per ramo (il bordo sinistro di .sub): scende accanto ai figli,
-   si accorcia da solo quando la tendina si chiude, e si accende quando dentro
-   quel ramo c'e' qualcosa che si stampa. Un ramo escluso ha il filo spento e
-   il nome sbiadito: si legge da lontano cosa e' rimasto fuori senza dover
-   guardare i cerchi uno per uno. */
-#tree{font-size:12.9px;flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--ui-filo);
-  border-radius:var(--r2);padding:8px 10px 10px;background:var(--ui-2)}
-/* il binario del ramo: parte sotto la freccetta del genitore e scende lungo i
-   figli. 7px lo allineano al centro della freccetta, 16px sono il rientro */
-#tree .sub{margin-left:7px;padding-left:16px;border-left:1px solid var(--rail);
-  transition:border-color .18s}
-#tree .sub.lit{border-left-color:var(--rail-on)}
-#tree .sub[hidden]{display:none}
-#tree .lv1{margin-top:6px;color:var(--acc-hi);font-weight:700}
-#tree .lv1:first-child{margin-top:0}
-#tree .lv2{color:var(--ui-tx)}
-#tree .lv3{font-size:12.2px;color:var(--ui-tx2)}
-/* la riga: un solo blocco che si illumina al passaggio, come una voce di
-   elenco - non tre pezzetti separati che reagiscono ognuno per conto suo */
-#tree .nh,#tree .row{display:flex;align-items:center;gap:5px;margin:1px 0;
-  border-radius:var(--r1);transition:background .12s}
-#tree .nh:hover,#tree .row:hover{background:var(--ui-1)}
-/* area di clic del cerchio: piu' larga del cerchio, perche' 17px di bersaglio
-   su una riga alta 24 si sbagliano */
-#tree .pick{display:flex;align-items:center;flex:0 0 auto;margin:0;padding:4px 3px;
-  cursor:pointer;background:none;line-height:0}
-#tree .pick:hover{background:none}
-/* il cerchio. Il quadrato arrotondato del resto dell'app resta dov'e': lo usa
-   chi compila un modulo, non chi scegle voci da un elenco */
-#tree input[type=checkbox],#selAll{width:17px;height:17px;border-radius:50%;
-  border:1.5px solid var(--ui-4);background:none;box-shadow:none}
-#tree input[type=checkbox]:hover,#selAll:hover{border-color:var(--acc)}
-#tree input[type=checkbox]:checked,#selAll:checked{background:var(--acc);border-color:var(--acc)}
-#tree input[type=checkbox]:checked::after,#selAll:checked::after{background-size:10px 10px}
-/* dentro in parte: cerchio vuoto col bordo acceso e un trattino, non un
-   quadrato pieno. Dice "qualcosa si', qualcosa no" senza sembrare un terzo
-   stato inventato */
-#tree input[type=checkbox]:indeterminate,#selAll:indeterminate{background:none;border-color:var(--acc)}
-#tree input[type=checkbox]:indeterminate::after,#selAll:indeterminate::after{display:none}
-#tree input[type=checkbox]:indeterminate::before,#selAll:indeterminate::before{content:"";
-  position:absolute;inset:0;margin:auto;width:7px;height:2px;border-radius:2px;background:var(--acc)}
-/* il nome e' un collegamento all'anteprima: porta alla prima pagina del nodo */
-#tree .nm{flex:1 1 auto;min-width:0;cursor:pointer;border-radius:5px;padding:3px 6px;line-height:1.3;
-  transition:color .12s,background .12s}
-#tree .nm:hover{background:var(--acc-lo);color:var(--acc-hi)}
-#tree .cnt{color:var(--ui-tx3);font-weight:400;font-family:var(--mono);font-size:.9em}
-/* fuori dalla stampa: il ramo resta leggibile ma si ritira, come una voce
-   barrata senza la barra */
-#tree .nh.out>.nm,#tree .row.out>.nm{color:var(--ui-tx3);font-weight:400}
-#tree .out>.nm .cnt{opacity:.55}
-#tree .tw{flex:0 0 auto;width:15px;height:15px;padding:0;border:0;background:none;color:var(--ui-tx3);
-  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--ease),color .13s}
-#tree .tw svg{width:9px;height:9px;display:block}
-#tree .tw.closed{transform:rotate(-90deg)}
-#tree .tw:hover{color:var(--acc)}
-#treebar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
-#treebar .pick{display:flex;align-items:center;gap:9px;font-size:12.8px;color:var(--ui-tx2);
-  cursor:pointer;margin:0;padding:4px 6px 4px 3px;border-radius:var(--r1);transition:background .12s,color .12s}
-#treebar .pick:hover{background:var(--ui-2);color:var(--ui-tx)}
-#treebar .ico{margin-left:auto}
+/* ---- albero di cosa stampare: CSS in css/banco.css (sezione LA COLONNA
+   DELL'ALBERO), condiviso con il registro; il JS (buildTree/syncTree/
+   applyFilter) resta qui sotto perche' salta alle pagine e trascina la
+   maniglia. Il registro usa il porting in js/albero.js. ---- */
 
 /* tastini icona (impostazioni, albero) */
 .iconrow{display:flex;gap:8px;margin-top:12px}
@@ -493,6 +401,11 @@ input[type=text].locked{color:var(--ui-tx2);border-style:dashed;cursor:default}
   display:flex;align-items:center;justify-content:center;
   height:min(70vh,720px);padding:0 5px}
 .doc-scroll.cramped{display:none}
+/* quando la barra blu c'e' (e non e' .cramped), quella nativa del banco si
+   toglie: erano due barre una accanto all'altra. Torna da sola quando la blu
+   si nasconde, o quando c'e' da scorrere in orizzontale (zoom oltre il 100%) */
+body.ds-attiva #banco{scrollbar-width:none}
+body.ds-attiva #banco::-webkit-scrollbar{display:none}
 .ds-track{position:relative;width:9px;height:100%;border-radius:6px;
   background:var(--ui-2);border:1px solid var(--ui-3);cursor:pointer;
   box-shadow:inset 0 1px 3px rgba(0,0,0,.25);
@@ -811,70 +724,7 @@ table.xls.plain tbody tr:hover{background:transparent}
 .page.void .p-body{align-items:center;justify-content:center}
 .page.void .vmsg{font-size:9pt;letter-spacing:.18em;text-transform:uppercase;color:var(--soft)}
 
-/* ---- TUTORIAL GUIDATO ----
-   Una guida che parla addosso ai comandi veri, non un elenco di istruzioni in
-   una finestra a parte: a ogni passo l'app resta quella che e', si accende solo
-   il pezzo di cui si sta parlando e il fumetto si mette accanto.
-   La penombra la fa l'ombra smisurata di #tourHole - un elemento solo, invece
-   di quattro fasce da far combaciare intorno al bersaglio - e non prende i
-   clic: quelli li ferma #tourVeil, che sta sotto e copre tutto lo schermo.
-   Ogni regola si aggancia a un id o a una classe .tour-*: le classi corte
-   finiscono addosso al foglio stampato (vedi la storia di .seg al punto 8). */
-#tourVeil{position:fixed;inset:0;z-index:9990;background:transparent}
-#tourHole{position:fixed;z-index:9991;pointer-events:none;border-radius:10px;
-  box-shadow:0 0 0 9999px rgba(6,9,12,.74),0 0 0 2px var(--acc),0 0 22px rgba(0,168,228,.45);
-  transition:left .2s var(--ease),top .2s var(--ease),width .2s var(--ease),height .2s var(--ease)}
-:root.lt #tourHole{box-shadow:0 0 0 9999px rgba(24,33,42,.42),0 0 0 2px var(--acc),0 0 22px rgba(1,118,157,.28)}
-/* passo senza bersaglio (una parte dell'app che compare solo a file caricato):
-   il buco esce dallo schermo invece di sparire, cosi' la penombra resta la
-   stessa di tutti gli altri passi e non ci sono lampi di luce fra un passo e
-   l'altro */
-#tourHole.blind{box-shadow:0 0 0 9999px rgba(6,9,12,.74)}
-:root.lt #tourHole.blind{box-shadow:0 0 0 9999px rgba(24,33,42,.42)}
-#tourPop{position:fixed;z-index:9992;width:344px;max-width:calc(100vw - 24px);
-  background:var(--ui-1);color:var(--ui-tx);border:1px solid var(--ui-filo);border-radius:var(--r3);
-  box-shadow:var(--ui-ombra-3);padding:16px 17px 14px}
-#tourPop .tour-k{margin:0 0 7px;font:700 10px/1 var(--mono);text-transform:uppercase;
-  letter-spacing:.17em;color:var(--ui-tx3)}
-#tourPop h3{margin:0 0 8px;font-family:var(--f-display);font-size:18px;font-weight:560;letter-spacing:-.022em;color:var(--ui-tx)}
-#tourPop .tour-tx{font-size:13px;line-height:1.55;color:var(--ui-tx2)}
-#tourPop .tour-tx p{margin:0 0 8px}
-#tourPop .tour-tx p:last-child{margin:0}
-#tourPop .tour-tx b{color:var(--ui-tx)}
-#tourNote{margin:10px 0 0;padding:8px 10px;border:1px solid var(--ui-3);border-radius:var(--r1);
-  background:var(--ui-2);font-size:11.8px;line-height:1.5;color:var(--ui-tx3)}
-#tourNote b{color:var(--warn)}
-/* la fila di trattini dice quanto manca senza far contare i passi */
-#tourDots{display:flex;gap:4px;margin:14px 0 11px}
-#tourDots i{flex:1 1 0;height:3px;border-radius:2px;background:var(--ui-3)}
-#tourDots i.done{background:var(--acc-lo)}
-#tourDots i.on{background:var(--acc)}
-.tour-nav{display:flex;align-items:center;gap:8px}
-.tour-nav .btn{width:auto;flex:0 0 auto;margin-top:0;padding:8px 15px;font-size:13px}
-.tour-nav .tour-lnk{margin-right:auto;padding:6px 0;border:0;background:none;cursor:pointer;
-  font:inherit;font-size:12.3px;color:var(--ui-tx3);text-decoration:underline;text-underline-offset:2px}
-.tour-nav .tour-lnk:hover{color:var(--acc-hi)}
-/* il tastino della guida sta accanto a giorno/notte: sono i due comandi che
-   riguardano l'applicazione e non il documento, quindi vivono insieme nella
-   riga del marchio. Il margine automatico che spingeva a destra il comando del
-   tema passa qui, altrimenti i due si spartirebbero lo spazio libero */
-#tourBtn{margin-left:auto;flex:0 0 auto;width:28px;height:24px;padding:0;
-  display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--ui-3);border-radius:9px;background:var(--ui-2);
-  color:var(--ui-tx2);cursor:pointer;transition:.13s}
-#tourBtn svg{width:14px;height:14px;display:block}
-#tourBtn:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}
-/* con un comando in piu' nella riga del marchio, alla misura minima del
-   pannello (300px) il titolo deve poter stringere: un elemento flex non
-   scende sotto il suo contenuto minimo se non gli si dice min-width:0, e la
-   riga sfondava di una trentina di pixel portando il comando del tema fuori
-   dal pannello. La sottodicitura va a capo fra le parole come sempre (spezzarle
-   dava "GENERA TORE"), quindi il respiro della riga si stringe di due pixel:
-   alla misura minima i conti tornano per un pelo, e li' non c'e' niente da
-   guadagnare a tenerlo largo */
-#brandbar{gap:10px}
-#brandbar h1{min-width:0}
-#brandbar #themeSeg{margin-left:6px}
+/* ---- TUTORIAL GUIDATO: motore in js/tour.js, CSS in css/banco.css ---- */
 
 /* la testata del ponte: css/ponte.css (condivisa con web/registro/) */
 
@@ -913,7 +763,9 @@ table.xls.plain tbody tr:hover{background:transparent}
 <body>
 <div id="app">
 <aside id="side">
-  <div id="brandbar"><img src="/assets/logo.webp" alt="VRS Group" width="600" height="458"><h1>Schede Tecnici<span>Generatore fogli di campo</span></h1>
+  <div id="brandbar"><div class="bb-riga">
+    <a class="bb-indietro" href="/" title="Torna a Crono Mappature (il tracker)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Tracker</a>
+    <span class="bb-spazio"></span>
     <button type="button" id="tourBtn" title="Tutorial: la guida passo passo dell'applicazione" aria-label="Apri il tutorial guidato">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.75.3-1.1.9-1.1 1.7v.4"/><path d="M12 17.2h.01"/></svg>
     </button>
@@ -930,6 +782,8 @@ table.xls.plain tbody tr:hover{background:transparent}
       </button>
       <span class="ind" aria-hidden="true"></span>
     </div></div>
+    <div class="bb-marchio"><img src="/assets/logo.webp" alt="VRS Group" width="600" height="458"><h1>Schede Tecnici<span>Generatore fogli di campo</span></h1></div>
+  </div>
 
   <!-- Il PONTE col tracker (js/ponte.js, css/ponte.css) e' il primo gruppo del
        pannello: a quale sito del tracker appartiene il lavoro, e il bottone che
@@ -940,10 +794,6 @@ table.xls.plain tbody tr:hover{background:transparent}
   <div id="ponte" hidden>
     <div class="pn-corpo">
       <p class="pn-rotta">
-        <a href="/" title="Torna a Crono Mappature">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-          Crono Mappature</a>
-        <span class="sep" aria-hidden="true">/</span>
         <span id="ponteCosa">consegna a</span>
         <span class="pn-come" id="ponteCome" hidden></span>
         <button type="button" class="pn-mini" id="ponteCambia" hidden>cambia sito</button>
@@ -958,12 +808,6 @@ table.xls.plain tbody tr:hover{background:transparent}
                aria-label="Sito del tracker a cui collegare le schede">
         <datalist id="ponteLista"></datalist>
       </div>
-    </div>
-    <div class="pn-azione">
-      <button type="button" class="btn" id="ponteSalva" disabled
-              title="Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>
-        <span>Salva nel tracker</span></button>
     </div>
     <p class="pn-strip" id="ponteStato" role="status" hidden><span></span></p>
     <div class="ponte-scelte" id="ponteScelte" hidden>
@@ -1113,25 +957,9 @@ table.xls.plain tbody tr:hover{background:transparent}
 </aside>
 </div>
 
-<!-- tutorial guidato: velo che ferma i clic, buco che accende il bersaglio,
-     fumetto con il testo del passo. Costruito qui e non in JS perche' non
-     dipende dai dati: cambia solo il contenuto, passo per passo. -->
-<div id="tourWrap" hidden>
-  <div id="tourVeil"></div>
-  <div id="tourHole"></div>
-  <div id="tourPop" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
-    <p class="tour-k">Guida &middot; passo <span id="tourNum"></span></p>
-    <h3 id="tourTitle"></h3>
-    <div class="tour-tx" id="tourText"></div>
-    <p id="tourNote" hidden></p>
-    <div id="tourDots" aria-hidden="true"></div>
-    <div class="tour-nav">
-      <button type="button" class="tour-lnk" id="tourSkip">Chiudi la guida</button>
-      <button type="button" class="btn sec" id="tourPrev">Indietro</button>
-      <button type="button" class="btn" id="tourNext">Avanti</button>
-    </div>
-  </div>
-</div>
+<!-- tutorial guidato: il motore e il suo markup li fa js/tour.js (condiviso
+     con il registro); qui sotto restano i passi e l'esempio -->
+<script src="/js/tour.js"></script>
 
 <script>
 var LOGO="data:image/png;base64,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";
@@ -2374,6 +2202,14 @@ window.addEventListener('scroll',function(){
    barra e' gia' stretta di suo (9-13px), quindi sotto una certa soglia si
    nasconde del tutto invece di ridursi ancora - coprire la pagina per un
    cursore che non si legge piu' non sarebbe uno scambio conveniente. */
+/* la barra nativa del banco si toglie quando c'e' quella blu (css: body.ds-attiva),
+   ma non se c'e' da scorrere in orizzontale */
+function syncNativeScrollbar(){
+  var bar=document.getElementById('docScroll'), b=document.getElementById('banco');
+  if(!bar||!b) return;
+  var attiva=!bar.hidden&&!bar.classList.contains('cramped')&&b.scrollWidth<=b.clientWidth+1;
+  document.body.classList.toggle('ds-attiva',attiva);
+}
 function positionDocScroll(){
   var bar=document.getElementById('docScroll'), main=document.getElementById('banco');
   if(!bar||!main) return;
@@ -2388,6 +2224,7 @@ function positionDocScroll(){
   var free=r.right-wrap.right;
   bar.classList.toggle('cramped',free<22);
   bar.style.right=Math.max(4,(window.innerWidth-r.right)+8)+'px';
+  syncNativeScrollbar();
 }
 /* dimensione e posizione del cursore: la frazione della pagina visibile
    (clientHeight/scrollHeight) e la frazione gia' scorsa (scrollTop/range).
@@ -2403,7 +2240,7 @@ function updateDocScroll(){
   var n=pagesEl?document.querySelectorAll('#pages .page').length:0;
   var sc=n?scrollBox(pagesEl):null;
   var range=sc?sc.scrollHeight-sc.clientHeight:0;
-  if(!sc||n<2||range<=1){ bar.hidden=true; return; }
+  if(!sc||n<2||range<=1){ bar.hidden=true; syncNativeScrollbar(); return; }
   bar.hidden=false;
   var track=bar.querySelector('.ds-track'), trackH=track.clientHeight;
   var frac=Math.max(0,Math.min(1,sc.clientHeight/sc.scrollHeight));
@@ -2420,6 +2257,7 @@ function updateDocScroll(){
   var tip=bar.querySelector('.ds-tip');
   tip.textContent='pag. '+page+' / '+n;
   tip.style.top=(thumbTop+thumbH/2)+'px';
+  syncNativeScrollbar();
 }
 /* clic e trascinamento sulla traccia: la posizione toccata (meno mezzo
    cursore, cosi' il punto sotto il dito resta sotto il cursore) diventa la
@@ -3603,157 +3441,28 @@ var TOUR_STEPS=[
   {sel:['#zoomwrap','#empty-state'],title:"L'anteprima \u00e8 il documento",place:'left',
    tx:"<p>Qui non c'\u00e8 una bozza: ogni foglio bianco \u00e8 una pagina A4 vera, ricalcolata da capo a ogni cambio di impostazione. Quello che vedi \u00e8 quello che esce dalla stampante.</p>"},
 
+  {sel:'.bb-riga',title:"I comandi dell'applicazione",place:'below',
+   tx:"<p>In cima al pannello: <b>Tracker</b> torna a Crono Mappature; il <b>punto di domanda</b> riapre questa guida; le <b>due frecce</b> chiudono o aprono tutti i gruppi del pannello in un colpo (il titolo di ogni gruppo lo apre e lo chiude da solo); poi giorno e notte.</p>"},
+
   {sel:'#themeSeg',title:"Giorno e notte",place:'below',
    tx:"<p>Tre scelte: <b>segui il sistema</b>, chiaro, scuro. Riguarda solo l'applicazione \u2014 il foglio A4 \u00e8 bianco in tutti e due i temi, come sar\u00e0 stampato.</p>"},
 
   {sel:'#tourBtn',title:"La guida resta a portata di mano",place:'below',
    tx:"<p>Questo tastino riapre la guida quando serve, dal passo uno.</p><p>\u00c8 tutto: buon lavoro.</p>"}
 ];
-var TOUR_I=0, TOUR_ON=false, TOUR_RAF=null;
-/* si vede davvero? getClientRects() invece di offsetParent, che e' null anche
-   per la barra di scorrimento e lo scaffale (position:fixed) quando invece si vedono. La
-   soglia sta sull'ALTEZZA e serve all'anteprima vuota: #zoomwrap esiste sempre
-   ma senza pagine e' alto zero, e in quel caso il bersaglio giusto e' la
-   schermata iniziale. Sulla larghezza basta che ci sia: la stessa soglia
-   messa anche li' faceva sparire la maniglia delle colonne, larga
-   esattamente 8px, e il passo 11 finiva al centro senza bersaglio */
-function tourVis(el){
-  if(!el) return null;
-  var r=el.getClientRects();
-  return (r.length&&r[0].height>8&&r[0].width>0)?el:null;
-}
-function tourEl(s){
-  if(!s.sel) return null;
-  var list=(typeof s.sel==='string')?[s.sel]:s.sel;
-  for(var i=0;i<list.length;i++){
-    var el=tourVis(document.querySelector(list[i]));
-    if(el) return el;
-  }
-  return null;
-}
-/* mette buco e fumetto sul bersaglio. Chiamata anche da scorrimento e resize,
-   quindi non deve toccare il contenuto: solo misure */
-function tourPlace(){
-  if(!TOUR_ON) return;
-  var s=TOUR_STEPS[TOUR_I], el=tourEl(s);
-  var hole=document.getElementById('tourHole'), pop=document.getElementById('tourPop');
-  var vw=window.innerWidth||document.documentElement.clientWidth;
-  var vh=window.innerHeight||document.documentElement.clientHeight;
-  var pw=pop.offsetWidth, ph=pop.offsetHeight, M=12;
-  if(!el){
-    /* niente da illuminare: il buco si annulla al centro dello schermo, non
-       fuori campo. L'ombra si espande dai bordi del riquadro, quindi un
-       riquadro portato a -9999px lascerebbe scoperto tutto lo schermo */
-    hole.classList.add('blind');
-    hole.style.left=Math.round(vw/2)+'px'; hole.style.top=Math.round(vh/2)+'px';
-    hole.style.width='0px'; hole.style.height='0px';
-    pop.style.left=Math.round((vw-pw)/2)+'px';
-    pop.style.top=Math.round((vh-ph)/2)+'px';
-    return;
-  }
-  hole.classList.remove('blind');
-  var pad=(s.pad===undefined)?8:s.pad, r=el.getBoundingClientRect();
-  var x=Math.max(-4,r.left-pad), y=Math.max(-4,r.top-pad);
-  hole.style.left=Math.round(x)+'px';
-  hole.style.top=Math.round(y)+'px';
-  hole.style.width=Math.round(Math.min(r.right+pad,vw+4)-x)+'px';
-  hole.style.height=Math.round(Math.min(r.bottom+pad,vh+4)-y)+'px';
-  /* il fumetto va dove c'e' posto, provando i lati nell'ordine chiesto dal
-     passo: accanto se ci sta, sotto o sopra altrimenti. Al centro solo come
-     ultima spiaggia, e comunque mai fuori dallo schermo */
-  var G=14, px=null, py=null;
-  var order=(s.place==='left')?['left','right','below','above']
-          :(s.place==='below')?['below','above','right','left']
-          :(s.place==='above')?['above','below','right','left']
-          :['right','left','below','above'];
-  for(var i=0;i<order.length&&px===null;i++){
-    var o=order[i];
-    if(o==='right'&&r.right+G+pw+M<=vw){ px=r.right+G; py=r.top+r.height/2-ph/2; }
-    else if(o==='left'&&r.left-G-pw-M>=0){ px=r.left-G-pw; py=r.top+r.height/2-ph/2; }
-    else if(o==='below'&&r.bottom+G+ph+M<=vh){ py=r.bottom+G; px=r.left+r.width/2-pw/2; }
-    else if(o==='above'&&r.top-G-ph-M>=0){ py=r.top-G-ph; px=r.left+r.width/2-pw/2; }
-  }
-  if(px===null){ px=(vw-pw)/2; py=(vh-ph)/2; }
-  pop.style.left=Math.round(Math.max(M,Math.min(vw-pw-M,px)))+'px';
-  pop.style.top=Math.round(Math.max(M,Math.min(vh-ph-M,py)))+'px';
-}
-function tourGo(i){
-  TOUR_I=Math.max(0,Math.min(TOUR_STEPS.length-1,i));
-  var s=TOUR_STEPS[TOUR_I], last=(TOUR_I===TOUR_STEPS.length-1), el=tourEl(s);
-  document.getElementById('tourNum').textContent=(TOUR_I+1)+' di '+TOUR_STEPS.length;
-  document.getElementById('tourTitle').textContent=s.title;
-  document.getElementById('tourText').innerHTML=s.tx;
-  /* la nota del passo, oppure - se il bersaglio non c'e' - quella che dice
-     quando comparira' */
-  var nt=el?(s.note||''):(s.sel?(s.off||s.note||''):(s.note||''));
-  var n=document.getElementById('tourNote');
-  n.innerHTML=nt; n.hidden=!nt;
-  var dots=document.getElementById('tourDots');
-  if(dots.children.length!==TOUR_STEPS.length){
-    dots.innerHTML=TOUR_STEPS.map(function(){ return '<i></i>'; }).join('');
-  }
-  Array.prototype.forEach.call(dots.children,function(d,k){
-    d.className=(k===TOUR_I)?'on':(k<TOUR_I?'done':'');
-  });
-  document.getElementById('tourPrev').disabled=(TOUR_I===0);
-  document.getElementById('tourNext').textContent=last?'Ho capito':'Avanti';
-  /* il bersaglio va portato in vista prima di misurarlo: quasi tutti i passi
-     stanno nel pannello, che ha la sua barra di scorrimento */
-  if(el) scrollToEl(el,true);
-  tourPlace();
-  requestAnimationFrame(tourPlace); /* dopo lo scorrimento e il rientro del layout */
-  document.getElementById('tourNext').focus();
-}
-function startTour(){
-  tourDemoOn(); /* prima l'esempio: i passi devono avere qualcosa da indicare */
-  document.getElementById('tourWrap').hidden=false;
-  TOUR_ON=true;
-  tourGo(0);
-}
-function endTour(){
-  if(!TOUR_ON) return;
-  TOUR_ON=false;
-  document.getElementById('tourWrap').hidden=true;
-  tourDemoOff();
-  try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){}
-  syncTutorialBtn();
-}
-document.getElementById('tourBtn').onclick=function(){ startTour(); };
-document.getElementById('tourNext').onclick=function(){
-  if(TOUR_I>=TOUR_STEPS.length-1) endTour(); else tourGo(TOUR_I+1);
-};
-document.getElementById('tourPrev').onclick=function(){ tourGo(TOUR_I-1); };
-document.getElementById('tourSkip').onclick=function(){ endTour(); };
-/* il velo esiste per fermare i clic sui comandi mentre la guida parla: un clic
-   fuori dal fumetto non chiude niente e non cambia nessuna impostazione */
-document.getElementById('tourVeil').onclick=function(e){ e.preventDefault(); };
-window.addEventListener('keydown',function(e){
-  if(!TOUR_ON) return;
-  if(e.key==='Escape'){ e.preventDefault(); endTour(); }
-  else if(e.key==='ArrowRight'||e.key==='PageDown'){
-    e.preventDefault();
-    if(TOUR_I>=TOUR_STEPS.length-1) endTour(); else tourGo(TOUR_I+1);
-  }
-  else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); tourGo(TOUR_I-1); }
+/* il motore della guida e' condiviso (js/tour.js, css/banco.css): qui restano
+   i passi (TOUR_STEPS), l'esempio (tourDemoOn/Off) e i tasti della pagina.
+   Parte da sola al primo utilizzo; il ricordo sta in TOUR_KEY, chiave propria
+   come il tema, non fra le impostazioni di stampa. */
+var TOUR=Tour.crea({
+  passi:TOUR_STEPS, chiave:TOUR_KEY, autoAvvio:true,
+  primaDi:tourDemoOn,   /* prima l'esempio: i passi devono avere qualcosa da indicare */
+  dopo:function(){ tourDemoOff(); syncTutorialBtn(); },
+  scorri:function(el){ scrollToEl(el,true); }
 });
-/* in fase di capture come per lo scaffale: lo scorrimento del pannello non
-   risale fino a window, ma l'evento passa comunque da qui */
-window.addEventListener('scroll',function(){
-  if(!TOUR_ON||TOUR_RAF) return;
-  TOUR_RAF=requestAnimationFrame(function(){ TOUR_RAF=null; tourPlace(); });
-},{passive:true,capture:true});
-window.addEventListener('resize',function(){ if(TOUR_ON) tourPlace(); });
-/* al primo utilizzo la guida parte da sola: chi apre il file per la prima
-   volta non sa che esiste un tastino con il punto di domanda. Il ricordo sta
-   in una chiave propria (come il tema), non fra le impostazioni di stampa:
-   "ho gia' visto la guida" non e' una preferenza da mettere in un file .json
-   ne' da azzerare con "ripristina impostazioni di fabbrica" */
-(function(){
-  var seen=null;
-  try{ seen=localStorage.getItem(TOUR_KEY); }catch(e){}
-  syncTutorialBtn();
-  if(!seen) setTimeout(function(){ if(!TOUR_ON) startTour(); },500);
-})();
+function startTour(){ TOUR.avvia(); }
+document.getElementById('tourBtn').onclick=function(){ startTour(); };
+syncTutorialBtn();
 
 render(); /* con le predefinite puo' gia' esserci qualcosa da mostrare */
 </script>

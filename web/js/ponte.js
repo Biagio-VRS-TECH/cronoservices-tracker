@@ -15,10 +15,11 @@ per tutti e due, ed e' questo modulo:
      del tracker (js/affinita.js): corrispondenza netta e un solo sito ->
      collegato da solo; piu' siti o corrispondenza parziale -> lista dei
      probabili; niente -> avviso, e si sceglie a mano (segnato come tale);
-  2. "ESPORTA E SALVA" (il bottone del generatore) e "Salva nel tracker" (nella
-     testata) producono lo stesso PDF (html2canvas + jsPDF, in web/lib/): il
-     primo lo scarica anche sul computer, tutti e due lo consegnano al tracker -
-     file archiviato, riga in `documenti` col suo `tipo`. Per le schede la
+  2. "ESPORTA E SALVA" (il bottone del generatore, l'unico dalla 30a sessione:
+     il "Salva nel tracker" della testata faceva la stessa cosa senza il file
+     sul computer) produce il PDF (html2canvas + jsPDF, in web/lib/), lo
+     scarica e lo consegna al tracker - file archiviato, riga in `documenti`
+     col suo `tipo`. Per le schede la
      consegna mette anche la spunta "stampata" sulla prima visita in arrivo
      (#ANCHOR: mese-stampa); per il registro NO: e' un documento per il
      cliente, non un passo della mappatura. Il tracker mostra l'icona accanto
@@ -53,12 +54,14 @@ const PROFILI = {
     tipo: 'schede', spunta: true,
     cosa: 'schede tecnici', ripiego: 'schede tecnici',
     consegna: 'consegna a',
+    titoloSenzaSito: 'Produce il PDF e lo scarica. Senza un sito collegato non finisce nel tracker: collegalo nel gruppo in alto',
     titoloSalva: 'Produce il PDF e lo consegna al tracker (spunta “stampata” compresa) senza aprire la finestra di stampa',
   },
   registro: {
     tipo: 'registro', spunta: false,
     cosa: 'registro componenti', ripiego: 'Registro componenti',
     consegna: 'registro per',
+    titoloSenzaSito: 'Produce il PDF del registro e lo scarica. Senza un sito collegato non si archivia nel tracker: collegalo nel gruppo in alto',
     titoloSalva: 'Produce il PDF del registro e lo archivia nel tracker sul sito collegato (nessuna spunta: e’ un documento per il cliente)',
   },
 };
@@ -289,11 +292,15 @@ export function avviaPonte(cfg = {}) {
       stato.style.removeProperty('--p');
     }
 
-    const salva = $('#ponteSalva');
-    salva.disabled = inCorso ? annulla : (!conSito || !pagineDi().length);
-    salva.title = inCorso ? 'Ferma la preparazione e la consegna del PDF (anche con Esc)' : P.titoloSalva;
-    salva.classList.toggle('ferma', inCorso);
-    salva.querySelector('span').textContent = inCorso ? (annulla ? 'Interrompo…' : 'Interrompi') : 'Salva nel tracker';
+    /* "Salva nel tracker" non c'e' piu' (30a sessione): il bottone del
+       generatore, Esporta e salva, fa gia' le due cose insieme; interrompere
+       si fa dal libretto (o con Esc). Il bottone del generatore si spegne
+       finche' non c'e' un sito o non ci sono pagine. */
+    const b = $(selBottone);
+    if (b) {
+      b.disabled = inCorso || !pagineDi().length;
+      b.title = !conSito ? P.titoloSenzaSito : P.titoloSalva;
+    }
 
     // la lista dei probabili
     const pan = $('#ponteScelte');
@@ -343,7 +350,6 @@ export function avviaPonte(cfg = {}) {
         ? `Collegato a mano: il file “${ultimoFile}” non somiglia a questo sito.` : 'Collegato.');
     });
 
-    $('#ponteSalva').onclick = () => inCorso ? interrompi() : (() => esportaESalva({ scarica: false }))();
     guarda();
     /* le pagine cambiate dal generatore: cambia "quante pagine ci sono", quindi
        il bottone si accende o si spegne. Non durante la resa del PDF: quelle

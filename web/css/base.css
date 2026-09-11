@@ -252,6 +252,13 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .pill.debole { background: transparent; color: var(--tenue); border-color: transparent; box-shadow: none; }
 .pill.debole:hover { border-style: dashed; border-color: var(--bordo-forte); box-shadow: none; }
+/* Una pillola debole PREMUTA si accende come le altre: la regola qui sopra ha
+   la stessa specificita' di `.pill[aria-pressed="true"]` e veniva dopo, quindi
+   "Mostra chiusi" restava trasparente anche da acceso (30a sessione). */
+.pill.debole[aria-pressed="true"] {
+  background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
+  border-style: solid; color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
+}
 .pill.mini { padding: 3px 9px; min-height: 24px; font-size: var(--t-micro); }
 /* la tendina resta una pillola, ma con la freccina: senza, sembrava un'etichetta */
 select.pill {
@@ -611,6 +618,13 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
    foglio (bordo di carta, ombra, l'angolo piegato in alto a destra), il titolo
    in chiaro e tutti i dati - pagine, peso, chi e quando - in monospazio. */
 .doc-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+/* i PDF del sito in due gruppi, uno per tipo (schede per i tecnici, registro
+   per il cliente): l'occhiello del tipo e il conto, poi le carte */
+.doc-tipo-gruppo + .doc-tipo-gruppo { margin-top: 16px; }
+.doc-tipo-testa { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 0 8px; }
+.doc-tipo-testa .doc-tipo { margin-bottom: 0; }
+.doc-tipo-testa .conta { font: var(--t-micro)/1 var(--f-dato); color: var(--tenue); letter-spacing: .04em; }
 .doc-lista li {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: start;
   padding: 12px; border: 1px solid var(--bordo-lieve); border-radius: var(--r-3);

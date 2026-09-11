@@ -47,14 +47,8 @@ button,select,input{font-family:inherit}
 #main{position:relative;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #banco{flex:1 1 auto;min-height:0;overflow:auto;padding:30px 20px 60px}
 
-#brandbar{display:flex;align-items:center;gap:12px;padding:18px 0 15px;position:sticky;top:0;z-index:5;
-  background:var(--ui-1);border-bottom:1px solid var(--ui-filo)}
-#brandbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-  background:linear-gradient(90deg,var(--acc),rgba(0,168,228,0) 72%)}
-#brandbar img{height:38px;width:auto}
-#brandbar h1{font-size:15px;margin:0;letter-spacing:.005em;line-height:1.2;color:var(--ui-tx);flex:1 1 auto}
-#brandbar h1 span{display:block;font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.16em;
-  color:var(--ui-tx3);margin-top:5px}
+/* la barra del marchio (#brandbar), la colonna dell'albero (#treecol) e il
+   tutorial stanno in css/banco.css: condivisi con il generatore di schede */
 
 /* il selettore del tema: tre stati, l'indicatore scorre sotto al prescelto */
 #themeSeg{position:relative;display:inline-flex;gap:2px;padding:3px;border-radius:999px;
@@ -224,7 +218,8 @@ label.row select{flex:0 0 auto}
 
 @media (max-width:980px){
   #app{flex-direction:column;height:auto;overflow:visible}
-  #side{width:auto;flex:none;position:static;height:auto}
+  #side,#treecol{width:auto;flex:none;position:static;height:auto}
+  #treegrip{display:none}
   #main{height:auto;overflow:visible}
   #banco{overflow:visible}
   #ponte{position:sticky;top:0}
