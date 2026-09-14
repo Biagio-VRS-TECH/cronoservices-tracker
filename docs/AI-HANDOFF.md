@@ -7,8 +7,11 @@
 > commit su quel branch: su `main` non si committa e non si pusha mai, se non
 > dopo un "fai deploy" esplicito. Il perche' e' anche economico: `git push
 > origin main` e' il deploy vero e costa 15 crediti Netlify a colpo, mentre il
-> Deploy Preview che nasce da una pull request costa 0. Push del branch e
-> apertura della PR: solo se lui li chiede.
+> Deploy Preview che nasce da una pull request costa 0. **Dal 2026-09-14 il push
+> del BRANCH si fa sempre, senza chiederlo** ("pusha per deploy preview
+> sempre"): finito il lavoro, commit e `git push origin <branch>`, cosi' Netlify
+> rigenera l'anteprima della PR e lui prova subito. L'apertura di una PR nuova e
+> il **Merge** (quello e' il deploy vero) restano decisioni sue.
 
 Da qui si apre solo il file di `docs/ai/` che riguarda la modifica richiesta.
 Non leggere il codice a blocco: usa la mappa e le ancore qui sotto.
