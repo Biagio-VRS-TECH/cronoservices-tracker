@@ -121,7 +121,7 @@ Righe indicative: servono a decidere se leggere tutto o solo una sezione con
 | `registro/registro.css` | 380 | l'app del registro (token del banco) e il DOCUMENTO (carta bianca in tutti e due i temi) |
 | `lib/` | - | `xlsx.min.js` (SheetJS 0.18.5, era dentro schede/index.html), `html2canvas.min.js`, `jspdf.umd.min.js`: condivise dai due generatori |
 | `js/ui.js` | 210 | icone, `h()`, avvisi, modale, formattatori, `frecceEntrano()` |
-| `css/theme.css` | 240 | **solo token**: colori, i tre caratteri (`--f-display/--f-ui/--f-dato`), misure, segnali, vetro. Il marchio si cambia qui |
+| `css/theme.css` | 262 | **quasi solo token**: colori, i tre caratteri (`--f-display/--f-ui/--f-dato`), misure, segnali, vetro. Il marchio si cambia qui. In fondo le due sole regole: niente animazioni a `prefers-reduced-motion`, e il fondo OPACO delle `<option>` (#ANCHOR: tendina-aperta) |
 | `css/fonti.css` | 35 | i `@font-face` dei tre caratteri in `assets/fonti/`. #ANCHOR: fonti |
 | `css/banco.css` | 250 | i token del **banco di lavoro** dei generatori (`--ui-*`, `--acc*`), derivati da theme.css; poi tutto cio' che le due pagine condividono: gruppi richiudibili, **barra del marchio** a due righe, `#side` a colonna con Esporta inchiodato in fondo, **colonna dell'albero**, **tutorial**. `--ui-0` e' esadecimale di proposito (html2canvas non legge `color-mix`). #ANCHOR: css-banco |
 | `css/ponte.css` | 300 | la testata di consegna `#ponte` e la nuvoletta, condivisa dai due generatori. #ANCHOR: css-ponte |
@@ -208,6 +208,27 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare i grafici, le torte o la vista Statistiche | [ai/frontend.md](ai/frontend.md#la-vista-statistiche) + skill `dataviz` |
 | sapere cosa manca / cosa e' rimasto in sospeso | [ai/da-fare.md](ai/da-fare.md) |
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
+
+---
+
+## Stato al 2026-09-14 (34a sessione)
+
+Branch `registro-componenti-premium`, sempre lo stesso. Un difetto di lettura
+visto dal committente: **la tendina "Densita' per pagina" era grigio su bianco**.
+
+Le `<option>` le disegna il sistema, ma il colore lo prendono dal `<select>`: e
+i nostri campi hanno il fondo "pista" (`--pista-fondo` nei generatori,
+`--vetro-fondo` nella pillola del tracker), che e' un **velo semitrasparente**
+pensato per posarsi sul pannello. Nella finestrella del menu quel velo finisce
+sopra il bianco di sistema, e al tema scuro restava l'inchiostro avorio su fondo
+quasi bianco: "4 schede / 5 schede / 6 schede..." non si leggevano. Ora
+`select option` ha fondo **opaco e dichiarato** (`--superficie`, la voce scelta
+`--superficie-2` in semigrassetto) in fondo a `css/theme.css`, quindi vale per
+tutte e tre le pagine: densita' e "Stampa" nel generatore di schede, corpo testo
+nel registro, filtro provincia nel tracker - quest'ultimo peggio degli altri,
+perche' la pillola ha `background-color` trasparente del tutto. Il campo chiuso
+non cambia di una virgola. Misurato in browser: 15,4:1 al tema scuro, ~16:1 al
+chiaro, prima e dopo su tutte le tendine. #ANCHOR: tendina-aperta
 
 ---
 

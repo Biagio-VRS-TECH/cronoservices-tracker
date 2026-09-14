@@ -338,3 +338,24 @@
   --lampo: rgba(10,46,68,.09);
   --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
 }
+
+/* ---- LA TENDINA APERTA ----------------------------------------------------
+   Le <option> le disegna il browser, ma il colore lo prende dal <select>: e i
+   nostri campi hanno il fondo "pista" (--pista-fondo, --vetro-fondo), che e' un
+   velo semitrasparente pensato per posarsi sul pannello. Nel menu a tendina
+   quel velo finisce sopra il bianco della finestrella di sistema: al tema scuro
+   restava l'inchiostro avorio su fondo quasi bianco - la densita' per pagina
+   dei generatori non si leggeva. Qui il fondo e' OPACO e dichiarato, cosi' la
+   tendina aperta ha lo stesso contrasto del pannello in tutti e due i temi.
+   Vale per le tre pagine: tracker, generatore di schede, registro. */
+select option,
+select optgroup {
+  background-color: var(--superficie);
+  color: var(--inchiostro);
+}
+/* la voce gia' scelta si riconosce anche prima di muovere il mouse */
+select option:checked {
+  background-color: var(--superficie-2);
+  color: var(--inchiostro);
+  font-weight: 600;
+}
