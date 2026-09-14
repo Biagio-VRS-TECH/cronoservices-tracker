@@ -395,7 +395,14 @@ function dipingi(n, id, mese) {
     n.setAttribute('data-' + SIGLA[k], v === 1 ? 1 : v === PROPOSTA ? 3 : e.ered[k] ? 2 : 0);
   }
   n.classList.toggle('attesa', e.attesa.length > 0);
+  /* la capsula che DIVENTA completa sotto la mano fiorisce una volta
+     (css/griglia.css, .fiorisce): e' il momento che si aspettava */
+  const eraCompleta = n.classList.contains('completa');
   n.classList.toggle('completa', e.completa);
+  if (e.completa && !eraCompleta && n.isConnected) {
+    n.classList.add('fiorisce');
+    n.addEventListener('animationend', () => n.classList.remove('fiorisce'), { once: true });
+  }
   n.classList.toggle('ritardo', e.ritardo);
   n.classList.toggle('con-nota', !!e.c.nota);
   n.classList.toggle('sospesa', CAMPI.some(x => st.sospese.has(`${id}-${mese}-${x}`)));
@@ -405,6 +412,33 @@ function dipingi(n, id, mese) {
   n.title = tip + (er ? ' \u00b7 ' + er : '') + (pr ? ' \u00b7 ' + pr : '');
   n.setAttribute('aria-label',
     `${st.mesi[mese - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${CLASSE_ET[e.classe] || ''}${er ? ' ' + er + '.' : ''}`);
+}
+
+/** L'ONDA delle azioni di massa (#ANCHOR: massa in app.js). Dopo un "Completa
+ *  tutte" o un "Azzera tutte" centinaia di spunte compaiono - o spariscono -
+ *  tutte insieme, in un ridisegno solo e senza un movimento: un FRONTE DI LUCE
+ *  attraversa la griglia da sinistra a destra e fa vedere quanto e' stato largo
+ *  il colpo. Verde se si completa, ambra se si azzera.
+ *
+ *  Un gesto SOLO, e questo. C'era anche la fioritura delle singole celle
+ *  toccate, sotto al fronte: erano due animazioni di fila - prima l'onda, poi
+ *  le caselle - e il committente le ha volute una o l'altra. E' rimasto il
+ *  fronte perche' si vede SEMPRE: le celle toccate sono sparse su duecento
+ *  clienti e quasi mai capitano nella schermata aperta (misurato: zero su
+ *  trentuno), quindi da sole non dicevano niente.  #ANCHOR: onda-massa */
+export function onda(verso) {
+  if (!radice) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const alto = innerHeight, largo = innerWidth || 1;
+  const r = radice.getBoundingClientRect();
+  const x = Math.max(r.left, 0), y = Math.max(r.top, 0);
+  const w = Math.min(r.right, largo) - x, h = Math.min(r.bottom, alto) - y;
+  if (w <= 0 || h <= 0) return;
+  const velo = document.createElement('div');
+  velo.className = 'onda-velo' + (verso === 'giu' ? ' giu' : '');
+  velo.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+  document.body.appendChild(velo);
+  setTimeout(() => velo.remove(), 1400);   // il fronte e la sua dissolvenza
 }
 
 /** Un collega ha aperto (o lasciato) una cella (#ANCHOR: fuoco): anello del suo
@@ -479,7 +513,15 @@ function aggiornaTotali(id) {
   const completo = pg.tot > 0 && pg.fatti === pg.tot;
   t2.innerHTML = pg.tot ? `<b>${pg.fatti}</b>/${pg.tot}` : '&mdash;';
   t2.classList.toggle('pieno', completo);
+  /* LA FESTA: l'ultima spunta che chiude la mappatura del cliente accende la
+     carta e una luce verde la attraversa, una volta (css/griglia.css) */
+  const eraCompleto = sez.classList.contains('completo');
   sez.classList.toggle('completo', completo);
+  if (completo && !eraCompleto) {
+    sez.classList.remove('festa'); void sez.offsetWidth;
+    sez.classList.add('festa');
+    sez.addEventListener('animationend', () => sez.classList.remove('festa'), { once: true });
+  }
   aggiornaRigaTotali();
 }
 
@@ -519,17 +561,24 @@ export function passiMancanti(soloReali = true) {
   return voci;
 }
 
-/** Passi da togliere nel set filtrato: per "Azzera". */
+/** Passi da togliere nel set filtrato: per "Azzera".
+ *  Qui, a differenza di `passiMancanti`, NON si guarda ne' `spuntabile` ne' lo
+ *  stato del service: si toglie tutto quello che c'e' su quello che si sta
+ *  vedendo. Una spunta puo' stare su un mese che oggi non e' piu' previsto (la
+ *  cella ORFANA: il calendario del contratto e' cambiato dopo che era stata
+ *  messa, vedi `htmlCella`) oppure su un sito chiuso, che "Mostra chiusi"
+ *  rimette a schermo: quelle restavano spuntate per sempre, perche' "Azzera
+ *  tutte" non le guardava nemmeno. Se una spunta si vede, si deve poter
+ *  togliere. Si legge `cella` e non `statoCella`: serve il valore, non la
+ *  classe del mese. */
 export function passiPresenti() {
   const voci = [];
   for (const g of gruppiFiltrati()) {
     for (const s of g.srvs) {
-      if (s.stato !== 'APERTO') continue;
       for (let m = 1; m <= 12; m++) {
-        const e = statoCella(s.id, m);
-        if (!e.spuntabile) continue;
+        const c = cella(s.id, m);
         for (const campo of CAMPI) {
-          if (e.c[SIGLA[campo]] !== 0) voci.push({ id: s.id, mese: m, campo, valore: 0 });   // anche le proposte
+          if (c[SIGLA[campo]] !== 0) voci.push({ id: s.id, mese: m, campo, valore: 0 });   // anche le proposte
         }
       }
     }

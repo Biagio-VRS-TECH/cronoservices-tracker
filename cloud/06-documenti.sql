@@ -1,4 +1,4 @@
--- 06-documenti.sql - i PDF delle schede tecnici, online.
+-- 06-documenti.sql - i PDF dei generatori (schede tecnici e registro componenti), online.
 --
 -- Il generatore di schede (web/schede/) quando stampa produce anche un PDF e lo
 -- consegna al tracker: il file va nel bucket Storage `documenti`, la riga qui
@@ -29,6 +29,10 @@ create index if not exists ix_doc_anno on public.documenti(anno, id_service);
 alter table public.documenti add column if not exists gruppo    text;
 alter table public.documenti add column if not exists fascicolo integer;
 alter table public.documenti add column if not exists fascicoli integer;
+-- Che documento e' (#ANCHOR: documenti): 'schede' (schede tecnici, per i
+-- tecnici: mette la spunta "stampata") oppure 'registro' (registro dei
+-- componenti, web/registro/, per il cliente: nessuna spunta). Due icone.
+alter table public.documenti add column if not exists tipo text not null default 'schede';
 -- Realtime deve poter dire ANCHE chi era la riga cancellata (sito e anno), non
 -- solo la chiave: senza, il tracker non saprebbe da quale riga togliere l'icona.
 alter table public.documenti replica identity full;
@@ -76,7 +80,8 @@ language sql immutable as $fn$
     'id', d.id, 'id_service', d.id_service, 'anno', d.anno, 'mese', d.mese,
     'nome', d.nome, 'percorso', d.percorso, 'bytes', d.bytes, 'pagine', d.pagine,
     'anteprima', d.anteprima, 'creato_il', d.creato_il, 'creato_da', d.creato_da,
-    'gruppo', d.gruppo, 'fascicolo', d.fascicolo, 'fascicoli', d.fascicoli)
+    'gruppo', d.gruppo, 'fascicolo', d.fascicolo, 'fascicoli', d.fascicoli,
+    'tipo', coalesce(d.tipo, 'schede'))
 $fn$;
 
 -- Senza anno (null) tutti i documenti: lo storico dei PDF non scade con l'anno.
@@ -99,12 +104,15 @@ end $fn$;
 -- Il client ha gia' caricato il PDF nel bucket: qui si registra la riga e si
 -- mette la spunta. Se l'oggetto non c'e' davvero nello Storage la riga non
 -- nasce: niente icone che puntano nel vuoto.
--- La firma e' cresciuta (gruppo/fascicolo/fascicoli): la vecchia va tolta.
+-- La firma e' cresciuta due volte (gruppo/fascicolo/fascicoli, poi tipo): le
+-- vecchie vanno tolte, altrimenti Postgres ne tiene due e la RPC e' ambigua.
 drop function if exists public.registra_documento(int, int, int, text, text, int, int, text);
+drop function if exists public.registra_documento(int, int, int, text, text, int, int, text, text, int, int);
 create or replace function public.registra_documento(
   p_id_service int, p_anno int, p_mese int, p_nome text, p_percorso text,
   p_bytes int default 0, p_pagine int default 0, p_anteprima text default null,
-  p_gruppo text default null, p_fascicolo int default null, p_fascicoli int default null)
+  p_gruppo text default null, p_fascicolo int default null, p_fascicoli int default null,
+  p_tipo text default 'schede')
 returns jsonb
 language plpgsql security definer set search_path = public as $fn$
 declare
@@ -114,6 +122,7 @@ declare
   mese  int := p_mese;
   cella jsonb := null;
   ant   text := p_anteprima;
+  tipo  text := case when p_tipo = 'registro' then 'registro' else 'schede' end;
 begin
   if not public.autorizzato() then
     raise exception 'non autorizzato' using errcode = '42501';
@@ -134,19 +143,24 @@ begin
   if mese is null or mese < 1 or mese > 12 then
     mese := public._mese_scadenza(s, p_anno);
   end if;
+  -- il registro dei componenti e' per il cliente: si archivia, nessuna spunta
+  if tipo = 'registro' then
+    mese := 0;
+  end if;
 
   insert into public.documenti(id, id_service, anno, mese, nome, percorso, bytes,
                                pagine, anteprima, creato_il, creato_da,
-                               gruppo, fascicolo, fascicoli)
+                               gruppo, fascicolo, fascicoli, tipo)
   values (replace(gen_random_uuid()::text, '-', ''), p_id_service, p_anno,
-          nullif(mese, 0), coalesce(nullif(p_nome, ''), 'schede.pdf'), p_percorso,
+          nullif(mese, 0), coalesce(nullif(p_nome, ''), tipo || '.pdf'), p_percorso,
           coalesce(p_bytes, 0), coalesce(p_pagine, 0), ant, public.ts_locale(), op,
           nullif(regexp_replace(coalesce(p_gruppo, ''), '[^0-9a-f]', '', 'g'), ''),
           case when coalesce(p_gruppo, '') = '' then null else nullif(p_fascicolo, 0) end,
-          case when coalesce(p_gruppo, '') = '' then null else nullif(p_fascicoli, 0) end)
+          case when coalesce(p_gruppo, '') = '' then null else nullif(p_fascicoli, 0) end,
+          tipo)
   returning * into d;
 
-  if mese > 0 then
+  if coalesce(mese, 0) > 0 then
     cella := public._applica(op, p_id_service, p_anno, mese, 'stampata', 1,
                              null, null, null, 'schede');
   end if;
@@ -222,7 +236,7 @@ end $fn$;
 -- ----------------------------------------------------------------- grant ---
 grant execute on function
   public.app_documenti(int),
-  public.registra_documento(int, int, int, text, text, int, int, text, text, int, int),
+  public.registra_documento(int, int, int, text, text, int, int, text, text, int, int, text),
   public.elimina_documento(text),
   public.elimina_documenti(int, int)
 to authenticated;

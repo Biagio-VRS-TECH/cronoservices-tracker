@@ -2,7 +2,8 @@
    checklist con caselle vuote da barrare in reparto.  #ANCHOR: css-stampa */
 @media print {
   @page { size: A4 portrait; margin: 12mm 10mm; }
-  :root { --superficie: #fff; --fondo: #fff; --inchiostro: #000; --tenue: #555; }
+  :root { --superficie: #fff; --fondo: #fff; --inchiostro: #000; --tenue: #555;
+          --bordo-lieve: #ccc; }
 
   .testa, .strumenti, .avvisi, .pop, .cassetto, .velo, .barra-massa,
   .mese-nav, .selez, .crono-testa .col-tot { display: none !important; }
@@ -11,7 +12,10 @@
 
   .stampa-testa { display: block !important; margin-bottom: 8mm; border-bottom: 1.5pt solid #000;
     padding-bottom: 3mm; }
-  .stampa-testa h1 { margin: 0; font-size: 16pt; letter-spacing: -.02em; }
+  /* sul foglio il titolo resta il display serif: e' la stessa voce dei documenti
+     che l'applicazione genera */
+  .stampa-testa h1 { margin: 0; font-family: var(--f-display); font-weight: 600;
+    font-size: 17pt; letter-spacing: -.02em; }
   .stampa-testa p { margin: 2mm 0 0; font-size: 8.5pt; color: #444; }
 
   .lavoro { padding: 0; }

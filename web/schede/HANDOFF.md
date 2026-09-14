@@ -2,9 +2,25 @@
 
 > **Dal 2026-09-08 il generatore vive qui, dentro Crono Mappature** (era
 > `Desktop/Claude/exel pdf converter/Schede-Tecnici-Generatore.html`, che resta
-> come copia vecchia). Il legame col tracker e' in `ponte.js` e nella sezione
-> `PONTE col tracker` del CSS/HTML: vedi `docs/ai/da-fare.md` (16a sessione).
-> Le librerie PDF stanno in `lib/`. Il resto del file e' quello descritto sotto.
+> come copia vecchia). Il legame col tracker e' in `ponte.js`: vedi
+> `docs/ai/da-fare.md` (16a sessione).
+>
+> **Dal 2026-09-11 (29a sessione) il file condivide quattro cose con il
+> generatore del registro (`web/registro/`)**, e non le ha piu' dentro:
+> - le librerie (`SheetJS`, `html2canvas`, `jsPDF`) stanno in **`web/lib/`**
+>   (`/lib/xlsx.min.js` ecc., percorsi assoluti). SheetJS era incorporato nel
+>   file: l'ha estratto la 29a, e' identico (0.18.5);
+> - il ponte vero e' **`web/js/ponte.js`** (`avviaPonte({tipo})`), il
+>   `ponte.js` di questa cartella e' un wrapper che aggancia `loadRows`,
+>   `unloadFile`, `aggiornaTitoloSito`;
+> - il CSS della testata (`#ponte`, la nuvoletta, la lista dei probabili) e' in
+>   **`web/css/ponte.css`**; i token dell'app (`--ui-*`, `--acc*`, `--mono`,
+>   `--r1..3`, `--ease`, `--rail*`) in **`web/css/banco.css`**, derivati da
+>   `css/theme.css` (il marchio si cambia solo la'). `:root.lt` qui dentro
+>   resta la classe che le regole del file guardano, ma `setTheme` scrive anche
+>   `data-tema` = `chiaro`|`scuro`, che e' quello che leggono i fogli condivisi;
+> - i caratteri (`css/fonti.css`): `body` usa `var(--f-ui)`.
+> Il resto del file e' quello descritto sotto.
 
 Recap per sessioni IA. **Regola del file: solo lo stretto necessario.** Niente
 racconti, niente "perché" già leggibili nei commenti del codice. Qui vanno solo
@@ -352,12 +368,13 @@ compariva prima di avere fascicoli.
 ## 9. Provare una modifica
 
 ```bash
-cd "C:/Users/utente27/Desktop/Claude/exel pdf converter" && python -m http.server 8731
+cd C:/Users/utente27/Desktop/Claude/cronoservice/app && python server.py --no-sync --porta 8775 --db ../data/prova.db
 ```
 
-`http://127.0.0.1:8731/Schede-Tecnici-Generatore.html`, **Ctrl+F5** (la cache
-fa sembrare che la modifica non abbia effetto). Il doppio clic sul file funziona
-ma su `file://` alcuni browser bloccano il fetch dei file di prova.
+`http://127.0.0.1:8775/schede/`, **Ctrl+F5** (la cache fa sembrare che la
+modifica non abbia effetto). Dal 2026-09-11 la pagina carica CSS e librerie
+con percorsi assoluti (`/css/...`, `/lib/...`): serve il server dell'app, non
+`file://` ne' un `http.server` aperto dentro `web/schede/`.
 
 Caricare un file di prova da automazione senza input file:
 
@@ -708,3 +725,28 @@ le miniature — la barra no, quindi non lo paga nemmeno per il numero.
 ### 2026-09-03 — descrizioni lunghe
 - `fitDescriptions` confronta `scrollHeight`/`clientHeight` e stringe il font
   scheda per scheda fino a 7,5px
+
+
+## 12. Dalla 30a sessione: cio' che e' uscito da questo file
+
+Tre pezzi che il registro dei componenti doveva condividere non stanno piu'
+qui dentro, e questo file li carica:
+
+- **la barra del marchio** (`#brandbar`, due righe: `.bb-riga` con
+  `.bb-indietro` "Tracker", `#tourBtn`, `#grpTutti`, `#themeSeg`; sotto
+  `.bb-marchio` con logo e `h1`) e il pannello a colonna flex con
+  `#exportGrp` inchiodato in fondo: `css/banco.css`;
+- **la colonna dell'albero** (`#treegrip`, `#treecol`, `#tree`, `#treebar`,
+  i cerchi): il CSS e' in `css/banco.css`; il JS (`buildTree`, `syncTree`,
+  `applyFilter`, la maniglia) resta qui perche' salta alle pagine con
+  `ANCHORS`. Il registro usa il porting `js/albero.js`;
+- **il tutorial**: motore e markup in `js/tour.js` (`Tour.crea`), CSS in
+  `css/banco.css`. Qui restano `TOUR_STEPS` (18 passi), `TOUR_KEY`,
+  `tourDemoOn/Off`, `syncTutorialBtn`; `TOUR=Tour.crea({...})` e
+  `startTour()` lo avviano.
+
+Tolto il bottone "Salva nel tracker" della testata del ponte (`.pn-azione`)
+e il link "Crono Mappature" nella rotta: fa tutto **Esporta e salva**, e si
+torna indietro con il bottone Tracker. La barra nativa di `#banco` si nasconde
+quando c'e' quella blu (`body.ds-attiva`, `syncNativeScrollbar()` chiamata da
+`positionDocScroll` e `updateDocScroll`).

@@ -1,19 +1,32 @@
-/* documenti.js - i PDF delle schede tecnici, lato tracker.  #ANCHOR: documenti
+/* documenti.js - i PDF dei generatori, lato tracker.  #ANCHOR: documenti
 
-Il generatore (web/schede/) quando stampa produce anche un PDF e lo consegna
-qui: una riga in `documenti` legata al SITO e all'anno, il file nello Storage
-(online) o in data/documenti/ (locale), e la spunta "stampata" messa sulla
-PRIMA VISITA IN ARRIVO, mai su una passata (#ANCHOR: mese-stampa in stato.js).
-Questo modulo e' tutto quello che il tracker sa dei documenti:
-il modello in memoria (`st.documenti`), l'icona da mettere accanto al nome del
-sito, l'apertura del file e la sua eliminazione.
+Due generatori producono PDF e li consegnano qui, una riga in `documenti`
+legata al SITO e all'anno, il file nello Storage (online) o in data/documenti/
+(locale). Il campo `tipo` dice quale dei due:
+  'schede'    le SCHEDE TECNICI (web/schede/), fogli di campo per i tecnici:
+              la consegna mette la spunta "stampata" sulla PRIMA VISITA IN
+              ARRIVO, mai su una passata (#ANCHOR: mese-stampa in stato.js);
+  'registro'  il REGISTRO DEI COMPONENTI (web/registro/), il documento per il
+              cliente: si archivia e basta, nessuna spunta.
+Questo modulo e' tutto quello che il tracker sa dei documenti: il modello in
+memoria (`st.documenti`), le icone da mettere accanto al nome del sito (una per
+tipo), l'apertura del file e la sua eliminazione.
 
-Lo usa ANCHE il generatore (schede/ponte.js), che vive nella stessa origine e
-importa questi stessi moduli: due pagine, un solo trasporto. */
+Lo usano ANCHE i generatori (js/ponte.js), che vivono nella stessa origine e
+importano questi stessi moduli: tre pagine, un solo trasporto. */
 import { chiama, rete } from './api.js';
 import * as nuvola from './nuvola.js';
 import { st, emetti, mappaDocumenti, mesePerStampa } from './stato.js';
 import { h, esc, quando, avviso } from './ui.js';
+
+/* I due tipi di documento (#ANCHOR: tipi-documento). `et` e' l'etichetta
+   corta, `pagina` il generatore che lo produce, `spunta` se la consegna mette
+   "stampata" (lo decide comunque il server: qui serve solo ai testi). */
+export const TIPI = {
+  schede:   { et: 'Schede tecnici',      cosa: 'le schede tecnici',          pagina: '/schede/',   spunta: true },
+  registro: { et: 'Registro componenti', cosa: 'il registro dei componenti', pagina: '/registro/', spunta: false },
+};
+export const tipoDi = d => (d?.tipo === 'registro' ? 'registro' : 'schede');
 
 /* ------------------------------------------------------------- modello --- */
 /** Ricostruisce `st.documenti` (id_service -> [documenti], dal piu' recente). */
@@ -95,6 +108,7 @@ export function gruppiDocumenti(id) {
       bytes: docs.reduce((n, d) => n + (d.bytes || 0), 0),
       fascicoli: docs[0].fascicoli && docs.length > 1 ? docs.length : 1,
       creato_il: docs.reduce((t, d) => (d.creato_il > t ? d.creato_il : t), ''),
+      tipo: tipoDi(docs[0]),
     };
   });
 }
@@ -111,7 +125,9 @@ export function eventoDocumento(ev) {
   if (ev.operatore && ev.documento && (!ev.documento.fascicolo || ev.documento.fascicolo === 1)) {
     const s = st.perServ.get(ev.id_service);
     const n = ev.documento.fascicoli > 1 ? ` (${ev.documento.fascicoli} fascicoli)` : '';
-    avviso(`${ev.operatore} ha stampato le schede di ${s?.dest || '#' + ev.id_service}${n}.`);
+    const verbo = tipoDi(ev.documento) === 'registro'
+      ? 'ha generato il registro componenti di' : 'ha stampato le schede di';
+    avviso(`${ev.operatore} ${verbo} ${s?.dest || '#' + ev.id_service}${n}.`);
   }
 }
 
@@ -140,10 +156,11 @@ export function annunciaAltreSchede(ev) {
   try { new BroadcastChannel(CANALE).postMessage(ev); } catch { }
 }
 
-/** L'indirizzo del generatore. Con un sito, ci arriva gia' puntato su quello:
- *  alla stampa il PDF torna qui e la spunta "stampata" va sulla prima visita
- *  in arrivo, mai su una passata (#ANCHOR: mese-stampa in stato.js). */
-export function urlGeneratore(s) {
+/** L'indirizzo di un generatore (`tipo`: 'schede' | 'registro'). Con un sito,
+ *  ci arriva gia' puntato su quello: alla consegna il PDF torna qui e, per le
+ *  schede, la spunta "stampata" va sulla prima visita in arrivo, mai su una
+ *  passata (#ANCHOR: mese-stampa in stato.js). */
+export function urlGeneratore(s, tipo = 'schede') {
   const p = new URLSearchParams({ anno: st.anno });
   if (s) {
     const cli = st.clienti.get(s.cli);
@@ -153,7 +170,7 @@ export function urlGeneratore(s) {
     p.set('cliente', cli?.rs || '');
     if (s.loc) p.set('localita', s.loc);
   }
-  return '/schede/?' + p;
+  return (TIPI[tipo] || TIPI.schede).pagina + '?' + p;
 }
 
 /* ------------------------------------------------------------- icona ----- */
@@ -162,26 +179,42 @@ export const ICO_PDF = '<svg viewBox="0 0 24 24" width="13" height="13" fill="no
   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
   '<path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
 
-/** Il chip da mettere accanto al nome del sito: c'e' solo se il sito ha almeno
- *  un PDF quest'anno. Un clic apre l'ultimo; il passaggio del mouse mostra la
- *  miniatura della prima pagina. Stringa HTML, come le righe della griglia. */
+/* Il registro dei componenti ha la sua icona: un libretto, non un foglio. */
+export const ICO_REGISTRO = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>' +
+  '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' +
+  '<path d="M9 7h7M9 11h5"/></svg>';
+export const ICONA_TIPO = { schede: ICO_PDF, registro: ICO_REGISTRO };
+
+/** I chip da mettere accanto al nome del sito: uno per TIPO di documento, e
+ *  solo se il sito ne ha almeno uno. Un clic apre l'ultimo di quel tipo; il
+ *  passaggio del mouse mostra la miniatura della prima pagina. Stringa HTML,
+ *  come le righe della griglia. Il contenitore porta `data-doc-srv`, cosi'
+ *  `rinfrescaChip` lo sostituisce in blocco. */
 export function htmlChipDocumento(id) {
   const l = documentiDi(id);
-  if (!l.length) return `<span class="doc-chip vuoto" data-doc-srv="${id}" hidden></span>`;
-  const g = gruppiDocumenti(id);           // i fascicoli di un documento contano uno
-  const d = g[0].capo;
-  const pag = g[0].pagine ? `${g[0].pagine} pag.` : '';
-  const altroAnno = d.anno !== st.anno;      // l'ultimo PDF e' di un altro anno: chip tenue
-  const anni = [...new Set(l.map(x => x.anno))].sort();
-  const titolo = `Schede tecnici · ${esc(titoloDocumento(d))}` +
-    (g[0].fascicoli > 1 ? ` · ${g[0].fascicoli} fascicoli` : '') + (pag ? ' · ' + pag : '') +
-    (altroAnno ? ` · del ${d.anno}` : '') +
-    ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
-    (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
-  return `<button type="button" class="doc-chip${altroAnno ? ' altro-anno' : ''}" data-doc-srv="${id}" data-doc="${d.id}"
-      title="${titolo}" aria-label="Apri il PDF delle schede tecnici">
-      ${ICO_PDF}${g.length > 1 ? `<i>${g.length}</i>` : ''}
-    </button>`;
+  if (!l.length) return `<span class="doc-chips vuoto" data-doc-srv="${id}" hidden></span>`;
+  const gruppi = gruppiDocumenti(id);        // i fascicoli di un documento contano uno
+  const chip = [];
+  for (const tipo of Object.keys(TIPI)) {
+    const g = gruppi.filter(x => x.tipo === tipo);
+    if (!g.length) continue;
+    const d = g[0].capo;
+    const pag = g[0].pagine ? `${g[0].pagine} pag.` : '';
+    const altroAnno = d.anno !== st.anno;      // l'ultimo PDF e' di un altro anno: chip tenue
+    const anni = [...new Set(g.map(x => x.capo.anno))].sort();
+    const titolo = `${TIPI[tipo].et} · ${esc(titoloDocumento(d))}` +
+      (g[0].fascicoli > 1 ? ` · ${g[0].fascicoli} fascicoli` : '') + (pag ? ' · ' + pag : '') +
+      (altroAnno ? ` · del ${d.anno}` : '') +
+      ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
+      (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
+    chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${d.id}"
+        title="${titolo}" aria-label="Apri il PDF: ${TIPI[tipo].et}">
+        ${ICONA_TIPO[tipo]}${g.length > 1 ? `<i>${g.length}</i>` : ''}
+      </button>`);
+  }
+  return `<span class="doc-chips" data-doc-srv="${id}">${chip.join('')}</span>`;
 }
 
 /** Sostituisce in posto il chip di un sito (quando arriva un documento). */
@@ -290,9 +323,11 @@ const percorsoDi = d => d.percorso || `${d.anno}/${d.id_service}/${d.id}.pdf`;
 /** Carica un PDF prodotto dal generatore e lo registra. `pdf` e' un Blob.
  *  Ritorna la risposta del server: {documento, mese, cella}. */
 export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine, anteprima,
-                                        gruppo = null, fascicolo = null, fascicoli = null }) {
+                                        gruppo = null, fascicolo = null, fascicoli = null,
+                                        tipo = 'schede' }) {
   const bytes = pdf.size;
-  const parti = { gruppo, fascicolo, fascicoli };     // un documento in fascicoli: N PDF, un gruppo
+  // un documento in fascicoli: N PDF, un gruppo. `tipo` decide se si mette la spunta (lo sa il server)
+  const parti = { gruppo, fascicolo, fascicoli, tipo: tipo === 'registro' ? 'registro' : 'schede' };
   if (!nuvola.attiva()) {
     const b64 = await blobBase64(pdf);
     const r = await chiama('/api/documento', {

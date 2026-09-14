@@ -5,7 +5,7 @@ in cache da sync.py). Le spunte mappatura vivono SOLO qui: l'accdb non viene mai
 scritto.  Concorrenza: WAL + un lock di scrittura in-process (server.py e' l'unico
 scrittore) + colonna `rev` per il merge ottimistico a livello di singolo campo.
 """
-import contextlib, os, sqlite3, threading, datetime
+import contextlib, json, os, sqlite3, threading, datetime
 
 WRITE_LOCK = threading.RLock()
 _DB_PATH = None
@@ -126,9 +126,28 @@ CREATE TABLE IF NOT EXISTS documenti (
   -- stesso `gruppo`; `fascicolo` 1..N, `fascicoli` = N. Un PDF unico: NULL.
   gruppo      TEXT,
   fascicolo   INTEGER,
-  fascicoli   INTEGER
+  fascicoli   INTEGER,
+  -- che documento e': 'schede' (schede tecnici, per i tecnici: mette la spunta
+  -- "stampata") oppure 'registro' (registro dei componenti, per il cliente:
+  -- nessuna spunta). Il tracker li mostra con due icone diverse.
+  tipo        TEXT NOT NULL DEFAULT 'schede'
 );
 CREATE INDEX IF NOT EXISTS ix_doc_anno ON documenti(anno, id_service);
+
+-- Il DIZIONARIO DEI COMPONENTI del generatore del registro (web/registro/):
+-- codice articolo del gestionale -> nome semplice che il cliente legge, piu'
+-- la priorita' 1..10 con cui il componente compare nel quadro d'insieme.
+-- E' condiviso da tutti (come le spunte): una riga per codice, si toglie
+-- quando non resta ne' un nome ne' una priorita'. Gemello di
+-- cloud/08-dizionario.sql. #ANCHOR: dizionario
+CREATE TABLE IF NOT EXISTS dizionario_componenti (
+  codice        TEXT PRIMARY KEY,
+  nome          TEXT,
+  descrizione   TEXT,
+  priorita      INTEGER,
+  aggiornato    TEXT NOT NULL,
+  aggiornato_da TEXT
+);
 """
 
 
@@ -142,6 +161,7 @@ AGGIUNTE = [
     ("documenti", "gruppo", "TEXT"),
     ("documenti", "fascicolo", "INTEGER"),
     ("documenti", "fascicoli", "INTEGER"),
+    ("documenti", "tipo", "TEXT NOT NULL DEFAULT 'schede'"),
 ]
 
 
@@ -161,7 +181,37 @@ def init(path):
         if not get_meta(c, "inizio_tracciamento"):
             set_meta(c, "inizio_tracciamento",
                      datetime.date.today().strftime("%Y-%m"))
+        _semina_dizionario(c)
     return _DB_PATH
+
+
+def _semina_dizionario(c):
+    """Al primo avvio il dizionario dei componenti parte dal vocabolario che
+    l'ufficio aveva gia' costruito col programma locale (app/dizionario-seme.json,
+    lo stesso seme di cloud/08-dizionario.sql). Solo se la tabella e' vuota: le
+    modifiche fatte dall'app non si toccano mai. #ANCHOR: dizionario"""
+    if c.execute("SELECT 1 FROM dizionario_componenti LIMIT 1").fetchone():
+        return
+    seme = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dizionario-seme.json")
+    if not os.path.exists(seme):
+        return
+    with open(seme, encoding="utf-8") as f:
+        voci = json.load(f)
+    ts = now()
+    for cod, v in voci.items():
+        if cod.startswith("_") or not isinstance(v, dict):
+            continue
+        nome = (v.get("nome") or "").strip() or None
+        try:
+            prio = int(v.get("priorita") or 0) or None
+        except (TypeError, ValueError):
+            prio = None
+        if not nome and not prio:
+            continue
+        c.execute("INSERT OR IGNORE INTO dizionario_componenti"
+                  "(codice,nome,descrizione,priorita,aggiornato,aggiornato_da) VALUES(?,?,?,?,?,?)",
+                  (cod.strip(), nome, (v.get("descrizione") or "").strip() or None, prio,
+                   v.get("aggiornato") or ts, "seme"))
 
 
 def connect():

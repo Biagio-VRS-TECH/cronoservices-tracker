@@ -3,6 +3,310 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-14 (33a sessione) - il sito sbagliato che restava attaccato
+
+Sintomo del committente: *"a volte, e non capisco in quali casi, se carico una
+mappatura Umberto Primo e poi Rizzato, non mi trova il sito affine corretto: si
+confonde col sito precedente."*
+
+Non era l'affinita'. Misurata sui 274 service aperti veri, `affinita.js` da'
+**100%** sia a "CASA DI RIPOSO UMBERTO I" -> #556 sia a "RIZZATO SPA" -> #568,
+e in tutti e due i casi il cliente ha un sito solo: il riconoscimento automatico
+li prende. Era il **ponte** (`js/ponte.js`, #ANCHOR: ponte), nel ramo che si
+attiva quando il sito arriva gia' collegato dall'indirizzo (`?service=`, cioe'
+quando il generatore si apre DAL tracker - il caso normale, ed e' per questo che
+capitava "a volte"):
+
+```js
+if (a < PROBABILE && cand.length) ...avvisa...
+return esito('ok', ...);
+```
+
+`a` e' quanto il file somiglia al sito **gia' collegato**, e la domanda era
+assoluta: *somiglia abbastanza?* Caricando il registro di RIZZATO con UMBERTO I
+ancora collegato, `a` vale **50,0%** - "rizato" contro "riposo" sono due lettere
+di distanza su sei - cioe' **esattamente** la soglia `PROBABILE`. Passava, e
+l'esito era `ok` con testo vuoto: **spina verde e nessun messaggio**, mentre
+RIZZATO SPA stava al 100% subito sotto. Il PDF sarebbe finito archiviato sul
+sito di prima. Nell'ordine inverso (Rizzato collegato, file Umberto) si ottiene
+48,7%: sotto soglia, e la lista compariva - da qui "a volte".
+
+Rimedi (tutti in `js/ponte.js`):
+
+1. **La domanda giusta e' relativa.** Non "il file somiglia abbastanza al sito
+   collegato" ma "somiglia a lui **piu' che a chiunque altro**": se il primo
+   candidato diverso da quello collegato lo batte di almeno `STACCO` (0,15), si
+   avvisa con le due percentuali in chiaro e si mostra la lista. Si continua a
+   **non** cambiare il sito da soli: quello dell'indirizzo l'ha scelto un umano
+   nel tracker. Provato su tutti i 274 accoppiamenti GIUSTI: **zero** falsi
+   allarmi.
+2. **Mai piu' l'esito muto.** Se il file non somiglia al sito collegato si
+   avvisa anche quando non c'e' nessun candidato da proporre (prima: silenzio).
+3. **Il ricaricamento della pagina non promuove piu' a "dal tracker".**
+   `collega()` scrive `service` nell'indirizzo, quindi bastava un F5 perche' un
+   sito *indovinato dal file* diventasse `origine: 'tracker'` - e da li' in poi
+   nessun altro file poteva piu' cambiarlo. Ora `collega()` scrive anche
+   `&come=auto|lista|mano` e il contesto lo rilegge.
+4. **L'avviso se ne va col file**: `fileTolto()` azzera l'esito anche quando il
+   sito resta attaccato (il caso tracker), invece di lasciare a schermo una
+   frase su un file che non c'e' piu'.
+
+## Fatto il 2026-09-14 (32a sessione) - l'eco di Realtime, e una animazione sola
+
+Provato dal committente **sull'anteprima di deploy** (la PR 6), non in locale: e
+li' si vedeva quello che in locale non si vede.
+
+1. **Dopo "Azzera tutte" alcune spunte sembravano restare, e cambiando anno e
+   tornando indietro sparivano.** I dati erano giusti: mentiva lo schermo.
+   Causa: online il flusso e' **Supabase Realtime**, e `postgres_changes`
+   rimanda indietro anche le righe scritte da NOI - non ha il `client_id` con
+   cui l'hub locale salta l'autore (#ANCHOR: sse in `server.py`) - e le rimanda
+   **una per passo**: quattro istantanee della stessa cella, ognuna a meta'
+   strada, che arrivano DOPO la risposta con la cella finita. Misurato
+   sull'anteprima con un MutationObserver: per una sola cella azzerata, quattro
+   ridipinture in 15 ms con i valori `0111 -> 0011 -> 0001 -> 0000`. Con
+   "Completa tutte" sono migliaia (una per spunta), ed e' anche il **"si
+   aggiorna duecento volte"** che restava: se una istantanea di mezzo arriva
+   buona ultima, o e' l'unica a passare (sotto carico Realtime ne lascia per
+   strada), la cella resta a meta' e la spunta torna a schermo fino al ricarico
+   dell'anno.
+   Rimedio: `ecoVecchia` in `js/stato.js` (#ANCHOR: eco-vecchia). Un
+   aggiornamento che arriva dal flusso con una **revisione non superiore** a
+   quella che abbiamo gia' si butta, in tutti e due i trasporti: e' una
+   fotografia piu' vecchia, non una notizia. Vale per l'eco nostra e per
+   qualunque ritardatario.
+2. **Due animazioni di fila su "Completa tutte"**: prima passava il fronte di
+   luce, poi fiorivano le singole celle. Il committente le ha volute "o una o
+   l'altra". E' rimasto il **fronte**, perche' si vede sempre: le celle toccate
+   sono sparse su duecento clienti e quasi mai capitano nella schermata aperta
+   (misurato nella passata precedente: zero su trentuno). Via da `onda()` il
+   giro sulle celle, via le classi `.cella.onda-su/.onda-giu` e la variabile
+   `--onda`; `onda(verso)` ora prende un argomento solo.
+
+Come si prova una cosa del genere (serve l'anteprima, in locale non si
+riproduce): registrare gli eventi prima di far partire l'azione -
+`on('cella')`, `on('rilegge')` e un MutationObserver su `#area` - e guardare
+**cosa arriva dopo la risposta**. In locale gli eventi dopo la risposta sono
+zero; online, prima della correzione, erano uno per passo scritto.
+
+## Fatto il 2026-09-11 (31a sessione, seconda passata) - Azzera che lasciava indietro, e la griglia ridisegnata dieci volte
+
+Due difetti visti subito dopo:
+
+1. **"Azzera tutte" lasciava qualche spunta.** `passiPresenti` (`js/anno.js`)
+   saltava le celle non `spuntabile` e i service non `APERTO`: una spunta su un
+   mese che oggi non e' piu' previsto - la **cella orfana**, il calendario del
+   contratto e' cambiato dopo che la spunta era stata messa - o su un sito
+   chiuso rimesso a schermo da "Mostra chiusi" non veniva nemmeno guardata, e
+   restava li' per sempre. Ora si toglie **tutto quello che c'e' su quello che
+   si sta vedendo**: si legge `cella` (il valore) invece di `statoCella` (la
+   classe del mese), e i filtri restano l'unico confine, come dice la finestra.
+   `passiMancanti` NON cambia: completare un mese non previsto creerebbe altre
+   celle orfane. Provato sul db di prova: dopo l'azzeramento restavano **1**
+   spunta (sito chiuso, mese non previsto), che con "Mostra chiusi" acceso ora
+   si toglie; prima quella stessa passata ne trovava 0 e non c'era modo di
+   togliere quella spunta dall'interfaccia.
+2. **La pagina si ridisegnava a ogni blocco.** `spuntaMolte` spedisce a blocchi
+   da 250 e `esitoConferma` emetteva una `rilegge` per ognuno: **11 ridisegni
+   di tutta la griglia** in fila su 2364 spunte (misurati con un
+   MutationObserver su `#area`), lo scorrimento che salta in cima e l'onda
+   spazzata via. Tre misure:
+   - il taglio dei blocchi non cade piu' in mezzo a una cella (i quattro passi
+     della stessa cella partono insieme): la risposta di un blocco porta la
+     cella **com'era a quel punto**, quindi una cella spezzata tornava a meta'
+     e sembrava sempre diversa da quella gia' scritta in locale - era una
+     `rilegge` garantita per ogni blocco;
+   - `esitoConferma` confronta lo stato **prima** del blocco con quello
+     **dopo** (`cambiaAVista`: i quattro passi e la nota, non `rev`/`by`/`at`
+     che cambiano sempre e non si disegnano) e ridisegna solo se il server ha
+     detto qualcosa di diverso - un merge, una proposta, una nota;
+   - via i due `disegna()` di troppo in `massa()` e nel bottone *Annulla*:
+     `spuntaMolte` e `annullaUltima` emettono gia' `rilegge`.
+
+   Risultato misurato: **1 ridisegno** invece di 11, l'onda resta in piedi, la
+   coda si svuota lo stesso (0 in sospeso a fine giro).
+
+Di passaggio: il bottone della finestra diceva "Azzera 1 spunte".
+
+## Fatto il 2026-09-11 (31a sessione) - il quadro che si accavallava e tre animazioni
+
+Branch `registro-componenti-premium`, stesso della 29a e della 30a. Quattro
+richieste dopo la seconda prova.
+
+1. **Nel registro di CASA DI RIPOSO UMBERTO I i piani del quadro d'insieme si
+   sovrappongono.** Misurato: colonne da 11,5mm fisse contro intestazioni che
+   ne volevano 16,7 ("ESTERNO") e 19,8 ("INTERRATO"); con
+   `table-layout: fixed` e `white-space: nowrap` il testo non stringe e non va
+   a capo, esce dalla cella e finisce sopra la vicina. Ora `misureQuadro`
+   (`web/registro/impagina.js`) **misura davvero**: un righello fuori schermo
+   con il CSS del documento (`div.pages > div.page > table.matrice`) da' la
+   larghezza di ogni parola; ogni colonna prende la parola piu' lunga della sua
+   intestazione piu' mezzo millimetro di respiro, l'intestazione va a capo fra
+   le parole (`thead th.n{white-space:normal;overflow-wrap:anywhere}`), la
+   colonna dei nomi si prende il resto. Se i piani sono tanti le colonne si
+   stringono in proporzione, mai sotto gli 8mm e mai sotto i 42mm dei nomi.
+   Provato con UMBERTO I (6 piani): 62,8mm ai nomi, 13,6-21,9mm ai piani,
+   nessuna cella che sborda, 13 pagine, zero pagine sfondate.
+2. **Il libretto del generatore componenti non rispecchia il contenuto e ha un
+   font piccolo.** I fogli che girano sono CLONI delle pagine vere, e stanno
+   fuori da `#pages`; la carta del registro era scritta `#pages .page`, quindi
+   ai cloni non arrivava nemmeno una regola: testo di sistema a 14px, niente
+   impaginazione. Due mosse: la sezione DOCUMENTO di `registro.css` ora si
+   scrive **`.pages .page`** (classe: `<div id="pages" class="pages">`, e
+   `cssDocumento()` taglia sulla stringa nuova), e `apriLibretto` in
+   `js/ponte.js` copia sul clone le **classi** del contenitore e le sue
+   **variabili** (`--corpo`), mai lo stile intero (li' c'e' lo zoom
+   dell'anteprima). Il libretto delle schede non e' stato toccato: la sua
+   carta era gia' `.page`, e infatti funzionava.
+3. **Animazione scenica per Completa tutte / Azzera tutte** (tracker):
+   `onda(chiavi, verso)` in `js/anno.js` (#ANCHOR: onda-massa), chiamata da
+   `massa()` dopo `disegna()`. Un fronte di luce inclinato attraversa la
+   griglia in 0,95 s - verde se si completa, ambra se si azzera - e le celle
+   toccate **che si vedono** fioriscono o si spengono al suo passaggio (il
+   ritardo e' la loro posizione sotto il fronte, non il posto nell'elenco). Il
+   fronte c'e' sempre, anche quando nessuna cella toccata e' in vista: sono
+   sparse su duecento clienti e quasi mai capitano nella schermata aperta - la
+   prima versione, solo per celle, non si vedeva mai.
+4. **Animazione scenica del caricamento dei gruppi** (generatori):
+   `entrataGruppi()` in `js/gruppi.js`, CSS in `css/banco.css`. I gruppi del
+   pannello (compreso quello dell'albero in `#treecol`) salgono uno dopo
+   l'altro, 90 ms l'uno dall'altro, e il filo del titolo corre da sinistra a
+   destra. Parte all'apertura della pagina e di nuovo a ogni file caricato
+   (`leggiFile` nel registro, il wrapper di `loadRows` nelle schede), che e'
+   il momento in cui i gruppi si riempiono davvero.
+
+Tutte e due le animazioni si spengono con `prefers-reduced-motion: reduce`.
+Service worker `crono-guscio-v26`.
+
+## Fatto il 2026-09-11 (30a sessione) - undici difetti dopo la prova
+
+Branch `registro-componenti-premium`, stesso della 29a. Il committente ha
+provato e ha elencato undici punti; tutti chiusi, con queste misure:
+
+1. **"Mostra chiusi" non si illuminava.** `aria-pressed="true"` c'era, ma
+   `.pill.debole` (stessa specificita', scritta dopo) rimetteva sfondo
+   trasparente. Regola `.pill.debole[aria-pressed="true"]` in `base.css`.
+2. **Tutto sovrapposto nel pannello (lo screenshot) / le scritte si
+   accavallano scorrendo.** Due cause: la barra del marchio su UNA riga a
+   pannello stretto (titolo a capo, tastini schiacciati), e `#ponte` con
+   `z-index:38` (serve alla nuvoletta) dentro un pannello la cui barra aveva
+   `5`: scorrendo, la rotta del collegamento passava sopra il logo. Ora barra
+   su due righe (`banco.css`, `.bb-riga` + `.bb-marchio`) con z 40 e
+   `#side #ponte{z-index:auto}`.
+3. **"Nomi dei componenti" tremolante.** Nessuna oscillazione di layout
+   misurabile a riposo (20 fotogrammi identici, nessuna animazione); ma a ogni
+   nome salvato `rigenera()` rifaceva 122 pagine nel DOM a scheda nascosta,
+   riaprendo e richiudendo l'anteprima per misurarle: **143 ms di blocco**
+   (PerformanceObserver longtask) per ogni Invio. Ora da "Nomi" si rifa' solo
+   il modello; le pagine si impaginano tornando all'anteprima o esportando
+   (`pagineDaRifare`, `assicuraPagine`, hook `pagine()` del ponte). Se il
+   tremolio fosse un'altra cosa, serve sapere QUANDO trema (a riposo, al
+   passaggio del mouse, digitando).
+4. **PDF raggruppati nel tracker**: `sezDocumenti` in `cassetto.js` itera
+   `TIPI` e fa un gruppo per tipo (`.doc-tipo-gruppo`, occhiello + conto).
+5. **Esporta fermo in basso**: `#side` colonna flex, `#exportGrp` con
+   `margin-top:auto` + `position:sticky;bottom:0` (nelle schede il margine
+   era `18px -20px 0`, ora `auto -20px 0`).
+6. **Tastino apri/chiudi tutti i gruppi**: `#grpTutti` c'era gia' (29a) ma
+   schiacciato fra logo e tema; ora sta nella riga dei comandi, 30x28, con
+   il tooltip. **Freccia indietro**: il bottone `.bb-indietro` "Tracker", al
+   posto del link di 10px nella rotta del ponte (rimosso).
+7. **Via "Salva nel tracker"** (`#ponteSalva`, `.pn-azione`) dalle due pagine;
+   `disegna()` in `ponte.js` ora regola il bottone del generatore
+   (`titoloSenzaSito` quando manca il sito). Interrompere: libretto o Esc.
+8. **Doppia barra di scorrimento** (schede): quando la barra blu `#docScroll`
+   e' visibile e non `.cramped`, e non c'e' scorrimento orizzontale,
+   `body.ds-attiva` nasconde quella nativa di `#banco` (`syncNativeScrollbar`).
+9. **Albero nel registro**: `js/albero.js` (porting di buildTree/syncTree),
+   colonna `#treecol` in `registro/index.html`, `costruisciAlbero`/
+   `exportFiltrato`/`saltaA` in `registro/app.js`. Le stanze escluse tolgono
+   le righe prima di `costruisciRegistro`; `righeDati` scende dello stesso
+   numero, cosi' la quadratura non fallisce; la legenda dei Nomi resta quella
+   completa. Il nome salta alla pagina del piano o del reparto (id gia' in
+   `impagina.js`). Trappola pagata: le chiavi con `\u0000` NON vanno in un
+   attributo HTML (il parser mette U+FFFD): l'albero tiene le chiavi in JS e
+   negli attributi solo gli indici.
+10. **Tutorial registro**: motore condiviso `js/tour.js` (estratto dalle
+    schede, che ora lo usano anche loro), 12 passi in `registro/app.js`,
+    esempio `ESEMPIO_GUIDA` letto con `interpretaRiga`, parte da solo alla
+    prima apertura (`cs.registro.tourSeen`), bottone nella schermata vuota.
+
+Verificato nel browser (data/prova.db, 1100 e 1400 px): pillola accesa;
+pannello a 330px senza accavallamenti; Esporta in fondo a gruppi chiusi; tour
+schede 18 passi con l'esempio che si toglie; registro con albero, esclusione
+di una stanza, salto alla pagina, salvataggio di un nome da "Nomi" con
+impaginazione al ritorno; cassetto con il gruppo "Schede tecnici - 2
+documenti". SW `crono-guscio-v25`.
+
+## Fatto il 2026-09-11 (29a sessione) - il registro dei componenti entra nell'app, un ponte solo, un look solo
+
+Branch `registro-componenti-premium`. Richiesta: *"adesso hai questo
+generatore di registri di componenti da mandare ai clienti, e voglio che viene
+integrato in cronoservice online [...] il tastino 'schede tecnici' fosse piu'
+generico e cliccando ti fa scegliere [...] si collega anche lui al sito
+corretto ma non spunta nessuna casella, pero' il pdf viene anch'esso salvato
+nel db [...] rinnovassi l'intero sito dandogli a tutto un look unico premium
+con un font premium e palette colori coordinata, stesso logo vrs tech ovunque"*.
+
+### 1. Il generatore del registro nel browser (`web/registro/`)
+
+Porting del programma Python di `Desktop/Claude/mappatura` (che resta la
+versione da PC singolo, con Chromium che stampa un PDF vettoriale). Handoff
+in `web/registro/HANDOFF.md`. Numeri: RIZZATO 23 righe / 4 pagine / 16 ms;
+CASA GEROSA 178 / 12 / 25 ms; sintetico 3200 / 122 / 91 ms; quadratura OK su
+tutti; tutti i numeri del sommario verificati contro la pagina vera.
+Consegna provata: `documento.tipo === 'registro'`, `mese` null, nessuna
+spunta, chip del libretto accanto al sito.
+
+### 2. Il tracker: "Genera PDF", due icone, dizionario
+
+- `#documenti` (era `#schede`) apre un `menu()` a due voci (`apriGeneratori`
+  in app.js); il cassetto ha "Documenti PDF" con i due generatori gia'
+  puntati sul sito e il tipo in capsula su ogni carta.
+- `documenti.js`: `TIPI`, `tipoDi`, `ICO_REGISTRO`, `ICONA_TIPO`,
+  `urlGeneratore(s, tipo)`, `htmlChipDocumento` rende un `.doc-chips` con un
+  chip per tipo, `salvaDocumento({tipo})`.
+- db.py/api.py/06-documenti.sql/nuvola.js: colonna `tipo`, `registra_documento(..., p_tipo)`,
+  `salva_documento` mette la spunta solo per le schede.
+- `dizionario_componenti` (SQLite + `08-dizionario.sql`), `/api/dizionario`
+  GET/POST, RPC `app_dizionario`/`imposta_voce_dizionario`, seme
+  `app/dizionario-seme.json`. Provato in locale: nome, priorita', rimozione,
+  400 fuori intervallo.
+
+### 3. Ponte, librerie e token condivisi
+
+`web/js/ponte.js` generico (`avviaPonte`), `schede/ponte.js` ridotto a
+wrapper; `css/ponte.css` e `css/banco.css` estratti da schede/index.html;
+`web/lib/` con SheetJS (estratto, identico), html2canvas, jsPDF; `setTheme`
+delle schede scrive anche `data-tema`. **Trappola nuova**: html2canvas non
+legge `color-mix()` e a tema chiaro il fondo del banco lo usava: la resa del
+PDF moriva ("unsupported color function color") - `--ui-0` ora e' esadecimale,
+verificato l'export a tema chiaro sia nelle schede (20 pagine, 7,2 MB) sia nel
+registro.
+
+### 4. Look premium
+
+Tre caratteri self-hosted (~210 KB: Newsreader, Inter, JetBrains Mono),
+theme.css rivisto (chiaro e scuro), base/griglia/stat/stampa con la stessa
+mano, carte dei documenti con miniatura grande, logo `/assets/logo.webp` al
+posto del base64 nelle schede. Contrasti AA riverificati (dettaglio in
+`docs/ai/frontend.md`, "Idea visiva"); `valida-tavolozza.py` riallineato e
+senza FAIL. Ridisegno vista Anno misurato 12,7-26,6 ms.
+
+### Lasciato fuori / da fare
+
+- **Supabase**: rieseguire `06-documenti.sql` e poi eseguire
+  `08-dizionario.sql`. Finche' non si fa, online la consegna del registro
+  risponde "funzione non trovata" e la scheda Nomi "rotta sconosciuta".
+- Il registro non ricorda lo zoom fra le sessioni e non ha fascicoli ne'
+  filtro "cosa stampare" (e' un libretto unico dell'impianto).
+- Il `<title>` dell'HTML digitale usa il cliente di A1 mentre copertina e
+  pie' usano il sito collegato (cosmetico).
+- Il programma Python in `mappatura/` resta con il suo `dati/dizionario.json`:
+  i due vocabolari non si sincronizzano (il seme e' stato copiato una volta).
+- La registrazione del service worker fallisce nel browser incorporato
+  dell'app desktop ("unknown error"); in Chrome/Playwright e' pulita.
+
 ## Fatto il 2026-09-10 (28a sessione) - si scrive OK, la riga del cliente si legge, il PDF guarda avanti
 
 Branch `ruoli-falla-cambio-nome` (lo stesso della 25a-27a). Cinque richieste in

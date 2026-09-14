@@ -150,10 +150,43 @@ vetro col gradiente, il filo di luce sul bordo alto della carta al passaggio, il
 trattino sotto la vista attiva. Vedi [decisioni.md](decisioni.md) 15d: la regola
 e' non sommare effetti.
 
-Tipografia: font di sistema per la prosa, **monospazio per ogni dato** (ID, mesi,
-conteggi, date) con `tabular-nums`. Nessun webfont, perche' l'app deve partire
-senza rete. L'anno in testa e' l'elemento display: 32px monospazio, tracking
-negativo.
+**Il sistema: editoriale-tecnico premium.** Superfici chiare e calme, UN solo
+accento (il cyan del marchio), il verde riservato a "completa".
+
+- *Tavolozza.* I grigi del logo restano la scala neutra ma virano di un soffio
+  al blu: l'inchiostro e' un **grafite-navy** (`--inchiostro` `#121A21`, 17,6:1
+  su bianco), il fondo `#F2F5F7`, la superficie bianca, i bordi `#E2E7EB`.
+  Testo secondario `--inchiostro-2` `#47535E` (7,9:1), micro `--tenue`
+  `#616C76` (5,4:1 su bianco, 4,9:1 sul fondo) e `--tenue-2` `#66707A` (5,0:1 /
+  4,6:1): **tutto AA, anche sul fondo**. Scuro: fondo `#0B0F13`, superficie
+  `#14191E`, `--tenue` `#8E99A3` (6,1:1), `--tenue-2` `#96A1AB` (6,7:1). I
+  colori dei quattro passi, delle classi temporali, dell'ambra e del rosso **non
+  sono stati toccati**: le validazioni dataviz restano valide (sul fondo scuro
+  piu' profondo i contrasti salgono).
+- *Tre caratteri, tre mestieri* (`css/fonti.css`, serviti da `web/assets/fonti/`):
+  **Newsreader** (`--f-display`, peso `--p-display` 560, tracking
+  `--tr-display` -.022em) per ogni titolo e per le cifre eroe - nome dell'app,
+  anno in testa, nome del mese, titoli delle carte e delle finestre, cifra del
+  quadrante, tessere, ritmo, agenda; **Inter** (`--f-ui`) per la prosa e i
+  comandi; **JetBrains Mono** (`--f-dato`) per ogni dato, id, ora, conteggio,
+  occhiello e micro-etichetta maiuscoletta, sempre con `tabular-nums`.
+- *La mano dei componenti.* Bordi da 1px a bassa opacita' (`--bordo-lieve`,
+  color-mix del bordo), ombre a **due livelli** (contatto corto + diffusione
+  lunga tenue) in `--ombra-1..3`, raggi in progressione `--r-0..3` (3-6-10-16),
+  transizioni su `var(--molla)`, `:active` che affonda di mezzo pixel e
+  `:focus-visible` con anello cyan **piu' alone** in tutta l'app. La testa resta
+  di vetro con un filo di luce interno; pillole e segmented control restano
+  piatti, con il bordo solo al passaggio e sull'attivo.
+- *Le carte dei documenti.* Nel cassetto ogni PDF e' una **carta**: miniatura
+  vera della prima pagina 78x110 incorniciata come un foglio (bordo di carta,
+  ombra, angolo piegato in alto a destra), tipo in capsula maiuscoletta, titolo
+  in chiaro e tutti i dati in monospazio. L'anteprima al passaggio sul chip
+  accanto al sito e' passata da 120 a **152px** con cornice e ombra profonda.
+- *Generatori.* `css/banco.css` deriva anche `--ui-filo` e `--ui-ombra-1..3` dai
+  token del tracker, quindi pannelli, finestre, tutorial e testata del ponte
+  hanno la stessa mano; il `#brandbar` usa **lo stesso `logo.webp`** del tracker
+  (piastrina bianca solo sul banco scuro) e il titolo e' in Newsreader. Le
+  regole del **foglio A4 restano intoccate**.
 
 ## CSS: dove sta cosa
 
@@ -706,8 +739,9 @@ fa leggere come VRS e non come un tema generico.
   della casella "controllata") usa `--su-marchio` `#00323F` (5,4:1 su chiaro,
   6,9:1 su scuro), **non** bianco;
 - il testo bianco sul verde usa `--accento-scuro` `#007A5C` (5,3:1);
-- `--tenue` `#6E7175` = 4,9:1; `--tenue-2` `#83868A` = 3,7:1, solo etichette
-  terziarie.
+- `--tenue` `#616C76` = 5,4:1 su bianco e 4,9:1 sul fondo; `--tenue-2` `#66707A`
+  = 5,0:1 e 4,6:1. Sono il minimo: **entrambi passano AA anche sul fondo**, che
+  e' dove stanno le etichette micro della griglia.
 
 Lo snippet per ricalcolare i rapporti e' in
 [da-fare.md](da-fare.md#manutenzione).

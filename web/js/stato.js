@@ -756,14 +756,45 @@ function scriviLocale(id, mese, patch) {
  *  applicata al lato client. */
 function cellaDalServer(id, mese, valore) {
   const v = { ...valore };
+  const loc = cella(id, mese);
   if (st.sospese.size) {
-    const loc = cella(id, mese);
     for (const campo of CAMPI) {
       if (st.sospese.has(`${id}-${mese}-${campo}`)) v[SIGLA[campo]] = loc[SIGLA[campo]];
     }
   }
   st.celle.set(chiave(id, mese), v);
   tocca(id);
+}
+
+/** L'ECO DELLE NOSTRE SCRITTURE (#ANCHOR: eco-vecchia). Un aggiornamento che
+ *  arriva dal flusso e' VECCHIO se la sua revisione non supera quella che
+ *  abbiamo gia' in mano, e allora si butta.
+ *
+ *  Online serve eccome. Realtime rimanda indietro anche le righe scritte da
+ *  NOI (`postgres_changes` non sa chi ha scritto: non ha il `client_id` con cui
+ *  l'hub locale salta l'autore, #ANCHOR: sse in server.py) e le rimanda UNA PER
+ *  PASSO: quattro istantanee della stessa cella, ognuna a meta' strada, dopo
+ *  che la risposta ci ha gia' consegnato la cella finita. Applicarle voleva
+ *  dire due cose, tutte e due viste dal committente sull'anteprima:
+ *    - ridisegnare la cella una volta per passo - con "Completa tutte" migliaia
+ *      di volte, la pagina che "si aggiorna duecento volte";
+ *    - e, se una di quelle di mezzo arrivava buona ultima o era l'unica a
+ *      passare (sotto carico Realtime ne lascia per strada), rimettere a
+ *      schermo spunte appena tolte. Restavano li' fino al ricarico dell'anno -
+ *      i dati erano giusti, era lo schermo a mentire.
+ *  Vale per qualunque ritardatario, non solo per la nostra eco: una fotografia
+ *  piu' vecchia di quella che si ha gia' non e' mai una notizia. */
+const ecoVecchia = (id, mese, nuova) => {
+  const sua = Number(nuova?.rev), mia = Number(cella(id, mese).rev);
+  return Number.isFinite(sua) && Number.isFinite(mia) && sua <= mia;
+};
+
+/** Due celle si disegnano diverse? Solo i quattro passi e la nota: `rev`, `by`
+ *  e `at` cambiano a ogni scrittura, non si disegnano, e chi li mostra
+ *  (suggerimenti, popover, cassetto) li rilegge dallo stato quando serve.
+ *  Lo chiede `esitoConferma` per non ridisegnare la griglia per niente. */
+function cambiaAVista(a, b) {
+  return CAMPI.some(k => a[SIGLA[k]] !== b[SIGLA[k]]) || (a.nota || '') !== (b.nota || '');
 }
 
 /* ------------------------------------------------------------- ruoli ---- */
@@ -925,11 +956,25 @@ export function spuntaMolte(voci, etichetta, origine) {
   if (!celle.length) return 0;
   if (etichetta) st.ultimaAzione = { et: etichetta, inverse };
   emetti('rilegge');
-  // A blocchi: una richiesta con migliaia di voci sarebbe un unico punto di rottura.
-  for (let i = 0; i < celle.length; i += 250) {
+  /* A blocchi: una richiesta con migliaia di voci sarebbe un unico punto di
+     rottura. Il taglio pero' non cade MAI in mezzo a una cella: i passi della
+     stessa cella partono insieme. Ogni risposta porta la cella com'era a quel
+     punto, quindi una cella spezzata fra due blocchi tornava a meta', sembrava
+     diversa da quella che avevamo gia' in locale e costringeva a un ridisegno
+     di tutta la griglia per ogni blocco (vedi `esitoConferma`). */
+  const blocchi = [];
+  let parte = [], ultima = '';
+  for (const c of celle) {
+    const k = `${c.id_service}-${c.mese}`;
+    if (parte.length >= 250 && k !== ultima) { blocchi.push(parte); parte = []; }
+    parte.push(c);
+    ultima = k;
+  }
+  if (parte.length) blocchi.push(parte);
+  for (const b of blocchi) {
     accoda({
       rotta: '/api/bulk',
-      corpo: { anno: st.anno, celle: celle.slice(i, i + 250), ...(origine ? { origine } : {}) },
+      corpo: { anno: st.anno, celle: b, ...(origine ? { origine } : {}) },
       meta: { massa: true },
     });
   }
@@ -1037,11 +1082,31 @@ export function esitoConferma(op, risposta) {
     emetti('cella', { id: risposta.id_service, mese: risposta.mese });
   }
   if (Array.isArray(risposta?.esiti)) {
+    /* Una stessa cella torna anche QUATTRO volte nello stesso blocco - una per
+       passo - e ogni esito la porta com'era a quel punto, quindi gli esiti di
+       mezzo sono per forza diversi da quello che abbiamo in locale. Si
+       confronta lo stato PRIMA con quello DOPO tutto il blocco, non un esito
+       per volta. */
+    const prima = new Map();
     for (const e of risposta.esiti) {
-      if (e.cella && e.id_service) cellaDalServer(e.id_service, e.mese, e.cella);
+      if (e.cella && e.id_service) {
+        const k = chiave(e.id_service, e.mese);
+        if (!prima.has(k)) prima.set(k, { id: e.id_service, mese: e.mese, c: cella(e.id_service, e.mese) });
+        cellaDalServer(e.id_service, e.mese, e.cella);
+      }
       st.sospese.delete(`${e.id_service}-${e.mese}-${e.campo}`);
     }
-    emetti('rilegge');
+    let cambiate = 0;
+    for (const p of prima.values()) if (cambiaAVista(p.c, cella(p.id, p.mese))) cambiate++;
+    /* "Completa tutte" e "Azzera tutte" partono a blocchi da 250 (`spuntaMolte`):
+       una `rilegge` per ogni blocco voleva dire dieci o venti ridisegni di
+       tutta la griglia uno dietro l'altro - la pagina che "si aggiorna
+       duecento volte", lo scorrimento che salta in cima e l'animazione
+       dell'onda spazzata via. Il blocco che torna esattamente come l'avevamo
+       gia' scritto in locale - il caso normale, la scrittura e' ottimistica -
+       non cambia niente a schermo: si ridisegna solo se il server ci ha detto
+       qualcosa di diverso (un merge, una proposta, una nota). */
+    if (cambiate) emetti('rilegge');
   }
 }
 
@@ -1154,7 +1219,7 @@ export function eventoRemoto(ev) {
   if (ev.tipo === 'documento') {
     // un PDF delle schede tecnici: si tiene di qualunque anno (lo storico non
     // scade), la spunta "stampata" che porta con se' solo se e' di quest'anno
-    if (ev.cella && ev.anno === st.anno) {
+    if (ev.cella && ev.anno === st.anno && !ecoVecchia(ev.id_service, ev.mese, ev.cella)) {
       cellaDalServer(ev.id_service, ev.mese, ev.cella);
       emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
     }
@@ -1179,11 +1244,17 @@ export function eventoRemoto(ev) {
   }
   if (ev.anno !== st.anno) return;
   if (ev.tipo === 'cella') {
+    if (ecoVecchia(ev.id_service, ev.mese, ev.cella)) return;   // #ANCHOR: eco-vecchia
     cellaDalServer(ev.id_service, ev.mese, ev.cella);
     emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
   } else if (ev.tipo === 'celle') {
-    for (const c of ev.celle) cellaDalServer(c.id_service, c.mese, c.cella);
-    emetti('rilegge', { remoto: ev.operatore });
+    let nuove = 0;
+    for (const c of ev.celle) {
+      if (ecoVecchia(c.id_service, c.mese, c.cella)) continue;
+      cellaDalServer(c.id_service, c.mese, c.cella);
+      nuove++;
+    }
+    if (nuove) emetti('rilegge', { remoto: ev.operatore });
   }
 }
 

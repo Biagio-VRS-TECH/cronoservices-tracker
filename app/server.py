@@ -24,6 +24,7 @@ CTX = {"cfg": CFG, "base": BASE}
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("font/woff2", ".woff2")      # i caratteri in web/assets/fonti/
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 
