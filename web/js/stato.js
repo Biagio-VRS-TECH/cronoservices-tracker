@@ -766,6 +766,29 @@ function cellaDalServer(id, mese, valore) {
   tocca(id);
 }
 
+/** L'ECO DELLE NOSTRE SCRITTURE (#ANCHOR: eco-vecchia). Un aggiornamento che
+ *  arriva dal flusso e' VECCHIO se la sua revisione non supera quella che
+ *  abbiamo gia' in mano, e allora si butta.
+ *
+ *  Online serve eccome. Realtime rimanda indietro anche le righe scritte da
+ *  NOI (`postgres_changes` non sa chi ha scritto: non ha il `client_id` con cui
+ *  l'hub locale salta l'autore, #ANCHOR: sse in server.py) e le rimanda UNA PER
+ *  PASSO: quattro istantanee della stessa cella, ognuna a meta' strada, dopo
+ *  che la risposta ci ha gia' consegnato la cella finita. Applicarle voleva
+ *  dire due cose, tutte e due viste dal committente sull'anteprima:
+ *    - ridisegnare la cella una volta per passo - con "Completa tutte" migliaia
+ *      di volte, la pagina che "si aggiorna duecento volte";
+ *    - e, se una di quelle di mezzo arrivava buona ultima o era l'unica a
+ *      passare (sotto carico Realtime ne lascia per strada), rimettere a
+ *      schermo spunte appena tolte. Restavano li' fino al ricarico dell'anno -
+ *      i dati erano giusti, era lo schermo a mentire.
+ *  Vale per qualunque ritardatario, non solo per la nostra eco: una fotografia
+ *  piu' vecchia di quella che si ha gia' non e' mai una notizia. */
+const ecoVecchia = (id, mese, nuova) => {
+  const sua = Number(nuova?.rev), mia = Number(cella(id, mese).rev);
+  return Number.isFinite(sua) && Number.isFinite(mia) && sua <= mia;
+};
+
 /** Due celle si disegnano diverse? Solo i quattro passi e la nota: `rev`, `by`
  *  e `at` cambiano a ogni scrittura, non si disegnano, e chi li mostra
  *  (suggerimenti, popover, cassetto) li rilegge dallo stato quando serve.
@@ -1196,7 +1219,7 @@ export function eventoRemoto(ev) {
   if (ev.tipo === 'documento') {
     // un PDF delle schede tecnici: si tiene di qualunque anno (lo storico non
     // scade), la spunta "stampata" che porta con se' solo se e' di quest'anno
-    if (ev.cella && ev.anno === st.anno) {
+    if (ev.cella && ev.anno === st.anno && !ecoVecchia(ev.id_service, ev.mese, ev.cella)) {
       cellaDalServer(ev.id_service, ev.mese, ev.cella);
       emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
     }
@@ -1221,11 +1244,17 @@ export function eventoRemoto(ev) {
   }
   if (ev.anno !== st.anno) return;
   if (ev.tipo === 'cella') {
+    if (ecoVecchia(ev.id_service, ev.mese, ev.cella)) return;   // #ANCHOR: eco-vecchia
     cellaDalServer(ev.id_service, ev.mese, ev.cella);
     emetti('cella', { id: ev.id_service, mese: ev.mese, remoto: ev.operatore });
   } else if (ev.tipo === 'celle') {
-    for (const c of ev.celle) cellaDalServer(c.id_service, c.mese, c.cella);
-    emetti('rilegge', { remoto: ev.operatore });
+    let nuove = 0;
+    for (const c of ev.celle) {
+      if (ecoVecchia(c.id_service, c.mese, c.cella)) continue;
+      cellaDalServer(c.id_service, c.mese, c.cella);
+      nuove++;
+    }
+    if (nuove) emetti('rilegge', { remoto: ev.operatore });
   }
 }
 

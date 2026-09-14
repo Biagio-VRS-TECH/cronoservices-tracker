@@ -186,7 +186,8 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
    `stato-collegamento`, `scoperta`, `nuvola`, `push-cloud`, `documenti`, `ponte`,
    `ponte-schede`, `affinita`, `ruoli`, `approvazioni`, `ripristino`, `copia-access`,
    `conferma-ok`, `mese-stampa`, `tipi-documento`, `dizionario`, `fonti`,
-   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`, `onda-massa`.
+   `css-banco`, `css-ponte`, `gruppi`, `tour`, `albero`, `onda-massa`,
+   `eco-vecchia`.
 2. **Ogni file ha un solo compito** e un commento di testa che lo dichiara: leggi
    il commento di testa (prime ~10 righe) prima di aprire il resto.
 3. **Non re-interrogare Access.** Lo schema, i valori reali e le trappole sono in
@@ -209,6 +210,28 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 | toccare il giro online (Supabase, Netlify, sincronia) | [../cloud/LEGGIMI.md](../cloud/LEGGIMI.md) + [ai/decisioni.md](ai/decisioni.md) 18 |
 
 ---
+
+## Stato al 2026-09-14 (32a sessione)
+
+Branch `registro-componenti-premium`, sempre lo stesso. Due difetti visti dal
+committente **sull'anteprima di deploy** (PR 6, non in locale); dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-14-32a-sessione---leco-di-realtime-e-una-animazione-sola).
+
+**L'eco di Realtime** (#ANCHOR: eco-vecchia, `ecoVecchia` in `js/stato.js`).
+Online `postgres_changes` rimanda indietro anche le righe scritte da noi - non
+ha il `client_id` con cui l'hub locale salta l'autore - e le rimanda **una per
+passo**: quattro istantanee a meta' strada della stessa cella, dopo che la
+risposta ci ha gia' dato la cella finita. Da qui tutte e due le cose che si
+vedevano: la griglia che si ridipinge una volta per spunta scritta, e le spunte
+gia' tolte che **tornavano a schermo** quando una istantanea di mezzo arrivava
+ultima (o era l'unica a passare: sotto carico Realtime ne lascia per strada) -
+i dati erano giusti, mentiva lo schermo, e infatti bastava cambiare anno e
+tornare indietro. Ora un aggiornamento con **revisione non superiore** a quella
+che abbiamo gia' si butta, in tutti e due i trasporti.
+
+**Una animazione sola** per le azioni di massa: resta il fronte di luce che
+attraversa la griglia, via la fioritura delle singole celle (erano due gesti di
+fila). `onda(verso)` in `js/anno.js`.
 
 ## Stato al 2026-09-11 (31a sessione)
 

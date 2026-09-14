@@ -106,23 +106,12 @@
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--completa) 55%, transparent),
                     0 0 28px 4px color-mix(in srgb, var(--completa) 60%, transparent); }
 }
-/* L'ONDA delle azioni di massa (anno.js, onda()): la cella si accende - o si
-   spegne - quando l'onda la raggiunge. Il ritardo lo scrive il JS in --onda,
-   perche' e' la POSIZIONE sullo schermo a decidere il turno, non l'ordine. */
-.cella.onda-su { animation: onda-su .62s var(--molla) both; animation-delay: var(--onda, 0ms); z-index: 4; }
-@keyframes onda-su {
-  40% { transform: scale(1.38);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--completa) 50%, transparent),
-                    0 0 22px 3px color-mix(in srgb, var(--completa) 50%, transparent); }
-}
-.cella.onda-giu { animation: onda-giu .62s var(--molla) both; animation-delay: var(--onda, 0ms); z-index: 4; }
-@keyframes onda-giu {
-  40% { transform: scale(.62); opacity: .35;
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--allerta) 45%, transparent); }
-}
-/* il FRONTE: una banda di luce inclinata che attraversa la griglia. Sta sopra
-   la griglia e sotto le finestre (velo 80, avvisi 90), non prende clic, e il
-   JS la toglie da sola. Verde quando si completa, ambra quando si azzera. */
+/* L'ONDA delle azioni di massa (anno.js, onda()): un fronte di luce inclinato
+   attraversa la griglia. Sta sopra la griglia e sotto le finestre (velo 80,
+   avvisi 90), non prende clic, e il JS lo toglie da solo. Verde quando si
+   completa, ambra quando si azzera. E' l'unico movimento dell'azione: la
+   fioritura delle singole celle, che arrivava subito dopo, faceva due
+   animazioni di fila. */
 .onda-velo {
   position: fixed; z-index: 44; pointer-events: none; overflow: hidden;
   animation: onda-velo .95s ease-out both;
@@ -144,8 +133,7 @@
 @keyframes onda-velo { 70% { opacity: 1; } to { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .cella.onda-su, .cella.onda-giu, .onda-velo, .onda-velo::before { animation: none; }
-  .onda-velo { display: none; }
+  .onda-velo { display: none; animation: none; }
 }
 
 .blocco.completo .riga-cli {

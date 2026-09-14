@@ -3,6 +3,44 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-14 (32a sessione) - l'eco di Realtime, e una animazione sola
+
+Provato dal committente **sull'anteprima di deploy** (la PR 6), non in locale: e
+li' si vedeva quello che in locale non si vede.
+
+1. **Dopo "Azzera tutte" alcune spunte sembravano restare, e cambiando anno e
+   tornando indietro sparivano.** I dati erano giusti: mentiva lo schermo.
+   Causa: online il flusso e' **Supabase Realtime**, e `postgres_changes`
+   rimanda indietro anche le righe scritte da NOI - non ha il `client_id` con
+   cui l'hub locale salta l'autore (#ANCHOR: sse in `server.py`) - e le rimanda
+   **una per passo**: quattro istantanee della stessa cella, ognuna a meta'
+   strada, che arrivano DOPO la risposta con la cella finita. Misurato
+   sull'anteprima con un MutationObserver: per una sola cella azzerata, quattro
+   ridipinture in 15 ms con i valori `0111 -> 0011 -> 0001 -> 0000`. Con
+   "Completa tutte" sono migliaia (una per spunta), ed e' anche il **"si
+   aggiorna duecento volte"** che restava: se una istantanea di mezzo arriva
+   buona ultima, o e' l'unica a passare (sotto carico Realtime ne lascia per
+   strada), la cella resta a meta' e la spunta torna a schermo fino al ricarico
+   dell'anno.
+   Rimedio: `ecoVecchia` in `js/stato.js` (#ANCHOR: eco-vecchia). Un
+   aggiornamento che arriva dal flusso con una **revisione non superiore** a
+   quella che abbiamo gia' si butta, in tutti e due i trasporti: e' una
+   fotografia piu' vecchia, non una notizia. Vale per l'eco nostra e per
+   qualunque ritardatario.
+2. **Due animazioni di fila su "Completa tutte"**: prima passava il fronte di
+   luce, poi fiorivano le singole celle. Il committente le ha volute "o una o
+   l'altra". E' rimasto il **fronte**, perche' si vede sempre: le celle toccate
+   sono sparse su duecento clienti e quasi mai capitano nella schermata aperta
+   (misurato nella passata precedente: zero su trentuno). Via da `onda()` il
+   giro sulle celle, via le classi `.cella.onda-su/.onda-giu` e la variabile
+   `--onda`; `onda(verso)` ora prende un argomento solo.
+
+Come si prova una cosa del genere (serve l'anteprima, in locale non si
+riproduce): registrare gli eventi prima di far partire l'azione -
+`on('cella')`, `on('rilegge')` e un MutationObserver su `#area` - e guardare
+**cosa arriva dopo la risposta**. In locale gli eventi dopo la risposta sono
+zero; online, prima della correzione, erano uno per passo scritto.
+
 ## Fatto il 2026-09-11 (31a sessione, seconda passata) - Azzera che lasciava indietro, e la griglia ridisegnata dieci volte
 
 Due difetti visti subito dopo:
