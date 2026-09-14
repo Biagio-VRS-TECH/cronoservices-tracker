@@ -3,6 +3,54 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-14 (33a sessione) - il sito sbagliato che restava attaccato
+
+Sintomo del committente: *"a volte, e non capisco in quali casi, se carico una
+mappatura Umberto Primo e poi Rizzato, non mi trova il sito affine corretto: si
+confonde col sito precedente."*
+
+Non era l'affinita'. Misurata sui 274 service aperti veri, `affinita.js` da'
+**100%** sia a "CASA DI RIPOSO UMBERTO I" -> #556 sia a "RIZZATO SPA" -> #568,
+e in tutti e due i casi il cliente ha un sito solo: il riconoscimento automatico
+li prende. Era il **ponte** (`js/ponte.js`, #ANCHOR: ponte), nel ramo che si
+attiva quando il sito arriva gia' collegato dall'indirizzo (`?service=`, cioe'
+quando il generatore si apre DAL tracker - il caso normale, ed e' per questo che
+capitava "a volte"):
+
+```js
+if (a < PROBABILE && cand.length) ...avvisa...
+return esito('ok', ...);
+```
+
+`a` e' quanto il file somiglia al sito **gia' collegato**, e la domanda era
+assoluta: *somiglia abbastanza?* Caricando il registro di RIZZATO con UMBERTO I
+ancora collegato, `a` vale **50,0%** - "rizato" contro "riposo" sono due lettere
+di distanza su sei - cioe' **esattamente** la soglia `PROBABILE`. Passava, e
+l'esito era `ok` con testo vuoto: **spina verde e nessun messaggio**, mentre
+RIZZATO SPA stava al 100% subito sotto. Il PDF sarebbe finito archiviato sul
+sito di prima. Nell'ordine inverso (Rizzato collegato, file Umberto) si ottiene
+48,7%: sotto soglia, e la lista compariva - da qui "a volte".
+
+Rimedi (tutti in `js/ponte.js`):
+
+1. **La domanda giusta e' relativa.** Non "il file somiglia abbastanza al sito
+   collegato" ma "somiglia a lui **piu' che a chiunque altro**": se il primo
+   candidato diverso da quello collegato lo batte di almeno `STACCO` (0,15), si
+   avvisa con le due percentuali in chiaro e si mostra la lista. Si continua a
+   **non** cambiare il sito da soli: quello dell'indirizzo l'ha scelto un umano
+   nel tracker. Provato su tutti i 274 accoppiamenti GIUSTI: **zero** falsi
+   allarmi.
+2. **Mai piu' l'esito muto.** Se il file non somiglia al sito collegato si
+   avvisa anche quando non c'e' nessun candidato da proporre (prima: silenzio).
+3. **Il ricaricamento della pagina non promuove piu' a "dal tracker".**
+   `collega()` scrive `service` nell'indirizzo, quindi bastava un F5 perche' un
+   sito *indovinato dal file* diventasse `origine: 'tracker'` - e da li' in poi
+   nessun altro file poteva piu' cambiarlo. Ora `collega()` scrive anche
+   `&come=auto|lista|mano` e il contesto lo rilegge.
+4. **L'avviso se ne va col file**: `fileTolto()` azzera l'esito anche quando il
+   sito resta attaccato (il caso tracker), invece di lasciare a schermo una
+   frase su un file che non c'e' piu'.
+
 ## Fatto il 2026-09-14 (32a sessione) - l'eco di Realtime, e una animazione sola
 
 Provato dal committente **sull'anteprima di deploy** (la PR 6), non in locale: e

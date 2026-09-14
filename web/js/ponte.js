@@ -14,7 +14,10 @@ per tutti e due, ed e' questo modulo:
      dal titolo del foglio, con la stessa tolleranza alle grafie della ricerca
      del tracker (js/affinita.js): corrispondenza netta e un solo sito ->
      collegato da solo; piu' siti o corrispondenza parziale -> lista dei
-     probabili; niente -> avviso, e si sceglie a mano (segnato come tale);
+     probabili; niente -> avviso, e si sceglie a mano (segnato come tale).
+     Se un sito e' GIA' collegato dall'indirizzo, il file non lo scavalca da
+     solo, ma il confronto e' con lui E con tutti gli altri: se qualcun altro lo
+     batte nettamente lo dice, invece di accontentarsi di una soglia;
   2. "ESPORTA E SALVA" (il bottone del generatore, l'unico dalla 30a sessione:
      il "Salva nel tracker" della testata faceva la stessa cosa senza il file
      sul computer) produce il PDF (html2canvas + jsPDF, in web/lib/), lo
@@ -46,6 +49,7 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
 const NETTA = 0.88;      // da qui in su e' lui, se non ha rivali
 const PROBABILE = 0.5;   // da qui in su entra nella lista dei probabili
 const RIVALE = 0.72;     // un secondo candidato di un ALTRO cliente sopra questa soglia toglie l'automatismo
+const STACCO = 0.15;     // di tanto un altro sito deve battere quello gia' collegato, per farne dubitare
 
 /* Cio' che distingue i due generatori. `tipo` e' il valore che finisce in
    `documenti.tipo`; `spunta` dice se la consegna mette "stampata". */
@@ -97,7 +101,10 @@ export function avviaPonte(cfg = {}) {
     sito: q.get('sito') || '',
     cliente: q.get('cliente') || '',
     localita: q.get('localita') || '',
-    origine: q.get('service') ? 'tracker' : '',   // 'tracker' | 'auto' | 'lista' | 'mano'
+    // `come` se lo scrive collega(): senza, un ricaricamento della pagina
+    // promuoveva a "dal tracker" un sito che aveva indovinato il file, e da li'
+    // in poi nessun altro file poteva piu' cambiarlo.
+    origine: q.get('service') ? (q.get('come') || 'tracker') : '',   // 'tracker' | 'auto' | 'lista' | 'mano'
   };
   let siti = null;            // {id, dest, cliente, loc, cli, mese, nome} aperti dell'anno
   let pesi = null;            // rarita' delle parole fra i nomi dei siti (affinita.js)
@@ -157,6 +164,7 @@ export function avviaPonte(cfg = {}) {
     const u = new URL(location.href);
     u.searchParams.set('service', s.id); u.searchParams.set('mese', s.mese || '');
     u.searchParams.set('sito', s.dest); u.searchParams.set('cliente', s.cliente);
+    u.searchParams.set('come', origine);
     history.replaceState(null, '', u);
     dilloAlTitolo();
   }
@@ -164,7 +172,7 @@ export function avviaPonte(cfg = {}) {
   function scollega() {
     Object.assign(ctx, { id: 0, mese: 0, sito: '', cliente: '', localita: '', origine: '' });
     const u = new URL(location.href);
-    for (const k of ['service', 'mese', 'sito', 'cliente']) u.searchParams.delete(k);
+    for (const k of ['service', 'mese', 'sito', 'cliente', 'come']) u.searchParams.delete(k);
     history.replaceState(null, '', u);
     dilloAlTitolo();
   }
@@ -186,12 +194,25 @@ export function avviaPonte(cfg = {}) {
       .slice(0, 6);
 
     // Gia' collegato dal tracker: il file dice un'altra cosa? Si avvisa, senza
-    // cambiare niente da soli.
+    // cambiare niente da soli - il sito arrivato dall'indirizzo l'ha scelto un
+    // umano nel tracker, non lo si scavalca. Ma avvisare vuol dire GUARDARE
+    // ANCHE GLI ALTRI: la domanda giusta non e' "il file somiglia abbastanza al
+    // sito collegato" (una soglia fissa), e' "somiglia a lui piu' che a
+    // chiunque altro". Caricando il registro di RIZZATO SPA con CASA DI RIPOSO
+    // UMBERTO I ancora collegato, "rizato" contro "riposo" vale per caso il
+    // 50% esatto: passava la soglia, l'esito restava verde e muto, e il PDF
+    // sarebbe finito sul sito di prima mentre RIZZATO stava al 100% due righe
+    // sotto (33a sessione).
     if (ctx.id && ctx.origine === 'tracker') {
       const mio = lista.find(s => s.id === ctx.id);
       const a = mio ? punteggio(mio) : 0;
-      if (a < PROBABILE && cand.length) {
-        return esito('dubbio', `Il file “${domande[0]}” non somiglia a ${ctx.cliente}: controlla di aver caricato l’Excel giusto, o cambia sito.`, cand);
+      const pc = x => Math.round(x * 100) + '%';
+      const rivale = cand.find(c => c.voce.id !== ctx.id);
+      if (rivale && rivale.affinita >= a + STACCO) {
+        return esito('dubbio', `Il file “${domande[0]}” somiglia a ${rivale.voce.cliente} (${pc(rivale.affinita)}) piu’ che al sito collegato ${ctx.cliente} (${pc(a)}): controlla l’Excel, o cambia sito.`, cand);
+      }
+      if (a < PROBABILE) {
+        return esito('dubbio', `Il file “${domande[0]}” non somiglia a ${ctx.cliente}: controlla di aver caricato l’Excel giusto, o cambia sito.`, cand.length ? cand : null);
       }
       return esito('ok', a >= NETTA ? 'Il file corrisponde al sito collegato.' : '');
     }
@@ -220,7 +241,11 @@ export function avviaPonte(cfg = {}) {
    *  il sito fosse arrivato dal tracker (quello resta). */
   function fileTolto() {
     ultimoFile = '';
-    if (ctx.origine !== 'tracker') { esitoCorrente = null; scollega(); disegna(); }
+    /* l'avviso parlava del file appena tolto: se ne va con lui, anche quando il
+       sito resta (quello del tracker non si stacca da solo). */
+    esitoCorrente = null;
+    if (ctx.origine !== 'tracker') scollega();
+    disegna();
   }
 
   /* ------------------------------------------------------------- il dock --- */

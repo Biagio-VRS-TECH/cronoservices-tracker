@@ -211,6 +211,20 @@ d'ambiente del sito (solo scope Functions): senza, il modulo dice
 
 ---
 
+## Stato al 2026-09-14 (33a sessione)
+
+Branch `registro-componenti-premium`, sempre lo stesso. Un difetto solo, ma
+grosso: **il generatore restava attaccato al sito di prima**. Caricando il
+secondo Excel con un sito gia' collegato dall'indirizzo (`?service=`, cioe'
+aprendo il generatore dal tracker), il ponte chiedeva *"questo file somiglia
+abbastanza al sito collegato?"* invece di *"somiglia a lui piu' che a chiunque
+altro?"*: RIZZATO contro CASA DI RIPOSO UMBERTO I dava per caso il 50,0% esatto,
+la soglia passava, l'esito restava **verde e muto** e il PDF sarebbe finito
+archiviato sul sito sbagliato. Ora il confronto e' relativo (`STACCO`), l'esito
+non tace mai, un F5 non promuove piu' a "dal tracker" un sito indovinato dal
+file, e l'avviso sparisce insieme al file. `js/ponte.js`, dettaglio in
+[ai/da-fare.md](ai/da-fare.md#fatto-il-2026-09-14-33a-sessione---il-sito-sbagliato-che-restava-attaccato).
+
 ## Stato al 2026-09-14 (32a sessione)
 
 Branch `registro-componenti-premium`, sempre lo stesso. Due difetti visti dal
