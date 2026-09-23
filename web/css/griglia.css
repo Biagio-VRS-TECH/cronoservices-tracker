@@ -709,3 +709,86 @@
 @media (prefers-reduced-motion: reduce) {
   .scheletro { animation: none; }
 }
+
+/* =============================================== TELEFONO (VIS-25, MOB-15) ==
+   Sotto i 760 px la vista Anno non e' piu' una matrice da scorrere di lato
+   (il nome piu' dodici colonne facevano 630 px su uno schermo da 375). Diventa
+   un ELENCO PER SITO: la carta del cliente resta, ogni sito e' una voce con il
+   nome in alto, il totale dell'anno a destra e sotto i SOLI mesi di
+   manutenzione, ognuno col suo nome accanto alla capsula (`.q-mese`, da
+   anno.js) e alto un pollice: si tocca la voce e si apre il popover dei passi,
+   come sul computer. I mesi senza manutenzione (i puntini) sul telefono non si
+   disegnano. La riga del cliente tiene nome e totale, l'intestazione tiene
+   "Apri / Chiudi tutti"; i totali per mese stanno nella vista Mese e nelle
+   Statistiche. Sul computer non cambia niente: `.q-mese` non si vede. */
+.q-mese { display: none; }
+@media (max-width: 760px) {
+  .crono { min-width: 0; }
+  .riga { grid-template-columns: minmax(0, 1fr) auto; }
+  .crono-testa .mesi, .riga-cli .mesi, .crono-testa .col-nome i { display: none; }
+  .crono-testa .col-nome, .riga-cli .col-nome, .riga-srv .col-nome { position: relative; left: auto; }
+  .crono-testa { height: 48px; }
+  .piega-tutti { position: relative; padding: 5px 10px 5px 8px; }
+  .piega-tutti::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
+  .riga-cli { height: auto; min-height: 44px; }
+
+  .riga-srv { height: auto; grid-template-areas: "nome tot" "mesi mesi"; }
+  .riga-srv + .riga-srv { border-top: 1px solid var(--bordo-lieve); }
+  .riga-srv .col-nome {
+    grid-area: nome; height: auto; min-height: 40px; padding: 8px 8px 4px 12px;
+  }
+  /* il nome del sito va a capo (due righe al massimo, intero nel title) */
+  .riga-srv .srv-dest {
+    white-space: normal; overflow-wrap: anywhere; font-size: var(--t-base);
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .riga-srv .col-tot { grid-area: tot; align-self: start; height: 40px; margin-top: 4px; }
+  .riga-srv .mesi {
+    grid-area: mesi; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px;
+    height: auto; padding: 2px 12px 10px;
+  }
+  .riga-srv .mesi:not(:has(.cella)) { display: none; }
+  .riga-srv .mesi > .q:empty { display: none; }
+  .riga-srv .mesi > .q {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 8px 0 10px; cursor: pointer;
+    border-radius: var(--r-2); background: var(--superficie);
+    box-shadow: inset 0 0 0 1px var(--bordo-lieve);
+  }
+  .riga-srv .q-mese {
+    display: inline; min-width: 2.4em;
+    font: 600 var(--t-mini)/1 var(--f-dato); letter-spacing: .06em;
+    text-transform: uppercase; color: var(--tenue);
+  }
+  .riga-srv .mese-oggi {
+    background: color-mix(in srgb, var(--marchio) 6%, var(--superficie));
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--marchio) 50%, transparent);
+  }
+  .riga-srv .mese-oggi .q-mese { color: var(--marchio-scuro); }
+  .riga-srv .cella { width: 46px; height: 24px; margin-left: auto; }
+  .riga-srv .cella:hover { transform: none; }
+
+  /* -- vista Mese: la testa si stringe, i dodici mesi in due righe da sei, i
+     quattro passi in un quadrato due per due (in fila uscivano dallo schermo) */
+  .mese-testa { padding: 14px 4px 10px; gap: 12px; }
+  .mese-titolo { min-width: 0; }
+  .mese-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; }
+  .mese-nav button { width: auto; height: 36px; }
+  .mese-testa .riepilogo { display: flex; margin-left: 0; }
+  .lavoro { padding: 0 var(--rientro) 40vh; }
+  .scheda { padding: 10px 12px; gap: 8px 12px; }
+  .scheda .info b {
+    white-space: normal; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .passi-riga {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: var(--r-3);
+  }
+  .passi-riga .passo { min-height: 44px; justify-content: flex-start; border-radius: var(--r-2); }
+  .passi-riga .passo .et { font-size: var(--t-mini); }
+  .selez::after { content: ""; position: absolute; inset: -13px; }
+}

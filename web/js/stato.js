@@ -94,7 +94,7 @@ export const CLASSE_ET = {
   'stima': 'Stima: il contratto si rinnova da solo, salvo riprogrammazione',
   'da-rinnovare': 'Contratto scaduto: rinnovo da richiedere',
   'non-tracciato': 'Prima dell\'inizio del tracciamento: recupero storico',
-  'prima-contratto': 'Il service non era ancora attivo',
+  'prima-contratto': 'Il sito non era ancora attivo',
   'non-previsto': 'Nessuna manutenzione in questo mese',
 };
 
@@ -741,7 +741,7 @@ export const ET_STATO = {
   attesa: 'Da fare: dovuta quest\'anno, nessun passo ancora fatto',
   pretrac: 'Scadenza prima dell\'inizio del tracciamento: fuori dai totali, ma si può recuperare',
   fuori: 'Nessuna mappatura dovuta quest\'anno per questo sito',
-  chiuso: 'Service chiuso',
+  chiuso: 'Sito chiuso',
 };
 
 /** Cambia il filtro di stato e ridisegna. Sta qui, e non in app.js, perche' lo

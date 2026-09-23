@@ -153,7 +153,7 @@ function htmlVuoto() {
   const f = st.filtri || {};
   if (f.q || f.prov || f.stato) {
     return `<div class="vuoto"><b>Nessuna mappatura con questi filtri</b>
-      In ${esc(st.mesiNome[st.mese - 1])} nessun service corrisponde alla ricerca o ai
+      In ${esc(st.mesiNome[st.mese - 1])} nessun sito corrisponde alla ricerca o ai
       filtri in alto: toglili per vedere tutto il mese.</div>`;
   }
   let prossimo = 0;
@@ -162,7 +162,7 @@ function htmlVuoto() {
     if (lavoroDelMese(m).length) prossimo = m;
   }
   return `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
-      Nessun service aperto ha ${esc(st.mesiNome[st.mese - 1])} tra i mesi di manutenzione.
+      Nessun sito aperto ha ${esc(st.mesiNome[st.mese - 1])} tra i mesi di manutenzione.
       ${prossimo ? `<br><button type="button" class="bottone piatto" data-mese="${prossimo}"
         style="margin-top:10px">Vai a ${esc(st.mesiNome[prossimo - 1].toLowerCase())}</button>` : ''}</div>`;
 }
@@ -188,7 +188,7 @@ export function disegna(area) {
     <div class="stampa-testa" hidden>
       <h1>Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}</h1>
       <p>VRS Tech &middot; foglio di lavoro stampato il ${new Date().toLocaleString('it-IT')}
-         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} impianti</p>
+         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} ${righe.length === 1 ? 'sito' : 'siti'}</p>
     </div>
     <div class="mese-testa">
       <h2 class="mese-titolo">${st.mesiNome[st.mese - 1]} <span>${st.anno}</span></h2>
@@ -224,7 +224,7 @@ function cambiaMese(m) {
   if (st1) {
     st1.querySelector('h1').textContent = `Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}`;
     st1.querySelector('p').innerHTML = `VRS Tech &middot; foglio di lavoro stampato il ${new Date().toLocaleString('it-IT')}
-         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} impianti`;
+         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} ${righe.length === 1 ? 'sito' : 'siti'}`;
   }
   const lav = radice.querySelector('.lavoro');
   lav.classList.remove('entra');

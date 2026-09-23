@@ -224,7 +224,7 @@ export function avviaPonte(cfg = {}) {
   function titoloSito() {
     if (!ctx.id) return '';
     const cli = (ctx.cliente || '').trim(), dest = (ctx.sito || '').trim();
-    if (!cli || !dest) return cli || dest || ('service #' + ctx.id);
+    if (!cli || !dest) return cli || dest || ('sito #' + ctx.id);
     const a = soloLettere(cli), b = soloLettere(dest);
     if (a.includes(b) || b.includes(a)) return a.length >= b.length ? cli : dest;
     return cli + ' – ' + dest;
@@ -327,7 +327,7 @@ export function avviaPonte(cfg = {}) {
     $('#ponteCerca').hidden = conSito;
     $('#ponteCambia').hidden = !conSito;
     if (conSito) {
-      $('#ponteCliente').textContent = ctx.cliente || ('service #' + ctx.id);
+      $('#ponteCliente').textContent = ctx.cliente || ('sito #' + ctx.id);
       $('#ponteMeta').innerHTML = metaSito();
       const come = $('#ponteCome');
       come.textContent = { tracker: 'dal tracker', auto: 'riconosciuto dal file',

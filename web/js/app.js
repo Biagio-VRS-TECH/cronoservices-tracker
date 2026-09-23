@@ -289,7 +289,7 @@ function aggiornaTesta() {
     voce(r.clienti, 'clienti', '',
       `${r.clienti} clienti, ${r.aperti} siti aperti`) +
     voce(r.aperti, 'siti', '',
-      'Impianti aperti: uno per mappatura annuale') +
+      'Siti aperti: una mappatura all’anno ciascuno') +
     voce(`${r.complete}/${r.mappature}`, 'complete', '',
       'Mappature complete su quelle dovute quest\'anno. Una mappatura per SITO ' +
       'per anno: conta quella, non i mesi di visita. Clicca per vedere solo ' +
@@ -658,7 +658,7 @@ function massa(modo) {
       riga.innerHTML = voci.length
         ? `<b>${voci.length}</b> ${voci.length === 1 ? 'spunta' : 'spunte'} da ` +
         `${completa ? 'mettere' : 'togliere'}, su <b>${celle.size}</b> ` +
-        `${celle.size === 1 ? 'mappatura' : 'mappature'} di <b>${serv.size}</b> service.`
+        `${celle.size === 1 ? 'mappatura' : 'mappature'} di <b>${serv.size}</b> ${serv.size === 1 ? 'sito' : 'siti'}.`
         : `Non c'è niente da ${completa ? 'completare' : 'azzerare'} con questi filtri.`;
       const spunte = `${voci.length} ${voci.length === 1 ? 'spunta' : 'spunte'}`;
       bottone.textContent = voci.length
@@ -1093,7 +1093,7 @@ function pannelloCollegamento() {
 }
 
 /* ------------------------------------------------------------ sync ------- */
-const riassuntoSync = r => `Access letto: ${r.services} service, ${r.clienti} clienti` +
+const riassuntoSync = r => `Access letto: ${r.services} siti, ${r.clienti} clienti` +
   (r.nuovi ? `, ${r.nuovi} nuovi` : '') + (r.chiusi ? `, ${r.chiusi} chiusi` : '') +
   (r.mesi_cambiati ? `, ${r.mesi_cambiati} con mesi cambiati` : '') +
   (r.spunte_orfane ? `, ${r.spunte_orfane} spunte orfane` : '') + '.';
@@ -1661,7 +1661,7 @@ function mostraAiuto() {
         riga(cel('stima', 0), CLASSE_ET['stima']),
         riga(cel('darinnovare', 0), CLASSE_ET['da-rinnovare']),
         riga(cel('nontracciato', 0), CLASSE_ET['non-tracciato']),
-        riga(trattino, 'Nessuna manutenzione prevista, o service non ancora attivo')),
+        riga(trattino, 'Nessuna manutenzione prevista, o sito non ancora attivo')),
 
       h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
       h('p.nota-t', {
@@ -1681,8 +1681,8 @@ function mostraAiuto() {
       h('h3.tit-p', { testo: 'Una mappatura per sito, una volta all\'anno' }),
       h('p.nota-t', {
         style: 'margin-bottom:18px',
-        testo: 'Ogni sito aperto ha la sua mappatura: un cliente con nove impianti ' +
-          'ne ha nove, una per impianto. Ma non si rifà a ogni visita: fatta una ' +
+        testo: 'Ogni sito aperto ha la sua mappatura: un cliente con nove siti ' +
+          'ne ha nove, una per sito. Ma non si rifà a ogni visita: fatta una ' +
           'volta con tutti e quattro i passi, quel sito è a posto per l\'anno e la ' +
           'casella si accende di verde. Se il contratto ha più mesi di ' +
           'manutenzione la scadenza è il primo: quella cella è piena, le altre ' +
@@ -1723,7 +1723,7 @@ function mostraAiuto() {
         ['↑ ↓', 'Anno: riga sopra/sotto · Mese: scheda sopra/sotto, evidenziata tutta'],
         ['← →', 'Anno: mese previsto precedente/successivo · Mese: entra ed esce dalle caselle'],
         ['Home / Fine', 'Anno: primo · ultimo mese previsto della riga'],
-        ['Invio', 'Apri la cella (nel mese: il dettaglio del service)'],
+        ['Invio', 'Apri la cella (nel mese: il dettaglio del sito)'],
         ['Esc', 'Chiudi'], ['?', 'Questa finestra'],
       ].flatMap(([k, v]) => [
         h('dt', { html: `<code class="dato">${esc(k)}</code>` }), h('dd', { testo: v }),

@@ -666,6 +666,49 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   .strumenti { top: auto; position: relative; }
 }
 
+/* ------------------------------------------------------------ telefono -- */
+/* VIS-25: sul telefono CronoService non e' il computer rimpicciolito (contratto
+   in planning/docs/telefono.md). Prima la testa andava su tre righe e la barra
+   su quattro: un terzo dello schermo prima del primo cliente. Ora la testa e'
+   una riga (logo, anno, spia, operatore, tema) piu' la ricerca, e la barra e'
+   UNA striscia che scorre di lato, con le viste per prime e la sfumatura a
+   destra che dice che continua. Sul computer l'involucro non c'e'. */
+.strumenti-striscia { display: contents; }
+@media (max-width: 760px) {
+  .testa {
+    gap: 4px; row-gap: 6px;
+    padding: calc(6px + env(safe-area-inset-top, 0px))
+             max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px));
+    min-height: 0;
+  }
+  .testa .marca img { height: 22px; }
+  .anno-scelta { margin-left: 2px; }
+  .anno-scelta .anno { padding: 0 2px; }
+  /* la spia basta: "collegato / in coda" resta per i lettori di schermo e nel
+     suggerimento, il foglio che si apre al tocco dice il resto */
+  .stato-coll { padding: 6px 8px; gap: 6px; }
+  #collegamento-et { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  /* il pallino con le iniziali: il nome sta nell'aria-label */
+  .io { padding: 4px; }
+  .io b { display: none; }
+  .cerca input, .cerca input:focus { width: 100%; }
+
+  .strumenti { padding: 2px 0; gap: 0; flex-wrap: nowrap; }
+  .strumenti-striscia {
+    display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px; scrollbar-width: none;
+    padding: 4px max(12px, env(safe-area-inset-right, 0px)) 4px max(12px, env(safe-area-inset-left, 0px));
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+  .strumenti-striscia::-webkit-scrollbar { display: none; }
+  .strumenti-striscia > * { flex: none; }
+  .strumenti-striscia::after { content: ""; flex: none; width: 16px; }  /* l'ultimo comando esce dalla sfumatura */
+  .strumenti .sep { margin: 0 2px; }
+  .gruppo button { padding: 5px 11px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* anche le animazioni infinite (spia, riflesso) si fermano dopo un giro:
      con la sola durata a 1ms diventerebbero uno sfarfallio */
