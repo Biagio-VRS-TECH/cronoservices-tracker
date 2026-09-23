@@ -3,7 +3,7 @@
    identita' operatore, azioni di massa, stato del collegamento.  #ANCHOR: app */
 import {
   $, $$, h, ICO, avviso, modale, menu, copia, quando, esc, tinta, iniziali, campoOK,
-  segnala, umano,
+  segnala, umano, scorciatoieAccese, impostaScorciatoie,
 } from './ui.js';
 import {
   rete, bootstrap, onCambio, setOperatore, apriStream, avviaPresenza, chiama, svuota,
@@ -1757,6 +1757,8 @@ function tastiera() {
       if (e.key === 'Escape') t.blur();
       return;
     }
+    // A11Y-15 (WCAG 2.1.4): i tasti di un carattere solo si possono spegnere
+    if (e.key.length === 1 && !scorciatoieAccese()) return;
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
     if (e.key === '?') { e.preventDefault(); mostraAiuto(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
@@ -1882,6 +1884,22 @@ function mostraAiuto() {
       ].flatMap(([k, v]) => [
         h('dt', { html: `<code class="dato">${esc(k)}</code>` }), h('dd', { testo: v }),
       ])),
+      /* A11Y-15: / ? A M S O valgono ovunque; qui si spengono (i tasti sulla cella
+         col fuoco restano, valgono solo li'). Tutta la riga e' il bersaglio. */
+      h('label.scelta-massa', { style: 'margin:12px 0 0' },
+        h('input', {
+          type: 'checkbox', checked: scorciatoieAccese(),
+          onchange: e => {
+            impostaScorciatoie(e.target.checked);
+            avviso(e.target.checked ? 'Scorciatoie a un tasto accese.'
+              : 'Scorciatoie a un tasto spente: il punto di domanda in barra riapre questa finestra.',
+            { tono: 'ok' });
+          },
+        }),
+        h('span', {
+          html: '<b>Scorciatoie a un tasto</b> (/ ? A M S O). Spegnile se detti al ' +
+            'computer o ti capita di premerle per sbaglio; frecce, Invio ed Esc restano.',
+        })),
 
       h('h3.tit-p', { style: 'margin-top:18px', testo: 'Se siete in due o più' }),
       h('p.nota-t', {

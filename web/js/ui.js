@@ -356,3 +356,22 @@ export function iniziali(nome) {
   const p = String(nome || '?').trim().split(/\s+/);
   return ((p[0]?.[0] || '?') + (p[1]?.[0] || '')).toUpperCase();
 }
+
+/* --- A11Y-15: scorciatoie a un tasto (WCAG 2.1.4) ----------------------------
+   / ? A M S O lavorano da qualunque punto della pagina: chi detta al computer o
+   preme un tasto per sbaglio cambiava vista senza volerlo. Si spengono dalla
+   finestra «Come si legge» (tasto ? o punto di domanda in barra), per questo
+   browser, come il tema. Accese se nessuno ha scelto (com'era prima). I tasti
+   sulla cella col fuoco (1 2 3 4 0, frecce, Invio) restano: valgono solo li'. */
+const CHIAVE_TASTI = 'cs.scorciatoie';
+
+export function scorciatoieAccese() {
+  try { return localStorage.getItem(CHIAVE_TASTI) !== '0'; } catch { return true; }
+}
+
+export function impostaScorciatoie(accese) {
+  try {
+    if (accese) localStorage.removeItem(CHIAVE_TASTI);
+    else localStorage.setItem(CHIAVE_TASTI, '0');
+  } catch { /* storage bloccato: la scelta non si ricorda */ }
+}
