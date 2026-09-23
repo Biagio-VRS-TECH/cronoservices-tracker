@@ -1,24 +1,20 @@
 /* ui.js - primitive: icone, avvisi, modale, mini-hyperscript, formattatori.
    #ANCHOR: ui */
 
-export const ICO = {
-  esci: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
-  cerca: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>',
-  cuneo: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
-  sx: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>',
-  dx: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
-  ok: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5.2 5.2L20 7"/></svg>',
-  ics: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
-  sync: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 0 0 6.3 5.7L3 9"/><path d="M3 4v5h5"/><path d="M4 13a8 8 0 0 0 13.7 5.3L21 15"/><path d="M21 20v-5h-5"/></svg>',
-  stampa: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="7" rx="2"/><path d="M6 16h12v5H6z"/></svg>',
-  giu: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>',
-  oggi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="12" cy="15.5" r="1.8" fill="currentColor" stroke="none"/></svg>',
-  gente: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M16.5 5.2a3.4 3.4 0 0 1 0 6.6M18 20a6.5 6.5 0 0 0-1.8-4.5"/></svg>',
-  copia: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H5.5A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15"/></svg>',
-  comprimi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6-5 6 5"/><path d="m6 15 6 5 6-5"/></svg>',
-  espandi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 6 5 6-5"/><path d="m6 20 6-5 6 5"/></svg>',
-  tema: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>',
+import { svgIcona } from './vrs-icone.js';
+
+/* VIS-12: le icone sono quelle di famiglia (vrs-icone.js, copia identica del
+   modulo del Planning): stesso disegno e stesso tratto 1.75 nelle due app. Qui
+   restano i nomi di CronoService e il lato di ciascuna. */
+const ICO_NOMI = {
+  esci: ['esci', 14], cerca: ['cerca', 14], cuneo: ['destra', 12],
+  sx: ['sinistra', 15], dx: ['destra', 15], ok: ['spunta', 12], ics: ['chiudi', 15],
+  sync: ['ricorrenze', 13], stampa: ['stampa', 13], giu: ['download', 13],
+  oggi: ['oggi', 13], gente: ['gruppo', 13], copia: ['copia', 13],
+  comprimi: ['comprimi', 13], espandi: ['espandi', 13], tema: ['sole', 14],
 };
+export const ICO = Object.fromEntries(
+  Object.entries(ICO_NOMI).map(([k, [nome, lato]]) => [k, svgIcona(nome, lato)]));
 
 
 /* --- il primo colpo di freccia "entra" nella griglia -----------------------
@@ -30,7 +26,7 @@ export const ICO = {
    primo bersaglio utile a schermo, senza far saltare la vista in cima.
    `Home`/`Fine`/`PagSu`/`PagGiu` restano al browser: servono a scorrere. */
 export const FRECCE = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1 };
-const FUORI = '.pop,.foglio,.velo,.tendina,.cassetto,.avviso,.barra-massa,' +
+const FUORI = '.auth,.pop,.foglio,.velo,.tendina,.cassetto,.avviso,.barra-massa,' +
   'input:not([type=checkbox]),textarea,select,[contenteditable]';
 
 /** Porta il fuoco su `n` senza far saltare lo scorrimento. */
@@ -125,7 +121,7 @@ const TRADUZIONI = [
     'c’è già: ricarica la pagina per vederlo'],
   [/violates .*constraint|check constraint|not-null constraint|foreign key/i,
     'il database non accetta questi dati: controlla i valori e riprova'],
-  [/too many requests|rate limit/i,
+  [/too many requests|rate limit|security purposes/i,
     'troppe richieste in poco tempo: aspetta un minuto e riprova'],
   [/(errore?|status) 50[0-4]\b|internal server error|bad gateway|service unavailable/i,
     'il server ha avuto un problema: riprova fra poco'],

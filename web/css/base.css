@@ -676,19 +676,119 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
 }
 
 /* --------------------------------------------------------------- accesso -- */
-/* Solo online: in locale la maschera non compare mai. Riusa .velo/.foglio della
-   modale, cambia solo cio' che una maschera d'accesso ha in piu': le etichette
-   sopra i campi e la riga d'errore. */
-.accesso .foglio { display: grid; gap: 6px; width: min(400px, 100%); }
-.accesso h2 { margin-bottom: 2px; }
-.acc-et { font-size: var(--t-micro); color: var(--tenue); margin-top: 8px; }
-.acc-errore {
-  margin: 10px 0 0; padding: 9px 11px; border-radius: var(--r-2);
-  background: var(--allerta-tenue); color: var(--allerta);
-  font-size: var(--t-mini);
+/* VIS-06 / PRD-11: la pagina d'accesso e' quella del Planning (web/src/styles/
+   auth.css): stesse classi `auth-*`, stessa struttura, stesse misure, tradotte
+   nei token di qui. Solo online: in locale non compare mai. E' una pagina
+   intera e opaca, sopra tutto: l'app sotto e' `inert` finche' non si entra. */
+.auth {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; overflow-y: auto; overscroll-behavior: contain;
+  padding: 24px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+  background: var(--fondo); color: var(--inchiostro);
 }
-.acc-invia { margin-top: 16px; justify-self: stretch; min-height: 44px; }
-.acc-invia[disabled] { opacity: .6; }
+.auth-box {
+  width: 100%; max-width: 26rem; margin: auto;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.auth-brand { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.auth-name {
+  font-family: var(--f-display); font-size: 2.2rem; font-weight: 700;
+  letter-spacing: -.03em; line-height: 1.05;
+}
+.auth-sub {
+  font-family: var(--f-dato); font-size: var(--t-micro); font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--tenue);
+}
+/* la riga del tempo: un binario sottile con le tacche e il punto «adesso» */
+.auth-rail { position: relative; height: 2.25rem; margin: 0 8px; }
+.auth-rail::before {
+  content: ''; position: absolute; inset-inline: 0; top: .75rem; height: 5px;
+  background-image: repeating-linear-gradient(to right, var(--bordo) 0 1px, transparent 1px 2.5rem);
+}
+.auth-rail::after {
+  content: ''; position: absolute; inset-inline: 0; top: .75rem; height: 1px;
+  background: var(--bordo);
+}
+.auth-rail-now {
+  position: absolute; top: .75rem; left: 50%; translate: -50% -50%; z-index: 1;
+  width: 7px; height: 7px; border-radius: var(--r-tonda);
+  background: var(--marchio); box-shadow: 0 0 0 4px var(--marchio-tenue);
+}
+.auth-rail-label {
+  position: absolute; top: 1.35rem; left: 50%; translate: -50% 0;
+  font-family: var(--f-dato); font-size: var(--t-micro); color: var(--marchio-scuro);
+  letter-spacing: .08em;
+}
+.auth-card {
+  display: flex; flex-direction: column; gap: 16px; padding: 24px;
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-3);
+}
+.auth-intro { margin: 0; color: var(--tenue); font-size: var(--t-base); }
+.auth-avviso, .auth-errore {
+  margin: 0; padding: 12px 16px; border-radius: var(--r-2);
+  font-size: var(--t-base); line-height: 1.45;
+}
+.auth-avviso { background: var(--marchio-tenue); color: var(--marchio-scuro); }
+.auth-errore {
+  background: var(--scadenza-tenue); color: var(--scadenza);
+  border: 1px solid color-mix(in srgb, var(--scadenza) 30%, transparent);
+}
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-campo { display: flex; flex-direction: column; gap: 4px; }
+.auth-campo label { font-size: var(--t-base); font-weight: 500; color: var(--inchiostro-2); }
+/* campi grandi, e a 16px: sul telefono il browser non ingrandisce la pagina */
+.auth-form .campo { min-height: 2.8rem; font-size: 1rem; }
+.auth-form .campo:focus-visible { scroll-margin-block: 24px; }
+.auth-form .campo[aria-invalid='true'] { border-color: var(--scadenza); }
+.auth-campo-err { margin: 0; font-size: var(--t-mini); font-weight: 500; color: var(--scadenza); }
+.auth-invia { min-height: 2.8rem; width: 100%; }
+.auth-invia[data-loading]:disabled { background: var(--btn-fondo); color: var(--btn-testo); cursor: progress; }
+/* in attesa: la rotella accanto a «Accedi», l'etichetta non cambia */
+.auth-invia[data-loading]::before {
+  content: ''; width: 1em; height: 1em; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: auth-gira .8s linear infinite;
+}
+@keyframes auth-gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-invia[data-loading]::before { animation: none; border-right-color: currentColor; opacity: .6; }
+}
+/* la password: il tasto per mostrarla sta dentro il campo */
+.auth-pw { position: relative; display: flex; }
+.auth-pw .campo { flex: 1 1 auto; min-width: 0; padding-inline-end: 44px; }
+.auth-eye {
+  position: absolute; inset-block: 0; inset-inline-end: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; padding: 0; color: var(--tenue); border-radius: var(--r-2);
+  transition: color var(--rapido);
+}
+.auth-eye:hover { color: var(--inchiostro-2); }
+.auth-eye[aria-pressed='true'] { color: var(--marchio-scuro); }
+/* la password in chiaro si vede anche dal tasto: l'occhio e' sbarrato, non solo colorato */
+.auth-eye[aria-pressed='true']::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 1.4rem; height: 2px; border-radius: var(--r-tonda); background: currentColor;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.auth-links {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px;
+  font-size: var(--t-base);
+}
+.auth-link {
+  padding: 4px 0; min-height: 24px; color: var(--marchio-scuro);
+  border-radius: var(--r-1); transition: color var(--rapido);
+}
+.auth-link:hover { color: var(--inchiostro); text-decoration: underline; }
+.auth-link:disabled { color: var(--tenue); cursor: not-allowed; }
+@media (max-width: 479px) {
+  .auth { padding: 40px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .auth-box { margin-block-start: 0; }
+  .auth-card { padding: 20px 16px; }
+  .auth-name { font-size: 1.6rem; }
+}
+@media (pointer: coarse) {
+  .auth-link { min-height: 44px; display: inline-flex; align-items: center; }
+}
 
 /* ------------------------------------------------------ salta al contenuto -- */
 /* A11Y-04: il primo Tab della pagina porta dritti all'area di lavoro, senza
