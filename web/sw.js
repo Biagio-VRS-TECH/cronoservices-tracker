@@ -15,7 +15,7 @@ const GUSCIO = [
   '/js/stato.js', '/js/ui.js', '/js/vrs-icone.js',
   '/js/anno.js', '/js/mese.js', '/js/stat.js',
   '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js', '/js/ponte.js',
-  '/js/gruppi.js', '/js/tour.js', '/js/albero.js', '/js/famiglia.js',
+  '/js/gruppi.js', '/js/tour.js', '/js/albero.js', '/js/famiglia.js', '/js/condividi.js',
   '/schede/', '/schede/index.html', '/schede/ponte.js',
   '/registro/', '/registro/index.html', '/registro/registro.js', '/registro/impagina.js',
   '/registro/app.js', '/registro/registro.css',
