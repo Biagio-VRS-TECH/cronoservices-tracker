@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* mese.js - il foglio di lavoro del mese: una scheda per IMPIANTO da visitare in
    quel mese, le caselle dei quattro passi, selezione multipla, stampabile.
 
@@ -13,7 +14,7 @@
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito, toccaPasso, emetti,
-  fatto, proposto, notaProposta,
+  fatto, proposto, notaProposta, aggiornaTitolo,
   filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
   CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
@@ -143,8 +144,28 @@ function htmlCorpo(righe) {
     }
     corpo += htmlScheda(v);
   }
-  return corpo || `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
-      Nessun service aperto ha ${st.mesiNome[st.mese - 1]} tra i mesi di manutenzione.</div>`;
+  return corpo || htmlVuoto();
+}
+
+/* TXT-16: il mese vuoto dice anche cosa fare. Coi filtri accesi il motivo
+   probabile sono loro; altrimenti si propone il primo mese dopo questo che ha
+   lavoro (il bottone ha `data-mese`: lo gestisce il clic di `collega`). */
+function htmlVuoto() {
+  const f = /** @type {any} */ (st.filtri || {});
+  if (f.q || f.prov || f.stato) {
+    return `<div class="vuoto"><b>Nessuna mappatura con questi filtri</b>
+      In ${esc(st.mesiNome[st.mese - 1])} nessun sito corrisponde alla ricerca o ai
+      filtri in alto: toglili per vedere tutto il mese.</div>`;
+  }
+  let prossimo = 0;
+  for (let k = 1; k < 12 && !prossimo; k++) {
+    const m = ((st.mese - 1 + k) % 12) + 1;
+    if (lavoroDelMese(m).length) prossimo = m;
+  }
+  return `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
+      Nessun sito aperto ha ${esc(st.mesiNome[st.mese - 1])} tra i mesi di manutenzione.
+      ${prossimo ? `<br><button type="button" class="bottone piatto" data-mese="${prossimo}"
+        style="margin-top:10px">Vai a ${esc(st.mesiNome[prossimo - 1].toLowerCase())}</button>` : ''}</div>`;
 }
 
 /* I numeri contano SEMPRE il mese intero, anche col filtro di stato acceso:
@@ -168,7 +189,7 @@ export function disegna(area) {
     <div class="stampa-testa" hidden>
       <h1>Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}</h1>
       <p>VRS Tech &middot; foglio di lavoro stampato il ${new Date().toLocaleString('it-IT')}
-         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} impianti</p>
+         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} ${righe.length === 1 ? 'sito' : 'siti'}</p>
     </div>
     <div class="mese-testa">
       <h2 class="mese-titolo">${st.mesiNome[st.mese - 1]} <span>${st.anno}</span></h2>
@@ -189,6 +210,7 @@ export function disegna(area) {
 function cambiaMese(m) {
   st.mese = m;
   st.selezione.clear();
+  aggiornaTitolo();
   if (!radice?.querySelector('.mese-nav')) return disegna(radice);
   const righe = lavoroDelMese(st.mese);
   const tutte = mesePieno(righe);
@@ -203,7 +225,7 @@ function cambiaMese(m) {
   if (st1) {
     st1.querySelector('h1').textContent = `Mappature ${st.mesiNome[st.mese - 1]} ${st.anno}`;
     st1.querySelector('p').innerHTML = `VRS Tech &middot; foglio di lavoro stampato il ${new Date().toLocaleString('it-IT')}
-         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} impianti`;
+         &middot; ${sc.tot} mappature in scadenza &middot; ${righe.length} ${righe.length === 1 ? 'sito' : 'siti'}`;
   }
   const lav = radice.querySelector('.lavoro');
   lav.classList.remove('entra');
@@ -218,11 +240,19 @@ function collega(r) {
   if (r.__collegatoMese) return;
   r.__collegatoMese = true;
   r.addEventListener('click', e => {
+    /* `r` e' l'#area di tutte le viste e questo ascoltatore ci resta anche
+       tornando alla vista Anno: parla solo quando il foglio e' il suo */
+    if (st.vista !== 'mese') return;
     const m = e.target?.closest?.('[data-mese]');
     if (m) return cambiaMese(Number(m.dataset.mese));
     const fs = e.target?.closest?.('[data-stato]');
     if (fs) return filtraStato(fs.dataset.stato, true);
     const pal = e.target?.closest?.('[data-comp]');
+    /* Il DOPPIO clic su un pallino o su un passo arriva come due clic: il
+       secondo (detail 2) disfaceva il primo - la scheda chiusa si riapriva
+       con l'avviso "Tolti i 4 passi". Conta il primo, il resto no. La
+       tastiera (detail 0) non passa di qui. */
+    if ((pal || e.target.closest('.passo')) && e.detail > 1) return;
     if (pal) {
       const id = Number(pal.dataset.comp);
       return (e.ctrlKey || e.metaKey || e.shiftKey)
@@ -431,7 +461,7 @@ function barraMassa() {
     <button data-az="tutte">Completa i ${PASSI} passi</button>
     <button data-az="annulla">Deseleziona</button>`;
   barra.addEventListener('click', e => {
-    const az = e.target.closest('[data-az]')?.dataset.az;
+    const az = /** @type {any} */ (e.target).closest('[data-az]')?.dataset.az;
     if (!az) return;
     if (az === 'annulla') {
       st.selezione.clear();

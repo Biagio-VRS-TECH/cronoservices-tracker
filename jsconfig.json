@@ -1,0 +1,23 @@
+{
+  // COD-04: controllo dei tipi dei moduli del browser, senza build e senza
+  // dipendenze nel repository. Si lancia con
+  //   npx -y -p typescript@6.0.3 tsc -p jsconfig.json
+  // (lo fa il CI, .github/workflows/ci.yml). `checkJs` resta spento qui e si
+  // accende file per file con `// @ts-check` in testa: i moduli senza la riga
+  // (nuvola.js, ponte.js, il generatore schede.js; vrs-icone.js e' la copia
+  // identica del Planning, nuvola-config.js lo scrive il build) non sono ancora
+  // puliti e non devono fermare il CI. Chi ne pulisce uno, gli aggiunge la riga.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["web/js/*.js"]
+}

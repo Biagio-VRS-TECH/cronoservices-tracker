@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* stato.js - modello in memoria, stato temporale delle celle, filtri, e l'unico
    punto da cui passa una scrittura di spunta.  #ANCHOR: stato
 
@@ -57,7 +58,7 @@ aggiungere o togliere un passo si fa QUI e in `db.CAMPI`, tutto il resto conta
 */
 import { terminePassa } from './affinita.js';
 import { accoda, rete, chiama } from './api.js';
-import { avviso } from './ui.js';
+import { avviso, esc } from './ui.js';
 
 export const CAMPI = ['stampata', 'controllata', 'corretta', 'ricambi'];
 /* La sigla e' la chiave nel payload della cella. 'k' per "corretta" perche' 'c'
@@ -94,7 +95,7 @@ export const CLASSE_ET = {
   'stima': 'Stima: il contratto si rinnova da solo, salvo riprogrammazione',
   'da-rinnovare': 'Contratto scaduto: rinnovo da richiedere',
   'non-tracciato': 'Prima dell\'inizio del tracciamento: recupero storico',
-  'prima-contratto': 'Il service non era ancora attivo',
+  'prima-contratto': 'Il sito non era ancora attivo',
   'non-previsto': 'Nessuna manutenzione in questo mese',
 };
 
@@ -125,7 +126,12 @@ export const st = {
   /* `stato`: '' | 'incomplete' | 'ritardo' | 'complete' (#ANCHOR: filtro-stato).
      Il filtro per tipo di gas e' stato tolto alla 15a sessione: nessuno lo
      usava e il tipo si cerca dalla barra di ricerca. */
-  filtri: { q: '', prov: '', mostraChiusi: false, stato: '' },
+  filtri: { q: '', prov: '', mostraChiusi: false, stato: '', resp: '' },
+  /* Chi risponde di ogni service (PRD-04, cloud/11-responsabile.sql): idServ ->
+     casella. null = non disponibile (in locale, o file 11 non ancora applicato):
+     allora il filtro e la scelta non si vedono. `persone` = fra chi si sceglie,
+     `io` = la mia casella, per "Le mie".  #ANCHOR: responsabile */
+  responsabili: null, persone: [], io: '',
 };
 
 /* --------------------------------------------------------- emettitore ---- */
@@ -147,11 +153,55 @@ export function caricaFiltri() {
   f.q = '';
   f.prov = typeof g.prov === 'string' ? g.prov : '';
   f.mostraChiusi = !!g.mostraChiusi;
+  f.resp = typeof g.resp === 'string' ? g.resp : '';
   f.stato = STATI.includes(g.stato) ? g.stato
     : g.soloRitardo ? 'ritardo' : g.soloIncomplete ? 'incomplete' : '';
 }
 export function salvaFiltri() {
   try { localStorage.setItem(K_FILTRI, JSON.stringify(st.filtri)); } catch { }
+}
+
+/* ---------------------------------------------------- il giorno cambia -- */
+/* BUG-13: `st.oggi` arriva col bootstrap e restava quello del caricamento
+   della pagina. Un tracker lasciato aperto a cavallo del mese non segnava i
+   ritardi nuovi. Chi guida l'app (app.js) chiede `giornoCambiato()` al
+   ritorno sulla scheda e ogni minuto, e se si' rilegge il bootstrap. */
+export const oggiLocale = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const giornoCambiato = (adesso = new Date()) => !!st.oggi && oggiLocale(adesso) > st.oggi;
+
+/* PRD-17: quanto sono vecchi i dati di Access. `ultimo_sync` e' l'ora locale
+   dell'ultimo sync ("2026-09-23T08:15:00", senza fuso). Oltre 26 ore il PC
+   dell'ufficio non ha spinto l'anagrafica: `vecchia` accende l'avviso.
+   Ritorna null se un sync non c'e' mai stato. */
+export const ORE_ANAGRAFICA = 26;
+export function etaAnagrafica(ts = st.ultimoSync, adesso = new Date()) {
+  if (!ts) return null;
+  const d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return null;
+  const ore = (adesso.getTime() - d.getTime()) / 36e5;
+  const hhmm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const g = Math.round((new Date(adesso.toDateString()).getTime() -
+                         new Date(d.toDateString()).getTime()) / 864e5);
+  const quando = g <= 0 ? `oggi ${hhmm}` : g === 1 ? `ieri ${hhmm}`
+    : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) + ' ' + hhmm;
+  return { testo: `Anagrafica di Access: ${quando}`, quando, ore, giorni: g,
+           vecchia: ore > ORE_ANAGRAFICA };
+}
+
+/* A11Y-05: il titolo della scheda del browser dice dove si e' («Mese di
+   ottobre 2026 · Crono Mappature»): con tre schede aperte si distinguono, e
+   il lettore di schermo lo annuncia. */
+export function titoloScheda() {
+  const mese = (st.mesiNome?.[st.mese - 1] || '').toLowerCase();
+  const dove = st.vista === 'mese' && mese ? `Mese di ${mese} ${st.anno}`
+    : st.vista === 'stat' ? `Statistiche ${st.anno}` : `Anno ${st.anno}`;
+  return (st.anno ? dove + ' · ' : '') + 'Crono Mappature';
+}
+export function aggiornaTitolo() {
+  if (typeof document === 'undefined') return;
+  const t = titoloScheda();
+  if (document.title !== t) document.title = t;
 }
 
 /* ------------------------------------------------------------- caricamento */
@@ -173,6 +223,7 @@ export function applica(d) {
   st.celle = new Map(Object.entries(d.celle));
   st.cellePrec = new Map(Object.entries(d.celle_prec || {}));
   st.documenti = mappaDocumenti(d.documenti);
+  applicaResponsabili(d);
   riapplicaCoda();
 
   /* Un sync o un cambio d'anno rifanno i mesi e le date: le memoizzazioni
@@ -191,7 +242,7 @@ export function applica(d) {
   st.gruppi = [...per.entries()]
     .map(([cid, srvs]) => ({
       cli: st.clienti.get(cid) || { id: cid, rs: '(cliente ' + cid + ')' },
-      srvs: srvs.sort((x, y) => (y.stato === 'APERTO') - (x.stato === 'APERTO') ||
+      srvs: srvs.sort((x, y) => Number(y.stato === 'APERTO') - Number(x.stato === 'APERTO') ||
         x.dest.localeCompare(y.dest, 'it')),
     }))
     .sort((x, y) => x.cli.rs.localeCompare(y.cli.rs, 'it'));
@@ -572,9 +623,10 @@ function passa(s, cli, q, ignoraStato) {
   const f = st.filtri;
   if (s.stato !== 'APERTO' && !f.mostraChiusi) return false;
   if (f.prov && s.prov !== f.prov) return false;
+  if (!passaResp(s.id)) return false;
   if (q.length) {
     const fieno = (cli.rs + ' ' + s.dest + ' ' + s.loc + ' ' + s.prov + ' ' +
-      s.id + ' ' + s.nc + ' ' + s.tipo).toLowerCase();
+      s.id + ' ' + s.nc + ' ' + s.tipo + ' ' + nomeResponsabile(responsabileDi(s.id))).toLowerCase();
     if (!q.every(t => terminePassa(t, fieno))) return false;   // tollera le grafie (#ANCHOR: affinita)
   }
   if (f.stato && !ignoraStato && s.stato === 'APERTO' && !statoPassa(s, f.stato)) return false;
@@ -598,6 +650,71 @@ function statoPassa(s, quale) {
   if (quale === 'complete') return ma.completa;
   if (quale === 'ritardo') return ma.ritardo;
   return ma.prevista && !ma.completa;                     // 'incomplete' = da fare
+}
+
+/* ------------------------------------------------------- responsabile -- */
+/* #ANCHOR: responsabile (PRD-04). Chi risponde di un service e' una CASELLA,
+   come il ruolo: il nome e' solo come la si scrive. I dati arrivano accanto al
+   bootstrap (nuvola.js li aggiunge da `app_responsabili`); senza, il filtro non
+   filtra e la scelta non si mostra. */
+export function applicaResponsabili(d) {
+  if (d && d.responsabili && typeof d.responsabili === 'object') {
+    st.responsabili = new Map(Object.entries(d.responsabili)
+      .filter(([, v]) => typeof v === 'string' && v)
+      .map(([k, v]) => [Number(k), v]));
+    st.persone = Array.isArray(d.persone) ? d.persone.filter(p => p && p.email) : [];
+    st.io = String(d.io || '').toLowerCase();
+  } else {
+    st.responsabili = null; st.persone = []; st.io = '';
+  }
+}
+
+export const responsabiliAttivi = () => st.responsabili instanceof Map;
+export const responsabileDi = id => (responsabiliAttivi() && st.responsabili.get(id)) || '';
+
+/** Il nome di una casella: quello di `operatori` se c'e', altrimenti ricavato
+ *  dalla casella stessa (mario.rossi@ -> Mario Rossi). '' se la casella e' vuota. */
+export function nomeResponsabile(email) {
+  if (!email) return '';
+  const p = st.persone.find(x => x.email === email);
+  if (p?.nome) return p.nome;
+  return (email.split('@')[0] || '').split(/[._-]+/).filter(Boolean)
+    .map(x => x[0].toUpperCase() + x.slice(1).toLowerCase()).join(' ') || email;
+}
+
+/** Il filtro per responsabile: '' tutti, 'mie' le mie, 'nessuno' senza, o una
+ *  casella. Senza dati (in locale) lascia passare tutto. */
+export function passaResp(id) {
+  const f = st.filtri.resp;
+  if (!f || !responsabiliAttivi()) return true;
+  const r = responsabileDi(id);
+  if (f === 'mie') return !!st.io && r === st.io;
+  if (f === 'nessuno') return !r;
+  return r === f;
+}
+
+/** Affida uno o molti service a una casella ('' = a nessuno). Solo l'admin: il
+ *  server lo ricontrolla. Torna quanti sono cambiati, -1 se non e' andata. */
+export async function affida(ids, email) {
+  const lista = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
+  if (!lista.length) return 0;
+  let r;
+  try {
+    r = await chiama('/api/responsabile', { metodo: 'POST', body: { ids: lista, email: email || '' } });
+  } catch (e) {
+    avviso('Responsabile non salvato: ' + (e?.message || 'rete assente') + '.', { tono: 'allerta' });
+    return -1;
+  }
+  if (!r?.ok) {
+    avviso('Responsabile non salvato: ' + (r?.dati?.errore || 'errore ' + r?.stato) + '.', { tono: 'allerta' });
+    return -1;
+  }
+  if (!responsabiliAttivi()) st.responsabili = new Map();
+  for (const id of lista) st.responsabili.delete(id);
+  for (const [k, v] of Object.entries(r.dati?.responsabili || {})) if (v) st.responsabili.set(Number(k), v);
+  emetti('responsabile', { ids: lista });
+  emetti('rilegge');
+  return Number(r.dati?.cambiati) || 0;
 }
 
 /** Lo stato della mappatura dell'anno di un sito in una parola sola: e' quello
@@ -626,7 +743,7 @@ export const ET_STATO = {
   attesa: 'Da fare: dovuta quest\'anno, nessun passo ancora fatto',
   pretrac: 'Scadenza prima dell\'inizio del tracciamento: fuori dai totali, ma si può recuperare',
   fuori: 'Nessuna mappatura dovuta quest\'anno per questo sito',
-  chiuso: 'Service chiuso',
+  chiuso: 'Sito chiuso',
 };
 
 /** Cambia il filtro di stato e ridisegna. Sta qui, e non in app.js, perche' lo
@@ -788,6 +905,20 @@ const ecoVecchia = (id, mese, nuova) => {
   const sua = Number(nuova?.rev), mia = Number(cella(id, mese).rev);
   return Number.isFinite(sua) && Number.isFinite(mia) && sua <= mia;
 };
+/** La RISPOSTA a una nostra scrittura che arriva dopo una fotografia piu'
+ *  nuova della stessa cella (l'eco di un collega che ha scritto subito dopo di
+ *  noi, arrivata prima della nostra risposta). Qui il confronto e' stretto: a
+ *  pari revisione la risposta e' la stessa fotografia e si applica. Senza,
+ *  la risposta vecchia riportava a schermo il passo del collega com'era prima
+ *  della sua spunta, e ci restava fino al ricarico dell'anno. */
+const rispostaVecchia = (id, mese, nuova) => {
+  const sua = Number(nuova?.rev), mia = Number(cella(id, mese).rev);
+  return Number.isFinite(sua) && Number.isFinite(mia) && sua < mia;
+};
+/** Le chiavi "id-mese-campo" di un'operazione in coda: una spunta sola o le
+ *  voci di un blocco. Servono a liberare `st.sospese` qualunque sia l'esito. */
+const sospeseDi = op => op?.meta?.sosp ? [op.meta.sosp]
+  : (op?.corpo?.celle || []).map(c => `${c.id_service}-${c.mese}-${c.campo}`);
 
 /** Due celle si disegnano diverse? Solo i quattro passi e la nota: `rev`, `by`
  *  e `at` cambiano a ogni scrittura, non si disegnano, e chi li mostra
@@ -872,13 +1003,14 @@ export function proposte() {
 
 /** Unico varco per cambiare una spunta. Ottimistica + coda. #ANCHOR: toggle
  *  `valore` e' l'INTENZIONE (0/1; 2 solo dall'admin che ripristina): quello
- *  che si scrive lo decide `effettivo()` secondo il ruolo. */
+ *  che si scrive lo decide `effettivo()` secondo il ruolo. Ritorna false se il
+ *  ruolo non lo consente (l'avviso e' gia' a schermo), true altrimenti. */
 export function spunta(id, mese, campo, valore, senzaUndo, origine) {
   const prima = cella(id, mese);
   const sig = SIGLA[campo];
   const { v, errore } = effettivo(campo, prima[sig], valore);
-  if (errore) { avviso(errore, { tono: 'allerta' }); return; }
-  if (prima[sig] === v) return;
+  if (errore) { avviso(errore, { tono: 'allerta' }); return false; }
+  if (prima[sig] === v) return true;
   const sosp = `${id}-${mese}-${campo}`;
   st.sospese.add(sosp);
   scriviLocale(id, mese, { [sig]: v, by: rete.operatore, at: new Date().toISOString() });
@@ -899,6 +1031,7 @@ export function spunta(id, mese, campo, valore, senzaUndo, origine) {
     },
     meta: { id, mese, campo, sosp },
   });
+  return true;
 }
 
 /** IL CLIC SU UN PASSO, da qualunque vista: mette o toglie. Se il passo e'
@@ -911,13 +1044,15 @@ export function spunta(id, mese, campo, valore, senzaUndo, origine) {
  *  dice chiaramente in che anno andare. Ritorna true se ha fatto qualcosa. */
 export function toccaPasso(id, mese, campo) {
   const er = statoCella(id, mese).ered[campo];
-  if (!er) { spunta(id, mese, campo, prossimo(id, mese, campo)); return true; }
+  if (!er) return spunta(id, mese, campo, prossimo(id, mese, campo));
   if (er.anno !== st.anno) {
     avviso(`${ETICHETTA[campo]}: fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}. ` +
       `Si toglie dall'anno ${er.anno}.`, { tono: 'allerta' });
     return false;
   }
-  spunta(id, er.mese, campo, 0);
+  /* l'operatore non toglie un passo gia' approvato: `spunta` lo ha detto, e
+     l'avviso "tolta a maggio" qui sotto sarebbe una bugia sopra il suo */
+  if (!spunta(id, er.mese, campo, 0)) return false;
   // la cella da cui si e' cliccato cambia anche lei (perde l'ereditato):
   // chi la mostra - popover, cassetto - deve saperlo
   emetti('cella', { id, mese });
@@ -942,6 +1077,10 @@ export function spuntaMolte(voci, etichetta, origine) {
     if (errore) { vietate++; continue; }
     if (prima[SIGLA[campo]] === v) continue;
     inverse.push({ id, mese, campo, valore: prima[SIGLA[campo]] });
+    /* in volo come le spunte singole: l'eco di Realtime che arriva PRIMA della
+       risposta (una istantanea per passo) non rimette a meta' la cella scritta
+       in locale, e il confronto di `esitoConferma` non vede differenze finte */
+    st.sospese.add(`${id}-${mese}-${campo}`);
     scriviLocale(id, mese, { [SIGLA[campo]]: v, by: rete.operatore, at: new Date().toISOString() });
     celle.push({
       id_service: id, mese, campo, valore: Number(valore) || 0,
@@ -981,8 +1120,14 @@ export function spuntaMolte(voci, etichetta, origine) {
   return celle.length;
 }
 
-export function annullaUltima() {
+/** Disfa l'ultima azione. `quale` e' l'azione che chi chiama vuole disfare
+ *  (l'Annulla di un avviso se la prende quando nasce): se nel frattempo ne e'
+ *  arrivata un'altra - una spunta messa dopo "Completa tutte" - il bottone
+ *  dell'avviso vecchio disfaceva QUELLA. Allora non si tocca niente e si torna
+ *  -1. */
+export function annullaUltima(quale) {
   const a = st.ultimaAzione;
+  if (quale && quale !== a) return -1;
   if (!a) return 0;
   st.ultimaAzione = null;
   const n = spuntaMolte(a.inverse, null, 'annulla');
@@ -994,10 +1139,28 @@ export function annullaUltima() {
 /** Una riga di diario/storia in parole: "ha proposto", "ha approvato"... */
 export function descriviEvento(e) {
   if (e.campo === 'nota') return 'ha scritto una nota';
+  /* gli eventi dei PDF e del diario (cloud/10-migliorie-2026-09.sql): il nome
+     del documento viaggia in `dettaglio` */
+  if (e.campo === 'documento') {
+    const nome = e.dettaglio ? ` <i>${esc(e.dettaglio)}</i>` : ' un PDF';
+    return e.origine === 'ripristinato' ? `ha ripristinato dal cestino${nome}`
+      : e.origine === 'definitivo' ? `ha eliminato per sempre${nome}`
+      : `ha messo nel cestino${nome}`;
+  }
+  if (e.campo === 'diario') {
+    return 'ha svuotato il diario' + (e.dettaglio ? ` (${esc(e.dettaglio)})` : '');
+  }
+  // PRD-04 (cloud/11-responsabile.sql): il nome del responsabile e' in `dettaglio`
+  if (e.campo === 'responsabile') {
+    return e.dettaglio ? `ha affidato il sito a <i>${esc(e.dettaglio)}</i>` : 'ha tolto il responsabile';
+  }
   const da = Number(e.da), a = Number(e.a);
+  // il risultato finisce in innerHTML (diario, storia, cassetto): il campo
+  // arriva dal database, e passa di qui come testo
+  const campo = esc(e.campo);
   if (e.origine === 'ripristino') {
     const stato = a === PROPOSTA ? 'in attesa' : a === 1 ? 'fatto' : 'da fare';
-    return `ha rimesso <i>${e.campo}</i> ${stato}`;
+    return `ha rimesso <i>${campo}</i> ${stato}`;
   }
   const rip = '';
   let verbo;
@@ -1005,13 +1168,14 @@ export function descriviEvento(e) {
   else if (a === 1 && da === PROPOSTA) verbo = 'ha approvato';
   else if (a === 0 && da === PROPOSTA) verbo = e.origine === 'respinta' ? 'ha respinto' : 'ha ritirato';
   else verbo = a ? 'ha spuntato' : 'ha tolto';
-  return `${rip}${verbo} <i>${e.campo}</i>`;
+  return `${rip}${verbo} <i>${campo}</i>`;
 }
 
 /** Il blocco di un evento del diario: l'op_id senza il `:n` della cella. Una
  *  spunta singola e' un blocco da una. */
 export const bloccoDi = e => (e?.op_id || '').split(':')[0];
-export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' && e.da != null;
+export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' &&
+  e.campo !== 'documento' && e.campo !== 'diario' && e.campo !== 'responsabile' && e.da != null;
 
 /** L'admin rimette com'erano PRIMA tutti i passi di un'operazione (#ANCHOR:
  *  ripristino): il tastino di reversibilita' del diario, che vale anche sulle
@@ -1045,6 +1209,10 @@ export function etichettaBlocco(righe) {
   if (o === 'approvazione') return `Approvazione di ${n} ${n === 1 ? 'proposta' : 'proposte'}`;
   if (o === 'annulla') return `Annulla · ${n} ${sp} riportate come prima`;
   if (o === 'ripristino') return `Ripristino · ${n} ${sp} rimesse com\u2019erano`;
+  if (o === 'responsabile') {
+    const chi = righe[0]?.dettaglio;
+    return `${chi ? 'Affidati a ' + chi : 'Tolto il responsabile'} · ${n} ${n === 1 ? 'sito' : 'siti'}`;
+  }
   return `Azione multipla · ${n} ${sp}`;
 }
 
@@ -1078,7 +1246,9 @@ export async function salvaNota(id, mese, testo, base) {
 export function esitoConferma(op, risposta) {
   if (op.meta?.sosp) st.sospese.delete(op.meta.sosp);
   if (risposta?.cella && risposta.id_service) {
-    cellaDalServer(risposta.id_service, risposta.mese, risposta.cella);
+    if (!rispostaVecchia(risposta.id_service, risposta.mese, risposta.cella)) {
+      cellaDalServer(risposta.id_service, risposta.mese, risposta.cella);
+    }
     emetti('cella', { id: risposta.id_service, mese: risposta.mese });
   }
   if (Array.isArray(risposta?.esiti)) {
@@ -1089,12 +1259,15 @@ export function esitoConferma(op, risposta) {
        per volta. */
     const prima = new Map();
     for (const e of risposta.esiti) {
+      /* prima si libera il passo, poi si applica: l'esito e' autorevole proprio
+         per il SUO passo, mentre quelli della stessa cella ancora da leggere
+         restano in volo (un esito per passo, in ordine di revisione) */
+      st.sospese.delete(`${e.id_service}-${e.mese}-${e.campo}`);
       if (e.cella && e.id_service) {
         const k = chiave(e.id_service, e.mese);
         if (!prima.has(k)) prima.set(k, { id: e.id_service, mese: e.mese, c: cella(e.id_service, e.mese) });
-        cellaDalServer(e.id_service, e.mese, e.cella);
+        if (!rispostaVecchia(e.id_service, e.mese, e.cella)) cellaDalServer(e.id_service, e.mese, e.cella);
       }
-      st.sospese.delete(`${e.id_service}-${e.mese}-${e.campo}`);
     }
     let cambiate = 0;
     for (const p of prima.values()) if (cambiaAVista(p.c, cella(p.id, p.mese))) cambiate++;
@@ -1116,7 +1289,19 @@ export function esitoConferma(op, risposta) {
  *  attesa nella vista Anno, e ora anche un campo che ignora gli aggiornamenti
  *  del server. */
 export function esitoFallita(op, server) {
-  if (op?.meta?.sosp) st.sospese.delete(op.meta.sosp);
+  /* anche le voci di un blocco rifiutato in blocco (il 403 di "Completa tutte"
+     per chi non e' admin): altrimenti restavano in volo per sempre */
+  for (const k of sospeseDi(op)) st.sospese.delete(k);
+  /* e le loro scritture ottimistiche tornano com'erano: il server non ne ha
+     scritta nessuna, e a schermo restava tutto "completato" fino al ricarico */
+  if (op?.corpo?.celle?.length) {
+    if (op.corpo.anno === st.anno) {
+      for (const c of op.corpo.celle) {
+        scriviLocale(c.id_service, c.mese, { [SIGLA[c.campo]]: Number(c.base_valore) || 0 });
+      }
+    }
+    emetti('rilegge');
+  }
   const { id, mese } = op?.meta || {};
   /* un "vietato" dal server (#ANCHOR: ruoli) porta la cella com'e' davvero:
      la scrittura ottimistica va rimessa a posto, non lasciata a schermo */
@@ -1125,7 +1310,7 @@ export function esitoFallita(op, server) {
 }
 
 export function esitoConflitto(op, server) {
-  if (op.meta?.sosp) st.sospese.delete(op.meta.sosp);
+  for (const k of sospeseDi(op)) st.sospese.delete(k);
   const { id, mese, campo } = op.meta || {};
   const mio = op.corpo.valore;
   if (server.cella) cellaDalServer(server.id_service, server.mese, server.cella);
@@ -1209,6 +1394,14 @@ export function eventoRemoto(ev) {
     return;
   }
   if (ev.tipo === 'fuoco') { segnaFuoco(ev.nome, ev.dove); return; }
+  /* Il flusso era caduto (api.apriStream): le spunte dei colleghi passate nel
+     frattempo non torneranno piu' da sole. Si rilegge l'anno - le scritture
+     ancora in coda le riproietta `applica` - e si ridisegna. Offline resta
+     tutto com'e': ci riprova la prossima riconnessione. */
+  if (ev.tipo === 'riconnesso') {
+    cambiaAnno(annoChiesto ?? st.anno).then(() => emetti('rilegge')).catch(() => { });
+    return;
+  }
   if (ev.tipo === 'sync') { emetti('sync-fatto', ev.riepilogo); return; }
   if (ev.tipo === 'impostazioni') {
     st.inizioTracciamento = ev.inizio_tracciamento;
@@ -1258,7 +1451,28 @@ export function eventoRemoto(ev) {
   }
 }
 
+/** Carica un altro anno (o lo stesso, dopo un sync). L'operatore va nella
+ *  domanda come in `api.bootstrap`: in locale e' da li' che il server ricava il
+ *  ruolo, e senza un amministratore diventava operatore a ogni cambio d'anno e
+ *  a ogni sync (menu spariti, spunte da approvare mostrate come proposte). Una
+ *  risposta d'errore si lancia: applicarla rompeva il modello a meta'. */
+/* Due caricamenti che si incrociano (le frecce dell'anno e la rilettura dopo
+   una riconnessione) non devono finire col vecchio sopra il nuovo: vale
+   l'ultimo chiesto, e la rilettura chiede l'anno verso cui si sta andando. */
+let giroAnno = 0, annoChiesto = null;
 export async function cambiaAnno(anno) {
-  const { dati } = await chiama('/api/bootstrap?anno=' + anno);
-  applica(dati);
+  const mio = ++giroAnno;
+  annoChiesto = anno;
+  const q = new URLSearchParams({ anno: String(anno) });
+  if (rete.operatore) q.set('operatore', rete.operatore);
+  let r;
+  try {
+    r = await chiama('/api/bootstrap?' + q);
+    if (!r.ok || !r.dati?.oggi) throw new Error(r.dati?.errore || 'anno ' + anno + ' non disponibile');
+  } catch (e) {
+    if (mio === giroAnno) annoChiesto = null;   // si resta sull'anno che si vede
+    throw e;
+  }
+  if (mio !== giroAnno) return;
+  applica(r.dati);
 }

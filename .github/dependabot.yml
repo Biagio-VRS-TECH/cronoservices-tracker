@@ -1,0 +1,10 @@
+# Aggiornamenti (COD-19): CronoService non ha dipendenze npm né pip (Python e JS solo della
+# libreria standard; le librerie PDF/Excel stanno copiate in web/lib/). Si tengono aggiornate
+# solo le azioni di GitHub della CI, una volta al mese.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dipendenze]

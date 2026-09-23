@@ -3,6 +3,35 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-23 (34a sessione) - debug completo e i primi test
+
+Ramo `debug-2026-09-23`. Il progetto ha finalmente dei test: `tests/` (come
+lanciarli in [tests/LEGGIMI.md](../../tests/LEGGIMI.md)), 133 in Python
+(unittest, database SQLite temporanei) e 154 in JavaScript (`node --test`).
+
+1. **Online i tecnici non potevano piu' spuntare** (403 "Sola lettura" su ogni
+   spunta e nota): la migrazione 036 del Planning aveva lasciato
+   `pl_cronoservice_scrivibile()` = admin o approvatore, e `_applica` /
+   `imposta_nota` la chiamano in cima. Corretto nel Planning (037, applicata il
+   23/09): ora vale `autorizzato()`, i ruoli li decide `_valore_per_ruolo`.
+2. `cloud/09-debug-2026-09-23.sql` (applicato il 23/09): lucchetto sugli admin in
+   `imposta_ruolo`, niente piu' `anon` su registra_documento / dizionario,
+   policy di lettura con `(select autorizzato())`. **Non rilanciare 04** su questo
+   progetto condiviso: i suoi revoke globali colpiscono le tabelle `pl_*`.
+3. Locale: sync che archiviava tutto con un export vuoto, file temporanei
+   condivisi fra sync e push, jolly `%`/`_` in Ripristina, race su PRESENZE,
+   SSE muto dopo una coda piena, risponditore UDP che moriva su WinError 10054,
+   nomi PDF oltre MAX_PATH, path traversal sui documenti.
+4. Interfaccia: ruolo perso a ogni cambio d'anno, tasti 1-4 applicati due volte,
+   risposte vecchie che riportavano indietro il passo del collega, XSS
+   nell'anteprima PDF, doppi clic, Annulla che disfaceva l'azione sbagliata,
+   token online buttato alla prima rete assente, recupero dopo il riaggancio.
+
+Rimasti aperti (decisioni del committente): formula injection nel CSV locale,
+anteprime PDF da 80 KB dentro il bootstrap (peso e localStorage), `ripristina` e
+`imposta_meta` online con gli stessi difetti gia' corretti in `api.py`
+(proposte nel report della sessione), `search_path` delle funzioni helper.
+
 ## Fatto il 2026-09-14 (33a sessione) - il sito sbagliato che restava attaccato
 
 Sintomo del committente: *"a volte, e non capisco in quali casi, se carico una

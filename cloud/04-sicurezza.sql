@@ -9,6 +9,11 @@
 -- Il ruolo `anon` (chi non ha fatto il login) non arriva a niente.
 -- Il ruolo `service_role` (la chiave usata SOLO da app/push_cloud.py sul PC
 -- dell'ufficio) salta l'RLS: e' cosi' che entra la copia di Access.
+--
+-- Dal 23/09/2026 (SEC-10) i grant e i revoke toccano solo gli oggetti di
+-- CronoService, per nome: rilanciare questo file non spegne piu' il Planning.
+-- Le policy di lettura qui sotto pero' sono nella forma vecchia (senza
+-- `(select ...)`): dopo averlo rilanciato, rilanciare anche 09 e 10.
 
 -- ------------------------------------------------------------------ RLS ----
 alter table public.meta       enable row level security;
@@ -37,14 +42,58 @@ end $blocco$;
 -- ---------------------------------------------------------------- grant ----
 grant usage on schema public to anon, authenticated;
 
-revoke all on all tables in schema public from anon, authenticated;
--- La SELECT diretta serve a una cosa sola: Realtime, che valuta le policy con i
--- permessi di chi ascolta. L'applicazione legge dalle funzioni app_*.
-grant select on all tables in schema public to authenticated;
+-- SEC-10: lo schema `public` e' CONDIVISO col Planning (tabelle e funzioni
+-- `pl_*`). Qui si tocca SOLO l'elenco esplicito delle tabelle e delle funzioni
+-- di CronoService: un tempo c'era un revoke `on all tables` di tutto lo schema, che
+-- rieseguito toglieva le scritture a tutte le `pl_*` e l'EXECUTE a
+-- `pl_is_active()`, e il Planning si fermava per tutti. Una tabella o una
+-- funzione nuova di CronoService va aggiunta a questi elenchi (e a quelli di
+-- 10-migliorie-2026-09.sql).
+do $blocco$
+declare t text;
+begin
+  foreach t in array array['meta','clienti','services','mappature','eventi',
+                           'ops','operatori','presenze','sync_log',
+                           'documenti','dizionario_componenti']
+  loop
+    if to_regclass('public.' || t) is not null then
+      execute format('revoke all on public.%I from anon, authenticated', t);
+      -- La SELECT diretta serve a una cosa sola: Realtime, che valuta le policy
+      -- con i permessi di chi ascolta. L'applicazione legge dalle funzioni app_*.
+      execute format('grant select on public.%I to authenticated', t);
+    end if;
+  end loop;
+end $blocco$;
 
 -- Le funzioni nascono eseguibili da chiunque: qui si toglie tutto e si ridanno
 -- solo quelle che l'applicazione chiama davvero, e solo a chi ha fatto il login.
-revoke execute on all functions in schema public from public, anon, authenticated;
+-- Per NOME, tutte le firme che esistono (BUG-08: una firma scritta a mano
+-- invecchia appena la funzione prende un argomento in piu').
+do $blocco$
+declare f regprocedure;
+begin
+  for f in
+    select p.oid::regprocedure
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = any (array[
+         '_applica','_cella_out','_cella_vuota','_csv','_doc_out','_documenti_json',
+         '_mese_scadenza','_presenti','_scad_effettiva','_valore_per_ruolo',
+         '_voce_dizionario_out','_documento_in_uso',
+         'app_attivita','app_bootstrap','app_celle_dopo','app_dizionario',
+         'app_documenti','app_export_csv','app_incongruenze','app_ping','app_storia',
+         'app_cestino_documenti',
+         'autorizzato','azzera_diario','bulk_celle','e_admin','elimina_documenti',
+         'elimina_documento','elimina_documento_definitivo','ripristina_documento',
+         'svuota_cestino_documenti','email_corrente','imposta_meta','imposta_nota',
+         'imposta_operatore','imposta_ruolo','imposta_voce_dizionario',
+         'operatore_corrente','puo_approvare','registra_documento',
+         'ripristina_blocco','ruolo_corrente','sync_applica','toggle_cella',
+         'ts_locale'])
+  loop
+    execute format('revoke execute on function %s from public, anon, authenticated', f);
+  end loop;
+end $blocco$;
 
 grant execute on function
   public.app_bootstrap(int),
@@ -71,17 +120,25 @@ to authenticated;
 -- il tracker risponderebbe 403 sulle schede tecnici (era il difetto della 19a
 -- sessione). Si ridanno qui, ma solo se esistono: su un progetto nuovo, dove 06
 -- non e' ancora passato, il blocco non fa niente e non ferma lo script.
+-- BUG-08: per NOME e non per firma. La firma scritta qui (11 argomenti) era
+-- rimasta indietro rispetto a quella di 06 (12, con `tipo`): rilanciato 04 dopo
+-- 06, ogni consegna di PDF rispondeva 403. Ora si prende ogni firma che esiste.
 do $blocco$
-declare f text;
+declare f regprocedure;
 begin
-  foreach f in array array['app_documenti(int)',
-                           'registra_documento(int, int, int, text, text, int, int, text, text, int, int)',
-                           'elimina_documento(text)',
-                           'elimina_documenti(int, int)']
+  for f in
+    select p.oid::regprocedure
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = any (array['app_documenti','registra_documento',
+                                  'elimina_documento','elimina_documenti',
+                                  'app_dizionario','imposta_voce_dizionario',
+                                  -- 10-migliorie-2026-09.sql
+                                  'ripristina_documento','elimina_documento_definitivo',
+                                  'svuota_cestino_documenti','app_cestino_documenti',
+                                  '_documento_in_uso'])
   loop
-    if to_regprocedure('public.' || f) is not null then
-      execute format('grant execute on function public.%s to authenticated', f);
-    end if;
+    execute format('grant execute on function %s to authenticated', f);
   end loop;
 end $blocco$;
 

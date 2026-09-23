@@ -48,11 +48,12 @@ def _ip_locali():
 def avvia_risponditore(mio_url, porta=PORTA_ANNUNCIO):
     """Thread che risponde a chi cerca altri server. Non fallisce mai in modo
     fatale: se la porta e' occupata, si rinuncia silenziosamente."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("", porta))
     except OSError:
+        s.close()          # non resta un socket aperto a vuoto
         return None
 
     nome = socket.gethostname()
@@ -61,6 +62,12 @@ def avvia_risponditore(mio_url, porta=PORTA_ANNUNCIO):
         while True:
             try:
                 dati, mitt = s.recvfrom(512)
+            except ConnectionResetError:
+                # Windows (WinError 10054): una nostra risposta e' tornata
+                # indietro come "porta irraggiungibile" perche' chi chiedeva ha
+                # gia' chiuso. Non e' un guasto del socket: prima il thread
+                # usciva e questo server non rispondeva piu' a nessuno.
+                continue
             except OSError:
                 return
             if dati.startswith(DOMANDA):
@@ -93,8 +100,8 @@ def cerca_altri(porta=PORTA_ANNUNCIO, attesa=1.2):
         while time.time() < fine:
             try:
                 dati, mitt = s.recvfrom(512)
-            except socket.timeout:
-                continue
+            except (socket.timeout, ConnectionResetError):
+                continue            # 10054 su Windows: vedi avvia_risponditore
             except OSError:
                 break
             if not dati.startswith(RISPOSTA):

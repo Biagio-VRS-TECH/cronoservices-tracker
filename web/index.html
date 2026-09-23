@@ -3,35 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#14191E" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f4f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)">
 <title>Crono Mappature · VRS</title>
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/assets/icona.svg">
+<link rel="icon" href="/assets/icona.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/icona-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonti/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonti/newsreader-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonti/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/fonti.css">
+<link rel="stylesheet" href="/css/vrs-famiglia.css">
+<link rel="stylesheet" href="/css/vrs-app.css">
 <link rel="stylesheet" href="/css/theme.css">
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/griglia.css">
 <link rel="stylesheet" href="/css/stat.css">
 <link rel="stylesheet" href="/css/stampa.css">
+<!-- PERF-14: i moduli di app.js si scaricano tutti insieme, non uno dopo l'altro
+     man mano che il browser scopre gli import (senza bundler). L'elenco lo
+     controlla tests/js/web-precarico.test.mjs: un import nuovo va aggiunto qui. -->
+<link rel="modulepreload" href="/js/app.js">
+<link rel="modulepreload" href="/js/ui.js">
+<link rel="modulepreload" href="/js/api.js">
+<link rel="modulepreload" href="/js/nuvola.js">
+<link rel="modulepreload" href="/js/nuvola-config.js">
+<link rel="modulepreload" href="/js/stato.js">
+<link rel="modulepreload" href="/js/affinita.js">
+<link rel="modulepreload" href="/js/documenti.js">
+<link rel="modulepreload" href="/js/cassetto.js">
+<link rel="modulepreload" href="/js/spunte.js">
+<link rel="modulepreload" href="/js/anno.js">
+<link rel="modulepreload" href="/js/mese.js">
+<link rel="modulepreload" href="/js/stat.js">
+<link rel="modulepreload" href="/js/famiglia.js">
+<link rel="modulepreload" href="/js/condividi.js">
+<link rel="modulepreload" href="/js/vrs-icone.js">
 </head>
 <body>
+<a class="skip-link" href="#area">Salta al contenuto</a>
 <div class="guscio">
 
   <div class="banner" id="banner" hidden></div>
 
   <header class="testa">
-    <div class="marca">
-      <img src="/assets/logo.webp" alt="VRS Group" width="600" height="458"
+    <!-- VIS-05 / PRD-01: il marchio e' anche il selettore d'app (Planning ·
+         CronoService · Cantieri), lo stesso del Planning (#ANCHOR: famiglia in
+         js/famiglia.js). VIS-04: qui la tessera dell'app, come la «P» del
+         Planning; il logo VRS sta nella finestrella, grande abbastanza da
+         leggerlo. -->
+    <button type="button" class="marca vrs-app-btn" id="app-scelta"
+            aria-haspopup="dialog" aria-expanded="false"
+            aria-label="Crono Mappature, cambia app" title="Passa al Planning o ai Cantieri">
+      <img src="/assets/icona.svg" alt="" width="28" height="28"
            onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'segno-logo'}))">
       <span class="marca-testo">
         <b>Crono Mappature</b>
         <span>Checklist service</span>
       </span>
-    </div>
+      <svg class="vrs-app-giu" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
 
     <div class="anno-scelta">
       <button class="frecc" id="anno-giu" title="Anno precedente" aria-label="Anno precedente"></button>
@@ -44,8 +76,9 @@
 
     <div class="cerca">
       <span class="cerca-ico" id="cerca-ico" aria-hidden="true"></span>
-      <input id="q" type="search" placeholder="Cerca cliente, destinazione, #id" aria-label="Cerca">
-      <button class="cerca-x" id="cerca-x" title="Svuota la ricerca" hidden>&times;</button>
+      <input id="q" type="search" placeholder="Cliente, destinazione o #id…" aria-label="Cerca cliente, destinazione o numero"
+             autocomplete="off" spellcheck="false">
+      <button class="cerca-x" id="cerca-x" title="Svuota la ricerca" aria-label="Svuota la ricerca" hidden>&times;</button>
     </div>
 
     <button class="stato-coll" id="collegamento"
@@ -57,10 +90,14 @@
 
     <button class="io" id="io" title="Cambia operatore"></button>
     <button class="frecc" id="esci" title="Esci dall'archivio online" aria-label="Esci" hidden></button>
-    <button class="frecc" id="tema" title="Tema chiaro / scuro" aria-label="Tema chiaro o scuro"></button>
+    <button class="frecc" id="tema" title="Tema" aria-label="Tema" aria-haspopup="dialog" aria-expanded="false"></button>
   </header>
 
   <nav class="strumenti" aria-label="Viste, filtri e azioni">
+    <!-- VIS-25: sul computer questo involucro non c'e' (display: contents); sul
+         telefono e' la striscia che scorre di lato, cosi' la barra resta una riga
+         e la linea di stato qui sotto non scorre con lei (css/base.css) -->
+    <div class="strumenti-striscia">
     <div class="gruppo" id="viste">
       <button data-vista="anno" aria-pressed="true">Anno</button>
       <button data-vista="mese" aria-pressed="false">Mese</button>
@@ -87,6 +124,9 @@
     </div>
 
     <select class="pill" id="f-prov" aria-label="Filtra per provincia"></select>
+    <!-- Chi risponde del sito (PRD-04, #ANCHOR: responsabile in js/stato.js):
+         solo online e solo con cloud/11-responsabile.sql applicato -->
+    <select class="pill" id="f-resp" aria-label="Filtra per responsabile" hidden></select>
     <button class="pill debole" id="f-chiusi" aria-pressed="false">Mostra chiusi</button>
 
     <span class="sep"></span>
@@ -100,7 +140,8 @@
     <!-- Solo per chi approva (approvatore o amministratore), e solo se c'e' qualcosa in attesa: le spunte
          di rapportino/ricambi proposte dagli operatori (#ANCHOR: approvazioni in js/app.js) -->
     <button class="pill attesa" id="approva" hidden></button>
-    <button class="pill" id="aiuto" title="Come si legge (?)">?</button>
+    <button class="pill" id="aiuto" title="Come si legge (?)" aria-label="Guida: come si legge">?</button>
+    </div>
 
     <div class="riepilogo" id="riepilogo"></div>
 
@@ -111,22 +152,17 @@
   </nav>
 
   <main class="area" id="area" tabindex="-1">
-    <div class="vuoto"><b>Caricamento…</b>Lettura di clienti, service e spunte.</div>
+    <div class="vuoto"><b>Caricamento…</b>Lettura di clienti, siti e spunte.</div>
   </main>
 </div>
 
 <style>
-/* Il logo e' trasparente e la parola GROUP e' grigio scuro: su fondo scuro
-   serve una piastrina chiara, altrimenti si perde. */
-.marca img { height: 30px; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema="chiaro"]) .marca img {
-    background: var(--inchiostro); padding: 3px 5px; border-radius: var(--r-1);
-  }
-}
-:root[data-tema="scuro"] .marca img {
-  background: var(--inchiostro); padding: 3px 5px; border-radius: var(--r-1);
-}
+/* La tessera dell'app (assets/icona.svg) ha il suo fondo: niente piastrina.
+   Il logo VRS, con la piastrina al buio, sta nella finestrella del selettore
+   (css/vrs-app.css). La freccina non prende l'altezza della tessera. */
+.marca img { height: 28px; width: 28px; border-radius: 7px; }
+.marca svg.vrs-app-giu { height: 14px; width: 14px; }
+.marca { color: inherit; }
 /* segnaposto se il file del logo manca */
 .segno-logo { width: 26px; height: 26px; border-radius: 7px; display: block;
   background: linear-gradient(90deg,

@@ -14,7 +14,7 @@
     padding-bottom: 3mm; }
   /* sul foglio il titolo resta il display serif: e' la stessa voce dei documenti
      che l'applicazione genera */
-  .stampa-testa h1 { margin: 0; font-family: var(--f-display); font-weight: 600;
+  .stampa-testa h1 { margin: 0; font-family: var(--f-serif); font-weight: 600;
     font-size: 17pt; letter-spacing: -.02em; }
   .stampa-testa p { margin: 2mm 0 0; font-size: 8.5pt; color: #444; }
 

@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* anno.js - la cronostriscia: clienti x 12 mesi, celle a quattro segmenti.
    Disegno via stringhe HTML (fino a ~6600 celle) + delega degli eventi.
 
@@ -20,9 +21,9 @@
 import { esc, ICO, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import { htmlChipDocumento } from './documenti.js';
 import {
-  st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
+  st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, toccaPasso,
   mappaturaSito, meseScadenza, scadEffettiva, statoMappatura, notaEredita, fuochiSu,
-  PROPOSTA, notaProposta, prossimo, fatto,
+  PROPOSTA, notaProposta, fatto,
   CAMPI, SIGLA, PASSI, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriPop, chiudiPop, popAperto } from './spunte.js';
@@ -38,7 +39,11 @@ let radice = null, contenitore = null;
 const titoloPunto = (s, k) => ET_STATO[k] + (s.tipo ? ' · ' + s.tipo : '');
 const htmlPunto = s => {
   const k = statoMappatura(s);
-  return `<span class="punto-stato ${k}" title="${esc(titoloPunto(s, k))}"></span>`;
+  /* A11Y-17: il significato non sta solo nel colore e nel `title` (che la
+     tastiera e il lettore di schermo non vedono): nome accessibile, e la
+     classe `k` e' anche la chiave della forma nel CSS */
+  const t = esc(titoloPunto(s, k));
+  return `<span class="punto-stato ${k}" role="img" aria-label="${t}" title="${t}"></span>`;
 };
 /* data-x: 0 niente, 1 fatto QUI, 2 EREDITATO, cioe' fatto in un mese prima o
    l'anno prima e ancora valido (#ANCHOR: passi-cumulativi in stato.js). Il
@@ -54,6 +59,14 @@ const chipFuoco = chi => chi.length
 const SEG = '<i class="seg s"></i><i class="seg c"></i><i class="seg k"></i>' +
   '<i class="seg r"></i>';
 const oggiCl = m => (m === st.meseOggi && st.anno === st.annoOggi) ? ' mese-oggi' : '';
+/* VIS-25 / MOB-15: sul telefono la riga del sito non e' una striscia di dodici
+   colonne ma l'elenco dei suoi soli mesi di manutenzione, ognuno col suo nome
+   accanto alla capsula (css/griglia.css, "telefono"). Sul computer il nome del
+   mese sta nell'intestazione e questa etichetta non si vede. */
+const etMese = m => `<span class="q-mese" aria-hidden="true">${st.mesi[m - 1]}</span>`;
+/* Sul telefono si tocca tutta la voce del mese (nome + capsula, alta un
+   pollice), non solo la capsula: sul computer il clic resta sulla capsula. */
+const TELEFONO = matchMedia('(max-width: 760px)');
 
 /* classe temporale -> classe CSS aggiuntiva della cella */
 const CSS_CLASSE = {
@@ -78,7 +91,7 @@ function htmlCella(s, m) {
   if (e.classe === 'non-previsto' || e.classe === 'prima-contratto') {
     // spunte su un mese non previsto: si mostrano comunque, marcate orfane
     if (e.mie > 0) {
-      return `<div class="q${oggiCl(m)}"><button class="cella orfana" data-cella="${s.id}-${m}"
+      return `<div class="q${oggiCl(m)}">${etMese(m)}<button class="cella orfana" data-cella="${s.id}-${m}"
         tabindex="-1" ${segAttr(e)}
         title="Mese non previsto, ma con spunte registrate">${SEG}</button></div>`;
     }
@@ -92,7 +105,7 @@ function htmlCella(s, m) {
   const cl = ['cella', CSS_CLASSE[e.classe], e.completa && 'completa',
     e.ritardo && 'ritardo', e.c.nota && 'con-nota', chi.length && 'altrui',
     e.attesa.length && 'attesa'].filter(Boolean).join(' ');
-  return `<div class="q${oggiCl(m)}"><button class="${cl}" data-cella="${s.id}-${m}"
+  return `<div class="q${oggiCl(m)}">${etMese(m)}<button class="${cl}" data-cella="${s.id}-${m}"
     tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}${er ? ' ' + esc(er) + '.' : ''}"
     data-tip="${esc(tip)}" title="${esc(tip)}${er ? ' \u00b7 ' + esc(er) : ''}"${chi.length ? ` style="--tinta:${tinta(chi[0])}"` : ''}
     ${segAttr(e)}>${SEG}</button>${chipFuoco(chi)}</div>`;
@@ -113,7 +126,8 @@ function htmlRigaSrv(s, rit) {
     <div class="col-nome">
       ${htmlPunto(s)}
       <span class="srv-id">#${s.id}</span>
-      <span class="srv-dest" title="${esc(s.dest)}">${esc(s.dest || '(senza destinazione)')}</span>
+      <span class="srv-dest" role="button" tabindex="0" title="${esc(s.dest)}"
+            aria-label="Dettaglio di #${s.id} ${esc(s.dest || '')}">${esc(s.dest || '(senza destinazione)')}</span>
       ${htmlChipDocumento(s.id)}
       <span class="srv-loc">${esc(s.loc || '')}</span>
       ${chiuso ? '<span class="tag">chiuso</span>' : ''}
@@ -169,28 +183,30 @@ function htmlGruppo(g, rit) {
   </section>`;
 }
 
-/* Mappature complete / in scadenza in un mese, su tutto il set filtrato: una
-   per SITO. */
-function totaliMese(gruppi, m) {
-  let fatte = 0, tot = 0;
+/* Mappature complete / in scadenza per ogni mese, su tutto il set filtrato: una
+   per SITO. Un giro solo per i dodici mesi (prima erano dodici giri su tutti i
+   siti, a ogni disegno e a ogni spunta): [[fatte, tot] x 12], indice = mese-1. */
+export function totaliMesi(gruppi) {
+  const out = Array.from({ length: 12 }, () => [0, 0]);
   for (const g of gruppi) {
     for (const s of g.srvs) {
       if (s.stato !== 'APERTO') continue;
       const ma = mappaturaSito(s);
-      if (!ma.prevista || ma.scad !== m) continue;
-      tot++;
-      if (ma.completa) fatte++;
+      if (!ma.prevista || !(ma.scad >= 1 && ma.scad <= 12)) continue;
+      const t = out[ma.scad - 1];
+      t[1]++;
+      if (ma.completa) t[0]++;
     }
   }
-  return [fatte, tot];
+  return out;
 }
 
 /** Il totale del mese sotto il suo nome, nell'intestazione: chiuse/in scadenza
  *  e il filo che si riempie (`--p`). E' quello che si guarda per capire dove
  *  intervenire senza contare le celle a occhio. Lo span c'e' sempre, anche
- *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola. */
-function htmlTotaleMese(gruppi, m) {
-  const [fatte, tot] = totaliMese(gruppi, m);
+ *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola.
+ *  @param {number[]} coppia  [chiuse, dovute] di `totaliMesi` */
+function htmlTotaleMese([fatte, tot]) {
   return `<span class="tm${tot && fatte === tot ? ' pieno' : ''}"
     style="--p:${tot ? Math.round(fatte / tot * 100) : 0}%"
     title="${fatte} chiuse su ${tot} mappature (una per sito) che scadono in questo mese">${tot ? `${fatte}/${tot}` : ''}</span>`;
@@ -221,10 +237,11 @@ export function disegna(area) {
      lo stesso elenco e non si rifa' il giro. */
   const tutti = st.filtri.stato ? gruppiFiltrati({ ignoraStato: true }) : gruppi;
   const chiuse = tuttiPiegati(gruppi);
+  const totali = totaliMesi(tutti);
   const testa = `<div class="riga crono-testa">
     <div class="col-nome">
       <button class="piega-tutti" data-piega="${chiuse ? 0 : 1}"
-              title="${chiuse ? 'Riapri gli impianti di tutti i clienti' : 'Richiudi le tendine di tutti i clienti'}">
+              title="${chiuse ? 'Riapri i siti di tutti i clienti' : 'Richiudi le tendine di tutti i clienti'}">
         ${chiuse ? ICO.espandi : ICO.comprimi}
         <span>${chiuse ? 'Apri tutti' : 'Chiudi tutti'}</span>
       </button>
@@ -232,12 +249,12 @@ export function disegna(area) {
       <i title="Sotto ogni mese: mappature chiuse / in scadenza in quel mese">chiuse / in scadenza</i>
     </div>
     <div class="mesi">${st.mesi.map((m, i) =>
-    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(tutti, i + 1)}</div>`).join('')}</div>
+    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(totali[i])}</div>`).join('')}</div>
     <div class="col-tot">Anno</div>
   </div>`;
   area.innerHTML = `<div class="crono">${testa}${gruppi.length
     ? gruppi.map((g, i) => htmlGruppo(g, Math.min(i * 14, 240))).join('')
-    : `<div class="vuoto"><b>Nessun service con questi filtri</b>
+    : `<div class="vuoto"><b>Nessun sito con questi filtri</b>
          Togli un filtro o svuota la ricerca.</div>`}</div>`;
   contenitore = area;
   radice = area.querySelector('.crono');
@@ -299,7 +316,8 @@ function collega(r) {
 
   r.addEventListener('click', e => {
     colMemo = null;                     // il mouse ridefinisce la colonna
-    const cel = e.target?.closest?.('.cella');
+    const cel = e.target?.closest?.('.cella') ||
+      (TELEFONO.matches ? e.target?.closest?.('.riga-srv .q')?.querySelector('.cella') : null);
     if (cel) return apriPop(cel, ...cel.dataset.cella.split('-').map(Number));
     const pt = e.target?.closest?.('[data-piega]');
     if (pt) return piegaTutti(pt.dataset.piega === '1');
@@ -312,13 +330,29 @@ function collega(r) {
   r.addEventListener('keydown', e => {
     const cli = e.target?.closest?.('.riga-cli');
     if (cli && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return piega(cli); }
+    /* A11Y-10: il dettaglio del sito si apre anche da tastiera, come col clic
+       sul nome */
+    const nome = e.target?.closest?.('.riga-srv .srv-dest');
+    if (nome && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      return apriCassetto(Number(nome.closest('.riga-srv').dataset.srv));
+    }
     const cel = e.target?.closest?.('.cella');
     if (!cel) return;
     const [id, m] = cel.dataset.cella.split('-').map(Number);
     const i = '1234'.indexOf(e.key);
     if (i >= 0) {
+      /* col popover aperto sulla cella il tasto l'ha gia' usato lui (spunte.js,
+         in cattura sul documento): rifarlo qui lo annullava, due scritture per
+         niente e la spunta che non restava */
+      if (e.defaultPrevented) return;
       e.preventDefault();
-      return spunta(id, m, CAMPI[i], prossimo(id, m, CAMPI[i]));
+      /* come il clic nel popover e i tasti della vista Mese: un passo ereditato
+         (#ANCHOR: passi-cumulativi) si toglie da dove e' stato messo. Con
+         `spunta` diretto il tasto lo rimetteva anche qui, e la capsula non
+         cambiava a schermo */
+      toccaPasso(id, m, CAMPI[i]);
+      return;
     }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return apriPop(cel, id, m); }
     const dx = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && FRECCE[e.key];
@@ -490,6 +524,7 @@ function rinfrescaRiga(id) {
     const k = statoMappatura(s);
     punto.className = 'punto-stato ' + k;
     punto.title = titoloPunto(s, k);
+    punto.setAttribute('aria-label', punto.title);
   }
 }
 
@@ -522,18 +557,30 @@ function aggiornaTotali(id) {
     sez.classList.add('festa');
     sez.addEventListener('animationend', () => sez.classList.remove('festa'), { once: true });
   }
-  aggiornaRigaTotali();
+  rigaTotaliPresto();
+}
+
+/* I totali per mese guardano TUTTI i siti filtrati: rifarli a ogni cella voleva
+   dire, con una raffica di eventi (un collega che completa un cliente online:
+   Realtime manda una riga per passo), migliaia di giri completi uno dietro
+   l'altro. Si accumulano e se ne fa uno per frame; le righe e le carte dei
+   clienti restano immediate. */
+let totaliInCoda = false;
+function rigaTotaliPresto() {
+  if (totaliInCoda) return;
+  totaliInCoda = true;
+  requestAnimationFrame(() => { totaliInCoda = false; aggiornaRigaTotali(); });
 }
 
 /* Tiene al passo i totali per mese nell'intestazione durante le spunte in serie. */
 function aggiornaRigaTotali() {
   const tms = radice?.querySelectorAll('.crono-testa .tm');
   if (!tms?.length) return;
-  const gruppi = gruppiFiltrati({ ignoraStato: true });   // come in `disegna`
+  const totali = totaliMesi(gruppiFiltrati({ ignoraStato: true }));   // come in `disegna`
   for (let m = 1; m <= 12; m++) {
     const tm = tms[m - 1];
     if (!tm) continue;
-    const [fatte, tot] = totaliMese(gruppi, m);
+    const [fatte, tot] = totali[m - 1];
     tm.textContent = tot ? `${fatte}/${tot}` : '';
     tm.title = `${fatte} chiuse su ${tot} mappature che scadono in questo mese`;
     tm.classList.toggle('pieno', tot > 0 && fatte === tot);

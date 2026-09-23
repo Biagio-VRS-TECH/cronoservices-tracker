@@ -39,6 +39,7 @@ import * as nuvola from './nuvola.js';
 import { st, applica, mesePerStampa } from './stato.js';
 import { salvaDocumento } from './documenti.js';
 import { affinita, pesiParole } from './affinita.js';
+import { umano } from './ui.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -71,6 +72,71 @@ const PROFILI = {
 };
 
 const soloLettere = x => String(x || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+
+/** Le soglie, in sola lettura: servono ai test (tests/js/web-ponte.test.mjs). */
+export const SOGLIE = Object.freeze({ NETTA, PROBABILE, RIVALE, STACCO });
+
+/** Il GIUDIZIO sul file caricato, senza DOM e senza rete: e' la parte di
+ *  `riconosci` che decide, tirata fuori perche' si possa provare da sola.
+ *    domande    i testi con cui si riconosce (nome del file senza estensione,
+ *               titolo del foglio), gia' ripuliti e non vuoti
+ *    lista      i siti aperti dell'anno: {id, cli, cliente, dest, nome, ...}
+ *    pesi       rarita' delle parole (affinita.pesiParole), o null
+ *    collegato  il sito arrivato DAL TRACKER ({id, cliente}), o null
+ *  Ritorna {tono, testo, cand, collega, scollega}: `collega` e' la voce da
+ *  collegare da soli ('auto'), `scollega` dice di staccare il sito attuale. */
+export function giudicaFile(domande, lista, pesi = null, collegato = null) {
+  const punteggio = s => Math.max(...domande.map(d => Math.max(
+    affinita(d, s.nome, pesi), affinita(d, s.dest, pesi), affinita(d, s.cliente, pesi) * 0.92)));
+  const cand = lista.map(voce => ({ voce, affinita: punteggio(voce) }))
+    .filter(c => c.affinita >= PROBABILE)
+    .sort((a, b) => b.affinita - a.affinita)
+    .slice(0, 6);
+
+  // Gia' collegato dal tracker: il file dice un'altra cosa? Si avvisa, senza
+  // cambiare niente da soli - il sito arrivato dall'indirizzo l'ha scelto un
+  // umano nel tracker, non lo si scavalca. Ma avvisare vuol dire GUARDARE
+  // ANCHE GLI ALTRI: la domanda giusta non e' "il file somiglia abbastanza al
+  // sito collegato" (una soglia fissa), e' "somiglia a lui piu' che a
+  // chiunque altro". Caricando il registro di RIZZATO SPA con CASA DI RIPOSO
+  // UMBERTO I ancora collegato, "rizato" contro "riposo" vale per caso il
+  // 50% esatto: passava la soglia, l'esito restava verde e muto, e il PDF
+  // sarebbe finito sul sito di prima mentre RIZZATO stava al 100% due righe
+  // sotto (33a sessione).
+  if (collegato?.id) {
+    const mio = lista.find(s => s.id === collegato.id);
+    const a = mio ? punteggio(mio) : 0;
+    const pc = x => Math.round(x * 100) + '%';
+    const rivale = cand.find(c => c.voce.id !== collegato.id);
+    if (rivale && rivale.affinita >= a + STACCO) {
+      return { tono: 'dubbio', testo: `Il file “${domande[0]}” somiglia a ${rivale.voce.cliente} (${pc(rivale.affinita)}) piu’ che al sito collegato ${collegato.cliente} (${pc(a)}): controlla l’Excel, o cambia sito.`, cand };
+    }
+    if (a < PROBABILE) {
+      return { tono: 'dubbio', testo: `Il file “${domande[0]}” non somiglia a ${collegato.cliente}: controlla di aver caricato l’Excel giusto, o cambia sito.`, cand: cand.length ? cand : null };
+    }
+    return { tono: 'ok', testo: a >= NETTA ? 'Il file corrisponde al sito collegato.' : '', cand: null };
+  }
+
+  if (!cand.length) {
+    return { tono: 'nessuno', scollega: true, cand: null,
+      testo: `Nessun sito del tracker somiglia a “${domande[0]}”: il nome e’ sbagliato, o il sito non e’ in Access. Scegli a mano.` };
+  }
+  const sitiDelCliente = cli => lista.filter(s => s.cli === cli).length;
+  const primo = cand[0], secondo = cand[1];
+  // un rivale e' un altro cliente vicino al primo: alto in assoluto E senza un
+  // distacco netto dal primo (100% contro 79% non e' un dubbio)
+  const rivale = secondo && secondo.voce.cli !== primo.voce.cli &&
+    secondo.affinita >= RIVALE && secondo.affinita >= primo.affinita - 0.12;
+  if (primo.affinita >= NETTA && !rivale && sitiDelCliente(primo.voce.cli) === 1) {
+    return { tono: 'ok', collega: primo.voce, cand: null,
+      testo: `Riconosciuto dal file (${Math.round(primo.affinita * 100)}%).` };
+  }
+  return { tono: 'lista', scollega: true, cand,
+    testo: primo.affinita >= NETTA && sitiDelCliente(primo.voce.cli) > 1
+      ? `${primo.voce.cliente} ha piu’ siti: quale e’ questo?`
+      : primo.affinita >= NETTA ? 'Somiglia anche ad altri siti: conferma quello giusto.'
+      : 'Somiglia a questi siti: scegli quello giusto.' };
+}
 
 /**
  * Avvia il ponte. `cfg`:
@@ -114,14 +180,22 @@ export function avviaPonte(cfg = {}) {
   let aggiorna = () => { };   // lo riscrive guarda(); prima non fa niente
   let rimisura = () => { };   // idem: rimisura la pillola al fotogramma dopo
   let ultimoFile = '';        // il testo con cui si e' riconosciuto (nome file / titolo)
+  let giro = 0;               // quale riconoscimento vale: l'ultimo (vedi riconosci)
   let esitoCorrente = null;   // {tono, testo, cand}
 
   /* tema: niente da fare qui. I generatori leggono la stessa chiave del tracker
      (`cs.tema`, #ANCHOR: tema-unico in js/app.js) nel loro script di testa. */
 
   /* --------------------------------------------------------------- i siti -- */
-  async function caricaSiti() {
-    if (siti) return siti;
+  /* Una richiesta sola anche se la chiedono in tre insieme (l'avvio, il fuoco
+     sulla casella, il primo file): prima partivano tre bootstrap interi e tre
+     `applica`. Se fallisce si dimentica, e il prossimo ci riprova. */
+  let sitiInArrivo = null;
+  function caricaSiti() {
+    if (siti) return Promise.resolve(siti);
+    return sitiInArrivo ||= scaricaSiti().finally(() => { sitiInArrivo = null; });
+  }
+  async function scaricaSiti() {
     const { ok, dati } = await chiama('/api/bootstrap?anno=' + ctx.anno);
     if (!ok) throw new Error(dati?.errore || 'elenco dei siti non disponibile');
     applica(dati);
@@ -140,7 +214,6 @@ export function avviaPonte(cfg = {}) {
       { value: `${s.cliente} · ${s.dest} · #${s.id}` })));
     return siti;
   }
-  const sitiDelCliente = cli => siti.filter(s => s.cli === cli).length;
 
   /* Il titolo del documento quando il sito e' noto: e' il nome sotto cui il PDF
      verra' archiviato, quindi vale piu' di come qualcuno ha battezzato l'Excel.
@@ -151,7 +224,7 @@ export function avviaPonte(cfg = {}) {
   function titoloSito() {
     if (!ctx.id) return '';
     const cli = (ctx.cliente || '').trim(), dest = (ctx.sito || '').trim();
-    if (!cli || !dest) return cli || dest || ('service #' + ctx.id);
+    if (!cli || !dest) return cli || dest || ('sito #' + ctx.id);
     const a = soloLettere(cli), b = soloLettere(dest);
     if (a.includes(b) || b.includes(a)) return a.length >= b.length ? cli : dest;
     return cli + ' – ' + dest;
@@ -183,64 +256,27 @@ export function avviaPonte(cfg = {}) {
     const domande = [nomeFile, titolo].map(x => String(x || '').replace(/\.[^.]+$/, '').trim()).filter(Boolean);
     if (!domande.length) return;
     ultimoFile = domande.join(' / ');
+    /* Il primo file dopo l'apertura aspetta l'elenco dei siti dalla rete: se
+       intanto il file e' stato tolto o sostituito, il giudizio arrivato tardi
+       parlerebbe di un file che non c'e' piu' (e scollegherebbe il sito
+       giusto del file nuovo). Vale l'ultimo giro. */
+    const mio = ++giro;
     let lista;
-    try { lista = await caricaSiti(); } catch (e) { return esito('errore', e.message); }
+    try { lista = await caricaSiti(); } catch (e) { return mio === giro ? esito('errore', umano(e.message).testo) : undefined; }
+    if (mio !== giro) return;
 
-    const punteggio = s => Math.max(...domande.map(d => Math.max(
-      affinita(d, s.nome, pesi), affinita(d, s.dest, pesi), affinita(d, s.cliente, pesi) * 0.92)));
-    const cand = lista.map(voce => ({ voce, affinita: punteggio(voce) }))
-      .filter(c => c.affinita >= PROBABILE)
-      .sort((a, b) => b.affinita - a.affinita)
-      .slice(0, 6);
-
-    // Gia' collegato dal tracker: il file dice un'altra cosa? Si avvisa, senza
-    // cambiare niente da soli - il sito arrivato dall'indirizzo l'ha scelto un
-    // umano nel tracker, non lo si scavalca. Ma avvisare vuol dire GUARDARE
-    // ANCHE GLI ALTRI: la domanda giusta non e' "il file somiglia abbastanza al
-    // sito collegato" (una soglia fissa), e' "somiglia a lui piu' che a
-    // chiunque altro". Caricando il registro di RIZZATO SPA con CASA DI RIPOSO
-    // UMBERTO I ancora collegato, "rizato" contro "riposo" vale per caso il
-    // 50% esatto: passava la soglia, l'esito restava verde e muto, e il PDF
-    // sarebbe finito sul sito di prima mentre RIZZATO stava al 100% due righe
-    // sotto (33a sessione).
-    if (ctx.id && ctx.origine === 'tracker') {
-      const mio = lista.find(s => s.id === ctx.id);
-      const a = mio ? punteggio(mio) : 0;
-      const pc = x => Math.round(x * 100) + '%';
-      const rivale = cand.find(c => c.voce.id !== ctx.id);
-      if (rivale && rivale.affinita >= a + STACCO) {
-        return esito('dubbio', `Il file “${domande[0]}” somiglia a ${rivale.voce.cliente} (${pc(rivale.affinita)}) piu’ che al sito collegato ${ctx.cliente} (${pc(a)}): controlla l’Excel, o cambia sito.`, cand);
-      }
-      if (a < PROBABILE) {
-        return esito('dubbio', `Il file “${domande[0]}” non somiglia a ${ctx.cliente}: controlla di aver caricato l’Excel giusto, o cambia sito.`, cand.length ? cand : null);
-      }
-      return esito('ok', a >= NETTA ? 'Il file corrisponde al sito collegato.' : '');
-    }
-
-    if (!cand.length) {
-      scollega();
-      return esito('nessuno', `Nessun sito del tracker somiglia a “${domande[0]}”: il nome e’ sbagliato, o il sito non e’ in Access. Scegli a mano.`);
-    }
-    const primo = cand[0], secondo = cand[1];
-    // un rivale e' un altro cliente vicino al primo: alto in assoluto E senza un
-    // distacco netto dal primo (100% contro 79% non e' un dubbio)
-    const rivale = secondo && secondo.voce.cli !== primo.voce.cli &&
-      secondo.affinita >= RIVALE && secondo.affinita >= primo.affinita - 0.12;
-    if (primo.affinita >= NETTA && !rivale && sitiDelCliente(primo.voce.cli) === 1) {
-      collega(primo.voce, 'auto');
-      return esito('ok', `Riconosciuto dal file (${Math.round(primo.affinita * 100)}%).`);
-    }
-    scollega();
-    esito('lista', primo.affinita >= NETTA && sitiDelCliente(primo.voce.cli) > 1
-      ? `${primo.voce.cliente} ha piu’ siti: quale e’ questo?`
-      : primo.affinita >= NETTA ? 'Somiglia anche ad altri siti: conferma quello giusto.'
-      : 'Somiglia a questi siti: scegli quello giusto.', cand);
+    const g = giudicaFile(domande, lista, pesi,
+      ctx.id && ctx.origine === 'tracker' ? { id: ctx.id, cliente: ctx.cliente } : null);
+    if (g.collega) collega(g.collega, 'auto');
+    else if (g.scollega) scollega();
+    esito(g.tono, g.testo, g.cand || null);
   }
 
   /** Il generatore ha tolto il file: si torna al punto di partenza, salvo che
    *  il sito fosse arrivato dal tracker (quello resta). */
   function fileTolto() {
     ultimoFile = '';
+    giro++;                   // un riconoscimento ancora in volo non vale piu'
     /* l'avviso parlava del file appena tolto: se ne va con lui, anche quando il
        sito resta (quello del tracker non si stacca da solo). */
     esitoCorrente = null;
@@ -291,7 +327,7 @@ export function avviaPonte(cfg = {}) {
     $('#ponteCerca').hidden = conSito;
     $('#ponteCambia').hidden = !conSito;
     if (conSito) {
-      $('#ponteCliente').textContent = ctx.cliente || ('service #' + ctx.id);
+      $('#ponteCliente').textContent = ctx.cliente || ('sito #' + ctx.id);
       $('#ponteMeta').innerHTML = metaSito();
       const come = $('#ponteCome');
       come.textContent = { tracker: 'dal tracker', auto: 'riconosciuto dal file',
@@ -361,7 +397,7 @@ export function avviaPonte(cfg = {}) {
     };
 
     const inp = $('#ponteQ');
-    inp.addEventListener('focus', () => caricaSiti().catch(e => esito('errore', e.message)));
+    inp.addEventListener('focus', () => caricaSiti().catch(e => esito('errore', umano(e.message).testo)));
     inp.addEventListener('change', async () => {
       const m = /#(\d+)\s*$/.exec(inp.value);
       const lista = await caricaSiti().catch(() => []);
@@ -697,7 +733,7 @@ export function avviaPonte(cfg = {}) {
           ? `Interrotto: consegnati ${consegnati} fascicoli su ${N}, gli altri no.`
           : (N ? 'Interrotto: PDF pronto ma non consegnato.' : 'Interrotto: nessun PDF prodotto.'));
       } else {
-        esito('errore', 'Non salvato: ' + (e?.message || e));
+        esito('errore', umano('Non salvato: ' + (e?.message || e)).testo);
       }
     } finally {
       inCorso = false; annulla = false;

@@ -42,7 +42,7 @@ button { background: none; border: 0; cursor: pointer; }
 .banner span { opacity: .92; }
 .banner button {
   margin-left: auto; color: inherit; font-weight: 600; padding: 4px 11px;
-  border-radius: var(--r-tonda);
+  border-radius: var(--r-1);
   background: color-mix(in srgb, currentColor 20%, transparent);
 }
 .banner button:hover { background: color-mix(in srgb, currentColor 32%, transparent); }
@@ -55,30 +55,23 @@ button { background: none; border: 0; cursor: pointer; }
 .banner a:hover { background: color-mix(in srgb, currentColor 34%, transparent); }
 
 /* ---------------------------------------------------------- intestazione -- */
-/* La testa e' di vetro, ma con una mano piu' fine: il gradiente di superficie,
-   un filo di luce interno sul bordo alto e un bordo basso a bassa opacita'
-   raddoppiato da un'ombra cortissima. Non un pannello, un vetro appoggiato. */
+/* D2 / VIS-03: la testa e' piatta, sul colore del fondo (lo stesso del
+   theme-color, VIS-21), con un bordo solo. Le aree sicure (MOB-17) tengono i
+   comandi fuori dalla tacca e dagli angoli arrotondati quando l'app e'
+   installata a tutto schermo (viewport-fit=cover). */
 .testa {
   position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; gap: 18px;
-  padding: 10px 18px; min-height: 62px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--superficie) 94%, transparent),
-    color-mix(in srgb, var(--superficie) 72%, transparent));
-  backdrop-filter: saturate(1.7) blur(18px);
-  border-bottom: 1px solid var(--bordo-lieve);
-  box-shadow: inset 0 1px 0 var(--lucido), 0 1px 0 color-mix(in srgb, var(--inchiostro) 4%, transparent);
-}
-/* il filo di platino sul bordo basso della testa: si accende al centro e si
-   spegne ai lati, come la costa di un oggetto lucido */
-.testa::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-  background: var(--filo-platino); pointer-events: none;
+  padding: calc(10px + env(safe-area-inset-top, 0px))
+           max(18px, env(safe-area-inset-right, 0px)) 10px max(18px, env(safe-area-inset-left, 0px));
+  min-height: calc(62px + env(safe-area-inset-top, 0px));
+  background: var(--fondo);
+  border-bottom: 1px solid var(--bordo);
 }
 .marca { display: flex; align-items: center; gap: 11px; min-width: 0; flex: none; }
 .marca img, .marca svg { height: 26px; width: auto; display: block; }
 .marca-testo { display: flex; flex-direction: column; line-height: 1.05; }
-/* Il nome dell'applicazione e' scritto, non etichettato: display serif, peso
+/* Il nome dell'applicazione e' scritto, non etichettato: Inter 600, peso
    medio, tracking appena negativo. E' la prima cosa che dice "VRS". */
 .marca-testo b {
   font-family: var(--f-display); font-weight: var(--p-display);
@@ -87,7 +80,7 @@ button { background: none; border: 0; cursor: pointer; }
 .marca-testo span { font-size: var(--t-micro); color: var(--tenue); letter-spacing: .11em;
   text-transform: uppercase; font-family: var(--f-dato); font-weight: 500; margin-top: 2px; }
 
-/* L'anno e' l'elemento display della pagina: grande, in Newsreader, compresso.
+/* L'anno e' l'elemento display della pagina: grande, in Inter 600, compresso.
    Il monospazio resta ai dati dentro le viste; qui l'anno e' un titolo. */
 .anno-scelta { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
 .anno-scelta .anno {
@@ -99,7 +92,7 @@ button { background: none; border: 0; cursor: pointer; }
 .anno-scelta .anno.caricando { opacity: .45; transform: translateY(-3px); }
 .frecc {
   width: 28px; height: 28px; border-radius: var(--r-1); color: var(--tenue);
-  display: grid; place-items: center; transition: var(--rapido);
+  display: grid; place-items: center; transition: var(--transizione);
 }
 .frecc:hover { background: var(--marchio-tenue); color: var(--marchio-scuro); }
 .frecc:active { transform: scale(.92); }
@@ -115,31 +108,31 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .cerca input {
   width: clamp(160px, 24vw, 320px); padding: 7px 30px 7px 32px;
-  /* un incavo nel vetro della testa, non un riquadro appoggiato sopra */
-  background: var(--pista-fondo); border: 1px solid transparent;
-  box-shadow: var(--pista-incavo);
-  border-radius: var(--r-tonda); transition: var(--rapido), width var(--medio);
+  background: var(--superficie); border: 1px solid var(--bordo);
+  /* VIS-14: un campo, non una pillola. La larghezza cambia al fuoco senza
+     animazione (mai animare `width`). */
+  border-radius: var(--r-2); transition: var(--transizione);
 }
 /* a fuoco il campo si allarga: e' il gesto che dice "adesso si cerca" */
 .cerca input:focus { width: clamp(220px, 30vw, 400px); }
 .cerca input::-webkit-search-cancel-button { display: none; }
-.cerca input:hover { border-color: var(--bordo); }
+.cerca input:hover { border-color: var(--bordo-forte); }
 .cerca input:focus { background: var(--superficie); border-color: var(--marchio); outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
 .cerca-x {
   position: absolute; right: 5px; top: 50%; translate: 0 -50%;
   width: 24px; height: 24px; border-radius: var(--r-tonda);
   display: grid; place-items: center; font-size: 15px; line-height: 1;
-  color: var(--tenue); transition: var(--rapido);
+  color: var(--tenue); transition: var(--transizione);
 }
 .cerca-x:hover { background: var(--bordo); color: var(--inchiostro); }
 
 /* stato del collegamento: spia + chi c'e' + etichetta, tutto cliccabile */
 .stato-coll {
   display: flex; align-items: center; gap: 8px; padding: 5px 11px;
-  border: 1px solid var(--bordo-lieve); border-radius: var(--r-tonda);
-  background: var(--vetro-fondo); box-shadow: inset 0 1px 0 var(--lucido);
-  font-size: var(--t-mini); color: var(--inchiostro-2); transition: var(--rapido);
+  border: 1px solid var(--bordo); border-radius: var(--r-2);
+  background: var(--superficie);
+  font-size: var(--t-mini); color: var(--inchiostro-2); transition: var(--transizione);
   white-space: nowrap;
 }
 .stato-coll:hover { border-color: var(--bordo-forte); background: var(--superficie-2); }
@@ -158,7 +151,7 @@ button { background: none; border: 0; cursor: pointer; }
 }
 .pallino:first-child { margin-left: 0; }
 .io { display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 4px;
-  border-radius: var(--r-tonda); transition: var(--rapido); }
+  border-radius: var(--r-tonda); transition: var(--transizione); }
 .io:hover { background: var(--fondo); }
 .io b { font-weight: 500; font-size: var(--t-mini); }
 /* il ruolo accanto al nome (#ANCHOR: ruoli): c'e' per l'amministratore e per
@@ -189,31 +182,30 @@ button { background: none; border: 0; cursor: pointer; }
 
 /* ------------------------------------------------------- barra strumenti -- */
 .strumenti {
-  position: sticky; top: 62px; z-index: 35;
+  position: sticky; top: calc(62px + env(safe-area-inset-top, 0px)); z-index: 35;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 18px; background: var(--vetro-fondo); border-bottom: 1px solid var(--bordo-lieve);
+  padding: 8px max(18px, env(safe-area-inset-right, 0px)) 8px max(18px, env(safe-area-inset-left, 0px));
+  background: var(--fondo); border-bottom: 1px solid var(--bordo);
 }
 /* I comandi segmentati (viste, stato) sono un VASSOIO incavato con dentro una
    posizione d'INCHIOSTRO: il pieno scuro col filo di luce e' l'unica cosa in
    rilievo della barra, e dice da lontano dove si e'. Il trattino cyan che
    c'era sotto l'etichetta non serve piu'. */
+/* VIS-14: il vassoio ha il raggio dei campi (10) e le posizioni quello di un
+   grado sotto (6), cosi' le curve restano concentriche. La posizione scelta e'
+   l'accento pieno, piatta (D2). */
 .gruppo {
-  display: flex; background: var(--pista-fondo); border-radius: var(--r-tonda); padding: 3px; gap: 2px;
-  box-shadow: var(--pista-incavo);
+  display: flex; background: var(--pista-fondo); border-radius: var(--r-2); padding: 3px; gap: 2px;
 }
 .gruppo button {
-  padding: 5px 13px; border-radius: var(--r-tonda); font-size: var(--t-mini); font-weight: 500;
-  color: var(--tenue); transition: var(--rapido); white-space: nowrap;
+  padding: 5px 13px; border-radius: var(--r-1); font-size: var(--t-mini); font-weight: 500;
+  color: var(--tenue); transition: var(--transizione); white-space: nowrap;
 }
-.gruppo button:hover { color: var(--inchiostro); }
-.gruppo button:active { transform: translateY(.5px); }
+.gruppo button:hover { color: var(--inchiostro); background: color-mix(in srgb, var(--superficie) 70%, transparent); }
 .gruppo button[aria-pressed="true"], .gruppo button[aria-pressed="true"]:hover {
   background: var(--btn-fondo); color: var(--btn-testo); font-weight: 600;
-  box-shadow: var(--btn-lucido), var(--btn-ombra);
-  animation: premi var(--medio) both;
+  box-shadow: var(--btn-ombra);
 }
-/* la posizione appena scelta si assesta: parte un soffio piu' piccola */
-@keyframes premi { from { transform: scale(.93); } }
 .sep { width: 1px; height: 20px; background: var(--bordo); margin: 0 4px; }
 
 /* Il filtro di stato e' un segmented control come le viste, ma ogni posizione
@@ -233,19 +225,16 @@ button { background: none; border: 0; cursor: pointer; }
 .gruppo.stati button[data-stato="ritardo"][aria-pressed="true"] .n {
   color: color-mix(in srgb, var(--allerta) 55%, var(--btn-testo)); }
 
-/* Le pillole dei filtri sono di VETRO: superficie sfumata di un soffio, filo a
-   bassa opacita', un riflesso di 1px sul bordo alto. Al passaggio si alzano
-   di mezzo pixel e prendono l'ombra di contatto. */
+/* Le pillole dei comandi sono piatte (D2): superficie, bordo, niente riflesso.
+   Al passaggio cambia solo il bordo, non si spostano (VIS-13). */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: var(--r-tonda); border: 1px solid var(--bordo-lieve);
+  padding: 5px 12px; border-radius: var(--r-2); border: 1px solid var(--bordo);
   background: var(--vetro-fondo); font-size: var(--t-mini); font-weight: 500;
-  color: var(--inchiostro-2); transition: var(--rapido); white-space: nowrap;
-  box-shadow: inset 0 1px 0 var(--lucido), 0 1px 1px rgba(16,20,26,.04);
+  color: var(--inchiostro-2); transition: var(--transizione); white-space: nowrap;
 }
-.pill:hover { border-color: var(--bordo-forte); background: var(--superficie); color: var(--inchiostro);
-  box-shadow: inset 0 1px 0 var(--lucido), var(--ombra-1); transform: translateY(-.5px); }
-.pill:active { transform: translateY(.5px); box-shadow: none; }
+.pill:hover { border-color: var(--bordo-forte); background: var(--superficie); color: var(--inchiostro); }
+.pill:active { background: var(--superficie-2); }
 .pill[aria-pressed="true"] {
   background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
   color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
@@ -259,7 +248,7 @@ button { background: none; border: 0; cursor: pointer; }
   background: var(--marchio-tenue); border-color: color-mix(in srgb, var(--marchio) 40%, transparent);
   border-style: solid; color: var(--marchio-scuro); box-shadow: var(--alone-marchio);
 }
-.pill.mini { padding: 3px 9px; min-height: 24px; font-size: var(--t-micro); }
+.pill.mini { padding: 3px 9px; min-height: 24px; font-size: var(--t-micro); border-radius: var(--r-1); }
 /* la tendina resta una pillola, ma con la freccina: senza, sembrava un'etichetta */
 select.pill {
   padding-right: 22px; appearance: none; cursor: pointer;
@@ -275,6 +264,9 @@ select.pill {
 .spia { width: 7px; height: 7px; border-radius: var(--r-tonda); background: var(--accento); flex: none; }
 .spia.giu  { background: var(--allerta); }
 .spia.coda { background: var(--marchio); animation: pulsa 1.4s infinite; }
+/* collegati, ma l'anagrafica di Access e' ferma da oltre 26 ore: ambra come
+   "giu'", ma ad anello, perche' la forma dica che la rete invece c'e' */
+.spia.vecchia { background: transparent; box-shadow: inset 0 0 0 2px var(--allerta); }
 @keyframes pulsa { 50% { opacity: .25; } }
 
 /* --------------------------------------------------------- linea di stato -- */
@@ -286,24 +278,14 @@ select.pill {
   position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
   background: var(--pista-fondo); overflow: hidden; z-index: 1;
 }
+/* MOV-08: la barra e' larga quanto la pista e scorre con `transform` (niente
+   `width` animato): translateX(-58%) lascia vedere il 42%. Il riflesso infinito
+   che la attraversava ogni 7 s non c'e' piu' (VIS-13). */
 .filo i {
-  display: block; height: 100%; width: var(--w, 0);
+  display: block; height: 100%; width: 100%;
   background: var(--filo); border-radius: 0 var(--r-tonda) var(--r-tonda) 0;
-  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--completa) 45%, transparent);
-  transition: width 900ms var(--molla);
-  position: relative;
-}
-/* Un riflesso che passa lento sulla parte fatta: e' l'unico movimento
-   permanente dell'interfaccia, ed e' li' per dire "questo dato e' vivo". */
-.filo i::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
-  transform: translateX(-100%);
-  animation: riflesso 7s var(--molla) infinite;
-}
-@keyframes riflesso {
-  0%, 55% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  transform: translateX(calc(var(--w, 0%) - 100%));
+  transition: transform 700ms var(--molla);
 }
 
 /* ------------------------------------------------------------- riepilogo -- */
@@ -318,7 +300,7 @@ select.pill {
 /* Le voci che sono anche un filtro ("17/267 complete", "236 in ritardo"): il
    numero E' il bottone. Si annuncia con un sottolineato tratteggiato tenue,
    non con un bordo: nella testa quattro bottoni pieni erano rumore. */
-.riepilogo .voce.scelta { cursor: pointer; border-radius: var(--r-1); transition: var(--rapido); }
+.riepilogo .voce.scelta { cursor: pointer; border-radius: var(--r-1); transition: var(--transizione); }
 .riepilogo .voce.scelta .et { border-bottom: 1px dashed var(--bordo-forte); }
 .riepilogo .voce.scelta:hover { background: none; }
 .riepilogo .voce.scelta:hover .n { color: var(--marchio-scuro); }
@@ -341,15 +323,15 @@ select.pill {
 
 /* ------------------------------------------------------------- notifiche -- */
 .avvisi {
-  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
   z-index: 90; display: flex; flex-direction: column-reverse; gap: 8px; align-items: center;
   pointer-events: none;
 }
 .avviso {
   pointer-events: auto; display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px 10px 15px; border-radius: var(--r-tonda);
+  padding: 10px 12px 10px 15px; border-radius: var(--r-3);
   background: var(--inchiostro); color: var(--fondo);
-  box-shadow: var(--ombra-3), inset 0 1px 0 rgba(255,255,255,.09);
+  box-shadow: var(--ombra-3);
   font-size: var(--t-mini); max-width: 92vw;
   animation: sali var(--medio) both;
 }
@@ -357,7 +339,7 @@ select.pill {
 .avviso.esce { animation: scendi 160ms ease-in both; }
 @keyframes scendi { to { opacity: 0; transform: translateY(6px) scale(.98); } }
 .avviso button {
-  color: inherit; font-weight: 600; padding: 3px 9px; border-radius: var(--r-tonda);
+  color: inherit; font-weight: 600; padding: 3px 9px; border-radius: var(--r-1);
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
 .avviso.allerta { background: var(--allerta); color: var(--su-allerta); }
@@ -366,23 +348,25 @@ select.pill {
 /* ---------------------------------------------------------------- modale -- */
 .velo {
   position: fixed; inset: 0; z-index: 80;
-  background: color-mix(in srgb, var(--inchiostro) 46%, transparent);
-  backdrop-filter: blur(4px) saturate(1.1); display: grid; place-items: center; padding: 20px;
+  /* VIS-10: un velo scuro in tutti e due i temi (l'inchiostro al buio e'
+     avorio, e il velo diventava grigio chiaro). Piatto, senza sfocatura. */
+  background: var(--velo-modale);
+  display: grid; place-items: center; padding: 20px;
+  /* MOB-17: le finestre stanno dentro le aree sicure (tacca, barra dei gesti) */
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+           max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  overscroll-behavior: contain;
   animation: sfuma var(--rapido) both;
 }
 @keyframes sfuma { from { opacity: 0; } }
 .foglio {
   position: relative;
   background: var(--superficie); border-radius: var(--r-3);
-  box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
-  border: 1px solid var(--bordo-lieve);
+  box-shadow: var(--ombra-3);
+  border: 1px solid var(--bordo);
   width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 24px;
+  overscroll-behavior: contain;
   animation: entra var(--medio) both;
-}
-/* il filo di platino sul bordo alto del foglio, come sulla testa dell'app */
-.foglio::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
-  background: var(--filo-platino); pointer-events: none;
 }
 @keyframes entra { from { opacity: 0; transform: translateY(12px) scale(.98); } }
 /* Foglio grande, per gli elenchi che non stanno in 520px: l'elenco per sito
@@ -399,36 +383,25 @@ select.pill {
   font-size: 24px; line-height: 1.15; letter-spacing: var(--tr-display);
 }
 .foglio p.sotto { margin: 0 0 18px; color: var(--tenue); }
-.campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo-lieve);
-  border-radius: var(--r-2); background: var(--pista-fondo); box-shadow: var(--pista-incavo);
-  transition: var(--rapido); }
+.campo { width: 100%; padding: 10px 12px; border: 1px solid var(--bordo);
+  border-radius: var(--r-2); background: var(--superficie);
+  transition: var(--transizione); }
 .campo:hover { border-color: var(--bordo-forte); }
 .campo:focus { outline: none; border-color: var(--marchio); background: var(--superficie);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marchio) 16%, transparent); }
-/* Il bottone primario e' d'INCHIOSTRO (avorio in tema scuro): il pieno scuro
-   col filo di luce sul bordo alto e l'ombra corta. Il cyan non e' piu' un
-   bottone: resta il segnale. Al passaggio si alza di un pixel. */
+/* Il bottone primario e' l'accento pieno di famiglia (D2), piatto: niente
+   gradiente, niente lampo, e al passaggio non si sposta (VIS-13). Alto 40 px,
+   44 sul tocco (MOB-09). */
 .bottone {
-  padding: 9px 18px; border-radius: var(--r-2);
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; padding: 9px 18px; border-radius: var(--r-2);
   background: var(--btn-fondo); color: var(--btn-testo);
-  font-weight: 600; font-size: var(--t-mini); letter-spacing: .01em; transition: var(--rapido);
-  box-shadow: var(--btn-lucido), var(--btn-ombra);
+  font-weight: 600; font-size: var(--t-base); letter-spacing: .01em; transition: var(--transizione);
+  box-shadow: var(--btn-ombra);
 }
-.bottone:hover { background: var(--btn-fondo-hover);
-  box-shadow: var(--btn-lucido), var(--ombra-2); transform: translateY(-1px); }
-.bottone:active { transform: translateY(0); box-shadow: var(--btn-lucido); }
-/* il lampo: una striscia di luce inclinata che attraversa il bottone al
-   passaggio, una volta sola. Sta in un ::after assoluto, quindi non tocca
-   testo e icone. */
-.bottone { position: relative; overflow: hidden; }
-.bottone::after {
-  content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 34%;
-  background: linear-gradient(100deg, transparent, var(--lampo), transparent);
-  transform: skewX(-18deg) translateX(-160%); pointer-events: none;
-}
-.bottone:hover::after { animation: lampo .75s var(--molla) both; }
-.bottone.piatto::after, .bottone:disabled::after { display: none; }
-@keyframes lampo { to { transform: skewX(-18deg) translateX(420%); } }
+.bottone:hover { background: var(--btn-fondo-hover); }
+.bottone:active { box-shadow: none; }
 .bottone.piatto { background: none; color: var(--tenue); box-shadow: none; }
 .bottone.piatto:hover { background: var(--fondo); color: var(--inchiostro); }
 /* Il bottone di un'azione che non si disfa: colore d'allerta, non di marchio. */
@@ -446,17 +419,17 @@ select.pill {
 .tendina {
   position: fixed; z-index: 78; min-width: 252px; padding: 6px;
   background: var(--superficie); border: 1px solid var(--bordo-lieve);
-  border-radius: var(--r-3); box-shadow: var(--ombra-3), inset 0 1px 0 var(--lucido);
+  border-radius: var(--r-3); box-shadow: var(--ombra-3);
   animation: entra 160ms var(--molla) both;
 }
 .voce {
   display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
   padding: 8px 11px; border-radius: var(--r-2); font-size: var(--t-mini);
-  transition: var(--rapido);
+  transition: var(--transizione);
 }
 .voce:hover { background: var(--marchio-tenue); color: var(--marchio-scuro); }
 .voce:hover .voce-ico { color: var(--marchio-scuro); }
-.voce-ico { display: flex; width: 14px; color: var(--tenue); flex: none; transition: var(--rapido); }
+.voce-ico { display: flex; width: 14px; color: var(--tenue); flex: none; transition: var(--transizione); }
 .voce-et { flex: 1; }
 /* la nota a destra spiega la voce: e' prosa, quindi resta in Inter */
 .voce-nota { font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
@@ -526,10 +499,14 @@ code.lan {
   border-left: 1px solid var(--bordo-lieve); box-shadow: var(--ombra-3);
   display: flex; flex-direction: column;
   animation: scorri var(--medio) both;
+  /* MOB-17: a tutta altezza sul telefono installato (viewport-fit=cover) il
+     pannello non finisce sotto la tacca in alto ne' sotto la barra dei gesti */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) 0;
 }
 @keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
 .cassetto header { padding: 20px 22px 15px; border-bottom: 1px solid var(--bordo-lieve);
-  background: linear-gradient(180deg, var(--superficie-2), var(--superficie)); }
+  background: var(--superficie); position: relative; /* la X segue l'area sicura */ }
 
 /* ---- Possibili doppioni (Azioni): coppie di nomi che si somigliano ---- */
 .dop-titolo { margin: 18px 0 8px; font-size: var(--t-mini); font-weight: 600; color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; }
@@ -548,6 +525,31 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
 .dop-voce .dato { font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
 .dop-voce span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ---- Cestino dei PDF (Azioni, SEC-05): un file per riga, Rimetti / Elimina ---- */
+.cestino { margin: 0 0 14px; }
+.cestino:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; border-radius: var(--r-2); }
+.cestino-vuoto { margin: 0; color: var(--tenue); font-size: var(--t-mini); }
+.cestino-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+  max-height: 52vh; overflow: auto; overscroll-behavior: contain; }
+.cestino-riga { display: flex; gap: 12px; align-items: center; padding: 8px 10px;
+  border: 1px solid var(--bordo); border-radius: var(--r-2); background: var(--superficie-2); }
+.cestino-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cestino-nome { font-size: var(--t-mini); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cestino-meta { color: var(--tenue); font-size: var(--t-micro); overflow-wrap: anywhere; }
+.cestino-azioni { display: flex; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+/* l'ambra scurita, come .pill.attesa: quella pura sul bianco non basta al testo */
+.pill.cestino-via { color: color-mix(in srgb, var(--allerta) 82%, var(--inchiostro)); }
+.pill.cestino-via:hover { color: var(--allerta); border-color: var(--allerta); background: var(--allerta-tenue); }
+.cestino-fondo { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.cestino-piede { margin: 0; color: var(--tenue); font-size: var(--t-mini); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .cestino-riga { flex-direction: column; align-items: stretch; }
+  .cestino-azioni { justify-content: flex-start; }
+}
+@media (pointer: coarse) {
+  .cestino-azioni .pill.mini { min-height: 44px; padding-inline: 14px; }
+}
+
 /* ---- Schede tecnici: l'icona del PDF accanto al nome del sito ---------------
    Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,
    non verde: dice "c'e' il documento", non "e' a posto". #ANCHOR: documenti */
@@ -556,12 +558,11 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   padding: 0 6px; border: 1px solid color-mix(in srgb, var(--marchio) 22%, transparent);
   border-radius: var(--r-1); cursor: pointer;
   color: var(--marchio-scuro); background: var(--marchio-tenue);
-  font: 600 var(--t-micro)/1 var(--f-dato); transition: var(--rapido);
+  font: 600 var(--t-micro)/1 var(--f-dato); transition: var(--transizione);
 }
 .doc-chip:hover, .doc-chip:focus-visible { box-shadow: var(--alone-marchio); outline: 0;
   border-color: color-mix(in srgb, var(--marchio) 55%, transparent);
-  background: color-mix(in srgb, var(--marchio) 20%, var(--superficie));
-  transform: translateY(-1px); }
+  background: color-mix(in srgb, var(--marchio) 20%, var(--superficie)); }
 .doc-chip i { font-style: normal; padding-left: 1px; }
 .doc-chips { display: inline-flex; align-items: center; gap: 4px; flex: none; }
 .doc-chips.vuoto { display: none; }
@@ -599,7 +600,7 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
    bordo, ombra profonda, il nome sotto in monospazio. */
 .doc-anteprima {
   position: fixed; z-index: 120; pointer-events: none; opacity: 0;
-  transform: translateY(-6px) scale(.97); transition: var(--rapido);
+  transform: translateY(-6px) scale(.97); transition: var(--transizione);
   background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-2);
   box-shadow: var(--ombra-3); padding: 7px; width: 166px;
   display: flex; flex-direction: column; gap: 6px;
@@ -647,7 +648,7 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
     color-mix(in srgb, var(--fondo) 88%, var(--bordo-forte)) 0 50%, transparent 50%);
   box-shadow: -1px 1px 0 color-mix(in srgb, var(--bordo-forte) 70%, transparent);
 }
-.doc-mini:hover { transform: translateY(-2px); border-color: var(--marchio);
+.doc-mini:hover { border-color: var(--marchio);
   box-shadow: var(--ombra-2), var(--alone-marchio); }
 .doc-mini img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
 .doc-info { min-width: 0; font-size: var(--t-mini); }
@@ -671,7 +672,7 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   border-radius: var(--r-tonda); color: var(--tenue); display: grid; place-items: center; }
 .chiudi:hover { background: var(--fondo); color: var(--inchiostro); }
 
-/* Il nome del cliente in testa al cassetto e' un titolo, quindi display serif
+/* Il nome del cliente in testa al cassetto e' un titolo, quindi Inter 600
    (la misura e il tracking arrivano dallo stile in linea di cassetto.js). */
 .cassetto header h2 { font-family: var(--f-display); font-weight: var(--p-display); line-height: 1.15; }
 /* La scheda dei dati si legge come un listino: etichetta tecnica a sinistra in
@@ -700,6 +701,49 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   .strumenti { top: auto; position: relative; }
 }
 
+/* ------------------------------------------------------------ telefono -- */
+/* VIS-25: sul telefono CronoService non e' il computer rimpicciolito (contratto
+   in planning/docs/telefono.md). Prima la testa andava su tre righe e la barra
+   su quattro: un terzo dello schermo prima del primo cliente. Ora la testa e'
+   una riga (logo, anno, spia, operatore, tema) piu' la ricerca, e la barra e'
+   UNA striscia che scorre di lato, con le viste per prime e la sfumatura a
+   destra che dice che continua. Sul computer l'involucro non c'e'. */
+.strumenti-striscia { display: contents; }
+@media (max-width: 760px) {
+  .testa {
+    gap: 4px; row-gap: 6px;
+    padding: calc(6px + env(safe-area-inset-top, 0px))
+             max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px));
+    min-height: 0;
+  }
+  .testa .marca img { height: 22px; }
+  .anno-scelta { margin-left: 2px; }
+  .anno-scelta .anno { padding: 0 2px; }
+  /* la spia basta: "collegato / in coda" resta per i lettori di schermo e nel
+     suggerimento, il foglio che si apre al tocco dice il resto */
+  .stato-coll { padding: 6px 8px; gap: 6px; }
+  #collegamento-et { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  /* il pallino con le iniziali: il nome sta nell'aria-label */
+  .io { padding: 4px; }
+  .io b { display: none; }
+  .cerca input, .cerca input:focus { width: 100%; }
+
+  .strumenti { padding: 2px 0; gap: 0; flex-wrap: nowrap; }
+  .strumenti-striscia {
+    display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px; scrollbar-width: none;
+    padding: 4px max(12px, env(safe-area-inset-right, 0px)) 4px max(12px, env(safe-area-inset-left, 0px));
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+  .strumenti-striscia::-webkit-scrollbar { display: none; }
+  .strumenti-striscia > * { flex: none; }
+  .strumenti-striscia::after { content: ""; flex: none; width: 16px; }  /* l'ultimo comando esce dalla sfumatura */
+  .strumenti .sep { margin: 0 2px; }
+  .gruppo button { padding: 5px 11px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* anche le animazioni infinite (spia, riflesso) si fermano dopo un giro:
      con la sola durata a 1ms diventerebbero uno sfarfallio */
@@ -710,16 +754,154 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
 }
 
 /* --------------------------------------------------------------- accesso -- */
-/* Solo online: in locale la maschera non compare mai. Riusa .velo/.foglio della
-   modale, cambia solo cio' che una maschera d'accesso ha in piu': le etichette
-   sopra i campi e la riga d'errore. */
-.accesso .foglio { display: grid; gap: 6px; width: min(400px, 100%); }
-.accesso h2 { margin-bottom: 2px; }
-.acc-et { font-size: var(--t-micro); color: var(--tenue); margin-top: 8px; }
-.acc-errore {
-  margin: 10px 0 0; padding: 9px 11px; border-radius: var(--r-2);
-  background: var(--allerta-tenue); color: var(--allerta);
-  font-size: var(--t-mini);
+/* VIS-06 / PRD-11: la pagina d'accesso e' quella del Planning (web/src/styles/
+   auth.css): stesse classi `auth-*`, stessa struttura, stesse misure, tradotte
+   nei token di qui. Solo online: in locale non compare mai. E' una pagina
+   intera e opaca, sopra tutto: l'app sotto e' `inert` finche' non si entra. */
+.auth {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; overflow-y: auto; overscroll-behavior: contain;
+  padding: 24px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+  background: var(--fondo); color: var(--inchiostro);
 }
-.acc-invia { margin-top: 16px; justify-self: stretch; }
-.acc-invia[disabled] { opacity: .6; }
+.auth-box {
+  width: 100%; max-width: 26rem; margin: auto;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.auth-brand { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.auth-name {
+  font-family: var(--f-display); font-size: 2.2rem; font-weight: 700;
+  letter-spacing: -.03em; line-height: 1.05;
+}
+.auth-sub {
+  font-family: var(--f-dato); font-size: var(--t-micro); font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--tenue);
+}
+/* la riga del tempo: un binario sottile con le tacche e il punto «adesso» */
+.auth-rail { position: relative; height: 2.25rem; margin: 0 8px; }
+.auth-rail::before {
+  content: ''; position: absolute; inset-inline: 0; top: .75rem; height: 5px;
+  background-image: repeating-linear-gradient(to right, var(--bordo) 0 1px, transparent 1px 2.5rem);
+}
+.auth-rail::after {
+  content: ''; position: absolute; inset-inline: 0; top: .75rem; height: 1px;
+  background: var(--bordo);
+}
+.auth-rail-now {
+  position: absolute; top: .75rem; left: 50%; translate: -50% -50%; z-index: 1;
+  width: 7px; height: 7px; border-radius: var(--r-tonda);
+  background: var(--marchio); box-shadow: 0 0 0 4px var(--marchio-tenue);
+}
+.auth-rail-label {
+  position: absolute; top: 1.35rem; left: 50%; translate: -50% 0;
+  font-family: var(--f-dato); font-size: var(--t-micro); color: var(--marchio-scuro);
+  letter-spacing: .08em;
+}
+.auth-card {
+  display: flex; flex-direction: column; gap: 16px; padding: 24px;
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: var(--r-3);
+}
+.auth-intro { margin: 0; color: var(--tenue); font-size: var(--t-base); }
+.auth-avviso, .auth-errore {
+  margin: 0; padding: 12px 16px; border-radius: var(--r-2);
+  font-size: var(--t-base); line-height: 1.45;
+}
+.auth-avviso { background: var(--marchio-tenue); color: var(--marchio-scuro); }
+.auth-errore {
+  background: var(--scadenza-tenue); color: var(--scadenza);
+  border: 1px solid color-mix(in srgb, var(--scadenza) 30%, transparent);
+}
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-campo { display: flex; flex-direction: column; gap: 4px; }
+.auth-campo label { font-size: var(--t-base); font-weight: 500; color: var(--inchiostro-2); }
+/* campi grandi, e a 16px: sul telefono il browser non ingrandisce la pagina */
+.auth-form .campo { min-height: 2.8rem; font-size: 1rem; }
+.auth-form .campo:focus-visible { scroll-margin-block: 24px; }
+.auth-form .campo[aria-invalid='true'] { border-color: var(--scadenza); }
+.auth-campo-err { margin: 0; font-size: var(--t-mini); font-weight: 500; color: var(--scadenza); }
+.auth-invia { min-height: 2.8rem; width: 100%; }
+.auth-invia[data-loading]:disabled { background: var(--btn-fondo); color: var(--btn-testo); cursor: progress; }
+/* in attesa: la rotella accanto a «Accedi», l'etichetta non cambia */
+.auth-invia[data-loading]::before {
+  content: ''; width: 1em; height: 1em; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: auth-gira .8s linear infinite;
+}
+@keyframes auth-gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-invia[data-loading]::before { animation: none; border-right-color: currentColor; opacity: .6; }
+}
+/* la password: il tasto per mostrarla sta dentro il campo */
+.auth-pw { position: relative; display: flex; }
+.auth-pw .campo { flex: 1 1 auto; min-width: 0; padding-inline-end: 44px; }
+.auth-eye {
+  position: absolute; inset-block: 0; inset-inline-end: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; padding: 0; color: var(--tenue); border-radius: var(--r-2);
+  transition: color var(--rapido);
+}
+.auth-eye:hover { color: var(--inchiostro-2); }
+.auth-eye[aria-pressed='true'] { color: var(--marchio-scuro); }
+/* la password in chiaro si vede anche dal tasto: l'occhio e' sbarrato, non solo colorato */
+.auth-eye[aria-pressed='true']::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 1.4rem; height: 2px; border-radius: var(--r-tonda); background: currentColor;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.auth-links {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px;
+  font-size: var(--t-base);
+}
+.auth-link {
+  padding: 4px 0; min-height: 24px; color: var(--marchio-scuro);
+  border-radius: var(--r-1); transition: color var(--rapido);
+}
+.auth-link:hover { color: var(--inchiostro); text-decoration: underline; }
+.auth-link:disabled { color: var(--tenue); cursor: not-allowed; }
+@media (max-width: 479px) {
+  .auth { padding: 40px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .auth-box { margin-block-start: 0; }
+  .auth-card { padding: 20px 16px; }
+  .auth-name { font-size: 1.6rem; }
+}
+@media (pointer: coarse) {
+  .auth-link { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* ------------------------------------------------------ salta al contenuto -- */
+/* A11Y-04: il primo Tab della pagina porta dritti all'area di lavoro, senza
+   attraversare testa e barra strumenti. Si vede solo a fuoco. */
+.skip-link {
+  position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; z-index: 200;
+  padding: 10px 14px; border-radius: var(--r-2);
+  background: var(--btn-fondo); color: var(--btn-testo); font-weight: 600;
+  text-decoration: none; box-shadow: var(--ombra-3);
+  transform: translateY(-160%); transition: transform var(--rapido);
+}
+.skip-link:focus, .skip-link:focus-visible { transform: none; }
+#area { scroll-margin-top: 120px; }
+
+/* -------------------------------------------------------------- al tocco -- */
+/* MOB-07 / MOB-09: sul tocco ogni comando si prende con il pollice (44 px), ma
+   "il bersaglio cresce, il pulsante no" (telefono.md del Planning, par. 1): la
+   superficie sensibile e' un ::after trasparente centrato sul comando, il
+   disegno resta quello del computer. I comandi che hanno gia' un ::after, e le
+   tendine (che non ne hanno), crescono davvero in altezza. */
+@media (pointer: coarse) {
+  /* .cerca-x e .chiudi sono gia' posizionati (absolute): non si toccano */
+  .frecc, .pill, .gruppo button, .io, .stato-coll, .doc-chip,
+  .riepilogo .voce.scelta, .avviso button, .banner button {
+    position: relative;
+  }
+  .frecc::after, .pill::after, .gruppo button::after, .cerca-x::after, .io::after,
+  .chiudi::after, .stato-coll::after, .doc-chip::after, .riepilogo .voce.scelta::after,
+  .mese-nav button::after, .avviso button::after, .banner button::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  .io { min-width: 24px; min-height: 24px; }
+  select.pill { min-height: 44px; }
+  .bottone, .voce { min-height: 44px; }
+  .campo { min-height: 44px; }
+}

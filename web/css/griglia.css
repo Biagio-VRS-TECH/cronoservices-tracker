@@ -26,8 +26,7 @@
    con testa e barra strumenti facevano quattro fasce prima del primo cliente. */
 .crono-testa {
   position: sticky; top: 0; z-index: 20;
-  background: color-mix(in srgb, var(--fondo) 88%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--fondo);
   height: 48px;
 }
 .crono-testa .col-nome {
@@ -53,7 +52,7 @@
 }
 .tm {
   display: grid; justify-items: center; gap: 3px;
-  font: 500 9px/1 var(--f-dato); color: var(--tenue-2);
+  font: 500 var(--t-micro)/1 var(--f-dato); color: var(--tenue-2);
   font-variant-numeric: tabular-nums; letter-spacing: -.02em; text-transform: none;
 }
 .tm::after {
@@ -201,7 +200,7 @@
   padding: 3px 8px 3px 6px; border-radius: var(--r-tonda);
   border: 1px solid var(--bordo); background: var(--superficie);
   color: var(--tenue); font-size: var(--t-micro); font-weight: 600;
-  text-transform: none; letter-spacing: 0; transition: var(--rapido);
+  text-transform: none; letter-spacing: 0; transition: var(--transizione);
 }
 .piega-tutti:hover { color: var(--inchiostro); border-color: var(--bordo-forte);
   background: var(--fondo); }
@@ -247,21 +246,30 @@
 .punto-stato {
   width: 7px; height: 7px; border-radius: var(--r-tonda); flex: none;
   background: transparent; box-shadow: inset 0 0 0 1.5px var(--bordo-forte);
-  transition: var(--rapido);
+  transition: var(--transizione);
 }
-.punto-stato.corso    { background: var(--marchio); box-shadow: none; }
-.punto-stato.ritardo  { background: var(--allerta);
+/* Una FORMA per stato, non solo un colore (A11Y-17, chi non distingue ambra
+   da verde): cerchio vuoto = da fare, mezzo cerchio = iniziata, rombo = in
+   ritardo, cerchio pieno = a posto, quadratino vuoto = pre-tracciamento,
+   puntino = non dovuta, trattino = service chiuso. */
+.punto-stato.corso    { background: linear-gradient(90deg, var(--marchio) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px var(--marchio); }
+.punto-stato.ritardo  { background: var(--allerta); border-radius: 1px;
+  transform: rotate(45deg) scale(.9);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--allerta) 20%, transparent); }
 .punto-stato.completa { background: var(--completa);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--completa) 22%, transparent); }
-/* Pre-tracciamento: cerchio appena accennato. Non e' un impegno dell'anno, ma
-   e' lavoro che si puo' recuperare - diverso dal sito che non ha mappatura. */
+/* Pre-tracciamento: quadratino appena accennato. Non e' un impegno dell'anno,
+   ma e' lavoro che si puo' recuperare - diverso dal sito che non ha mappatura. */
 .punto-stato.pretrac {
-  width: 6px; height: 6px; margin: 0 .5px;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bordo-forte) 55%, transparent);
+  width: 6px; height: 6px; margin: 0 .5px; border-radius: 1px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bordo-forte) 70%, transparent);
 }
-.punto-stato.fuori, .punto-stato.chiuso {
+.punto-stato.fuori {
   width: 4px; height: 4px; margin: 0 1.5px; background: var(--bordo-forte); box-shadow: none;
+}
+.punto-stato.chiuso {
+  width: 7px; height: 2px; border-radius: 1px; background: var(--bordo-forte); box-shadow: none;
 }
 
 .col-tot { text-align: right; padding-right: 12px; font-family: var(--f-dato);
@@ -407,8 +415,8 @@
 .mesi > .q { position: relative; }
 .cella.altrui { outline: 2px solid var(--tinta, var(--marchio)); outline-offset: 1.5px; }
 .fuoco-nome {
-  position: absolute; top: -7px; right: 0; z-index: 4; pointer-events: none;
-  font: 700 8px/1 var(--f-ui); letter-spacing: .02em; color: #fff;
+  position: absolute; top: -9px; right: 0; z-index: 4; pointer-events: none;
+  font: 700 var(--t-micro)/1 var(--f-ui); letter-spacing: .02em; color: #fff;
   background: var(--tinta, var(--marchio)); padding: 2px 3px;
   border-radius: var(--r-tonda); border: 1.5px solid var(--superficie);
   animation: entra 180ms var(--molla) both;
@@ -426,7 +434,7 @@
   position: absolute; bottom: 100%; left: 50%; translate: -50% -2px; z-index: 5;
   /* testo del colore della superficie, non bianco fisso: nel tema scuro
      l'inchiostro e' quasi bianco e l'etichetta era una pillola vuota */
-  font: 600 9px/1 var(--f-ui); color: var(--superficie); background: var(--inchiostro);
+  font: 600 var(--t-micro)/1 var(--f-ui); color: var(--superficie); background: var(--inchiostro);
   padding: 3px 5px; border-radius: var(--r-tonda); white-space: nowrap;
   animation: eco-via 1600ms both;
 }
@@ -449,15 +457,15 @@
 .passi { display: flex; flex-direction: column; gap: 2px; }
 .passo {
   display: flex; align-items: center; gap: 10px; padding: 8px 9px;
-  border-radius: var(--r-2); transition: var(--rapido); text-align: left; width: 100%;
+  border-radius: var(--r-2); transition: var(--transizione); text-align: left; width: 100%;
 }
 .passo:hover { background: var(--fondo); }
 .passo .box {
   flex: none; width: 19px; height: 19px; border-radius: 5px;
   border: 1.5px solid var(--bordo-forte); display: grid; place-items: center;
-  transition: var(--rapido); color: #fff;
+  transition: var(--transizione); color: #fff;
 }
-.passo .box svg { opacity: 0; transform: scale(.5); transition: var(--rapido); }
+.passo .box svg { opacity: 0; transform: scale(.5); transition: var(--transizione); }
 .passo[aria-checked="true"] .box svg { opacity: 1; transform: none; }
 .passo[data-campo="stampata"][aria-checked="true"] .box    { background: var(--st-stampata);    border-color: var(--st-stampata); }
 .passo[data-campo="controllata"][aria-checked="true"] .box { background: var(--st-controllata); border-color: var(--st-controllata);
@@ -509,18 +517,18 @@
    barra, e il cursore e' la posizione d'inchiostro che scorre */
 .mese-nav {
   position: relative; display: flex; gap: 2px; padding: 3px;
-  background: var(--pista-fondo); border-radius: var(--r-tonda);
-  box-shadow: var(--pista-incavo);
+  background: var(--pista-fondo); border-radius: var(--r-2);
 }
+/* MOV-10: il cursore scorre con `transform`, non con `left` */
 .mese-nav::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; width: 36px;
-  left: calc(3px + var(--i, 0) * 38px); border-radius: var(--r-tonda);
-  background: var(--btn-fondo); box-shadow: var(--btn-lucido), var(--btn-ombra);
-  transition: left var(--medio);
+  left: 3px; transform: translateX(calc(var(--i, 0) * 38px)); border-radius: var(--r-1);
+  background: var(--btn-fondo); box-shadow: var(--btn-ombra);
+  transition: transform var(--medio);
 }
 .mese-nav button {
   position: relative; z-index: 1;
-  width: 36px; height: 26px; border-radius: var(--r-tonda); font: 600 var(--t-micro) var(--f-dato);
+  width: 36px; height: 26px; border-radius: var(--r-1); font: 600 var(--t-micro) var(--f-dato);
   color: var(--tenue); text-transform: uppercase; letter-spacing: .04em;
   transition: color var(--rapido), background var(--rapido);
 }
@@ -551,8 +559,8 @@
    le sue iniziali all'angolo */
 .scheda.altrui { border-color: var(--tinta, var(--marchio)); }
 .scheda.altrui::after {
-  content: attr(data-altrui); position: absolute; top: -7px; left: 12px;
-  font: 700 8px/1 var(--f-ui); letter-spacing: .02em; color: #fff;
+  content: attr(data-altrui); position: absolute; top: -9px; left: 12px;
+  font: 700 var(--t-micro)/1 var(--f-ui); letter-spacing: .02em; color: #fff;
   background: var(--tinta, var(--marchio)); padding: 2px 4px;
   border-radius: var(--r-tonda); border: 1.5px solid var(--superficie);
 }
@@ -578,7 +586,7 @@
   border-color: var(--marchio); box-shadow: inset 3px 0 0 var(--marchio), var(--ombra-2);
 }
 .bollo {
-  flex: none; font: 700 8px/1 var(--f-dato); letter-spacing: .06em;
+  flex: none; font: 700 var(--t-micro)/1 var(--f-dato); letter-spacing: .06em;
   padding: 3px 5px; border-radius: 3px;
 }
 .bollo.stima { color: var(--marchio-scuro); background: var(--marchio-tenue); }
@@ -630,7 +638,7 @@
 .selez {
   position: relative; flex: none; display: grid; place-items: center;
   width: 18px; height: 18px; border-radius: var(--r-tonda);
-  cursor: pointer; transition: var(--rapido);
+  cursor: pointer; transition: var(--transizione);
 }
 .selez:hover { background: color-mix(in srgb, var(--completa) 22%, transparent); }
 .selez:active { transform: scale(.88); }
@@ -641,7 +649,9 @@
 .selez:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; }
 
 .barra-massa {
-  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 75;
+  /* MOB-17: sopra la barra dei gesti, come gli avvisi */
+  position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%;
+  transform: translateX(-50%); z-index: 75;
   display: flex; align-items: center; gap: 10px; padding: 9px 12px;
   background: var(--inchiostro); color: var(--fondo); border-radius: var(--r-tonda);
   box-shadow: var(--ombra-3); font-size: var(--t-mini);
@@ -675,4 +685,121 @@
   .scheda { flex-wrap: wrap; }
   .passi-riga { width: 100%; }
   .passi-riga .passo { flex: 1; justify-content: center; }
+}
+
+/* ---- SCHELETRO DI CARICAMENTO (MOV-14, contratto con L9) --------------------
+   Righe finte al posto di "Caricamento…" mentre arrivano clienti e spunte: la
+   stessa geometria delle righe della vista Anno (colonna nome a sinistra,
+   dodici mesi a destra), cosi' al caricamento non salta niente.
+   Uso (js/anno.js, js/mese.js):
+     <div class="scheletro-elenco" role="status" aria-label="Caricamento…">
+       <div class="scheletro"></div>   (ripetuta 8-12 volte)
+     </div>
+   La riga e' alta --h-riga e ha il rientro delle carte cliente. Il bagliore
+   e' un'opacita' che pulsa; con prefers-reduced-motion resta ferma. */
+.scheletro-elenco { display: grid; gap: 6px; padding: 14px var(--rientro); }
+.scheletro {
+  height: var(--h-riga); border-radius: var(--r-1);
+  background:
+    linear-gradient(var(--superficie-3, var(--st-vuoto)), var(--superficie-3, var(--st-vuoto)))
+      10px 50% / min(30%, calc(var(--col-min) - 40px)) 10px no-repeat,
+    linear-gradient(90deg, var(--st-vuoto) 0 calc(100% - 1px), transparent 0)
+      calc(var(--col-min) + 8px) 50% / calc((100% - var(--col-min) - var(--col-tot) - 16px) / 12) 14px repeat-x,
+    var(--superficie);
+  border: 1px solid var(--bordo-lieve);
+  animation: scheletro-pulsa 1.4s ease-in-out infinite;
+}
+.scheletro:nth-child(3n+2) { animation-delay: .15s; }
+.scheletro:nth-child(3n) { animation-delay: .3s; }
+@keyframes scheletro-pulsa { 50% { opacity: .55; } }
+@media (max-width: 760px) {
+  .scheletro { background:
+    linear-gradient(var(--st-vuoto), var(--st-vuoto)) 10px 50% / 45% 10px no-repeat,
+    var(--superficie); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scheletro { animation: none; }
+}
+
+/* =============================================== TELEFONO (VIS-25, MOB-15) ==
+   Sotto i 760 px la vista Anno non e' piu' una matrice da scorrere di lato
+   (il nome piu' dodici colonne facevano 630 px su uno schermo da 375). Diventa
+   un ELENCO PER SITO: la carta del cliente resta, ogni sito e' una voce con il
+   nome in alto, il totale dell'anno a destra e sotto i SOLI mesi di
+   manutenzione, ognuno col suo nome accanto alla capsula (`.q-mese`, da
+   anno.js) e alto un pollice: si tocca la voce e si apre il popover dei passi,
+   come sul computer. I mesi senza manutenzione (i puntini) sul telefono non si
+   disegnano. La riga del cliente tiene nome e totale, l'intestazione tiene
+   "Apri / Chiudi tutti"; i totali per mese stanno nella vista Mese e nelle
+   Statistiche. Sul computer non cambia niente: `.q-mese` non si vede. */
+.q-mese { display: none; }
+@media (max-width: 760px) {
+  .crono { min-width: 0; }
+  .riga { grid-template-columns: minmax(0, 1fr) auto; }
+  .crono-testa .mesi, .riga-cli .mesi, .crono-testa .col-nome i { display: none; }
+  .crono-testa .col-nome, .riga-cli .col-nome, .riga-srv .col-nome { position: relative; left: auto; }
+  .crono-testa { height: 48px; }
+  .piega-tutti { position: relative; padding: 5px 10px 5px 8px; }
+  .piega-tutti::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
+  .riga-cli { height: auto; min-height: 44px; }
+
+  .riga-srv { height: auto; grid-template-areas: "nome tot" "mesi mesi"; }
+  .riga-srv + .riga-srv { border-top: 1px solid var(--bordo-lieve); }
+  .riga-srv .col-nome {
+    grid-area: nome; height: auto; min-height: 40px; padding: 8px 8px 4px 12px;
+  }
+  /* il nome del sito va a capo (due righe al massimo, intero nel title) */
+  .riga-srv .srv-dest {
+    white-space: normal; overflow-wrap: anywhere; font-size: var(--t-base);
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .riga-srv .col-tot { grid-area: tot; align-self: start; height: 40px; margin-top: 4px; }
+  .riga-srv .mesi {
+    grid-area: mesi; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px;
+    height: auto; padding: 2px 12px 10px;
+  }
+  .riga-srv .mesi:not(:has(.cella)) { display: none; }
+  .riga-srv .mesi > .q:empty { display: none; }
+  .riga-srv .mesi > .q {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 8px 0 10px; cursor: pointer;
+    border-radius: var(--r-2); background: var(--superficie);
+    box-shadow: inset 0 0 0 1px var(--bordo-lieve);
+  }
+  .riga-srv .q-mese {
+    display: inline; min-width: 2.4em;
+    font: 600 var(--t-mini)/1 var(--f-dato); letter-spacing: .06em;
+    text-transform: uppercase; color: var(--tenue);
+  }
+  .riga-srv .mese-oggi {
+    background: color-mix(in srgb, var(--marchio) 6%, var(--superficie));
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--marchio) 50%, transparent);
+  }
+  .riga-srv .mese-oggi .q-mese { color: var(--marchio-scuro); }
+  .riga-srv .cella { width: 46px; height: 24px; margin-left: auto; }
+  .riga-srv .cella:hover { transform: none; }
+
+  /* -- vista Mese: la testa si stringe, i dodici mesi in due righe da sei, i
+     quattro passi in un quadrato due per due (in fila uscivano dallo schermo) */
+  .mese-testa { padding: 14px 4px 10px; gap: 12px; }
+  .mese-titolo { min-width: 0; }
+  .mese-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; }
+  .mese-nav button { width: auto; height: 36px; }
+  .mese-testa .riepilogo { display: flex; margin-left: 0; }
+  .lavoro { padding: 0 var(--rientro) 40vh; }
+  .scheda { padding: 10px 12px; gap: 8px 12px; }
+  .scheda .info b {
+    white-space: normal; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .passi-riga {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: var(--r-3);
+  }
+  .passi-riga .passo { min-height: 44px; justify-content: flex-start; border-radius: var(--r-2); }
+  .passi-riga .passo .et { font-size: var(--t-mini); }
+  .selez::after { content: ""; position: absolute; inset: -13px; }
 }

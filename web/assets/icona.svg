@@ -1,6 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#58595B"/>
-  <rect x="12" y="26" width="11" height="12" rx="3" fill="#A7A9AC"/>
-  <rect x="26.5" y="26" width="11" height="12" rx="3" fill="#00AEEF"/>
-  <rect x="41" y="26" width="11" height="12" rx="3" fill="#00A37A"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Tessera di famiglia VRS (VIS-11): raggio 22%, fondo nell'accento #0b6fa0,
+       glifo bianco. Crono e' la capsula a quattro segmenti, due gia' fatti. -->
+  <defs><clipPath id="c"><rect x="118" y="210" width="276" height="92" rx="46"/></clipPath></defs>
+  <rect width="512" height="512" rx="113" fill="#0b6fa0"/>
+  <rect x="96" y="188" width="320" height="136" rx="68" fill="none" stroke="#ffffff" stroke-width="26"/>
+  <g clip-path="url(#c)" fill="#ffffff">
+    <rect x="118" y="210" width="60" height="92"/>
+    <rect x="190" y="210" width="60" height="92"/>
+    <rect x="262" y="210" width="60" height="92" opacity=".32"/>
+    <rect x="334" y="210" width="60" height="92" opacity=".32"/>
+  </g>
 </svg>

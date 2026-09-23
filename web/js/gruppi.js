@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* gruppi.js - i gruppi del pannello di sinistra dei generatori si aprono e si
    chiudono: il titolo (h2) di ogni gruppo e' il suo interruttore, #grpTutti
    nella barra del marchio li gira tutti insieme. Lo stato (quali sono chiusi)
@@ -72,7 +73,7 @@
       });
     });
   }
-  window.entrataGruppi = entrata;
+  window['entrataGruppi'] = entrata;
 
   if (tutti) tutti.addEventListener('click', function () {
     var chiudi = !tuttiChiusi();

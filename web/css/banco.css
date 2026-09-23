@@ -11,7 +11,7 @@
      interpretare `color(srgb ...)` - la resa del PDF moriva prima di disegnare
      ("unsupported color function color", trovato nella 29a sessione sul
      registro). Vale il fondo del tracker scurito di un soffio. */
-  --ui-0: #ECEAE5;   /* la porcellana del tracker, scurita di un soffio */
+  --ui-0: #EBEBE9;   /* il fondo di famiglia (--vrs-bg), scurito di un soffio */
   --ui-1: var(--superficie);      /* pannelli laterali */
   --ui-2: var(--superficie-2);    /* campi e riquadri rialzati */
   --ui-3: var(--bordo);           /* bordi */
@@ -132,7 +132,7 @@
 .bb-indietro{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 8px;
   border-radius:999px;border:1px solid var(--ui-filo);background:var(--vetro-fondo);color:var(--ui-tx2);
   text-decoration:none;font:600 12px/1 var(--f-ui);white-space:nowrap;
-  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:color .13s,background-color .13s,border-color .13s,box-shadow .13s}
 .bb-indietro svg{width:14px;height:14px;flex:none;transition:transform .2s var(--ease)}
 .bb-indietro:hover{color:var(--acc-hi);border-color:var(--acc);background:var(--acc-lo)}
 .bb-indietro:hover svg{transform:translateX(-2px)}
@@ -148,7 +148,7 @@
 /* i tastini dell'applicazione: guida, apri/chiudi tutti i gruppi */
 #tourBtn,#grpTutti{flex:0 0 auto;width:30px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--ui-filo);border-radius:9px;background:var(--vetro-fondo);color:var(--ui-tx2);cursor:pointer;
-  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:.13s}
+  box-shadow:inset 0 1px 0 var(--ui-lucido),var(--ui-ombra-1);transition:color .13s,background-color .13s,border-color .13s,box-shadow .13s}
 #tourBtn svg,#grpTutti svg{width:14px;height:14px;display:block}
 #tourBtn:hover,#grpTutti:hover{background:var(--acc-lo);border-color:var(--acc);color:var(--acc-hi)}
 #grpTutti svg{transition:transform .24s var(--ease)}
@@ -163,7 +163,7 @@
    schede; nel registro e' un separatore fermo (.fermo). */
 :root{--treew:320px}
 #treegrip{flex:0 0 8px;position:sticky;top:0;height:100vh;cursor:col-resize;display:flex;align-items:center;justify-content:center;background:transparent;z-index:6}
-#treegrip::before{content:"";width:3px;height:52px;border-radius:2px;background:var(--ui-3);transition:background .13s,height .13s}
+#treegrip::before{content:"";width:3px;height:52px;border-radius:2px;background:var(--ui-3);transition:background .13s}
 #treegrip:hover::before,#treegrip.drag::before{background:var(--acc);height:110px}
 #treegrip.fermo{cursor:default}
 #treegrip.fermo:hover::before{background:var(--ui-3);height:52px}
@@ -218,7 +218,7 @@
 #tree .out>.nm .cnt{opacity:.55}
 #tree .tw{flex:0 0 auto;width:15px;height:15px;padding:0;border:0;background:none;color:var(--ui-tx3);
   cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--ease),color .13s}
-#tree .tw svg{width:9px;height:9px;display:block}
+#tree .tw svg{width:12px;height:12px;display:block} /* VIS-12: tratto 1.75 di famiglia, a 9px spariva */
 #tree .tw.closed{transform:rotate(-90deg)}
 #tree .tw:hover{color:var(--acc)}
 #treebar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
@@ -237,16 +237,21 @@
    il registro. */
 #tourWrap[hidden]{display:none}
 #tourVeil{position:fixed;inset:0;z-index:9990;background:transparent}
-#tourHole{position:fixed;z-index:9991;pointer-events:none;border-radius:10px;
-  box-shadow:0 0 0 9999px rgba(6,9,12,.74),0 0 0 2px var(--acc),0 0 22px rgba(0,168,228,.45);
-  transition:left .2s var(--ease),top .2s var(--ease),width .2s var(--ease),height .2s var(--ease)}
-:root.lt #tourHole{box-shadow:0 0 0 9999px rgba(24,33,42,.42),0 0 0 2px var(--acc),0 0 22px rgba(1,118,157,.28)}
+/* MOV-07: buco e fumetto stanno a 0,0 e si muovono solo con transform. La misura
+   del buco (width/height) la scrive tour.js una volta, senza corsa; la corsa e' una
+   scala inversa che torna a 1 (FLIP), dall'angolo in alto a sinistra. Mentre la
+   scala e' piccola --tour-spread allarga l'ombra, cosi' la penombra copre sempre. */
+#tourHole{--tour-spread:9999px;position:fixed;left:0;top:0;z-index:9991;pointer-events:none;border-radius:10px;
+  box-shadow:0 0 0 var(--tour-spread) rgba(6,9,12,.74),0 0 0 2px var(--acc),0 0 22px rgba(0,168,228,.45);
+  transform-origin:0 0;transition:transform .28s var(--ease)}
+:root.lt #tourHole{box-shadow:0 0 0 var(--tour-spread) rgba(24,33,42,.42),0 0 0 2px var(--acc),0 0 22px rgba(1,118,157,.28)}
 /* passo senza bersaglio: il buco si annulla al centro, la penombra resta */
-#tourHole.blind{box-shadow:0 0 0 9999px rgba(6,9,12,.74)}
-:root.lt #tourHole.blind{box-shadow:0 0 0 9999px rgba(24,33,42,.42)}
-#tourPop{position:fixed;z-index:9992;width:344px;max-width:calc(100vw - 24px);
+#tourHole.blind{box-shadow:0 0 0 var(--tour-spread) rgba(6,9,12,.74)}
+:root.lt #tourHole.blind{box-shadow:0 0 0 var(--tour-spread) rgba(24,33,42,.42)}
+#tourPop{position:fixed;left:0;top:0;z-index:9992;width:344px;max-width:calc(100vw - 24px);
   background:var(--ui-1);color:var(--ui-tx);border:1px solid var(--ui-filo);border-radius:var(--r3);
-  box-shadow:var(--ui-ombra-3);padding:16px 17px 14px}
+  box-shadow:var(--ui-ombra-3);padding:16px 17px 14px;transition:transform .28s var(--ease)}
+@media (prefers-reduced-motion:reduce){#tourHole,#tourPop{transition:none}}
 #tourPop .tour-k{margin:0 0 7px;font:700 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.17em;color:var(--ui-tx3)}
 #tourPop h3{margin:0 0 8px;font-family:var(--f-display);font-size:18px;font-weight:560;letter-spacing:-.022em;color:var(--ui-tx)}
 #tourPop .tour-tx{font-size:13px;line-height:1.55;color:var(--ui-tx2)}

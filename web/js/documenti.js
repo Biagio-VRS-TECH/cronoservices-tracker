@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* documenti.js - i PDF dei generatori, lato tracker.  #ANCHOR: documenti
 
 Due generatori producono PDF e li consegnano qui, una riga in `documenti`
@@ -18,6 +19,7 @@ import { chiama, rete } from './api.js';
 import * as nuvola from './nuvola.js';
 import { st, emetti, mappaDocumenti, mesePerStampa } from './stato.js';
 import { h, esc, quando, avviso } from './ui.js';
+import { svgIcona } from './vrs-icone.js';
 
 /* I due tipi di documento (#ANCHOR: tipi-documento). `et` e' l'etichetta
    corta, `pagina` il generatore che lo produce, `spunta` se la consegna mette
@@ -39,6 +41,7 @@ export function applicaDocumenti(lista) {
    stampate nel 2026 (il chip lo dice). Il modello tiene tutto, senza filtro. */
 function aggiungi(d, notifica = true) {
   if (!d) return;
+  if (inVolo) { arrivatiInVolo.set(d.id, d); toltiInVolo.delete(d.id); }
   const l = st.documenti.get(d.id_service) || [];
   if (!l.some(x => x.id === d.id)) {
     l.push(d);
@@ -49,6 +52,7 @@ function aggiungi(d, notifica = true) {
 }
 
 function togli(id, id_service) {
+  if (inVolo) { toltiInVolo.add(id); arrivatiInVolo.delete(id); }
   const l = (st.documenti.get(id_service) || []).filter(x => x.id !== id);
   if (l.length) st.documenti.set(id_service, l); else st.documenti.delete(id_service);
   emetti('documenti', { id: id_service });
@@ -60,6 +64,7 @@ function togli(id, id_service) {
 function togliMolti(eliminati) {
   const per = new Map();
   for (const e of eliminati || []) {
+    if (inVolo) { toltiInVolo.add(e.id); arrivatiInVolo.delete(e.id); }
     if (!per.has(e.id_service)) per.set(e.id_service, new Set());
     per.get(e.id_service).add(e.id);
   }
@@ -133,11 +138,26 @@ export function eventoDocumento(ev) {
 
 /** Rilegge l'elenco completo dal server (al ritorno di visibilita'). Senza
  *  `anno`: tutti gli anni, e' lo storico. */
+/* BUG-20: la risposta arriva dopo un po', e nel frattempo il flusso puo' aver
+   portato un PDF appena salvato (o tolto uno): applicarla com'e' lo faceva
+   sparire (o tornare). Si conta il giro, come in `cambiaAnno` (vale solo
+   l'ultima rilettura chiesta), e si fonde per id quello che e' successo mentre
+   la domanda era in volo. */
+let giroDoc = 0, inVolo = 0;
+const arrivatiInVolo = new Map(), toltiInVolo = new Set();
 export async function ricaricaDocumenti() {
+  const mio = ++giroDoc;
+  inVolo++;
   try {
     const { ok, dati } = await chiama('/api/documenti');
-    if (ok && dati?.documenti) applicaDocumenti(dati.documenti);
-  } catch { }
+    if (mio !== giroDoc || !ok || !Array.isArray(dati?.documenti)) return;
+    const lista = dati.documenti.filter(d => !toltiInVolo.has(d.id));
+    const ci = new Set(lista.map(d => d.id));
+    for (const d of arrivatiInVolo.values()) if (!ci.has(d.id)) lista.push(d);
+    applicaDocumenti(lista);
+  } catch { /* senza rete: resta l'elenco che c'e' */ } finally {
+    if (--inVolo === 0) { arrivatiInVolo.clear(); toltiInVolo.clear(); }
+  }
 }
 
 /* Il generatore gira in un'altra scheda del browser: quando salva, lo dice
@@ -161,7 +181,7 @@ export function annunciaAltreSchede(ev) {
  *  schede, la spunta "stampata" va sulla prima visita in arrivo, mai su una
  *  passata (#ANCHOR: mese-stampa in stato.js). */
 export function urlGeneratore(s, tipo = 'schede') {
-  const p = new URLSearchParams({ anno: st.anno });
+  const p = new URLSearchParams({ anno: String(st.anno) });
   if (s) {
     const cli = st.clienti.get(s.cli);
     p.set('service', s.id);
@@ -174,17 +194,10 @@ export function urlGeneratore(s, tipo = 'schede') {
 }
 
 /* ------------------------------------------------------------- icona ----- */
-export const ICO_PDF = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
-  '<path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
-
-/* Il registro dei componenti ha la sua icona: un libretto, non un foglio. */
-export const ICO_REGISTRO = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>' +
-  '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' +
-  '<path d="M9 7h7M9 11h5"/></svg>';
+/* VIS-12: icone di famiglia (vrs-icone.js): il foglio del Planning per le
+   schede, un libretto per il registro dei componenti. */
+export const ICO_PDF = svgIcona('documento', 13);
+export const ICO_REGISTRO = svgIcona('registro', 13);
 export const ICONA_TIPO = { schede: ICO_PDF, registro: ICO_REGISTRO };
 
 /** I chip da mettere accanto al nome del sito: uno per TIPO di documento, e
@@ -209,7 +222,7 @@ export function htmlChipDocumento(id) {
       (altroAnno ? ` · del ${d.anno}` : '') +
       ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
       (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
-    chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${d.id}"
+    chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${esc(d.id)}"
         title="${titolo}" aria-label="Apri il PDF: ${TIPI[tipo].et}">
         ${ICONA_TIPO[tipo]}${g.length > 1 ? `<i>${g.length}</i>` : ''}
       </button>`);
@@ -234,8 +247,11 @@ function mostraAnteprima(chip) {
   const d = trovaDoc(chip.dataset.doc);
   if (!d?.anteprima) return;
   ant ||= document.body.appendChild(h('div.doc-anteprima', { role: 'tooltip' }));
-  ant.innerHTML = `<img src="${d.anteprima}" alt=""><span>${esc(d.nome)} · ` +
-    `${d.pagine || '?'} pag.</span>`;
+  /* `anteprima` la scrive chi consegna il PDF, e il server controlla solo che
+     COMINCI per "data:image/jpeg;base64,": una virgoletta dopo il prefisso
+     usciva dall'attributo (onerror=...) nel browser di tutti i colleghi. */
+  ant.innerHTML = `<img src="${esc(d.anteprima)}" alt=""><span>${esc(d.nome)} · ` +
+    `${esc(d.pagine || '?')} pag.</span>`;
   const r = chip.getBoundingClientRect();
   ant.style.left = Math.min(innerWidth - 150, r.left) + 'px';
   ant.style.top = (r.bottom + 6) + 'px';
@@ -253,9 +269,12 @@ function trovaDoc(idDoc) {
 
 /** Deleghe globali: un ascoltatore per tutta la pagina, chip compresi quelli
  *  disegnati dopo. */
+/** Il chip sotto l'evento, se c'e' (il bersaglio puo' essere document o window). */
+const chipDi = (/** @type {Event} */ e) => /** @type {HTMLElement | null} */ (
+  /** @type {Element} */ (e.target)?.closest?.('.doc-chip[data-doc]'));
 export function collegaChip() {
   document.addEventListener('click', e => {
-    const c = e.target?.closest?.('.doc-chip[data-doc]');
+    const c = chipDi(e);
     if (!c) return;
     e.preventDefault(); e.stopPropagation();
     nascondiAnteprima();
@@ -263,13 +282,13 @@ export function collegaChip() {
     if (d) apriDocumento(d);
   }, true);
   document.addEventListener('mouseover', e => {
-    const c = e.target?.closest?.('.doc-chip[data-doc]');
+    const c = chipDi(e);
     if (!c) return;
     clearTimeout(antTimer);
     antTimer = setTimeout(() => mostraAnteprima(c), 260);
   });
   document.addEventListener('mouseout', e => {
-    if (e.target?.closest?.('.doc-chip[data-doc]')) nascondiAnteprima();
+    if (chipDi(e)) nascondiAnteprima();
   });
   addEventListener('scroll', nascondiAnteprima, true);
 }
@@ -366,12 +385,25 @@ export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine
   return r.dati;
 }
 
+/* PRIMA LA RIGA, POI IL FILE (BUG-12). Prima si toglieva il file e poi si
+   chiedeva al server: un rifiuto (o la rete che cade in mezzo) lasciava una
+   riga che apre un PDF che non c'e' piu'. La versione in blocco era gia' cosi'.
+   Online `elimina_documento` sposta la riga nel CESTINO (SEC-05,
+   cloud/10-migliorie-2026-09.sql) e risponde `cestino: true`: il file resta
+   nello Storage, che non lascerebbe nemmeno cancellarlo finche' una riga lo
+   usa. Lo tolgono solo `elimina_documento_definitivo` e
+   `svuota_cestino_documenti`. Il file lo toglie il client solo se il server
+   risponde alla vecchia maniera (script SQL non ancora rieseguito). */
+export const eliminazioneMorbida = dati => !!(dati?.cestino || dati?.eliminato_il);
 export async function eliminaDocumento(d) {
   scordaFirma(percorsoDi(d));
-  if (nuvola.attiva()) await nuvola.eliminaOggetto('documenti', percorsoDi(d));
   const r = await chiama('/api/documento_elimina', {
     metodo: 'POST', body: { id: d.id, operatore: rete.operatore } });
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  if (nuvola.attiva() && !eliminazioneMorbida(r.dati)) {
+    // la riga e' gia' andata: uno strascico nel bucket lo trova la query degli orfani
+    try { await nuvola.eliminaOggetto('documenti', percorsoDi(d)); } catch { }
+  }
   togli(d.id, d.id_service);
   annunciaAltreSchede({ tipo: 'documento', anno: d.anno, id_service: d.id_service, eliminato: d.id });
 }
@@ -398,7 +430,8 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
   const eliminati = r.dati?.eliminati || [];
 
-  if (online) {
+  /* nel cestino (SEC-05): i file restano, lo Storage non li lascerebbe togliere */
+  if (online && !eliminazioneMorbida(r.dati)) {
     const percorsi = eliminati.map(e => e.percorso).filter(Boolean);
     percorsi.forEach(scordaFirma);
     // le righe sono gia' andate: uno strascico nel bucket non deve far
@@ -410,6 +443,54 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   togliMolti(eliminati);
   annunciaAltreSchede({ tipo: 'documenti', eliminati, n: eliminati.length });
   return { n: eliminati.length, bytes: r.dati?.bytes || 0 };
+}
+
+/** Il «disfa» di un Elimina (solo online): il documento torna dal cestino.
+ *  Chiunque sia entrato. Ritorna il documento rimesso. */
+export async function ripristinaDocumento(id) {
+  const r = await chiama('/api/documento_ripristina', { metodo: 'POST', body: { id } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const d = r.dati?.documento;
+  if (d) {
+    aggiungi(d);
+    annunciaAltreSchede({ tipo: 'documento', anno: d.anno, id_service: d.id_service, documento: d });
+  }
+  return d;
+}
+
+/** L'amministratore svuota il cestino dei PDF: via per sempre le righe
+ *  eliminate da piu' di `giorni` giorni (0 = tutto), POI i file (lo Storage li
+ *  lascia togliere solo quando nessuna riga li usa piu'). Ritorna {n, bytes}. */
+export async function svuotaCestino(giorni = 30) {
+  const r = await chiama('/api/cestino_svuota', { metodo: 'POST', ms: 120000, body: { giorni } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const percorsi = (r.dati?.eliminati || []).map(e => e.percorso).filter(Boolean);
+  percorsi.forEach(scordaFirma);
+  if (percorsi.length) { try { await nuvola.eliminaOggetti('documenti', percorsi); } catch { } }
+  return { n: r.dati?.n || 0, bytes: r.dati?.bytes || 0 };
+}
+
+/** Il contenuto del cestino dei PDF (solo online, `app_cestino_documenti`):
+ *  dal piu' recente, ognuno con `eliminabile` = chi chiede puo' cancellarlo
+ *  per sempre (l'amministratore, o chi l'ha caricato). */
+export async function cestinoDocumenti() {
+  const r = await chiama('/api/cestino');
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  return r.dati?.cestino || [];
+}
+
+/** Un PDF del cestino via per sempre: prima la riga (il server decide se
+ *  puoi), POI il file, che lo Storage lascia togliere solo quando nessuna riga
+ *  lo usa piu'. Uno strascico nel bucket non fa fallire l'operazione: lo trova
+ *  la query degli orfani (cloud/LEGGIMI.md). Ritorna i byte liberati. */
+export async function eliminaDefinitivo(d) {
+  const r = await chiama('/api/documento_definitivo', { metodo: 'POST', body: { id: d.id } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const p = r.dati?.percorso || percorsoDi(d);
+  scordaFirma(p);
+  try { await nuvola.eliminaOggetto('documenti', p); } catch { }
+  togli(d.id, d.id_service);   // se era ancora in archivio (non dal cestino)
+  return d.bytes || 0;
 }
 
 /** L'eco di una cancellazione in blocco fatta da un altro (flusso o altra

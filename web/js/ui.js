@@ -1,24 +1,22 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* ui.js - primitive: icone, avvisi, modale, mini-hyperscript, formattatori.
    #ANCHOR: ui */
 
-export const ICO = {
-  esci: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
-  cerca: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>',
-  cuneo: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
-  sx: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>',
-  dx: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
-  ok: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5.2 5.2L20 7"/></svg>',
-  ics: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
-  sync: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 0 0 6.3 5.7L3 9"/><path d="M3 4v5h5"/><path d="M4 13a8 8 0 0 0 13.7 5.3L21 15"/><path d="M21 20v-5h-5"/></svg>',
-  stampa: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="7" rx="2"/><path d="M6 16h12v5H6z"/></svg>',
-  giu: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>',
-  oggi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="12" cy="15.5" r="1.8" fill="currentColor" stroke="none"/></svg>',
-  gente: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M16.5 5.2a3.4 3.4 0 0 1 0 6.6M18 20a6.5 6.5 0 0 0-1.8-4.5"/></svg>',
-  copia: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H5.5A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15"/></svg>',
-  comprimi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6-5 6 5"/><path d="m6 15 6 5 6-5"/></svg>',
-  espandi: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 6 5 6-5"/><path d="m6 20 6-5 6 5"/></svg>',
-  tema: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>',
+import { svgIcona } from './vrs-icone.js';
+
+/* VIS-12: le icone sono quelle di famiglia (vrs-icone.js, copia identica del
+   modulo del Planning): stesso disegno e stesso tratto 1.75 nelle due app. Qui
+   restano i nomi di CronoService e il lato di ciascuna. */
+/** @type {Record<string, [string, number]>} */
+const ICO_NOMI = {
+  esci: ['esci', 14], cerca: ['cerca', 14], cuneo: ['destra', 12],
+  sx: ['sinistra', 15], dx: ['destra', 15], ok: ['spunta', 12], ics: ['chiudi', 15],
+  sync: ['ricorrenze', 13], stampa: ['stampa', 13], giu: ['download', 13],
+  oggi: ['oggi', 13], gente: ['gruppo', 13], copia: ['copia', 13],
+  comprimi: ['comprimi', 13], espandi: ['espandi', 13], tema: ['sole', 14],
 };
+export const ICO = Object.fromEntries(
+  Object.entries(ICO_NOMI).map(([k, [nome, lato]]) => [k, svgIcona(nome, lato)]));
 
 
 /* --- il primo colpo di freccia "entra" nella griglia -----------------------
@@ -30,7 +28,7 @@ export const ICO = {
    primo bersaglio utile a schermo, senza far saltare la vista in cima.
    `Home`/`Fine`/`PagSu`/`PagGiu` restano al browser: servono a scorrere. */
 export const FRECCE = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1 };
-const FUORI = '.pop,.foglio,.velo,.tendina,.cassetto,.avviso,.barra-massa,' +
+const FUORI = '.auth,.pop,.foglio,.velo,.tendina,.cassetto,.avviso,.barra-massa,' +
   'input:not([type=checkbox]),textarea,select,[contenteditable]';
 
 /** Porta il fuoco su `n` senza far saltare lo scorrimento. */
@@ -48,7 +46,7 @@ export function frecceEntrano(attiva, bersagli, dentro) {
   addEventListener('keydown', e => {
     if (!(e.key in FRECCE) || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
     if (!attiva()) return;
-    if (e.target?.closest?.(dentro + ',' + FUORI)) return;
+    if (/** @type {Element} */ (e.target)?.closest?.(dentro + ',' + FUORI)) return;
     const n = bersagli();
     if (!n.length) return;
     const box = (document.querySelector('.area') || document.documentElement)
@@ -81,10 +79,84 @@ export function h(sel, attrs, ...kids) {
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/* ------------------------------------------------ errori: segnala -------- */
+/* Un punto solo per gli errori del programma: la console e, online, una riga
+   nella tabella degli errori del client (la manda nuvola.js, che si registra
+   con `impostaSegnalatore`: ui.js non importa niente). Mai lanciare da qui: chi
+   segnala un errore non deve riceverne un altro. Al massimo 20 per pagina, e
+   lo stesso messaggio una volta sola.  #ANCHOR: segnala */
+let segnalatore = null, segnalati = 0;
+const giaSegnalati = new Set();
+export function impostaSegnalatore(fn) { segnalatore = fn; }
+export function segnala(err, dove = '') {
+  try {
+    console.error(dove ? `[${dove}]` : '[errore]', err);
+    const e = err instanceof Error ? err : new Error(String(err?.message || err));
+    const chiave = dove + '|' + e.message;
+    if (giaSegnalati.has(chiave) || segnalati >= 20) return;
+    giaSegnalati.add(chiave);
+    segnalati++;
+    segnalatore?.(e, dove);
+  } catch { /* niente */ }
+}
+
+/* ------------------------------------------- errori: in italiano -------- */
+/* I messaggi che arrivano dal browser, da Supabase o da Postgres sono in
+   inglese e tecnici («Failed to fetch», «JWT expired», «violates check
+   constraint…»). Qui si traducono in UN punto solo: `avviso()` passa da
+   `umano()` tutto quello che non e' un «fatto», cosi' i punti che fanno
+   `'Non salvato: ' + e.message` non vanno toccati uno a uno. Il testo tecnico
+   non si perde: va a `segnala()`.
+   Ritorna { testo, tecnico }: `tecnico` c'e' solo se qualcosa e' stato tradotto. */
+/** @type {Array<[RegExp, string]>} */
+const TRADUZIONI = [
+  [/failed to fetch|networkerror|load failed|network ?error|fetch failed|net::err/i,
+    'server non raggiungibile: controlla la rete e riprova'],
+  [/\babort|timed? ?out\b|timeout|canceling statement/i,
+    'il server ha risposto troppo tardi: riprova fra poco'],
+  [/invalid login credentials|invalid (email|password)|email not confirmed/i,
+    'email o password non corrette'],
+  [/\bjwt\b|invalid token|token (is )?expired|refresh token|not authenticated/i,
+    'la sessione è scaduta: esci e rientra'],
+  [/permission denied|row-level security|not authori[sz]ed|insufficient.privilege|forbidden/i,
+    'non hai il permesso per farlo: se ti serve, chiedi all’amministratore'],
+  [/duplicate key|unique constraint|already exists/i,
+    'c’è già: ricarica la pagina per vederlo'],
+  [/violates .*constraint|check constraint|not-null constraint|foreign key/i,
+    'il database non accetta questi dati: controlla i valori e riprova'],
+  [/too many requests|rate limit|security purposes/i,
+    'troppe richieste in poco tempo: aspetta un minuto e riprova'],
+  [/(errore?|status) 50[0-4]\b|internal server error|bad gateway|service unavailable/i,
+    'il server ha avuto un problema: riprova fra poco'],
+];
+const RIPIEGO = 'non è andato a buon fine. Riprova; se succede ancora, avvisa l’amministratore';
+/* inglese tecnico senza una traduzione precisa: parole che in un testo
+   italiano del programma non compaiono, e nessuna parola italiana */
+const INGLESE = /\b(the|is|was|of|for|not|failed|invalid|unexpected|cannot|could|must|does|exist|undefined|null|json|function|relation|column|syntax|object|property|reading)\b/i;
+const ITALIANO = /[àèéìòù]|\b(non|il|la|di|che|per|del|della|sono|questo|rifiutat[oa]|riuscit[oa])\b/i;
+const tecnico = s => TRADUZIONI.some(([re]) => re.test(s)) || (INGLESE.test(s) && !ITALIANO.test(s));
+const traduci = s => TRADUZIONI.find(([re]) => re.test(s))?.[1] || RIPIEGO;
+const maiuscola = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function umano(testo) {
+  const s = String(testo ?? '');
+  /* «Contesto: coda tecnica»: si traduce solo la coda, il contesto e' nostro */
+  const i = s.indexOf(': ');
+  if (i > 0 && i < 80 && !tecnico(s.slice(0, i)) && tecnico(s.slice(i + 2))) {
+    return { testo: s.slice(0, i + 2) + traduci(s.slice(i + 2)) + '.', tecnico: s };
+  }
+  if (tecnico(s)) return { testo: maiuscola(traduci(s)) + '.', tecnico: s };
+  return { testo: s, tecnico: '' };
+}
+
 /* ------------------------------------------------------------- avvisi ---- */
 let contAvvisi;
 export function avviso(testo, opz = {}) {
   contAvvisi ||= document.body.appendChild(h('div.avvisi', { 'aria-live': 'polite' }));
+  if (opz.tono !== 'ok') {
+    const u = umano(testo);
+    if (u.tecnico) { segnala(new Error(u.tecnico), 'avviso'); testo = u.testo; }
+  }
   const n = h('div.avviso' + (opz.tono ? '.' + opz.tono : ''), {}, h('span', { testo }));
   /* Due azioni al massimo: il conflitto sulla nota ne ha bisogno (unisci /
      tieni la mia), tutto il resto ne ha una sola o nessuna. Con piu' di due
@@ -111,7 +183,9 @@ export function avviso(testo, opz = {}) {
    Il campo non apre una finestra sua: sta DENTRO quella che c'e' gia', cosi'
    il conto esatto ("1.284 spunte da togliere") resta sotto gli occhi mentre si
    conferma. Governa il bottone, che nasce disabilitato.  #ANCHOR: conferma-ok */
-export function campoOK(bottone, { parola = 'OK', etichetta } = {}) {
+/** @param {HTMLButtonElement} bottone
+ *  @param {{parola?: string, etichetta?: string}} [opz] */
+export function campoOK(bottone, { parola = 'OK', etichetta = '' } = {}) {
   const id = 'ok-' + Math.random().toString(36).slice(2, 8);
   const inp = h('input.campo.campo-ok', {
     id, type: 'text', autocomplete: 'off', spellcheck: 'false', placeholder: parola,
@@ -132,9 +206,19 @@ export function campoOK(bottone, { parola = 'OK', etichetta } = {}) {
 
 /* ------------------------------------------------------------- modale ---- */
 const FOCALIZZABILI = 'input:not([disabled]),button:not([disabled]),select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
+/** Tab e Maiusc+Tab girano dentro `contenitore` (modale, cassetto, giro
+ *  guidato): dietro un `aria-modal` non si naviga. Da chiamare nel keydown. */
+export function trappolaTab(e, contenitore) {
+  if (e.key !== 'Tab' || !contenitore) return;
+  const f = [...contenitore.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent !== null);
+  if (!f.length) return e.preventDefault();
+  const i = f.indexOf(document.activeElement);
+  if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+}
 export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   const velo = h('div.velo');
-  const prima = document.activeElement;   // a chi torna il fuoco alla chiusura
+  const prima = /** @type {HTMLElement | null} */ (document.activeElement);   // a chi torna il fuoco alla chiusura
   const chiudi = () => {
     velo.remove(); document.removeEventListener('keydown', tasto);
     if (prima?.isConnected) prima.focus?.();
@@ -148,12 +232,7 @@ export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
         velo !== [...document.querySelectorAll('.velo')].pop()) return;
     if (e.key === 'Escape' && chiudibile) return chiudi();
     /* Tab resta dentro il foglio: dietro il velo non si naviga. */
-    if (e.key !== 'Tab') return;
-    const f = [...foglio.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent !== null);
-    if (!f.length) return e.preventDefault();
-    const i = f.indexOf(document.activeElement);
-    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+    trappolaTab(e, foglio);
   };
   /* `classe` serve ai fogli che non stanno nei 520px della modale normale (per
      esempio l'elenco per sito delle Statistiche, aperto a tutta pagina). */
@@ -251,7 +330,7 @@ export const esc = s => String(s ?? '').replace(/[&<>"]/g,
 export function quando(iso) {
   if (!iso) return '';
   const d = new Date(iso), o = new Date();
-  const g = Math.round((new Date(o.toDateString()) - new Date(d.toDateString())) / 864e5);
+  const g = Math.round((new Date(o.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5);
   const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   if (g === 0) return 'oggi ' + ora;
   if (g === 1) return 'ieri ' + ora;
@@ -277,4 +356,23 @@ export function tinta(nome) {
 export function iniziali(nome) {
   const p = String(nome || '?').trim().split(/\s+/);
   return ((p[0]?.[0] || '?') + (p[1]?.[0] || '')).toUpperCase();
+}
+
+/* --- A11Y-15: scorciatoie a un tasto (WCAG 2.1.4) ----------------------------
+   / ? A M S O lavorano da qualunque punto della pagina: chi detta al computer o
+   preme un tasto per sbaglio cambiava vista senza volerlo. Si spengono dalla
+   finestra «Come si legge» (tasto ? o punto di domanda in barra), per questo
+   browser, come il tema. Accese se nessuno ha scelto (com'era prima). I tasti
+   sulla cella col fuoco (1 2 3 4 0, frecce, Invio) restano: valgono solo li'. */
+const CHIAVE_TASTI = 'cs.scorciatoie';
+
+export function scorciatoieAccese() {
+  try { return localStorage.getItem(CHIAVE_TASTI) !== '0'; } catch { return true; }
+}
+
+export function impostaScorciatoie(accese) {
+  try {
+    if (accese) localStorage.removeItem(CHIAVE_TASTI);
+    else localStorage.setItem(CHIAVE_TASTI, '0');
+  } catch { /* storage bloccato: la scelta non si ricorda */ }
 }

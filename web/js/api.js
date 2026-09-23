@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* api.js - rete, coda offline, flusso in diretta.  #ANCHOR: api-client
 
 DUE TRASPORTI, UNA FIRMA SOLA. In locale (avvia.bat) si parla con server.py via
@@ -18,18 +19,25 @@ api._applica in locale, public._applica in Postgres online)
  6. Conflitto vero (stesso campo, stessa cella, valori diversi) -> avviso con
     scelta esplicita; tutto il resto viene unito in silenzio.
 */
-import { avviso } from './ui.js';
+import { avviso, modale, h } from './ui.js';
 import * as nuvola from './nuvola.js';
 
 const K_CODA = 'cs.coda.v1';
 const K_CACHE = 'cs.bootstrap.v2';   // v2: il payload porta `ruolo`
 const K_OP = 'cs.operatore';
 
+function leggiCoda() {
+  try {
+    const v = JSON.parse(localStorage.getItem(K_CODA) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+
 export const rete = {
   clientId: sessionStorage.getItem('cs.client') ||
     (sessionStorage.setItem('cs.client', crypto.randomUUID()), sessionStorage.getItem('cs.client')),
   online: navigator.onLine,
-  coda: JSON.parse(localStorage.getItem(K_CODA) || '[]'),
+  coda: leggiCoda(),
   operatore: localStorage.getItem(K_OP) || '',
   inInvio: false,
   ultimoContatto: 0,
@@ -44,15 +52,94 @@ export function setOperatore(nome) {
   localStorage.setItem(K_OP, nome);
 }
 
-function salvaCoda() {
-  localStorage.setItem(K_CODA, JSON.stringify(rete.coda));
+/* LA CODA E' UNA SOLA PER TUTTE LE SCHEDE (BUG-02). Prima ogni scheda la
+   leggeva una volta all'avvio e riscriveva il blob intero dalla sua copia in
+   memoria: con due schede aperte offline, la spunta dell'una cancellava quella
+   dell'altra. Ora ogni modifica e' un "rileggi, cambia, riscrivi" sincrono (fra
+   i tre passi nessun'altra scheda puo' mettersi in mezzo), si toglie per
+   op_id e non con shift(), e le altre schede si riallineano sull'evento
+   `storage`. `rete.coda` resta lo STESSO array (lo guardano stato.js e
+   app.js): si riempie sul posto. Se il disco non accetta la scrittura (spazio
+   finito) si continua dalla copia in memoria. */
+let discoOk = true;
+const rimpiazza = lista => { rete.coda.splice(0, rete.coda.length, ...lista); };
+function cambiaCoda(fn) {
+  const lista = fn(discoOk ? leggiCoda() : rete.coda.slice());
+  try { localStorage.setItem(K_CODA, JSON.stringify(lista)); discoOk = true; } catch { discoOk = false; }
+  rimpiazza(lista);
   notifica();
+}
+const togli = opId => cambiaCoda(c => c.filter(x => x.op_id !== opId));
+
+/* Un'altra scheda ha cambiato la coda. Se ha spedito (e tolto) una MIA
+   operazione, il suo esito l'ha avuto lei: qui la si da' per confermata, cosi'
+   la cella non resta "in sospeso" per sempre; la cella vera arriva dal flusso. */
+addEventListener('storage', e => {
+  if (e.key !== K_CODA && e.key !== null) return;
+  if (!discoOk) return;
+  const ora = leggiCoda(), ci = new Set(ora.map(x => x.op_id));
+  const partite = rete.coda.filter(x => x.client === rete.clientId && !ci.has(x.op_id));
+  rimpiazza(ora);
+  notifica();
+  for (const op of partite) rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: {} } }));
+});
+
+/* ------------------------------------------------- PIN dell'admin --- */
+/* SEC-12, solo in locale: se il server ha un `pin_admin` in config.json, le
+   azioni da amministratore rispondono 403 con `pin_richiesto`. Si chiede il
+   PIN una volta, lo si tiene per la sessione del browser (sessionStorage: si
+   scorda chiudendo la scheda) e si riprova. Online non serve: il ruolo lo da'
+   il login, non un nome scritto dal client. */
+const K_PIN = 'cs.pin';
+let pinMem = '';   // se sessionStorage non c'e' (finestra privata bloccata)
+const pinDato = () => {
+  let p = pinMem;
+  try { p = sessionStorage.getItem(K_PIN) || pinMem; } catch { }
+  return p ? { pin: p } : {};
+};
+const tieniPin = p => {
+  pinMem = p || '';
+  try { if (p) sessionStorage.setItem(K_PIN, p); else sessionStorage.removeItem(K_PIN); } catch { }
+};
+let pinInCorso = null;
+function chiediPin(sbagliato) {
+  pinInCorso ||= new Promise(fatto => {
+    let dato = null;
+    const inp = h('input.campo', {
+      id: 'pin-admin', type: 'password', inputmode: 'numeric', autocomplete: 'off',
+      name: 'pin-admin', spellcheck: 'false', placeholder: 'PIN…',
+    });
+    modale(chiudi => {
+      const ok = h('button.bottone', { testo: 'Continua', onclick: () => {
+        dato = inp.value.trim(); chiudi(); } });
+      inp.onkeydown = e => { if (e.key === 'Enter') ok.click(); };
+      return [
+        h('h2', { testo: 'PIN dell’amministratore' }),
+        h('p.sotto', { testo: (sbagliato ? 'Il PIN non era giusto. ' : '') +
+          'Questa azione è dell’amministratore: sul server dell’ufficio serve anche il PIN.' }),
+        h('label', { for: 'pin-admin', testo: 'PIN', style: 'display:block;margin-bottom:6px' }),
+        inp,
+        h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px' },
+          h('button.bottone.piatto', { testo: 'Lascia stare', onclick: () => chiudi() }), ok),
+      ];
+    });
+    // la modale si chiude da sola (Esc, clic fuori, un bottone): la risposta arriva li'
+    const guarda = new MutationObserver(() => {
+      if (inp.isConnected) return;
+      guarda.disconnect(); pinInCorso = null; fatto(dato);
+    });
+    guarda.observe(document.body, { childList: true });
+  });
+  return pinInCorso;
 }
 
 /* --------------------------------------------------------------- fetch --- */
 /* Due trasporti, una firma sola. In locale si parla con server.py; online le
    stesse rotte /api/... diventano funzioni Postgres (vedi nuvola.js). Da qui in
    poi - coda, conflitti, presenza - nessun altro file sa quale dei due sia. */
+/** Le opzioni di `chiama`, uguali per i due trasporti.
+ *  @typedef {{metodo?: string, body?: Record<string, any>, ms?: number}} OpzChiama */
+/** @param {string} path  @param {OpzChiama} opz */
 async function locale(path, { metodo, body, ms }) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -60,7 +147,7 @@ async function locale(path, { metodo, body, ms }) {
     const r = await fetch(path, {
       method: metodo,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify({ ...body, client_id: rete.clientId }) : undefined,
+      body: body ? JSON.stringify({ ...body, client_id: rete.clientId, ...pinDato() }) : undefined,
       signal: ctrl.signal,
     });
     const testo = await r.text();
@@ -71,7 +158,9 @@ async function locale(path, { metodo, body, ms }) {
   }
 }
 
-export async function chiama(path, { metodo = 'GET', body, ms = 12000 } = {}) {
+/** @param {string} path  @param {OpzChiama} [opz]
+ *  @returns {Promise<{ok: boolean, stato: number, dati: any}>} */
+export async function chiama(path, { metodo = 'GET', body = undefined, ms = 12000 } = {}) {
   try {
     let r = nuvola.attiva()
       ? await nuvola.chiama(path, { metodo, body, ms })
@@ -81,6 +170,15 @@ export async function chiama(path, { metodo = 'GET', body, ms = 12000 } = {}) {
     if (r.stato === 401 && nuvola.attiva()) {
       await nuvola.assicuraSessione();
       r = await nuvola.chiama(path, { metodo, body, ms });
+    }
+    // SEC-12: in locale l'azione da admin vuole il PIN; due tentativi al massimo
+    for (let giro = 0; giro < 2 && !nuvola.attiva() && r.stato === 403 && r.dati?.pin_richiesto; giro++) {
+      const sbagliato = !!pinDato().pin;
+      tieniPin('');
+      const pin = await chiediPin(sbagliato);
+      if (!pin) break;
+      tieniPin(pin);
+      r = await locale(path, { metodo, body, ms });
     }
     rete.ultimoContatto = Date.now();
     if (!rete.online) { rete.online = true; notifica(); }
@@ -162,20 +260,36 @@ export async function bootstrap(anno) {
 /* --------------------------------------------------------------- coda ---- */
 /** Accoda una scrittura. Ritorna l'op_id per marcare la cella "in sospeso". */
 export function accoda(op) {
-  const v = { op_id: crypto.randomUUID(), creato: Date.now(), ...op };
-  rete.coda.push(v);
-  salvaCoda();
+  const v = { op_id: crypto.randomUUID(), creato: Date.now(), client: rete.clientId, ...op };
+  cambiaCoda(c => [...c, v]);
   svuota();
   return v.op_id;
 }
 
+/* Ogni scheda spedisce le SUE operazioni; quelle di un'altra solo se ferme da
+   piu' di 30 s (la scheda che le ha fatte e' stata chiusa, o e' senza rete):
+   cosi' l'esito arriva a chi aspetta, e nessuna resta orfana. */
+const ORFANA_MS = 30000;
+const tocca = op => !op.client || op.client === rete.clientId || Date.now() - (op.creato || 0) > ORFANA_MS;
+
 let timerRitento = null;
 export async function svuota() {
-  if (rete.inInvio || !rete.coda.length) return;
+  if (rete.inInvio) return;
+  if (discoOk) rimpiazza(leggiCoda());
+  if (!rete.coda.some(tocca)) {
+    clearTimeout(timerRitento);
+    if (rete.coda.length) timerRitento = setTimeout(svuota, 8000);
+    return;
+  }
   rete.inInvio = true; notifica();
-  try {
-    while (rete.coda.length) {
-      const op = rete.coda[0];
+  /* Due schede che spediscono insieme: una alla volta (navigator.locks, dove
+     c'e'). Il server applica ogni op_id una volta sola, quindi il lucchetto
+     evita solo esiti doppi, non danni. */
+  const giro = async () => {
+    for (;;) {
+      if (discoOk) rimpiazza(leggiCoda());
+      const op = rete.coda.find(tocca);
+      if (!op) break;
       let r;
       try {
         r = await chiama(op.rotta, { metodo: 'POST', body: { ...op.corpo, op_id: op.op_id, operatore: op.operatore || rete.operatore } });
@@ -183,19 +297,23 @@ export async function svuota() {
         break;                       // rete assente: si riprova piu' tardi
       }
       if (r.stato === 409) {
-        rete.coda.shift(); salvaCoda();
+        togli(op.op_id);
         rete.ascoltatori.forEach(f => f(rete, { conflitto: { op, server: r.dati } }));
         continue;
       }
       if (!r.ok) {                   // errore applicativo: non ha senso insistere
-        rete.coda.shift(); salvaCoda();
+        togli(op.op_id);
         rete.ascoltatori.forEach(f => f(rete, { fallita: { op, server: r.dati } }));
         avviso('Operazione rifiutata dal server: ' + (r.dati.errore || r.stato), { tono: 'allerta' });
         continue;
       }
-      rete.coda.shift(); salvaCoda();
+      togli(op.op_id);
       rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: r.dati } }));
     }
+  };
+  try {
+    if (globalThis.navigator?.locks?.request) await navigator.locks.request('cs.coda', giro);
+    else await giro();
   } finally {
     rete.inInvio = false; notifica();
     clearTimeout(timerRitento);
@@ -212,14 +330,28 @@ addEventListener('beforeunload', e => {
 /* ---------------------------------------------------------------- SSE ---- */
 export function apriStream(onEvento) {
   if (nuvola.attiva()) return nuvola.apriStream(onEvento, () => rete.operatore);
-  let es, tentativi = 0;
+  /* `caduto`: il flusso si e' interrotto. L'hub non ripete quello che e'
+     passato mentre eravamo fuori (server riavviato, Wi-Fi caduto): al ritorno
+     lo si dice a chi ascolta con un evento `riconnesso`, e lo stato rilegge
+     l'anno invece di restare indietro in silenzio fino al ricarico.
+     `chiuso`: chi ha aperto il flusso lo ha chiuso, e un tentativo gia' in
+     programma non deve riaprirlo. */
+  let es, tentativi = 0, caduto = false, chiuso = false, timer = null;
   const apri = () => {
+    if (chiuso) return;
     es = new EventSource('/api/stream?client_id=' + rete.clientId);
-    es.onopen = () => { tentativi = 0; if (!rete.online) { rete.online = true; notifica(); } svuota(); };
+    es.onopen = () => {
+      tentativi = 0;
+      if (!rete.online) { rete.online = true; notifica(); }
+      svuota();
+      if (caduto) { caduto = false; try { onEvento({ tipo: 'riconnesso' }); } catch { } }
+    };
     es.onerror = () => {
       es.close();
+      caduto = true;
       rete.online = false; notifica();
-      setTimeout(apri, Math.min(1000 * 2 ** tentativi++, 20000));
+      clearTimeout(timer);
+      timer = setTimeout(apri, Math.min(1000 * 2 ** tentativi++, 20000));
     };
     /* Tutti i tipi che api.py emette (`"tipo": ...`): il server li manda come
        `event: <tipo>`, e EventSource consegna solo quelli a cui ci si iscrive.
@@ -232,7 +364,7 @@ export function apriStream(onEvento) {
     }
   };
   apri();
-  return () => es?.close();
+  return () => { chiuso = true; clearTimeout(timer); es?.close(); };
 }
 
 /* -------------------------------------------------------------- presenza - */

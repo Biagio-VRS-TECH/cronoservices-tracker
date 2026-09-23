@@ -218,6 +218,10 @@ def connect():
     c = sqlite3.connect(_DB_PATH, timeout=15, isolation_level=None)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA busy_timeout=15000")
+    # synchronous vale per connessione: quello di SCHEMA lo riceveva solo la
+    # connessione di init(), le altre scrivevano in FULL (un fsync in piu' a
+    # ogni spunta). In WAL, NORMAL e' sicuro contro i crash dell'applicazione.
+    c.execute("PRAGMA synchronous=NORMAL")
     return c
 
 

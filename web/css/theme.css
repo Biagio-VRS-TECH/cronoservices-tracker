@@ -15,11 +15,15 @@
      loro, indaco e verde compresi) ma piu' profonda e piu' satura - il cyan
      da schermo era piatto, questo ha corpo. 3,6:1 su bianco come riempimento
      (il cyan faceva 2,5), e il tono scuro per il testo. 30a sessione. */
-  --marchio:        #0D96CF;   /* laguna: riempimenti, focus, "controllata" */
-  --marchio-scuro:  #085F87;   /* testo e hover: 6,6:1 su bianco */
-  --marchio-tenue:  #E0F1F9;   /* riempimenti leggeri, righe selezionate   */
-  --marchio-notte:  #0A2E44;   /* il fondo della laguna: tinge l'inchiostro dei bottoni */
-  --su-marchio:     #03293A;   /* cio' che sta SOPRA la laguna piena: 5,9:1 */
+  /* FAMIGLIA VRS (D2, 23/09): l'accento dell'interfaccia e' la laguna scurita
+     di css/vrs-famiglia.css, la stessa del Planning. La laguna piena #0D96CF
+     resta solo come colore di DATO (passo "controllata", "previsto"): la
+     tavolozza dei quattro passi e' validata per i daltonici e non si tocca. */
+  --laguna:         #0D96CF;
+  --marchio:        var(--vrs-accent);        /* bottoni, focus, pillole accese */
+  --marchio-scuro:  var(--vrs-accent-hover);  /* testo e hover: 6,6:1 su bianco */
+  --marchio-tenue:  var(--vrs-accent-soft);   /* riempimenti leggeri, righe selezionate */
+  --su-marchio:     var(--vrs-on-accent);     /* cio' che sta SOPRA l'accento pieno */
   --accento:        #00A37A;   /* completato: verde che sta bene accanto al cyan */
   --accento-scuro:  #007A5C;   /* dove serve testo bianco sul verde (avvisi)    */
   /* ---------------------------------------------------------------------- */
@@ -31,16 +35,19 @@
      cosi' brilla di piu' perche' non ha intorno altri toni freddi. I grigi
      intermedi seguono la stessa temperatura. Rapporti rimisurati: inchiostro
      17,8:1 su bianco, testo tenue 5,4:1 su bianco e 4,8:1 sul fondo. */
-  --fondo:      #F3F1EC;
-  --superficie: #FFFFFF;
-  --superficie-2:#F8F6F2;
-  --bordo:      #E4E0D8;
-  --bordo-forte:#C9C3B8;
-  --inchiostro: #15181C;       /* grafite: 17,8:1 su bianco */
-  --inchiostro-2:#4A4F55;      /* 8,3:1 su bianco, 7,3:1 sul fondo */
-  --tenue:      #666B70;       /* 5,4:1 su bianco, 4,8:1 sul fondo: AA ovunque */
-  --tenue-2:    #666B70;       /* testo micro (id, localita', totali): come --tenue,
-                                  il minimo verificato anche sul fondo */
+  /* D2: i neutri sono quelli di famiglia (vrs-famiglia.css), freddi come nel
+     Planning. I nomi restano: cambiano solo i valori a cui puntano. */
+  --fondo:      var(--vrs-bg);
+  --superficie: var(--vrs-surface);
+  --superficie-2:var(--vrs-surface-2);
+  --superficie-3:var(--vrs-surface-3);
+  --bordo:      var(--vrs-border);
+  --bordo-forte:var(--vrs-border-strong);
+  --inchiostro: var(--vrs-text);
+  --inchiostro-2:var(--vrs-text-2);
+  --tenue:      var(--vrs-muted);  /* 5,2:1 sul fondo: AA ovunque */
+  --tenue-2:    var(--vrs-muted);  /* testo micro (id, localita', totali) */
+  --velo-modale: var(--vrs-overlay); /* VIS-10: al buio resta scuro */
   --su-allerta: #FFFFFF;       /* testo sopra l'ambra pieno (banner, avvisi) */
   /* Il filo a bassa opacita': e' il bordo di tutta l'interfaccia premium - si
      vede il salto di superficie, non una linea disegnata. */
@@ -58,7 +65,7 @@
      l'arancio dell'allerta sta sul bordo della capsula, non dentro, quindi non
      si confondono. */
   --st-stampata:   #B8860B;   /* oro: contrasto 3,3:1 su bianco, come segmento basta */
-  --st-controllata:var(--marchio);
+  --st-controllata:var(--laguna);
   --st-corretta:   #A0307E;   /* magenta: L .50 C .17 contrasto 6,5:1 su bianco.
                                  Era var(--accento), cioe' lo STESSO verde con cui
                                  tutta l'app dice "mappatura completa": nei grafici
@@ -97,7 +104,7 @@
      certezza; "da rinnovare" prende il rosso della scadenza contratto (NON
      l'ambra dell'arretrato: sono due cose diverse); il pre-tracciamento e' il
      neutro, come nella griglia. */
-  --cl-previsto: var(--marchio);
+  --cl-previsto: var(--laguna);
   --cl-stima:    #085F87;   /* la laguna a un grado piu' scuro: stessa cosa, meno certa */
   --cl-rinnovo:  var(--scadenza);
   --cl-pretrac:  #8B8D91;    /* il grigio che era di `stampata`: pre-tracciamento resta neutro */
@@ -115,19 +122,15 @@
   /* SEGNALI - il rilievo dell'interfaccia. Non introducono colori: sono
      color-mix di token che esistono gia'. L'alone e' cio' che fa leggere una
      cosa come "accesa" senza aggiungere un bordo in piu'. */
-  --alone-marchio: 0 0 0 1px color-mix(in srgb, var(--marchio) 32%, transparent),
-                   0 8px 24px -10px color-mix(in srgb, var(--marchio) 55%, transparent);
-  --alone-completa: 0 0 0 1px color-mix(in srgb, var(--completa) 38%, transparent),
-                    0 6px 18px -8px color-mix(in srgb, var(--completa) 50%, transparent);
-  /* Ambiente: un soffio di cyan in alto a sinistra, appena percettibile. E'
-     quello che tiene insieme testa di vetro e fondo. */
-  --velo: radial-gradient(1100px 380px at 8% -10%,
-            color-mix(in srgb, var(--marchio) 7%, transparent), transparent 68%);
+  /* D2 / VIS-03: superfici piatte. L'alone e' solo l'anello di 1px, senza la
+     luce diffusa; il velo radiale, il vetro e il riflesso non ci sono piu'
+     (i token restano, vuoti, perche' li usano ancora molte regole). */
+  --alone-marchio: 0 0 0 1px color-mix(in srgb, var(--marchio) 40%, transparent);
+  --alone-completa: 0 0 0 1px color-mix(in srgb, var(--completa) 40%, transparent);
+  --velo: none;
   --filo: linear-gradient(90deg, var(--marchio-scuro), var(--marchio) 45%, var(--completa));
-  /* Vetro delle carte della vista Statistiche: la superficie lasciata un po'
-     trasparente sul velo, e il riflesso di 1px sul bordo alto. */
-  --vetro:  color-mix(in srgb, var(--superficie) 86%, transparent);
-  --lucido: rgba(255,255,255,.7);
+  --vetro:  var(--superficie);
+  --lucido: transparent;
   --punti:  color-mix(in srgb, var(--bordo-forte) 55%, transparent);
 
   /* Tipografia (css/fonti.css, file in web/assets/fonti/, nessuna CDN): tre
@@ -137,26 +140,30 @@
        --f-dato     JetBrains Mono: ogni dato, id, ora, conteggio
      I fallback sono i font di sistema di prima: se il woff2 non arriva l'app
      resta leggibile e uguale a se stessa. */
-  --f-display: "Newsreader Variable", "Constantia", "Cambria", "Georgia", serif;
+  /* D2 / VIS-02: i titoli dell'interfaccia sono in Inter 600 come nel Planning.
+     Newsreader resta solo nei documenti stampati (--f-serif: schede e registro,
+     che nel foglio usano gia' il loro --serif). */
+  --f-serif: "Newsreader Variable", "Constantia", "Cambria", "Georgia", serif;
+  --f-display: var(--f-ui);
   --f-ui:  "Inter Variable", "Segoe UI Variable Text", "Segoe UI", -apple-system,
            BlinkMacSystemFont, system-ui, Roboto, sans-serif;
   --f-dato:"JetBrains Mono Variable", "Cascadia Mono", "Cascadia Code", ui-monospace,
            "SF Mono", Consolas, "Liberation Mono", monospace;
   /* Inter: cifre a larghezza fissa dove serve le chiede .dato; qui si accende
      solo la "a" a un piano e il "l" con la coda, la voce piu' calma del font */
-  --f-ui-feat: "cv05", "cv11";
-  /* La mano del display: Newsreader sta bene nei pesi medi, non in grassetto, e
-     vuole il tracking appena negativo. Questi due token tengono i titoli e le
-     cifre eroe coerenti in tutta l'app senza ripetere i valori venti volte. */
-  --p-display: 560;
-  --tr-display: -.022em;
+  --f-ui-feat: var(--vrs-font-feat);
+  /* La mano dei titoli: Inter 600 con il tracking di famiglia. */
+  --p-display: 600;
+  --tr-display: -.02em;
 
-  --t-micro: 10.5px;
-  --t-mini:  11.5px;
-  --t-base:  13px;
-  --t-med:   15px;
-  --t-grande:20px;
-  --t-titolo:32px;
+  /* VIS-08: la scala e' quella di famiglia, in rem, con il pavimento a 11 px.
+     I --t-* restano come alias (10,5 -> 11 e 11,5 -> 12 px). */
+  --t-micro: .6875rem;   /* 11 px: il pavimento */
+  --t-mini:  .75rem;     /* 12 */
+  --t-base:  .8125rem;   /* 13 */
+  --t-med:   .9375rem;   /* 15 */
+  --t-grande:1.25rem;    /* 20 */
+  --t-titolo:2rem;       /* 32 */
 
   /* Misure della griglia: il passo del mese e' il modulo di tutto il layout */
   --passo-mese: 44px;   /* modulo del layout: la capsula ci sta con 4 segmenti */
@@ -166,25 +173,28 @@
   --rientro:    12px;    /* aria ai lati delle carte cliente nella vista Anno */
   --r-carta:    10px;    /* raggio delle carte cliente e delle schede del mese */
 
-  /* Raggi in progressione costante: 3 - 6 - 10 - 16. Un oggetto piccolo dentro
-     uno grande scende di un grado, cosi' le curve restano concentriche. */
-  --r-0: 3px;
+  /* VIS-14: raggi di famiglia 4 - 6 - 10 - 14. Un oggetto piccolo dentro
+     uno grande scende di un grado, cosi' le curve restano concentriche.
+     "tonda" solo per chip, pallini e avatar. */
+  --r-0: 4px;
   --r-1: 6px;
   --r-2: 10px;
-  --r-3: 16px;
+  --r-3: 14px;
   --r-tonda: 999px;
 
-  /* Ombre a due livelli: un contatto corto che stacca l'oggetto dalla
-     superficie, e una diffusione lunga e molto tenue che gli da' l'aria
-     intorno. Una sola ombra netta fa un oggetto incollato, due lo fanno
-     appoggiato. */
-  --ombra-1: 0 1px 1.5px rgba(16,26,36,.05), 0 2px 6px -3px rgba(16,26,36,.07);
-  --ombra-2: 0 1px 2px rgba(16,26,36,.05), 0 8px 22px -10px rgba(16,26,36,.17);
-  --ombra-3: 0 2px 6px -2px rgba(16,26,36,.08), 0 26px 60px -22px rgba(16,26,36,.32);
+  /* Ombre: le due di famiglia (contatto e galleggiante). */
+  --ombra-1: var(--vrs-shadow-1);
+  --ombra-2: var(--vrs-shadow-1);
+  --ombra-3: var(--vrs-shadow-pop);
 
-  --molla: cubic-bezier(.2,.9,.28,1);
-  --rapido: 140ms var(--molla);
-  --medio:  240ms var(--molla);
+  /* VIS-13: movimento di famiglia. `--rapido` e `--medio` sono durata+curva da
+     usare DOPO il nome di una proprieta'; mai da soli (sarebbe `all`).
+     `--transizione` e' l'elenco esplicito per i comandi. */
+  --molla: var(--vrs-ease);
+  --rapido: var(--vrs-t-fast) var(--vrs-ease);
+  --medio:  var(--vrs-t-slow) var(--vrs-ease);
+  --transizione: color var(--rapido), background-color var(--rapido), border-color var(--rapido),
+                 box-shadow var(--rapido), opacity var(--rapido), transform var(--rapido);
 
   /* ---- MATERIA (30a sessione) -------------------------------------------
      Tre materiali soli, e ogni comando dell'app e dei generatori e' fatto di
@@ -205,26 +215,23 @@
      Le PISTE (il vuoto di una barra, il fondo di un campo, il vassoio di un
      comando segmentato) sono un incavo: tinta dell'inchiostro a bassa
      opacita' con un'ombra interna corta. */
-  --btn-fondo:       linear-gradient(180deg, #2A3844 0%, #16222C 55%, #0F1920 100%);
-  --btn-fondo-hover: linear-gradient(180deg, #34444F 0%, #1E2C37 55%, #16222C 100%);
-  --btn-testo:   #FFFFFF;
-  --btn-accento: var(--marchio);   /* cifre e icone SOPRA il bottone d'inchiostro: 6,5:1 */
-  --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.20);
-  --btn-ombra:   0 1px 2px rgba(10,30,44,.22), 0 8px 18px -10px rgba(10,46,68,.6);
-  --vetro-fondo: linear-gradient(180deg, var(--superficie), var(--superficie-2));
-  --satin: linear-gradient(180deg, rgba(255,255,255,.38), rgba(255,255,255,.10) 46%, rgba(255,255,255,0));
-  --pista-fondo:  color-mix(in srgb, var(--inchiostro) 7%, transparent);
-  --pista-incavo: inset 0 1px 2px rgba(16,20,26,.10),
-                  inset 0 0 0 1px color-mix(in srgb, var(--inchiostro) 5%, transparent);
-  /* il filo di platino: la riga di luce sul bordo alto di testa, fogli e carte,
-     che si spegne verso i due lati. Non e' un colore, e' inchiostro al 18%. */
-  --filo-platino: linear-gradient(90deg, transparent,
-                    color-mix(in srgb, var(--inchiostro) 18%, transparent) 28%,
-                    color-mix(in srgb, var(--inchiostro) 18%, transparent) 72%, transparent);
-  /* il LAMPO: la striscia di luce che attraversa un bottone al passaggio, come
-     il riflesso su un oggetto lucido che si gira in mano. Sull'inchiostro e'
-     bianco; sull'avorio della notte e' un'ombra appena azzurra */
-  --lampo: rgba(255,255,255,.22);
+  /* D2 / VIS-03 (23/09): la materia e' PIATTA, come nel Planning. Il bottone
+     primario e' l'accento pieno, senza gradiente ne' filo di luce; vetro, satin,
+     filo di platino e lampo restano come nomi ma sono vuoti. `--vetro-fondo` e
+     `--satin` restano IMMAGINI (gradienti a tinta unita) perche' finiscono in
+     elenchi di `background-image` (la freccina di select.pill). */
+  --btn-fondo:       var(--vrs-accent);
+  --btn-fondo-hover: var(--vrs-accent-hover);
+  --btn-testo:   var(--vrs-on-accent);
+  --btn-accento: var(--vrs-on-accent);   /* cifre e icone SOPRA il bottone pieno */
+  --btn-lucido:  0 0 0 0 transparent;
+  --btn-ombra:   var(--vrs-shadow-1);
+  --vetro-fondo: linear-gradient(var(--superficie), var(--superficie));
+  --satin: linear-gradient(transparent, transparent);
+  --pista-fondo:  color-mix(in srgb, var(--inchiostro) 6%, transparent);
+  --pista-incavo: 0 0 0 0 transparent;
+  --filo-platino: none;
+  --lampo: transparent;
 }
 
 /* CAMBIO TEMA IN DISSOLVENZA: giraTema() nel tracker e setTheme() nei generatori
@@ -240,22 +247,11 @@
 /* Tema scuro: automatico da sistema, forzabile con data-tema sul <html> */
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="chiaro"]) {
-    /* carbone caldo, non blu-nero: lo stesso passo del tema chiaro (porcellana
-       e grafite) letto al negativo. Inchiostro avorio 15,4:1 sulla superficie */
-    --fondo:      #0C0E11;
-    --superficie: #151719;
-    --superficie-2:#1B1E21;
-    --bordo:      #272B2F;
-    --bordo-forte:#3B4147;
-    --inchiostro: #EEEDE9;       /* 15,4:1 sulla superficie */
-    --inchiostro-2:#C4C6C6;      /* 10,5:1 */
-    --tenue:      #8F949A;       /* 5,9:1 sulla superficie scura */
-    --tenue-2:    #969BA0;       /* 6,4:1 sulla superficie scura */
-  --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
-  color-scheme: dark;
-    --marchio:       #2FB3EA;
-    --marchio-scuro: #86D3F5;
-    --marchio-tenue: #0A2B3B;
+    /* D2: neutri, accento, ombre e bottone arrivano scuri da vrs-famiglia.css;
+       qui restano solo i colori di stato e di dato rischiarati per il buio. */
+    --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
+    color-scheme: dark;
+    --laguna:       #2FB3EA;
     --accento:       #22C39A;
     --completa-testo: var(--accento);
     --st-stampata:   #E2B83C;   /* oro rischiarato per il fondo scuro */
@@ -267,47 +263,19 @@
     --allerta-tenue: #2A1F12;
     --scadenza:      #F2705F;
     --scadenza-tenue:#2C1614;
-    --velo: radial-gradient(1100px 380px at 8% -10%,
-              color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
-    --lucido: rgba(255,255,255,.06);
     --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
-    --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
-    --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
-    /* la materia al negativo: il bottone d'inchiostro diventa AVORIO (e' l'unica
-       cosa chiara oltre alle pagine), il satin si abbassa perche' sul buio un
-       velo bianco pesa il triplo */
-    --btn-fondo:       linear-gradient(180deg, #FFFFFF 0%, #EEEEEB 60%, #E3E4E1 100%);
-    --btn-fondo-hover: linear-gradient(180deg, #FFFFFF 0%, #F7F7F5 60%, #EDEEEB 100%);
-    --btn-testo:   #0E1114;
-    --btn-accento: #00719B;      /* cyan profondo sull'avorio: 4,9:1 */
-    --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.10);
-    --btn-ombra:   0 1px 2px rgba(0,0,0,.55), 0 10px 22px -12px rgba(0,0,0,.9);
-    --satin: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04) 46%, rgba(255,255,255,0));
     --pista-fondo:  rgba(255,255,255,.07);
-    --pista-incavo: inset 0 1px 2px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.04);
-    --filo-platino: linear-gradient(90deg, transparent, rgba(255,255,255,.17) 28%, rgba(255,255,255,.17) 72%, transparent);
-    --lampo: rgba(10,46,68,.09);
-    --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
   }
 }
 :root[data-tema="scuro"] {
-  --fondo:      #0C0E11;
-  --superficie: #151719;
-  --superficie-2:#1B1E21;
-  --bordo:      #272B2F;
-  --bordo-forte:#3B4147;
-  --inchiostro: #EEEDE9;
-  --inchiostro-2:#C4C6C6;
-  --tenue:      #8F949A;       /* 5,9:1 sulla superficie scura */
-  --tenue-2:    #969BA0;       /* 6,4:1 sulla superficie scura */
+  /* D2: neutri, accento, ombre e bottone arrivano scuri da vrs-famiglia.css;
+     qui restano solo i colori di stato e di dato rischiarati per il buio. */
   --su-allerta: #1A1205;       /* il bianco sull'ambra scura fa 2,5:1: qui va l'inchiostro */
   color-scheme: dark;
-  --marchio:       #2FB3EA;
-  --marchio-scuro: #86D3F5;
-  --marchio-tenue: #0A2B3B;
+  --laguna:       #2FB3EA;
   --accento:       #22C39A;
   --completa-testo: var(--accento);
-  --st-stampata:   #E2B83C;
+  --st-stampata:   #E2B83C;   /* oro rischiarato per il fondo scuro */
   --st-corretta:   #CC5FA8;   /* magenta rischiarato per il fondo scuro: 4,9:1 */
   --st-ricambi:    #7B85EA;   /* rischiarato per il fondo scuro: 5,4:1 */
   --cl-stima:    #15759D;
@@ -316,27 +284,33 @@
   --allerta-tenue: #2A1F12;
   --scadenza:      #F2705F;
   --scadenza-tenue:#2C1614;
-  --velo: radial-gradient(1100px 380px at 8% -10%,
-            color-mix(in srgb, var(--marchio) 13%, transparent), transparent 68%);
-  --lucido: rgba(255,255,255,.06);
   --punti:  color-mix(in srgb, var(--bordo-forte) 70%, transparent);
-  --ombra-1: 0 1px 1.5px rgba(0,0,0,.44), 0 2px 8px -4px rgba(0,0,0,.5);
-  --ombra-2: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -12px rgba(0,0,0,.72);
-  /* la materia al negativo: il bottone d'inchiostro diventa AVORIO (e' l'unica
-     cosa chiara oltre alle pagine), il satin si abbassa perche' sul buio un
-     velo bianco pesa il triplo */
-  --btn-fondo:       linear-gradient(180deg, #FFFFFF 0%, #EEEEEB 60%, #E3E4E1 100%);
-  --btn-fondo-hover: linear-gradient(180deg, #FFFFFF 0%, #F7F7F5 60%, #EDEEEB 100%);
-  --btn-testo:   #0E1114;
-  --btn-accento: #00719B;      /* cyan profondo sull'avorio: 4,9:1 */
-  --btn-lucido:  inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.10);
-  --btn-ombra:   0 1px 2px rgba(0,0,0,.55), 0 10px 22px -12px rgba(0,0,0,.9);
-  --satin: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04) 46%, rgba(255,255,255,0));
   --pista-fondo:  rgba(255,255,255,.07);
-  --pista-incavo: inset 0 1px 2px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.04);
-  --filo-platino: linear-gradient(90deg, transparent, rgba(255,255,255,.17) 28%, rgba(255,255,255,.17) 72%, transparent);
-  --lampo: rgba(10,46,68,.09);
-  --ombra-3: 0 2px 8px -2px rgba(0,0,0,.5), 0 30px 64px -24px rgba(0,0,0,.82);
+}
+
+/* Il file di famiglia (vrs-famiglia.css, identico al Planning) conosce solo
+   `data-theme`; la scelta esplicita di CronoService e' `data-tema`. Qui le
+   primitive seguono anche quella: "scuro" forzato su un sistema chiaro, e
+   "chiaro" forzato su un sistema scuro. Stessi valori del file di famiglia. */
+:root[data-tema="scuro"] {
+  --vrs-bg: #0d0f12; --vrs-surface: #15181c; --vrs-surface-2: #1b1f24; --vrs-surface-3: #22272d;
+  --vrs-border: #2b3036; --vrs-border-strong: #3b4148;
+  --vrs-text: #ecedee; --vrs-text-2: #bfc3c9; --vrs-muted: #a7adb5;
+  --vrs-accent: #3fb6ec; --vrs-accent-hover: #6cc8f2; --vrs-accent-soft: #0a2b3b; --vrs-on-accent: #04202e;
+  --vrs-overlay: rgb(0 0 0 / 0.6);
+  --vrs-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --vrs-shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.45);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-tema="chiaro"] {
+    --vrs-bg: #f4f4f3; --vrs-surface: #ffffff; --vrs-surface-2: #f9f9f8; --vrs-surface-3: #eeeeec;
+    --vrs-border: #e2e3e5; --vrs-border-strong: #c9ccd1;
+    --vrs-text: #14171c; --vrs-text-2: #474c54; --vrs-muted: #62676f;
+    --vrs-accent: #0b6fa0; --vrs-accent-hover: #085f87; --vrs-accent-soft: #e4f2f9; --vrs-on-accent: #ffffff;
+    --vrs-overlay: rgb(15 20 32 / 0.45);
+    --vrs-shadow-1: 0 1px 2px rgb(15 20 32 / 0.06);
+    --vrs-shadow-pop: 0 1px 2px rgb(15 20 32 / 0.06), 0 12px 32px rgb(15 20 32 / 0.12);
+  }
 }
 
 /* ---- LA TENDINA APERTA ----------------------------------------------------
@@ -358,4 +332,21 @@ select option:checked {
   background-color: var(--superficie-2);
   color: var(--inchiostro);
   font-weight: 600;
+}
+
+/* ---- TELEFONO: tocco e campi (MOB-04, MOB-14) ------------------------------
+   Vale per le tre pagine (tracker, schede, registro), che caricano tutte
+   questo file. Lo zoom resta bloccato (decisione D1), quindi un campo sotto i
+   16 px farebbe ingrandire iOS da solo senza ritorno: sul tocco ogni campo di
+   testo e ogni tendina stanno a 16 px almeno. `!important` perche' i
+   generatori danno la misura ai campi per id. */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--marchio) 18%, transparent);
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  select, textarea {
+    font-size: max(16px, 1em) !important;
+  }
 }

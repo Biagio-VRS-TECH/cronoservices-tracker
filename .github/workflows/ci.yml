@@ -1,0 +1,64 @@
+# Controlli automatici di CronoService (COD-01): a ogni push e a ogni pull request.
+# Tutto offline, come in tests/LEGGIMI.md: niente Access, niente rete dell'ufficio, niente Supabase.
+# Gira su Windows perché il programma vive su un PC Windows (percorsi, PowerShell finto di sync).
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prove:
+    name: Prove Python e JavaScript
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Prove Python (unittest)
+        run: python -m unittest discover -s tests/python -t .
+
+      - name: Prove JavaScript (node --test)
+        run: node --test "tests/js/*.test.mjs"
+
+      - name: Sintassi degli script (node --check)
+        shell: bash
+        run: |
+          errori=0
+          for f in web/js/*.js web/js/views/*.js web/sw.js web/registro/*.js web/schede/*.js netlify/functions/*.mjs; do
+            [ -f "$f" ] || continue
+            node --check "$f" || { echo "::error file=$f::errore di sintassi"; errori=1; }
+          done
+          exit $errori
+
+      # COD-04: controllo dei tipi dei moduli con `// @ts-check` in testa (jsconfig.json), senza build.
+      # La versione e' fissata: una TypeScript nuova con regole nuove non deve rompere il CI da sola.
+      - name: Controllo dei tipi (tsc su jsconfig.json)
+        run: npx -y -p typescript@6.0.3 tsc -p jsconfig.json
+
+      # SEC-10: un `revoke … on all tables/functions in schema public` nei file di cloud/ toglierebbe
+      # i permessi anche a tutto il Planning, che vive sullo stesso database.
+      - name: Niente revoke di massa negli script SQL
+        shell: bash
+        run: |
+          if grep -EniH 'revoke[^;]*on[[:space:]]+all[[:space:]]+(tables|functions|sequences|routines)[[:space:]]+in[[:space:]]+schema[[:space:]]+public' cloud/*.sql; then
+            echo "::error::Uno script revoca permessi su tutto lo schema public: spegnerebbe il Planning (SEC-10)."
+            exit 1
+          fi

@@ -1,0 +1,92 @@
+/* ============================================================================
+   vrs-famiglia.css — primitive di famiglia VRS (VIS-01, decisione D2)
+   ----------------------------------------------------------------------------
+   IDENTICO nei due repository: planning/web/src/styles/vrs-famiglia.css e
+   cronoservice/web/css/vrs-famiglia.css. Si cambia in uno e si copia nell'altro.
+
+   Sono primitive, non token di interfaccia: ciascuna app ha i suoi nomi
+   (--bg, --fondo, --accent, …) e li fa puntare qui dove vuole somigliare
+   all'altra. Nessuno rinomina niente.
+     · Planning: usa da qui i neutri scuri, il velo, il movimento e le cifre;
+       tiene i suoi grigi freddi in chiaro e il suo cobalto (D2: ritocchi leggeri).
+     · CronoService: si avvicina, e prende da qui fondo, superfici, testo e accento.
+
+   Contrasti (APCA / WCAG 2) verificati sulle superfici della tabella.
+   --vrs-brand è il cyan del marchio: solo per il logo, mai per testo o comandi.
+   ========================================================================== */
+
+:root {
+  --vrs-bg: #f4f4f3;
+  --vrs-surface: #ffffff;
+  --vrs-surface-2: #f9f9f8;
+  --vrs-surface-3: #eeeeec;
+  --vrs-border: #e2e3e5;
+  --vrs-border-strong: #c9ccd1;
+  --vrs-text: #14171c;
+  --vrs-text-2: #474c54;
+  --vrs-muted: #62676f;          /* 5,2:1 sul fondo, Lc 72 */
+  --vrs-accent: #0b6fa0;         /* 5,5:1 su bianco */
+  --vrs-accent-hover: #085f87;
+  --vrs-accent-soft: #e4f2f9;
+  --vrs-on-accent: #ffffff;
+  --vrs-brand: #00aeef;
+
+  --vrs-overlay: rgb(15 20 32 / 0.45);
+  --vrs-shadow-1: 0 1px 2px rgb(15 20 32 / 0.06);
+  --vrs-shadow-pop: 0 1px 2px rgb(15 20 32 / 0.06), 0 12px 32px rgb(15 20 32 / 0.12);
+
+  /* Varianti di Inter uguali nelle due app (VIS-16): cv05 (l con la coda, non si
+     confonde con I e 1) e cv11 (a a un piano). Niente ss01: le cifre restano quelle standard. */
+  --vrs-font-feat: 'cv05', 'cv11';
+
+  /* Movimento: una curva e tre durate (VIS-13) */
+  --vrs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vrs-t-fast: 120ms;
+  --vrs-t: 180ms;
+  --vrs-t-slow: 260ms;
+}
+
+/* Scuro: scelta esplicita e preferenza di sistema. Due blocchi per forza (un media
+   query non si unisce a un selettore): i valori sono gli stessi, li controlla
+   tests/unit/stili-token.test.ts. */
+:root[data-theme='dark'] {
+  --vrs-bg: #0d0f12;
+  --vrs-surface: #15181c;
+  --vrs-surface-2: #1b1f24;
+  --vrs-surface-3: #22272d;
+  --vrs-border: #2b3036;
+  --vrs-border-strong: #3b4148;
+  --vrs-text: #ecedee;
+  --vrs-text-2: #bfc3c9;
+  --vrs-muted: #a7adb5;          /* Lc −56 sulla superficie (#9aa0a8 si fermava a −49) */
+  --vrs-accent: #3fb6ec;
+  --vrs-accent-hover: #6cc8f2;
+  --vrs-accent-soft: #0a2b3b;
+  --vrs-on-accent: #04202e;
+  --vrs-brand: #00aeef;
+  --vrs-overlay: rgb(0 0 0 / 0.6);
+  --vrs-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --vrs-shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --vrs-bg: #0d0f12;
+    --vrs-surface: #15181c;
+    --vrs-surface-2: #1b1f24;
+    --vrs-surface-3: #22272d;
+    --vrs-border: #2b3036;
+    --vrs-border-strong: #3b4148;
+    --vrs-text: #ecedee;
+    --vrs-text-2: #bfc3c9;
+    --vrs-muted: #a7adb5;
+    --vrs-accent: #3fb6ec;
+    --vrs-accent-hover: #6cc8f2;
+    --vrs-accent-soft: #0a2b3b;
+    --vrs-on-accent: #04202e;
+    --vrs-brand: #00aeef;
+    --vrs-overlay: rgb(0 0 0 / 0.6);
+    --vrs-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+    --vrs-shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.45);
+  }
+}

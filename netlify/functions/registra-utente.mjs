@@ -39,7 +39,9 @@ export default async (req) => {
     return risposta(405, { errore: 'metodo non ammesso' });
   }
 
-  const URL_SB = process.env.SUPABASE_URL;
+  // la barra finale si toglie come fa nuvola.js: "https://x.supabase.co/" dava
+  // "//rest/v1/..." e un 404 letto come "il database non conosce ruolo_corrente()"
+  const URL_SB = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const ANON = process.env.SUPABASE_ANON_KEY;
   const SERVICE = process.env.SUPABASE_SERVICE_KEY;
   if (!URL_SB || !ANON || !SERVICE) {
@@ -66,7 +68,7 @@ export default async (req) => {
     });
     if (r.status === 401) return risposta(401, { errore: 'sessione scaduta: rientra.' });
     if (r.status === 404) return risposta(503, { errore:
-      'il database non conosce ruolo_corrente(): vanno rieseguiti cloud/02 e cloud/04.' });
+      'il database non conosce ruolo_corrente(): vedi cloud/LEGGIMI.md (sul database condiviso col Planning non si rilanciano 02 e 04).' });
     if (!r.ok) return risposta(403, { errore: 'il database non ha confermato il tuo ruolo.' });
     ruolo = (await r.json());
   } catch {

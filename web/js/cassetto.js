@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* cassetto.js - pannello laterale di un sito: dati di contratto, la mappatura
    dell'anno di QUESTO sito (quando scade e in quale mese e' stata chiusa), i
    mesi con le quattro spunte, ultime modifiche.
@@ -7,17 +8,19 @@
    (`replaceChildren`) riportava lo scorrimento in cima a ogni clic - con dodici
    mesi a schermo era il difetto piu' fastidioso dell'applicazione.
    #ANCHOR: cassetto */
-import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
-import { chiama } from './api.js';
+import { h, ICO, esc, dataIt, quando, avviso, copia } from './ui.js';
+import { condividiLink, condivisioneNativa, linkService } from './condividi.js';
+import { chiama, inNuvola } from './api.js';
 import {
   documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
-  eliminaDocumenti,
+  eliminaDocumenti, ripristinaDocumento,
   urlGeneratore, dimensione, ICO_PDF, ICONA_TIPO, TIPI, tipoDi,
 } from './documenti.js';
 import {
   st, cella, statoCella, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE, toccaPasso,
   mappaturaSito, scadEffettiva, on, doveFatto,
   fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
+  sonoAdmin, responsabiliAttivi, responsabileDi, nomeResponsabile, affida,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null, prima = null;
@@ -31,14 +34,25 @@ export function chiudiCassetto() {
   if (dentro && prima?.isConnected) prima.focus?.();
   prima = null;
 }
-const esc0 = e => { if (e.key === 'Escape') chiudiCassetto(); };
+/* A11Y-09: il pannello NON e' modale (la griglia dietro resta viva e si spunta
+   mentre e' aperto), quindi niente `aria-modal` e niente trappola del Tab. Il
+   fuoco pero' si gestisce: entra nel pannello all'apertura, ci resta se un
+   redisegno toglie il nodo che lo aveva, torna a chi l'ha aperto alla
+   chiusura. Escape e' del foglio davanti: con una modale o il giro guidato
+   sopra, chiude quelli e non anche il pannello. */
+const esc0 = e => {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (document.querySelector('.velo, #tourPop')) return;
+  chiudiCassetto();
+};
 
 export function apriCassetto(id) {
   if (idAperto === id) return chiudiCassetto();
   chiudiCassetto();
   idAperto = id;
   prima = document.activeElement;
-  nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio service' });
+  nodo = h('div.cassetto', { role: 'dialog', 'aria-labelledby': 'cassetto-titolo',
+    tabindex: '-1' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
   /* Tutte le righe, non solo quella del mese toccato: una spunta messa o
@@ -50,6 +64,7 @@ export function apriCassetto(id) {
   });
   stacca = () => { s1(); s2(); };
   disegna();
+  nodo.focus({ preventScroll: true });
   caricaStoria(id);
 }
 
@@ -81,12 +96,35 @@ function rigaMese(id, m, previsto) {
         'aria-checked': (!e.ered[campo] && proposto(c, campo)) ? 'mixed' : String(fatto(c, campo) || !!e.ered[campo]),
         'data-campo': campo,
         title: titoloPasso(campo, e.ered[campo], c),
-        onclick: () => toccaPasso(id, m, campo),
+        // doppio clic = un clic: il secondo disfaceva il primo
+        onclick: ev => { if (ev.detail <= 1) toccaPasso(id, m, campo); },
       },
         h('span.box', { html: ICO.ok }),
         h('span.et', { testo: BREVE[campo] }),
       ))),
   );
+}
+
+/* MOB-16 · Il link di questo sito, da mandare a un collega: sul telefono con
+   il foglio di condivisione del sistema, sul computer (o in ufficio, in http)
+   negli appunti. Chi lo apre si trova questo cassetto (#ANCHOR: condividi). */
+function bottoneCondividi(s, cli) {
+  const nativo = condivisioneNativa();
+  const nome = [cli.rs, s.dest].filter(Boolean).join(' – ') || 'service #' + s.id;
+  return h('button.pill.mini.cass-condividi', {
+    type: 'button',
+    testo: nativo ? 'Condividi…' : 'Copia link',
+    title: nativo ? "Manda il link di questo sito con un'altra app"
+      : "Copia negli appunti l'indirizzo che apre questo sito",
+    style: 'margin-top:8px',
+    onclick: async () => {
+      const esito = await condividiLink(
+        { titolo: nome, testo: 'Mappatura ' + nome, url: linkService(s.id) },
+        { nativo, copia });
+      if (esito === 'copiato') avviso('Link copiato.', { tono: 'ok' });
+      else if (esito === 'non-riuscito') avviso('Non riesco a copiare il link: il browser non me lo permette.', { tono: 'allerta' });
+    },
+  });
 }
 
 function disegna() {
@@ -107,19 +145,21 @@ function disegna() {
     if (prev || e.mie) mesi.push(rigaMese(s.id, m, prev));
   }
   const storia = nodo.querySelector('.storia');   // conservo la storia già caricata
+  const conFuoco = nodo.contains(document.activeElement) && document.activeElement !== nodo;
 
   nodo.replaceChildren(
     h('header', {},
       h('button.chiudi', { html: ICO.ics, title: 'Chiudi (Esc)', 'aria-label': 'Chiudi',
         onclick: chiudiCassetto }),
-      h('h2', { testo: cli.rs || '(cliente ' + s.cli + ')', style: 'margin:0 30px 2px 0;font-size:var(--t-grande);letter-spacing:-.02em' }),
+      h('h2', { id: 'cassetto-titolo', testo: cli.rs || '(cliente ' + s.cli + ')', style: 'margin:0 30px 2px 0;font-size:var(--t-grande);letter-spacing:-.02em' }),
       h('p', {
         testo: s.dest || '(senza destinazione)',
         style: 'margin:0;color:var(--tenue);font-size:var(--t-mini)'
-      })),
+      }),
+      bottoneCondividi(s, cli)),
     h('div.corpo', {},
       h('dl.dettaglio', {}, [
-        ['Service', '#' + s.id], ['Stato', s.stato], ['Tipo', s.tipo],
+        ['Sito', '#' + s.id], ['Stato', s.stato], ['Tipo', s.tipo],
         ['Cadenza', `${s.cad || '—'}${s.qva ? ` · ${s.qva} visite/anno` : ''}`],
         ['Mesi di manutenzione',
           (s.mesi.split('').filter(x => x === '1').length || 0) +
@@ -137,7 +177,8 @@ function disegna() {
         ['Località', [s.loc, s.prov].filter(Boolean).join(' ') || '—'],
         ['Avanzamento del sito', ma.scad || ma.n
           ? `${ma.n}/${CAMPI.length} passi` : '—'],
-      ].flatMap(([k, v]) => [h('dt', { testo: k }), h('dd', { testo: String(v) })])),
+      ].flatMap(([k, v]) => [h('dt', { testo: k }), h('dd', { testo: String(v) })]),
+      rigaResponsabile(s)),
 
       s.note ? h('p', {
         testo: s.note,
@@ -172,6 +213,39 @@ function disegna() {
       storia || h('p.js-attesa', { testo: 'Caricamento…', style: 'color:var(--tenue);font-size:var(--t-mini)' }),
     ),
   );
+  // il bottone col fuoco e' appena sparito: il fuoco resta nel pannello, non sul body
+  if (conFuoco && !nodo.contains(document.activeElement)) nodo.focus({ preventScroll: true });
+}
+
+/** Chi risponde del sito (PRD-04, #ANCHOR: responsabile in stato.js): due
+ *  celle della scheda dati. L'amministratore lo cambia qui, in linea, dalla
+ *  tendina; gli altri lo leggono. Senza dati (in locale) la riga non c'e'. */
+function rigaResponsabile(s) {
+  if (!responsabiliAttivi()) return null;
+  const email = responsabileDi(s.id);
+  let valore;
+  if (sonoAdmin()) {
+    const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+    const sel = h('select.pill', { 'aria-label': 'Responsabile del sito', title: 'Chi risponde della mappatura di questo sito' },
+      h('option', { value: '', testo: 'Nessuno' }),
+      persone.map(p => h('option', { value: p.email, testo: p.nome || nomeResponsabile(p.email) })),
+      email && !persone.some(p => p.email === email)
+        ? h('option', { value: email, testo: nomeResponsabile(email) }) : null);
+    sel.value = email;
+    sel.onchange = async () => {
+      const nuovo = sel.value;
+      sel.disabled = true;
+      const n = await affida([s.id], nuovo);
+      sel.disabled = false;
+      if (n < 0) { sel.value = responsabileDi(s.id); return; }
+      avviso(nuovo ? `Sito affidato a ${nomeResponsabile(nuovo)}.` : 'Responsabile tolto dal sito.', { tono: 'ok' });
+      caricaStoria(s.id);
+    };
+    valore = sel;
+  } else {
+    valore = email ? nomeResponsabile(email) + (email === st.io ? ' (tu)' : '') : 'nessuno';
+  }
+  return [h('dt', { testo: 'Responsabile' }), h('dd', {}, valore)];
 }
 
 /** I documenti del sito: i due generatori gia' puntati su questo impianto
@@ -234,18 +308,38 @@ function sezDocumenti() {
           h('div.doc-azioni', {},
             N > 1 ? null : h('button.pill.mini', { testo: 'Apri', onclick: () => apriDocumento(d) }),
             h('button.pill.mini.debole', {
-              testo: 'Elimina', title: N > 1 ? `Toglie tutti i ${N} fascicoli (la spunta resta)` : 'Toglie il PDF (la spunta resta)',
+              testo: 'Elimina', title: (N > 1 ? `Toglie tutti i ${N} fascicoli (la spunta resta)` : 'Toglie il PDF (la spunta resta)') +
+                (inNuvola() ? '. Va nel cestino: per 30 giorni si può rimettere.' : ''),
               onclick: async e => {
                 const b = e.currentTarget;
                 if (b.dataset.conferma !== '1') {
                   b.dataset.conferma = '1'; b.textContent = 'Sicuro?';
-                  setTimeout(() => { b.dataset.conferma = ''; b.textContent = 'Elimina'; }, 3000);
+                  setTimeout(() => {
+                    if (!b.disabled) { b.dataset.conferma = ''; b.textContent = 'Elimina'; }
+                  }, 3000);
                   return;
                 }
+                b.disabled = true; b.textContent = 'Elimino…';
                 try {
                   for (const f of g.docs) await eliminaDocumento(f);
-                  avviso(N > 1 ? `${N} fascicoli eliminati.` : 'PDF eliminato.');
+                  /* online il PDF e' nel cestino (SEC-05): l'avviso ha il suo «Annulla» */
+                  const testo = inNuvola()
+                    ? (N > 1 ? `${N} fascicoli nel cestino.` : 'PDF nel cestino.')
+                    : (N > 1 ? `${N} fascicoli eliminati.` : 'PDF eliminato.');
+                  avviso(testo, inNuvola() ? {
+                    durata: 10000,
+                    azione: { et: 'Annulla', fn: async () => {
+                      try {
+                        for (const f of g.docs) await ripristinaDocumento(f.id);
+                        avviso(N > 1 ? 'Fascicoli rimessi.' : 'PDF rimesso.', { tono: 'ok' });
+                      } catch (ex2) { avviso('Non rimesso: ' + (ex2.message || ex2), { tono: 'allerta' }); }
+                    } },
+                  } : {});
                 } catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
+                finally {
+                  // riuscito, la sezione si ridisegna; fallito, il pulsante torna com'era
+                  if (b.isConnected) { b.disabled = false; b.dataset.conferma = ''; b.textContent = 'Elimina'; }
+                }
               },
             })));
       })));
@@ -263,7 +357,7 @@ function sezDocumenti() {
       h('button.pill.mini.debole', {
         testo: `Elimina tutti (${docs.length})`,
         title: 'Toglie tutti i PDF di questo sito, di ogni anno. Le spunte ' +
-          '"stampata" restano.',
+          '«stampata» restano.',
         onclick: async e => {
           const b = e.currentTarget;
           if (b.dataset.conferma !== '1') {
@@ -276,9 +370,18 @@ function sezDocumenti() {
           b.disabled = true; b.textContent = 'Elimino…';
           try {
             const { n, bytes } = await eliminaDocumenti({ id_service: idAperto });
-            avviso(`${n} PDF eliminati: ${dimensione(bytes)} liberati.`, { tono: 'ok' });
+            avviso(inNuvola()
+              ? `${n} PDF nel cestino: lo spazio si libera quando l’amministratore lo svuota.`
+              : `${n} PDF eliminati: ${dimensione(bytes)} liberati.`, { tono: 'ok' });
           } catch (ex) {
             avviso('Non riesco a eliminarli: ' + (ex.message || ex), { tono: 'allerta' });
+          } finally {
+            /* BUG-19: fallita la richiesta il pulsante restava su «Elimino…»,
+               spento, fino alla chiusura del pannello */
+            if (b.isConnected) {
+              b.disabled = false; b.dataset.conferma = '';
+              b.textContent = `Elimina tutti (${docs.length})`;
+            }
           }
         },
       })) : null);

@@ -14,13 +14,27 @@
   publish = "web"
   command = "sh cloud/netlify-build.sh"
 
+# Intestazioni di sicurezza (SEC-13).
+# Content-Security-Policy in due parti:
+#   - APPLICATA subito solo cio' che non puo' rompere niente: niente plugin (object-src), nessun
+#     <base> altrui, nessuna cornice esterna (frame-ancestors, come X-Frame-Options).
+#   - IN OSSERVAZIONE (Report-Only) la policy intera: il browser non blocca, scrive in console
+#     "[Report Only] Refused to ...". Dopo una settimana pulita si sposta nella chiave applicata.
+#     'unsafe-inline' negli script resta finche' ci sono i gestori onclick= negli HTML (una
+#     trentina): toglierli e' il passo successivo. Lo script in linea di schede/index.html e'
+#     gia' uscito in web/js/schede.js (COD-07).
+#     Il database e' su *.supabase.co (REST, auth, storage con indirizzi firmati; wss per il realtime).
+#     Le librerie PDF/Excel stanno in /lib, servite dal sito.
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "same-origin"
-    Permissions-Policy = "geolocation=(), camera=(), microphone=()"
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+    Strict-Transport-Security = "max-age=31536000"
+    Content-Security-Policy = "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' blob: https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 # Il service worker non va mai servito dalla cache del browser: e' lui a
 # decidere quando il resto va aggiornato.
@@ -33,6 +47,25 @@
   for = "/js/nuvola-config.js"
   [headers.values]
     Cache-Control = "no-cache"
+
+# PERF-08: le librerie di /lib (881 kB di xlsx.min.js, piu' jsPDF e html2canvas) cambiano quasi mai:
+# una settimana di cache e poi un giorno in cui si usa la copia vecchia mentre si scarica la nuova.
+# QUANDO SI AGGIORNA UNA LIBRERIA si cambia il nome del file (es. xlsx-0.20.3.min.js) e i
+# riferimenti in schede/index.html e sw.js: con il nome nuovo si potra' passare a "immutable".
+[[headers]]
+  for = "/lib/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+# I caratteri non cambiano: un mese.
+[[headers]]
+  for = "/assets/fonti/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000, stale-while-revalidate=86400"
+
+# /js e /css restano a rivalidazione immediata (quella di Netlify: max-age=0 con ETag, quindi un 304
+# leggero): sono moduli ES che si importano a vicenda, e una cache anche breve puo' mescolare file
+# di due pubblicazioni diverse (app.js nuovo che importa da ui.js vecchio) per qualche minuto.
 
 # L'unica cosa che non gira nel browser (#ANCHOR: registra-utente): la
 # registrazione di un collega, che ha bisogno della service key di Supabase e

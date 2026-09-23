@@ -1,7 +1,9 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* app.js - guscio dell'applicazione: avvio, viste, filtri, tema, tastiera,
    identita' operatore, azioni di massa, stato del collegamento.  #ANCHOR: app */
 import {
   $, $$, h, ICO, avviso, modale, menu, copia, quando, esc, tinta, iniziali, campoOK,
+  segnala, umano, scorciatoieAccese, impostaScorciatoie,
 } from './ui.js';
 import {
   rete, bootstrap, onCambio, setOperatore, apriStream, avviaPresenza, chiama, svuota,
@@ -15,6 +17,8 @@ import {
   sonoAdmin, possoApprovare, ruoloMio, ruoloDi, ETICHETTA_RUOLO, SIGLA_RUOLO,
   proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
   descriviEvento, spunta, BREVE,
+  giornoCambiato, oggiLocale, etaAnagrafica, aggiornaTitolo,
+  gruppiFiltrati, responsabiliAttivi, responsabileDi, nomeResponsabile, affida,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -24,10 +28,13 @@ import { chiudiCassetto } from './cassetto.js';
 import {
   eventoDocumento, eventoDocumentiEliminati, ricaricaDocumenti, ascoltaAltreSchede,
   collegaChip, rinfrescaChip, urlGeneratore, ICO_PDF, ICO_REGISTRO, TIPI,
-  riepilogoDocumenti, eliminaDocumenti, dimensione,
+  riepilogoDocumenti, eliminaDocumenti, dimensione, svuotaCestino,
+  cestinoDocumenti, ripristinaDocumento, eliminaDefinitivo, titoloDocumento, tipoDi,
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
+import { temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken } from './famiglia.js';
+import { serviceDaIndirizzo } from './condividi.js';
 
 const area = $('#area');
 
@@ -35,11 +42,51 @@ const area = $('#area');
 /* La chiamata sta in fondo al file: le costanti dichiarate con const piu' sotto
    (es. FILTRI) non esistono ancora mentre il modulo viene valutato. */
 
+/* Il service worker si registra SUBITO, prima del login e del bootstrap: prima
+   stava in fondo ad avvia(), e chi apriva la pagina senza entrare (o col
+   database giu') non se la trovava mai installata ne' disponibile offline.
+   Se ne arriva una versione nuova mentre la pagina e' aperta (sw.js fa
+   skipWaiting + clients.claim) lo si dice, con il pulsante per ricaricare:
+   solo se prima c'era gia' un controllore, cioe' non alla prima installazione. */
+function registraSw() {
+  if (!('serviceWorker' in navigator)) return;
+  const cera = !!navigator.serviceWorker.controller;
+  let detto = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!cera || detto) return;
+    detto = true;
+    avviso('Aggiornato: ricarica per vedere le novità.', {
+      durata: 0, azione: { et: 'Ricarica', fn: () => location.reload() } });
+  });
+  navigator.serviceWorker.register('/sw.js').catch(e => segnala(e, 'sw'));
+}
+
+/* Gli errori non presi da nessuno: prima finivano solo nella console di chi
+   li vedeva (e una pagina bianca si scopriva per telefono). */
+addEventListener('error', e => segnala(e.error || e.message, 'window.error'));
+addEventListener('unhandledrejection', e => segnala(e.reason, 'promessa'));
+
+/* MOB-16 · `?service=<id>` e' il link che manda "Condividi…" / "Copia link"
+   del cassetto (js/condividi.js): dopo il primo disegno si apre il cassetto di
+   quel sito (lo usa anche la palette del Planning, PRD-13). Il parametro poi si toglie dall'indirizzo, cosi' un ricaricamento
+   non lo riapre a sorpresa.  #ANCHOR: apri-da-indirizzo */
+function apriDaIndirizzo() {
+  const id = serviceDaIndirizzo();
+  if (!id) return;
+  const u = new URL(location.href);
+  u.searchParams.delete('service');
+  history.replaceState(history.state, '', u);
+  if (st.perServ.has(id)) apriCassetto(id);
+  else avviso(`Il sito del link (service #${id}) non c'è fra quelli caricati.`, { tono: 'allerta' });
+}
+
 async function avvia() {
+  registraSw();
   temaIniziale();
   caricaFiltri();
   icone();
   collegaTesta();
+  scheletro();
 
   // Online si entra prima di leggere qualsiasi cosa: senza sessione il database
   // non risponde. In locale non fa niente e l'avvio resta quello di sempre.
@@ -49,9 +96,10 @@ async function avvia() {
   try {
     r = await bootstrap();
   } catch (e) {
+    area.removeAttribute('aria-busy');
     area.innerHTML = inNuvola()
       ? `<div class="vuoto"><b>Database non raggiungibile</b>
-         ${esc(String(e?.message || ''))}<br>Controlla il collegamento a internet e ricarica
+         ${esc(umano(String(e?.message || '')).testo)}<br>Controlla il collegamento a internet e ricarica
          la pagina.</div>`
       : `<div class="vuoto"><b>Server non raggiungibile</b>
          Avvia <code>avvia.bat</code> sul PC che ospita l'applicazione, poi ricarica
@@ -60,6 +108,8 @@ async function avvia() {
     return;
   }
   applica(r.dati);
+  // il token adesso e' fresco: dentro c'e' il tema scelto nel Planning (VIS-22)
+  allineaDalToken();
   if (r.daCache) {
     avviso('Server non raggiungibile: stai lavorando sui dati salvati su questo ' +
       'computer. Le spunte restano in coda e partono da sole al ritorno.',
@@ -71,7 +121,9 @@ async function avvia() {
   if (!rete.operatore) chiediNome(); else disegnaIo();
   bottoneEsci();
   disegna();
+  apriDaIndirizzo();
   statoCollegamento();
+  avvisaAnagraficaVecchia();
 
   apriStream(eventoRemoto);
   /* "dove sono" porta anche la cella che ho aperta adesso, cosi' i colleghi la
@@ -93,7 +145,7 @@ async function avvia() {
     /* nel foglio del Mese la scheda di QUESTO mese puo' cambiare anche per una
        spunta messa in un altro mese dello stesso sito: i passi si ereditano */
     else if (st.vista === 'mese') vMese.aggiornaCella(d.id, st.mese);
-    else if (st.vista === 'stat') vStat.aggiorna();
+    else if (st.vista === 'stat') statPresto();
     aggiornaTestaPresto();
     aggiornaApprova();
   });
@@ -109,6 +161,8 @@ async function avvia() {
     if (d?.remoto) avviso(`${d.remoto} ha aggiornato più mappature.`);
   });
   on('presenze', statoCollegamento);
+  // un sito affidato puo' far entrare o uscire un nome dal filtro (PRD-04)
+  on('responsabile', riempiFiltroResp);
   /* I PDF delle schede tecnici: arrivano dal flusso (o da un'altra scheda del
      browser) e toccano solo l'icona accanto al nome del sito. */
   on('documento-remoto', eventoDocumento);
@@ -117,20 +171,56 @@ async function avvia() {
   collegaChip();
   ascoltaAltreSchede();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') ricaricaDocumenti();
+    if (document.visibilityState === 'visible') { ricaricaDocumenti(); nuovoGiorno(); }
   });
   on('sync-fatto', rs => {
     avviso(riassuntoSync(rs) + ' Ricarico i dati.', { tono: 'ok' });
-    cambiaAnno(st.anno).then(() => { riempiFiltri(); disegna(); });
+    cambiaAnno(st.anno).then(() => { riempiFiltri(); disegna(); })
+      .catch(() => avviso('Dati nuovi non caricati: ricarica la pagina.', { tono: 'allerta' }));
   });
 
   tastiera();
   setInterval(statoCollegamento, 10000);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
+  setInterval(nuovoGiorno, 60000);
+}
+
+/* BUG-13: passata la mezzanotte (il tracker resta aperto per giorni) si
+   rilegge il bootstrap, che porta l'`oggi` nuovo: i ritardi del mese nuovo si
+   accendono senza ricaricare. Se il server dice ancora il giorno prima (fuso
+   diverso) non si insiste fino al giorno dopo. */
+let rileggoGiorno = false, giornoProvato = '';
+function nuovoGiorno() {
+  const oggi = oggiLocale();
+  if (rileggoGiorno || giornoProvato === oggi || !giornoCambiato()) return;
+  rileggoGiorno = true;
+  cambiaAnno(st.anno).then(() => { giornoProvato = oggi; riempiFiltri(); disegna(); })
+    .catch(() => { /* senza rete: si riprova fra un minuto */ })
+    .finally(() => { rileggoGiorno = false; });
+}
+
+/* MOV-14: finche' i dati non arrivano, righe-scheletro della forma della
+   vista Anno (la classe `.scheletro` sta nel CSS) invece della scritta sopra la
+   griglia vuota. Le sostituisce il primo disegno. */
+function scheletro() {
+  area.setAttribute('aria-busy', 'true');
+  area.innerHTML = '<div class="scheletro-elenco" role="status" aria-label="Caricamento…">' +
+    '<div class="scheletro"></div>'.repeat(10) + '</div>';
+}
+
+/* PRD-17: all'amministratore, una volta per giorno, se l'anagrafica di Access
+   non arriva da piu' di 26 ore (il PC dell'ufficio spento, o il sync rotto). */
+function avvisaAnagraficaVecchia() {
+  const e = etaAnagrafica();
+  if (!e?.vecchia || !sonoAdmin()) return;
+  const k = 'cs.anagrafica-avvisata';
+  try { if (localStorage.getItem(k) === oggiLocale()) return; localStorage.setItem(k, oggiLocale()); } catch { }
+  avviso(`${e.testo}: da più di ${Math.floor(e.ore / 24) || 1} ${Math.floor(e.ore / 24) > 1 ? 'giorni' : 'giorno'} ` +
+    'non arrivano dati nuovi. Controlla il PC dell’ufficio che fa il sync.', { tono: 'allerta', durata: 15000 });
 }
 
 /* ------------------------------------------------------------- disegno --- */
 function disegna() {
+  area.removeAttribute('aria-busy');
   chiudiPop();
   aggiornaApprova();
   vMese.pulisci();
@@ -153,10 +243,21 @@ function aggiornaTestaPresto() {
   testaInCoda = true;
   requestAnimationFrame(() => { testaInCoda = false; aggiornaTesta(); });
 }
+/* Stessa cosa per le Statistiche, che a ogni cella si ridisegnano INTERE: un
+   collega che completa un cliente online arriva come una raffica di eventi
+   `cella` (Realtime ne manda uno per riga) e ognuno rifaceva tutti i grafici.
+   Uno per frame basta; i clic dentro i grafici chiamano `aggiorna` diretti. */
+let statInCoda = false;
+function statPresto() {
+  if (statInCoda) return;
+  statInCoda = true;
+  requestAnimationFrame(() => { statInCoda = false; vStat.aggiorna(); });
+}
 
 /** Il riepilogo appartiene alla vista Anno. Cambiando vista va SVUOTATO, non
  *  solo nascosto: lasciarlo pieno mostrava numeri che non c'entravano nulla. */
 function aggiornaTesta() {
+  aggiornaTitolo();
   $('#anno').textContent = st.anno;
   const r = riepilogoAnno();
   aggiornaFilo(r);
@@ -190,7 +291,7 @@ function aggiornaTesta() {
     voce(r.clienti, 'clienti', '',
       `${r.clienti} clienti, ${r.aperti} siti aperti`) +
     voce(r.aperti, 'siti', '',
-      'Impianti aperti: uno per mappatura annuale') +
+      'Siti aperti: una mappatura all’anno ciascuno') +
     voce(`${r.complete}/${r.mappature}`, 'complete', '',
       'Mappature complete su quelle dovute quest\'anno. Una mappatura per SITO ' +
       'per anno: conta quella, non i mesi di visita. Clicca per vedere solo ' +
@@ -249,7 +350,8 @@ function collegaTesta() {
   $('#anno-giu').onclick = () => vaiAnno(annoMirato() - 1);
   $('#anno-su').onclick = () => vaiAnno(annoMirato() + 1);
   $('#oggi').onclick = vaiOggi;
-  $('#tema').onclick = giraTema;
+  collegaTema($('#tema'));
+  collegaSelettoreApp($('#app-scelta'));
   $('#io').onclick = mostraChiSono;
   $('#aiuto').onclick = mostraAiuto;
   $('#documenti').onclick = e => apriGeneratori(e.currentTarget);
@@ -278,6 +380,7 @@ function collegaTesta() {
     if (v) filtraStato(v.dataset.stato, true);
   };
   $('#f-prov').onchange = e => { st.filtri.prov = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
+  $('#f-resp').onchange = e => { st.filtri.resp = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
   for (const [id, chiave] of FILTRI) {
     $('#' + id).onclick = e => {
       st.filtri[chiave] = !st.filtri[chiave];
@@ -310,9 +413,10 @@ function riflettiFiltri() {
   }
 }
 
+let tFiltrato = 0;
 function ridisegnaFiltrato() {
-  clearTimeout(ridisegnaFiltrato.t);
-  ridisegnaFiltrato.t = setTimeout(disegna, 130);
+  clearTimeout(tFiltrato);
+  tFiltrato = setTimeout(disegna, 130);
 }
 
 /* Il filtro per tipo di gas e' stato tolto alla 15a sessione: era una tendina
@@ -322,6 +426,35 @@ function riempiFiltri() {
   const opz = (v, et) => `<option value="${esc(v)}">${esc(et)}</option>`;
   $('#f-prov').innerHTML = opz('', 'Tutte le province') + elencoProv().map(p => opz(p, p)).join('');
   $('#f-prov').value = st.filtri.prov;
+  riempiFiltroResp();
+}
+
+/* Il filtro per responsabile (PRD-04, #ANCHOR: responsabile in stato.js): c'e'
+   solo quando il server manda i responsabili. "Le mie" e' la domanda di chi
+   apre l'app la mattina; "Senza responsabile" e' quella dell'amministratore. */
+function riempiFiltroResp() {
+  const sel = $('#f-resp');
+  if (!sel) return;
+  sel.hidden = !responsabiliAttivi();
+  if (sel.hidden) return;
+  const opz = (v, et) => `<option value="${esc(v)}">${esc(et)}</option>`;
+  const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+  /* un responsabile che non e' piu' fra le persone (uscito, disattivato) resta
+     sceglibile finche' ha dei siti: altrimenti quei siti non si ritrovano */
+  const orfani = [...new Set(st.responsabili.values())]
+    .filter(e => !persone.some(p => p.email === e)).sort();
+  sel.innerHTML = opz('', 'Tutti i responsabili') +
+    (st.io ? opz('mie', 'Le mie') : '') + opz('nessuno', 'Senza responsabile') +
+    (persone.length || orfani.length
+      ? '<optgroup label="Persone">' +
+        persone.map(p => opz(p.email, p.nome || nomeResponsabile(p.email))).join('') +
+        orfani.map(e => opz(e, nomeResponsabile(e))).join('') + '</optgroup>'
+      : '');
+  if (![...sel.options].some(o => o.value === st.filtri.resp)) {
+    st.filtri.resp = '';
+    salvaFiltri();
+  }
+  sel.value = st.filtri.resp;
 }
 
 /* ------------------------------------------------------------ anni ------- */
@@ -398,6 +531,10 @@ function apriAzioni(bottone) {
         nota: inAnno ? 'anno filtrato' : 'vista Anno',
         fn: () => inAnno ? massa('azzera') : soloAnno(),
       },
+      ...(responsabiliAttivi() ? [{
+        et: 'Affida i siti filtrati…', ico: ICO.gente,
+        nota: 'responsabile', fn: affidaFiltrati,
+      }] : []),
       null,
     ] : []),
     { et: 'Stampa il foglio del mese', ico: ICO.stampa, fn: stampa },
@@ -405,10 +542,13 @@ function apriAzioni(bottone) {
     null,
     { et: 'Diario attività', ico: ICO.gente, nota: 'chi ha fatto cosa', fn: mostraDiario },
     { et: 'Possibili doppioni', ico: ICO.cerca, nota: 'nomi che si somigliano', fn: mostraDoppioni },
+    // il cestino dei PDF esiste solo online (SEC-05, cloud/10-migliorie-2026-09.sql)
+    ...(inNuvola() ? [{ et: 'Cestino dei PDF…', nota: 'rimetti o elimina per sempre',
+      fn: mostraCestino }] : []),
     ...(admin ? [
       null,
-      { et: 'Azzera il diario attività', ico: ICO.ics, tono: 'pericolo',
-        nota: 'cancella tutta la storia', fn: azzeraDiario },
+      { et: 'Elimina il diario attività', ico: ICO.ics, tono: 'pericolo',
+        nota: 'elimina tutta la storia', fn: azzeraDiario },
       { et: 'Impostazioni', nota: 'tracciamento, ruoli', fn: mostraImpostazioni },
     ] : []),
   ]);
@@ -444,8 +584,13 @@ function mostraApprovazioni() {
           testo: `Approva tutte (${lista.length})`,
           onclick: () => {
             spuntaMolte(lista.map(v => ({ ...v, valore: 1 })), 'Approvazione di tutte le proposte', 'approvazione');
+            const questa = st.ultimaAzione;   // l'Annulla dell'avviso disfa QUESTA, non l'ultima che capita
             avviso(`${lista.length} spunte approvate.`, { tono: 'ok', durata: 15000, azione: {
-              et: 'Annulla', fn: () => { const m = annullaUltima(); disegna(); avviso(`Annullato: ${m} spunte di nuovo in attesa.`); } } });
+              et: 'Annulla', fn: () => {
+                const m = annullaUltima(questa);
+                if (m < 0) return avviso('Non annullato: nel frattempo hai fatto altro.', { tono: 'allerta' });
+                disegna(); avviso(`Annullato: ${m} spunte di nuovo in attesa.`);
+              } } });
             ridisegna();
           },
         })] : []));
@@ -462,7 +607,7 @@ function mostraApprovazioni() {
             })),
           h('span.azioni-riga', {},
             h('button.pill.mini', { testo: 'Approva', onclick: () => { spunta(v.id, v.mese, v.campo, 1, false, 'approvazione'); ridisegna(); } }),
-            h('button.pill.mini.debole', { testo: 'Respingi', title: 'Torna "da fare": l\u2019operatore lo vede',
+            h('button.pill.mini.debole', { testo: 'Respingi', title: 'Torna «da fare»: l\u2019operatore lo vede',
               onclick: () => { spunta(v.id, v.mese, v.campo, 0, false, 'respinta'); ridisegna(); } })));
       }))] : []));
       if (!lista.length) aggiornaApprova();
@@ -470,7 +615,7 @@ function mostraApprovazioni() {
     ridisegna();
     return [
       h('h2', { testo: 'Da approvare' }),
-      h('p.sotto', { testo: 'Gli operatori spuntano "Rapportino" e "Ricambi", ma quelle due spunte valgono ' +
+      h('p.sotto', { testo: 'Gli operatori spuntano «Rapportino» e «Ricambi», ma quelle due spunte valgono ' +
         'solo dopo il tuo via. Approvare le rende fatte; respingere le rimette da fare. ' +
         'Ogni mossa resta nel diario col tuo nome.' }),
       testa, corpo,
@@ -489,6 +634,10 @@ function descrizioneFiltri() {
   const f = st.filtri, p = [];
   if (f.q) p.push(`ricerca "${f.q}"`);
   if (f.prov) p.push('provincia ' + f.prov);
+  if (f.resp && responsabiliAttivi()) {
+    p.push(f.resp === 'mie' ? 'solo le mie' : f.resp === 'nessuno' ? 'senza responsabile'
+      : 'affidate a ' + nomeResponsabile(f.resp));
+  }
   if (f.stato) p.push(ET_FILTRO[f.stato]);
   return p.length ? p.join(', ') : 'nessun filtro attivo, quindi tutto l\'anno';
 }
@@ -515,7 +664,7 @@ function massa(modo) {
       riga.innerHTML = voci.length
         ? `<b>${voci.length}</b> ${voci.length === 1 ? 'spunta' : 'spunte'} da ` +
         `${completa ? 'mettere' : 'togliere'}, su <b>${celle.size}</b> ` +
-        `${celle.size === 1 ? 'mappatura' : 'mappature'} di <b>${serv.size}</b> service.`
+        `${celle.size === 1 ? 'mappatura' : 'mappature'} di <b>${serv.size}</b> ${serv.size === 1 ? 'sito' : 'siti'}.`
         : `Non c'è niente da ${completa ? 'completare' : 'azzerare'} con questi filtri.`;
       const spunte = `${voci.length} ${voci.length === 1 ? 'spunta' : 'spunte'}`;
       bottone.textContent = voci.length
@@ -533,13 +682,15 @@ function massa(modo) {
         /* il colpo si VEDE: l'onda attraversa le celle toccate
            (#ANCHOR: onda-massa in anno.js) */
         if (st.vista === 'anno') vAnno.onda(completa ? 'su' : 'giu');
+        const questa = st.ultimaAzione;   // l'Annulla dell'avviso disfa QUESTA, non l'ultima che capita
         const uno = n === 1;
         const detto = completa ? (uno ? 'messa' : 'messe') : (uno ? 'rimossa' : 'rimosse');
         avviso(`${n} ${uno ? 'spunta' : 'spunte'} ${detto}.`, {
           tono: completa ? 'ok' : 'allerta', durata: 15000,
           azione: {
             et: 'Annulla', fn: () => {
-              const m = annullaUltima();      // ridisegna da se' ('rilegge')
+              const m = annullaUltima(questa);      // ridisegna da se' ('rilegge')
+              if (m < 0) return avviso('Non annullato: nel frattempo hai fatto altro. Il diario ha il Ripristina del blocco.', { tono: 'allerta' });
               avviso(`Annullato: ${m} spunte riportate come prima.`);
             }
           },
@@ -578,6 +729,60 @@ function massa(modo) {
   });
 }
 
+/** Affida in blocco i siti APERTI che si vedono con i filtri di adesso (PRD-04,
+ *  #ANCHOR: responsabile). Non e' un'azione distruttiva: si rifa' o si toglie
+ *  quando si vuole, e ogni sito lascia una riga nel diario. */
+function affidaFiltrati() {
+  const ids = gruppiFiltrati().flatMap(g => g.srvs)
+    .filter(s => s.stato === 'APERTO').map(s => s.id);
+  modale(chiudi => {
+    const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+    const scelta = h('select.campo', { id: 'affida-chi', 'aria-describedby': 'affida-conto' },
+      h('option', { value: '', testo: 'Scegli una persona…' }),
+      ...persone.map(p => h('option', { value: p.email, testo: p.nome || nomeResponsabile(p.email) })),
+      h('option', { value: '-', testo: 'Nessuno: togli il responsabile' }));
+    const conto = h('p', { id: 'affida-conto', style: 'margin:12px 0 16px;font-size:var(--t-mini)' });
+    const bottone = h('button.bottone', { testo: '…' });
+    const ricalcola = () => {
+      const v = scelta.value;
+      const email = v === '-' ? '' : v;
+      const cambiano = v ? ids.filter(id => responsabileDi(id) !== email) : [];
+      const altri = v && email ? cambiano.filter(id => responsabileDi(id)).length : 0;
+      const siti = n => `${n} ${n === 1 ? 'sito' : 'siti'}`;
+      conto.innerHTML = !ids.length
+        ? 'Con questi filtri non si vede nessun sito aperto.'
+        : !v ? `<b>${siti(ids.length)}</b> aperti con questi filtri.`
+        : !cambiano.length ? 'Sono già tutti così: non cambia niente.'
+        : `Cambia il responsabile di <b>${siti(cambiano.length)}</b> su ${ids.length}` +
+          (altri ? `, e <b>${altri}</b> ${altri === 1 ? 'aveva' : 'avevano'} già un altro responsabile.` : '.');
+      bottone.textContent = !ids.length || !v || !cambiano.length ? 'Chiudi'
+        : email ? `Affida ${siti(cambiano.length)}` : `Togli da ${siti(cambiano.length)}`;
+      bottone.onclick = async () => {
+        if (!ids.length || !v || !cambiano.length) return chiudi();
+        bottone.disabled = true; scelta.disabled = true; bottone.textContent = 'Salvo…';
+        const n = await affida(cambiano, email);
+        if (n < 0) { bottone.disabled = false; scelta.disabled = false; ricalcola(); return; }
+        chiudi();
+        avviso(email ? `${siti(n)} ${n === 1 ? 'affidato' : 'affidati'} a ${nomeResponsabile(email)}.`
+          : `Responsabile tolto da ${siti(n)}.`, { tono: 'ok' });
+      };
+    };
+    scelta.onchange = ricalcola;
+    ricalcola();
+    return [
+      h('h2', { testo: 'Affida i siti filtrati' }),
+      h('p.sotto', { testo: `Vale sui siti aperti che vedi ora — ${descrizioneFiltri()}. ` +
+        'Per restringere, usa prima la ricerca e i filtri.' }),
+      h('label.acc-et', { for: 'affida-chi', testo: 'Responsabile' }),
+      scelta,
+      conto,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
+        bottone),
+    ];
+  });
+}
+
 function stampa() {
   if (st.vista !== 'mese') {
     st.vista = 'mese'; disegna();
@@ -588,13 +793,17 @@ function stampa() {
 }
 
 function scaricaCsv() {
-  const q = new URLSearchParams({ anno: st.anno });
-  if (st.vista === 'mese') q.set('mese', st.mese);
+  const q = new URLSearchParams({ anno: String(st.anno) });
+  if (st.vista === 'mese') q.set('mese', String(st.mese));
   esportaCsv(q.toString());
 }
 
 /* ------------------------------------------------------------ operatore -- */
 function disegnaIo() {
+  /* nome per i lettori di schermo: il pallino con le iniziali non dice che
+     cosa fa il pulsante */
+  $('#io').setAttribute('aria-label', rete.operatore
+    ? `Cambia operatore: ora sei ${rete.operatore}` : 'Cambia operatore: scegli chi sei');
   $('#io').replaceChildren(
     h('span.pallino', {
       style: 'background:' + tinta(rete.operatore),
@@ -621,13 +830,13 @@ function disegnaIo() {
 function mostraChiSono() {
   const r = ruoloMio();
   const cosaPuoi = {
-    admin: 'Approvi "Rapportino" e "Ricambi", completi o azzeri in blocco, ' +
+    admin: 'Approvi «Rapportino» e «Ricambi», completi o azzeri in blocco, ' +
       'cambi le impostazioni, ripristini dal diario (o lo azzeri) e puoi ' +
       'buttare i PDF di un anno intero.',
-    approvatore: 'Approvi "Rapportino" e "Ricambi": le proposte degli operatori le ' +
+    approvatore: 'Approvi «Rapportino» e «Ricambi»: le proposte degli operatori le ' +
       'chiudi tu. Le azioni in blocco, il diario, le impostazioni e ' +
       'i ripristini restano dell\u2019amministratore.',
-    tecnico: 'Spunti tutto; "Rapportino" e "Ricambi" restano proposte finch\u00e9 non ' +
+    tecnico: 'Spunti tutto; «Rapportino» e «Ricambi» restano proposte finch\u00e9 non ' +
       'le approva un amministratore o un approvatore.',
   }[r];
   modale(chiudi => [
@@ -698,7 +907,9 @@ function chiediNome() {
 function statoCollegamento() {
   const n = rete.coda.length;
   const giu = !rete.online;
-  $('#spia').className = 'spia ' + (giu ? 'giu' : n ? 'coda' : '');
+  const ana = etaAnagrafica();
+  /* `vecchia`: collegati, ma l'anagrafica di Access e' ferma da oltre 26 ore */
+  $('#spia').className = 'spia ' + (giu ? 'giu' : n ? 'coda' : ana?.vecchia ? 'vecchia' : '');
   const altri = (st.online || []).filter(o => o.nome && o.nome !== rete.operatore);
   $('#presenze').replaceChildren(...altri.slice(0, 4).map(o =>
     h('span.pallino.piccolo', {
@@ -710,7 +921,8 @@ function statoCollegamento() {
     : n ? `${n} in invio` : (altri.length ? `${altri.length + 1} collegati` : 'collegato');
   $('#collegamento').title = giu
     ? `${DOVE_VIVE_MAI} non raggiungibile: le spunte restano in coda su questo computer`
-    : `Chi è collegato, indirizzo dell\'applicazione, stato degli invii`;
+    : `Chi è collegato, indirizzo dell’applicazione, stato degli invii` +
+      (ana ? ` · ${ana.testo}${ana.vecchia ? ' (ferma da più di un giorno)' : ''}` : '');
 
   const banner = $('#banner');
   // Due archivi separati sono il guasto peggiore possibile: l'avviso viene
@@ -847,6 +1059,11 @@ function pannelloCollegamento() {
             'sulle reti private.'
       }),
 
+      etaAnagrafica() ? h('p.nota-t', {
+        style: 'margin:-10px 0 18px',
+        testo: etaAnagrafica().testo + '.' + (etaAnagrafica().vecchia
+          ? ' Da più di un giorno non arrivano dati nuovi: controlla il PC dell’ufficio che fa il sync.' : ''),
+      }) : null,
       h('h3.tit-p', { testo: 'Collegati ora' }),
       tutti.length
         ? h('ul.elenco-gente', {}, tutti.map(o =>
@@ -882,7 +1099,7 @@ function pannelloCollegamento() {
 }
 
 /* ------------------------------------------------------------ sync ------- */
-const riassuntoSync = r => `Access letto: ${r.services} service, ${r.clienti} clienti` +
+const riassuntoSync = r => `Access letto: ${r.services} siti, ${r.clienti} clienti` +
   (r.nuovi ? `, ${r.nuovi} nuovi` : '') + (r.chiusi ? `, ${r.chiusi} chiusi` : '') +
   (r.mesi_cambiati ? `, ${r.mesi_cambiati} con mesi cambiati` : '') +
   (r.spunte_orfane ? `, ${r.spunte_orfane} spunte orfane` : '') + '.';
@@ -962,7 +1179,7 @@ function mostraDiario() {
       h('h2', { testo: 'Diario attività' }),
       h('p.sotto', { testo: 'Le ultime 200 modifiche, di tutti gli operatori e di tutti gli anni; ' +
         'le azioni in blocco sono una riga sola.' +
-        (sonoAdmin() ? ' Con "Ripristina" rimetti com\u2019era prima di quella riga, o tutto il blocco.' : '') }),
+        (sonoAdmin() ? ' Con «Ripristina» rimetti com\u2019era prima di quella riga, o tutto il blocco.' : '') }),
       corpo,
       h('div', { style: 'display:flex;justify-content:flex-end;margin-top:18px' },
         h('button.bottone', { testo: 'Chiudi', onclick: chiudi })),
@@ -977,12 +1194,12 @@ function mostraDiario() {
    perde la storia, non il lavoro. Serve quando il diario e' pieno di prove o di
    un travaso sbagliato e non si riesce piu' a leggere chi ha fatto cosa. */
 function azzeraDiario() {
-  if (!sonoAdmin()) return avviso('Azzerare il diario è dell’amministratore.');
+  if (!sonoAdmin()) return avviso('Eliminare il diario è dell’amministratore.');
   modale(chiudi => {
-    const bottone = h('button.bottone.pericolo', { testo: 'Azzera il diario' });
+    const bottone = h('button.bottone.pericolo', { testo: 'Elimina il diario' });
     const ok = campoOK(bottone);
     bottone.onclick = async () => {
-      bottone.disabled = true; bottone.textContent = 'Azzero…';
+      bottone.disabled = true; bottone.textContent = 'Elimino…';
       try {
         const { dati, ok: andata } = await chiama('/api/diario_azzera', {
           metodo: 'POST', body: { operatore: rete.operatore }, ms: 60000,
@@ -990,20 +1207,21 @@ function azzeraDiario() {
         if (!andata) throw new Error(dati?.errore || 'rifiutato');
         chiudi();
         const n = dati.n || 0;
-        avviso(n ? `Diario azzerato: ${n} ${n === 1 ? 'riga cancellata' : 'righe cancellate'}. ` +
+        avviso(n ? `Diario eliminato: ${n} ${n === 1 ? 'riga eliminata' : 'righe eliminate'}. ` +
                    'Le spunte sono al loro posto.'
                  : 'Il diario era già vuoto.', { tono: 'ok', durata: 9000 });
       } catch (e) {
         chiudi();
-        avviso('Diario non azzerato: ' + (e.message || e), { tono: 'allerta' });
+        avviso('Diario non eliminato: ' + (e.message || e), { tono: 'allerta' });
       }
     };
     return [
-      h('h2', { testo: 'Azzera il diario attività' }),
+      h('h2', { testo: 'Elimina il diario attività' }),
       h('p.sotto', {
-        testo: 'Cancella tutte le righe del diario, di tutti gli operatori e di ' +
+        testo: 'Elimina tutte le righe del diario, di tutti gli operatori e di ' +
           'tutti gli anni. Le spunte, le note e i PDF restano dove sono: sparisce ' +
-          'solo la storia di chi le ha messe e quando.',
+          'solo la storia di chi le ha messe e quando.' +
+          (inNuvola() ? ' Una copia resta archiviata nel database.' : ''),
       }),
       h('p', {
         style: 'margin:0 0 14px;font-size:var(--t-mini)',
@@ -1150,10 +1368,10 @@ function mostraImpostazioni() {
       pdfBox.replaceChildren(...r.anni.map(a => {
         const eCorrente = a.anno === st.anno;
         const bott = h('button.pill.mini.debole', {
-          testo: 'Cancella',
+          testo: 'Elimina…',
           title: `Toglie i ${a.n} PDF del ${a.anno} (${dimensione(a.bytes)})` +
             (eCorrente ? ' — è l’anno in corso' : '') +
-            '. Le spunte "stampata" restano.',
+            '. Le spunte «stampata» restano.',
           onclick: e => confermaCancellaPdf(a, e.currentTarget, disegnaPdf),
         });
         return h('div', { style: 'display:flex;align-items:center;gap:10px;' +
@@ -1173,7 +1391,7 @@ function mostraImpostazioni() {
       h('p.nota-t', {
         style: 'margin-bottom:10px',
         testo: 'Tre ruoli, un clic per girarli. L\u2019OPERATORE spunta tutto, ma ' +
-          '"Rapportino" e "Ricambi" restano proposte. L\u2019APPROVATORE chiude quelle ' +
+          '«Rapportino» e «Ricambi» restano proposte. L\u2019APPROVATORE chiude quelle ' +
           'due proposte e basta. L\u2019AMMINISTRATORE, oltre ad approvare, completa o ' +
           'azzera in blocco, cambia queste impostazioni, ripristina dal diario ' +
           '(o lo azzera) e pu\u00f2 buttare i PDF di un anno intero.'
@@ -1198,7 +1416,7 @@ function mostraImpostazioni() {
       h('p.nota-t', {
         style: 'margin-bottom:10px',
         testo: 'I mesi precedenti restano visibili e spuntabili per il recupero ' +
-          'storico, ma non vengono mai segnalati come "in ritardo" e non entrano ' +
+          'storico, ma non vengono mai segnalati come «in ritardo» e non entrano ' +
           'nei totali dell\'anno. Senza questa data ogni mese passato risulterebbe ' +
           'arretrato solo perché l\'applicazione non esisteva ancora.'
       }),
@@ -1208,11 +1426,25 @@ function mostraImpostazioni() {
         style: 'margin-bottom:10px',
         testo: 'I PDF delle schede tecnici restano per sempre, e un documento ' +
           'lungo pesa decine di mega: online lo spazio e il traffico si pagano. ' +
-          'Cancellare un anno chiuso libera posto e non tocca nessuna spunta: ' +
-          'resta scritto che quelle schede sono state stampate, sparisce solo ' +
-          'il file. Non si torna indietro.'
+          'Eliminare un anno chiuso non tocca nessuna spunta: resta scritto che ' +
+          'quelle schede sono state stampate, sparisce solo il file. ' +
+          (inNuvola()
+            ? 'I PDF eliminati vanno nel cestino e per 30 giorni si possono rimettere: ' +
+              'lo spazio si libera quando svuoti il cestino.'
+            : 'Non si torna indietro.')
       }),
       pdfBox,
+      inNuvola() ? h('div', { style: 'display:flex;gap:6px;justify-content:flex-end;margin-top:8px' },
+        h('button.pill.mini.debole', {
+          testo: 'Apri il cestino…',
+          title: 'I PDF nel cestino, uno per uno: rimettili o eliminali per sempre',
+          onclick: () => mostraCestino(),
+        }),
+        h('button.pill.mini.debole', {
+          testo: 'Svuota il cestino…',
+          title: 'Elimina per sempre i PDF nel cestino e libera lo spazio',
+          onclick: e => confermaSvuotaCestino(e.currentTarget),
+        })) : null,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:18px' },
         h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
         h('button.bottone', {
@@ -1239,35 +1471,214 @@ function mostraImpostazioni() {
  *  la cosa non va in porto. */
 function confermaCancellaPdf(a, bott, ridisegna) {
   modale(chiudi => {
-    const via = h('button.bottone.pericolo', { testo: `Cancella i ${a.n} PDF` });
+    const via = h('button.bottone.pericolo', { testo: `Elimina i ${a.n} PDF` });
     const ok = campoOK(via);
     via.onclick = async () => {
-      via.disabled = true; via.textContent = 'Cancello…';
-      bott.disabled = true; bott.textContent = 'Cancello…';
+      via.disabled = true; via.textContent = 'Elimino…';
+      bott.disabled = true; bott.textContent = 'Elimino…';
       try {
         const { n, bytes } = await eliminaDocumenti({ anno: a.anno });
         chiudi();
         ridisegna();
-        avviso(`${n} PDF del ${a.anno} eliminati: ${dimensione(bytes)} liberati.`,
+        avviso(inNuvola()
+          ? `${n} PDF del ${a.anno} nel cestino: lo spazio si libera svuotandolo.`
+          : `${n} PDF del ${a.anno} eliminati: ${dimensione(bytes)} liberati.`,
                { tono: 'ok' });
       } catch (ex) {
         chiudi();
-        bott.disabled = false; bott.textContent = 'Cancella';
-        avviso('Non cancellati: ' + (ex.message || ex), { tono: 'allerta' });
+        bott.disabled = false; bott.textContent = 'Elimina…';
+        avviso('Non eliminati: ' + (ex.message || ex), { tono: 'allerta' });
       }
     };
     return [
-      h('h2', { testo: `Cancella i PDF del ${a.anno}` }),
+      h('h2', { testo: `Elimina i PDF del ${a.anno}` }),
       h('p.sotto', {
         testo: `${a.n} ${a.n === 1 ? 'documento' : 'documenti'}, ${dimensione(a.bytes)}` +
           (a.anno === st.anno ? ' — è l’anno in corso.' : '.') +
-          ' Le spunte "stampata" restano: sparisce il file, non il lavoro. ' +
-          'Non si torna indietro.',
+          ' Le spunte «stampata» restano: sparisce il file, non il lavoro. ' +
+          (inNuvola() ? 'Vanno nel cestino: per 30 giorni si possono rimettere.'
+            : 'Non si torna indietro.'),
       }),
       ok,
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
         h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
         via),
+    ];
+  });
+}
+
+/** SEC-05: svuotare il cestino dei PDF (solo amministratore, solo online) e'
+ *  l'unico modo di liberare davvero lo spazio: elimina per sempre righe e
+ *  file. Chiede OK come le altre azioni che non si disfano. */
+function confermaSvuotaCestino(bott, dopo = null) {
+  modale(chiudi => {
+    const via = h('button.bottone.pericolo', { testo: 'Svuota il cestino' });
+    const ok = campoOK(via);
+    via.onclick = async () => {
+      via.disabled = true; via.textContent = 'Svuoto…';
+      bott.disabled = true;
+      try {
+        const { n, bytes } = await svuotaCestino(0);
+        chiudi();
+        avviso(n ? `Cestino svuotato: ${n} PDF eliminati per sempre, ${dimensione(bytes)} liberati.`
+                 : 'Il cestino era già vuoto.', { tono: 'ok', durata: 9000 });
+        dopo?.();
+      } catch (ex) {
+        chiudi();
+        avviso('Cestino non svuotato: ' + (ex.message || ex), { tono: 'allerta' });
+      } finally {
+        if (bott.isConnected) bott.disabled = false;
+      }
+    };
+    return [
+      h('h2', { testo: 'Svuota il cestino dei PDF' }),
+      h('p.sotto', {
+        testo: 'Elimina per sempre tutti i PDF nel cestino, di ogni sito e di ogni anno, ' +
+          'e libera il loro spazio. Le spunte «stampata» restano. Non si torna indietro.',
+      }),
+      ok,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
+        via),
+    ];
+  });
+}
+
+/* ------------------------------------------------------------- cestino --- */
+/** SEC-05: la finestra del cestino dei PDF (solo online). Un PDF eliminato ci
+ *  resta finche' l'amministratore non lo svuota: da qui chiunque lo rimette al
+ *  suo sito, e chi l'ha caricato (o l'amministratore) lo elimina per sempre,
+ *  uno per uno. `app_cestino_documenti` dice per ogni file se si puo'
+ *  (`eliminabile`); il server lo ricontrolla comunque. */
+function mostraCestino() {
+  if (!inNuvola()) return avviso('Il cestino dei PDF c’è solo online.');
+  modale(chiudi => {
+    // gli esiti li dicono gli avvisi (aria-live): l'elenco non si rilegge da capo a ogni riga tolta
+    const corpo = h('div.cestino', { tabindex: '-1', role: 'region', 'aria-label': 'PDF nel cestino' });
+    const piede = h('p.cestino-piede');
+    const svuota = sonoAdmin() ? h('button.pill.mini.debole', {
+      testo: 'Svuota il cestino…',
+      title: 'Elimina per sempre tutti i PDF nel cestino e libera lo spazio',
+      onclick: e => confermaSvuotaCestino(e.currentTarget, carica),
+    }) : null;
+    // «Chiudi» c'e' sempre ed e' il primo fuoco; «Svuota» entra solo se c'e' qualcosa
+    const fondo = h('div', { style: 'display:flex;gap:8px;align-items:center' },
+      h('button.bottone.piatto', { testo: 'Chiudi', onclick: chiudi }));
+    let lista = [];
+
+    const sito = d => {
+      const s = st.perServ.get(d.id_service);
+      if (!s) return `service #${d.id_service}`;
+      const cli = st.clienti.get(s.cli);
+      return `${cli?.rs || 'cliente ' + s.cli} · ${s.dest || '#' + s.id}`;
+    };
+    const conta = () => {
+      const peso = lista.reduce((t, d) => t + (d.bytes || 0), 0);
+      piede.textContent = lista.length
+        ? `${lista.length} PDF nel cestino · ${dimensione(peso)}` : '';
+      if (svuota && lista.length) fondo.prepend(svuota); else svuota?.remove();
+    };
+    const vuoto = () => corpo.replaceChildren(h('p.cestino-vuoto', {
+      testo: 'Il cestino è vuoto: nessun PDF eliminato da rimettere.' }));
+    /* tolta una riga, il fuoco va sulla vicina (o sull'elenco): non cade sul body */
+    const togliRiga = (d, li) => {
+      lista = lista.filter(x => x.id !== d.id);
+      const vicina = li.nextElementSibling || li.previousElementSibling;
+      const aveva = li.contains(document.activeElement);
+      li.remove();
+      if (!lista.length) vuoto();
+      conta();
+      if (aveva) (vicina?.querySelector('button') || corpo).focus();
+    };
+    const occupa = (b, testo) => { b.disabled = true; b.dataset.et = b.textContent; b.textContent = testo; };
+    const libera = b => { if (!b.isConnected) return; b.disabled = false; b.textContent = b.dataset.et; };
+
+    const riga = d => {
+      const li = h('li.cestino-riga');
+      const nome = d.nome || '(senza nome)';
+      const rimetti = h('button.pill.mini', {
+        testo: 'Rimetti', 'aria-label': 'Rimetti ' + nome,
+        title: 'Torna fra i PDF del suo sito, com’era',
+      });
+      rimetti.onclick = async () => {
+        occupa(rimetti, 'Rimetto…');
+        try {
+          await ripristinaDocumento(d.id);
+          togliRiga(d, li);
+          avviso(`«${titoloDocumento(d) || nome}» è di nuovo fra i PDF del sito.`, { tono: 'ok' });
+        } catch (ex) {
+          libera(rimetti);
+          avviso('Non rimesso: ' + (ex.message || ex), { tono: 'allerta' });
+        }
+      };
+      const via = d.eliminabile ? h('button.pill.mini.cestino-via', {
+        testo: 'Elimina per sempre…', 'aria-label': 'Elimina per sempre ' + nome,
+        title: 'Via il file e la riga: non si torna indietro',
+      }) : null;
+      if (via) via.onclick = () => modale(chiudi2 => {
+        const si = h('button.bottone.pericolo', { testo: 'Elimina per sempre' });
+        si.onclick = async () => {
+          occupa(si, 'Elimino…'); occupa(via, 'Elimino…');
+          try {
+            const bytes = await eliminaDefinitivo(d);
+            chiudi2();
+            togliRiga(d, li);
+            avviso(`«${nome}» eliminato per sempre${bytes ? ': ' + dimensione(bytes) + ' liberati' : ''}.`,
+                   { tono: 'ok' });
+          } catch (ex) {
+            chiudi2(); libera(via);
+            avviso('Non eliminato: ' + (ex.message || ex), { tono: 'allerta' });
+          }
+        };
+        return [
+          h('h2', { testo: 'Eliminare per sempre questo PDF?' }),
+          h('p.sotto', { testo: `«${nome}», ${sito(d)}. Sparisce il file e non si può ` +
+            'più rimettere. Le spunte «stampata» restano.' }),
+          h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+            h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi2 }), si),
+        ];
+      });
+      const quandoMese = (d.mese ? (st.mesiNome[d.mese - 1] || '') + ' ' : '') + (d.anno || '');
+      li.append(
+        h('div.cestino-info', {},
+          h('b.cestino-nome', { testo: nome, title: nome }),
+          h('span.cestino-meta', { testo: [sito(d), TIPI[tipoDi(d)].et, quandoMese,
+            dimensione(d.bytes || 0)].filter(Boolean).join(' · ') }),
+          h('span.cestino-meta', { testo: 'Eliminato ' + quando(d.eliminato_il) +
+            (d.eliminato_da ? ' da ' + d.eliminato_da : '') })),
+        h('div.cestino-azioni', {}, rimetti, via));
+      return li;
+    };
+
+    async function carica() {
+      corpo.setAttribute('aria-busy', 'true');
+      corpo.replaceChildren(h('p.cestino-vuoto', { testo: 'Caricamento…' }));
+      try {
+        lista = await cestinoDocumenti();
+        if (!corpo.isConnected) return;
+        if (lista.length) corpo.replaceChildren(h('ul.cestino-lista', {}, lista.map(riga)));
+        else vuoto();
+      } catch (ex) {
+        lista = [];
+        corpo.replaceChildren(h('p.cestino-vuoto', {},
+          'Non riesco a leggere il cestino: ' + umano(ex.message || String(ex)).testo + ' ',
+          h('button.pill.mini', { testo: 'Riprova', onclick: carica })));
+      } finally {
+        corpo.removeAttribute('aria-busy');
+        conta();
+      }
+    }
+    carica();
+
+    return [
+      h('h2', { testo: 'Cestino dei PDF' }),
+      h('p.sotto', {
+        testo: 'I PDF eliminati restano qui finché l’amministratore non svuota il ' +
+          'cestino. «Rimetti» li riporta al loro sito; «Elimina per sempre» libera lo ' +
+          'spazio, ed è solo per i file caricati da te (o per l’amministratore).',
+      }),
+      corpo,
+      h('div.cestino-fondo', {}, piede, fondo),
     ];
   });
 }
@@ -1332,41 +1743,26 @@ function mostraDoppioni() {
    generatori (web/schede/, web/registro/), che prima avevano una chiave loro
    e, appena si sceglieva qualcosa li', smettevano di seguire il tracker. Il
    passaggio fra schede aperte e' l'evento `storage`: si cambia in una pagina
-   e le altre si voltano da sole, senza ricaricare. */
-function temaIniziale() {
-  const t = localStorage.getItem('cs.tema');
-  if (t) document.documentElement.dataset.tema = t;
-  addEventListener('storage', e => {
-    if (e.key === 'cs.tema') inDissolvenza(() => { document.documentElement.dataset.tema = e.newValue || ''; });
-  });
-}
-/* il cambio di tema sfuma (View Transitions) invece di scattare; dove l'API
-   manca, o chi legge ha chiesto meno movimento, si applica e basta */
-function inDissolvenza(fn) {
-  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.startViewTransition(fn);
-  } else fn();
-}
-function giraTema() {
-  const ora = document.documentElement.dataset.tema;
-  const scuroSistema = matchMedia('(prefers-color-scheme: dark)').matches;
-  const next = !ora ? (scuroSistema ? 'chiaro' : 'scuro') : ora === 'scuro' ? 'chiaro' : 'scuro';
-  inDissolvenza(() => { document.documentElement.dataset.tema = next; });
-  localStorage.setItem('cs.tema', next);
-}
+   e le altre si voltano da sole, senza ricaricare.
+   VIS-22: il controllo ora ha tre posizioni (Auto · Chiaro · Scuro) come nel
+   Planning, e la scelta passa anche al Planning dal profilo dell'account:
+   temaIniziale, collegaTema e allineaDalToken stanno in js/famiglia.js. */
 
 /* -------------------------------------------------------------- tastiera - */
 function tastiera() {
   addEventListener('keydown', e => {
     // e.target puo' essere document o window (nessun .matches/.closest): guardie.
-    if (e.target?.matches?.('input,textarea,select')) {
-      if (e.key === 'Escape') e.target.blur();
+    const t = /** @type {HTMLElement} */ (e.target);
+    if (t?.matches?.('input,textarea,select')) {
+      if (e.key === 'Escape') t.blur();
       return;
     }
+    // A11Y-15 (WCAG 2.1.4): i tasti di un carattere solo si possono spegnere
+    if (e.key.length === 1 && !scorciatoieAccese()) return;
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
     if (e.key === '?') { e.preventDefault(); mostraAiuto(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.target?.closest?.('.cella')) return;
+    if (t?.closest?.('.cella')) return;
     const k = e.key.toLowerCase();
     const v = { a: 'anno', m: 'mese', s: 'stat' }[k];
     if (v) { st.vista = v; chiudiCassetto(); disegna(); return; }
@@ -1383,6 +1779,8 @@ function mostraAiuto() {
        qui, 2 ereditato (tenue), 3 proposto e in attesa (a righe). Puo' essere
        una funzione dell'indice, per la riga dove non tutti i passi sono uguali. */
     const S = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
+    /** @param {string} cl  @param {number} n
+     *  @param {number | ((i: number) => number)} [v]  @param {string} [misura] */
     const cel = (cl, n, v = 1, misura = 'width:40px;height:20px;flex:none') =>
       h('span.cella' + (cl ? '.' + cl : ''), {
         style: misura,
@@ -1419,7 +1817,7 @@ function mostraAiuto() {
         riga(cel('stima', 0), CLASSE_ET['stima']),
         riga(cel('darinnovare', 0), CLASSE_ET['da-rinnovare']),
         riga(cel('nontracciato', 0), CLASSE_ET['non-tracciato']),
-        riga(trattino, 'Nessuna manutenzione prevista, o service non ancora attivo')),
+        riga(trattino, 'Nessuna manutenzione prevista, o sito non ancora attivo')),
 
       h('h3.tit-p', { testo: 'Il pallino davanti al sito' }),
       h('p.nota-t', {
@@ -1439,8 +1837,8 @@ function mostraAiuto() {
       h('h3.tit-p', { testo: 'Una mappatura per sito, una volta all\'anno' }),
       h('p.nota-t', {
         style: 'margin-bottom:18px',
-        testo: 'Ogni sito aperto ha la sua mappatura: un cliente con nove impianti ' +
-          'ne ha nove, una per impianto. Ma non si rifà a ogni visita: fatta una ' +
+        testo: 'Ogni sito aperto ha la sua mappatura: un cliente con nove siti ' +
+          'ne ha nove, una per sito. Ma non si rifà a ogni visita: fatta una ' +
           'volta con tutti e quattro i passi, quel sito è a posto per l\'anno e la ' +
           'casella si accende di verde. Se il contratto ha più mesi di ' +
           'manutenzione la scadenza è il primo: quella cella è piena, le altre ' +
@@ -1451,9 +1849,9 @@ function mostraAiuto() {
       h('h3.tit-p', { testo: 'I due PDF: schede tecnici e registro componenti' }),
       h('p.nota-t', {
         style: 'margin-bottom:18px',
-        testo: 'Da "Genera PDF" (o dal cassetto del sito) partono due generatori. ' +
+        testo: 'Da «Genera PDF» (o dal cassetto del sito) partono due generatori. ' +
           'Le SCHEDE TECNICI sono i fogli di campo per i tecnici: quando il PDF ' +
-          'viene consegnato, la spunta "Stampata" si mette da sola sulla PRIMA ' +
+          'viene consegnato, la spunta «Stampata» si mette da sola sulla PRIMA ' +
           'VISITA IN ARRIVO di quel sito, mai su un mese già passato — anche se la ' +
           'mappatura è in ritardo, perché il foglio stampato oggi serve al ' +
           'prossimo giro. Il REGISTRO DEI COMPONENTI è il documento per il ' +
@@ -1481,11 +1879,27 @@ function mostraAiuto() {
         ['↑ ↓', 'Anno: riga sopra/sotto · Mese: scheda sopra/sotto, evidenziata tutta'],
         ['← →', 'Anno: mese previsto precedente/successivo · Mese: entra ed esce dalle caselle'],
         ['Home / Fine', 'Anno: primo · ultimo mese previsto della riga'],
-        ['Invio', 'Apri la cella (nel mese: il dettaglio del service)'],
+        ['Invio', 'Apri la cella (nel mese: il dettaglio del sito)'],
         ['Esc', 'Chiudi'], ['?', 'Questa finestra'],
       ].flatMap(([k, v]) => [
         h('dt', { html: `<code class="dato">${esc(k)}</code>` }), h('dd', { testo: v }),
       ])),
+      /* A11Y-15: / ? A M S O valgono ovunque; qui si spengono (i tasti sulla cella
+         col fuoco restano, valgono solo li'). Tutta la riga e' il bersaglio. */
+      h('label.scelta-massa', { style: 'margin:12px 0 0' },
+        h('input', {
+          type: 'checkbox', checked: scorciatoieAccese(),
+          onchange: e => {
+            impostaScorciatoie(e.target.checked);
+            avviso(e.target.checked ? 'Scorciatoie a un tasto accese.'
+              : 'Scorciatoie a un tasto spente: il punto di domanda in barra riapre questa finestra.',
+            { tono: 'ok' });
+          },
+        }),
+        h('span', {
+          html: '<b>Scorciatoie a un tasto</b> (/ ? A M S O). Spegnile se detti al ' +
+            'computer o ti capita di premerle per sbaglio; frecce, Invio ed Esc restano.',
+        })),
 
       h('h3.tit-p', { style: 'margin-top:18px', testo: 'Se siete in due o più' }),
       h('p.nota-t', {

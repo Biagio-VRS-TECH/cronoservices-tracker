@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* stat.js - la vista Statistiche: quello che i numeri dell'anno dicono, letto a
    colpo d'occhio.  #ANCHOR: vista-stat
 
@@ -374,7 +375,7 @@ function quadrante(titolo, sotto, voci, centro) {
    Cliccare la riga restringe il grafico dei mesi al CLIENTE di quel sito. */
 function grafSiti(cl, tot) {
   const testa = h('div.barre-testa', {},
-    h('span', { testo: `${tot} impianti` }),
+    h('span', { testo: `${tot} ${tot === 1 ? 'sito' : 'siti'}` }),
     h('span', { testo: `${PASSI} passi` }),
     h('span', {}),
     h('span', { testo: 'stato' }));
@@ -869,7 +870,7 @@ function cartaDaFare(d, dov) {
         role: 'button', tabindex: '0',
         'data-tip': `${v.cli} — ${v.sito} (#${v.id}): ` +
           `${v.ritardo ? 'scaduta' : 'scade'} a ${st.mesiNome[v.scad - 1]} · ` +
-          `${v.n} di ${PASSI} passi · clic per aprire il service`,
+          `${v.n} di ${PASSI} passi · clic per aprire il sito`,
         onclick: () => apriCassetto(v.id),
         onkeydown: e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apriCassetto(v.id); }
@@ -894,7 +895,7 @@ function cartaDaFare(d, dov) {
     inCorso
       ? 'Le mappature dovute e non chiuse: prima le arretrate, poi quelle che ' +
         'scadono questo mese e il prossimo. Clicca un numero per isolare un ' +
-        'gruppo, una riga per aprire il service e spuntare.'
+        'gruppo, una riga per aprire il sito e spuntare.'
       : 'Le mappature arretrate e quelle che scadono questo mese e il prossimo.',
     h('div.dafare-corpo', {}, testa, elenco),
     righe.length ? {
@@ -943,7 +944,7 @@ function rivela(area, animato) {
     let k = 0;
     for (const v of voci) {
       if (!v.isIntersecting) continue;
-      v.target.style.setProperty('--r', String(k++));
+      /** @type {HTMLElement} */ (v.target).style.setProperty('--r', String(k++));
       v.target.classList.add('entrata');
       contaSu(v.target);
       io.unobserve(v.target);
@@ -1034,7 +1035,7 @@ export function disegna(area, animato = true) {
          completa. */
       h('div.tessere', {},
         tessera(d.clienti, 'clienti', 'con almeno un sito aperto'),
-        tessera(d.aperti, 'siti aperti', 'un service = un impianto'),
+        tessera(d.aperti, 'siti aperti', 'aperti in Access'),
         tessera(d.mappature, 'mappature dovute', 'una per sito, annuale'),
         tessera(d.ritardo, 'in ritardo', 'scadenza passata, non chiuse',
           d.ritardo ? 'var(--allerta)' : null),
@@ -1092,7 +1093,7 @@ export function disegna(area, animato = true) {
 
   const carte = [
     carta('Mappature per sito',
-      `La mappatura è annuale e una per sito: una riga per impianto, la barra ` +
+      `La mappatura è annuale e una per sito: una riga per sito, la barra ` +
       `sono i suoi ${PASSI} passi, piena = a posto per l’anno. Ci sono tutti i ` +
       'siti aperti, anche quelli fuori conto (pre-avvio o mappatura non dovuta ' +
       'quest’anno). In testa i più urgenti. Clicca una riga per vedere i mesi di ' +
@@ -1147,7 +1148,7 @@ export function disegna(area, animato = true) {
 
     carta('Mappature per provincia',
       'Dove sta il lavoro dell’anno: una mappatura per sito, nella provincia ' +
-      'dell’impianto. Le prime otto; dentro la barra, in verde, quante sono già chiuse.',
+      'del sito. Le prime otto; dentro la barra, in verde, quante sono già chiuse.',
       barre(
         province.slice(0, 8).map(v => ({
           et: v.et, val: v.prev, sub: v.complete,

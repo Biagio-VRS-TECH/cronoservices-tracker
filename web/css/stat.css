@@ -82,7 +82,7 @@
 .link-tab {
   flex: none; font-size: var(--t-micro); color: var(--tenue);
   border: 1px solid var(--bordo-lieve); border-radius: var(--r-tonda);
-  padding: 4px 11px; transition: var(--rapido); background: var(--vetro-fondo);
+  padding: 4px 11px; transition: var(--transizione); background: var(--vetro-fondo);
   box-shadow: inset 0 1px 0 var(--lucido), 0 1px 1px rgba(16,20,26,.04);
 }
 .link-tab:hover { color: var(--marchio-scuro); border-color: var(--marchio); }
@@ -126,9 +126,8 @@
     color-mix(in srgb, var(--marchio) 26%, transparent) 100%);
   -webkit-mask: radial-gradient(circle closest-side, transparent 0 65%, #000 67% 86%, transparent 88%);
           mask: radial-gradient(circle closest-side, transparent 0 65%, #000 67% 86%, transparent 88%);
-  animation: spazzata 14s linear infinite;
+  /* VIS-13: la spazzata infinita non gira piu'; resta la corona ferma */
 }
-@keyframes spazzata { to { transform: rotate(1turn); } }
 .eroe-testo { position: relative; z-index: 1; min-width: 0; }
 .eroe-titolo {
   margin: 12px 0 0; font: var(--p-display) 28px/1.2 var(--f-display);
@@ -226,7 +225,6 @@
 .obiettivo {
   position: absolute; top: -5px; left: var(--x, 0); width: 2px; height: 19px;
   background: var(--inchiostro); border-radius: 1px; transform: translateX(-50%);
-  transition: left 720ms var(--molla);
 }
 .obiettivo::after {
   content: 'obiettivo'; position: absolute; top: 21px; left: 50%; transform: translateX(-50%);
@@ -243,7 +241,7 @@
 /* I tre contatori sono anche i filtri: uno acceso isola il suo gruppo. */
 .agenda-conta {
   text-align: left; padding: 7px 12px; border-radius: 12px;
-  border: 1px solid transparent; transition: var(--rapido);
+  border: 1px solid transparent; transition: var(--transizione);
 }
 .agenda-conta:hover:not([disabled]) { background: var(--superficie-2); border-color: var(--bordo); }
 .agenda-conta.acceso {
@@ -283,7 +281,7 @@
   display: grid; grid-template-columns: 46px minmax(0, 1fr) auto 40px;
   gap: 12px; align-items: center;
   padding: 7px 10px; border-radius: 11px; border: 1px solid transparent;
-  cursor: pointer; transition: var(--rapido);
+  cursor: pointer; transition: var(--transizione);
 }
 .agenda-riga:hover { background: var(--superficie-2); border-color: var(--bordo); }
 .agenda-riga:focus-visible { outline: 2px solid var(--marchio); outline-offset: 1px; }
@@ -342,7 +340,7 @@
 .legenda-t { flex: 1; min-width: 158px; display: grid; gap: 3px; align-content: center; }
 .legenda-t .vt {
   display: flex; align-items: center; gap: 8px; font-size: var(--t-mini);
-  padding: 2px 5px; border-radius: var(--r-1); transition: var(--rapido);
+  padding: 2px 5px; border-radius: var(--r-1); transition: var(--transizione);
 }
 .legenda-t .vt:hover { background: var(--fondo); }
 .legenda-t .vt i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
@@ -370,10 +368,13 @@
   height: 10px; border-radius: var(--r-tonda); background: var(--pista-fondo);
   box-shadow: var(--pista-incavo); overflow: hidden;
 }
+/* MOV-08: le barre non animano piu' `width`/`height`/`left`/`bottom`. La misura
+   arriva subito; la crescita si vede all'entrata, con `transform` dal lato
+   giusto (sinistra per le orizzontali, basso per le colonne). */
 .pista i {
   position: relative; display: block; height: 100%; width: var(--w, 0);
   background: var(--t, var(--completa)); border-radius: var(--r-tonda);
-  transition: width 720ms var(--molla);
+  transform-origin: left center; transition: transform 720ms var(--molla);
 }
 .pista i::after, .barra-pista i::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
@@ -397,14 +398,14 @@
 .barra-pista i {
   position: relative; display: block; height: 100%; width: var(--w, 0);
   background: var(--t, var(--marchio)); border-radius: var(--r-tonda);
-  transition: width 720ms var(--molla);
+  transform-origin: left center; transition: transform 720ms var(--molla);
 }
 /* la parte gia' chiusa, dentro la barra: il verde di --completa, con 2px di
    superficie a destra per staccarsi dal resto */
 .barra-pista i b {
   position: absolute; inset: 0 auto 0 0; width: var(--w, 0);
   background: var(--completa); border-radius: var(--r-tonda);
-  box-shadow: 2px 0 0 var(--superficie); transition: width 720ms var(--molla);
+  box-shadow: 2px 0 0 var(--superficie);
 }
 .barra-riga:hover .barra-pista i { filter: brightness(1.08); }
 .con-rango .barra-riga { grid-template-columns: 20px minmax(0, 110px) 1fr 54px; }
@@ -525,24 +526,24 @@
 .col-n {
   position: absolute; left: 0; right: 0; bottom: calc(var(--h, 0) + 5px); text-align: center;
   font: 500 var(--t-micro)/1 var(--f-dato); color: var(--tenue);
-  font-variant-numeric: tabular-nums; transition: bottom 720ms var(--molla), color var(--rapido);
+  font-variant-numeric: tabular-nums; transition: color var(--rapido), opacity 720ms var(--molla);
 }
 .col-pista {
   width: 100%; max-width: 34px; height: var(--h, 0);
   background: var(--st-vuoto); border-radius: 8px;
   display: flex; flex-direction: column; justify-content: flex-end;
-  overflow: hidden; transition: height 720ms var(--molla), transform var(--medio), box-shadow var(--medio);
+  overflow: hidden; transition: box-shadow var(--medio), transform 720ms var(--molla);
+  transform-origin: center bottom;
 }
 .col-pista i {
   display: block; width: 100%; height: var(--h, 0); flex: none;
   background: var(--t, var(--completa));
-  transition: height 720ms var(--molla);
 }
 /* La riga di 1,5px fra due segmenti e' superficie, non un bordo: e' cio' che li
    tiene distinti anche per chi non separa bene i chiari della rampa. */
 .col-pista i + i { box-shadow: 0 -1.5px 0 var(--superficie); }
 .col-pista.con-chiuse { box-shadow: 0 6px 16px -8px var(--completa); }
-.colonna:hover .col-pista { transform: translateY(-3px); box-shadow: 0 10px 20px -10px var(--marchio); }
+.colonna:hover .col-pista { box-shadow: 0 0 0 1px var(--marchio); }
 .colonna.arretrata .col-pista {
   background: var(--allerta-tenue);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--allerta) 45%, transparent);
@@ -557,8 +558,8 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .colonna:hover .col-n { color: var(--inchiostro); }
-.carta:not(.entrata) .col-pista { height: 0; }
-.carta:not(.entrata) .col-n { bottom: 5px; }
+.carta:not(.entrata) .col-pista { transform: scaleY(0); }
+.carta:not(.entrata) .col-n { opacity: 0; }
 
 /* -- il grafico dell'andamento cumulato ---------------------------------- */
 .graf-avvolge { position: relative; }
@@ -616,7 +617,7 @@
   padding: 9px 11px; border-radius: 13px; background: var(--superficie-2); border: 1px solid var(--bordo);
   transition: border-color var(--rapido), transform var(--rapido);
 }
-.anello-box:hover { border-color: var(--bordo-forte); transform: translateY(-2px); }
+.anello-box:hover { border-color: var(--bordo-forte); }
 .anello { display: block; width: 58px; height: 58px; overflow: visible; }
 .anello .fette { transform-box: fill-box; transform-origin: center; transition: opacity 480ms var(--molla), transform 700ms var(--molla); }
 .carta:not(.entrata) .anello .fette { opacity: 0; transform: rotate(-90deg) scale(.7); }
@@ -634,8 +635,8 @@
 }
 .stack i {
   width: var(--w, 0); background: var(--t); border-radius: 3px;
-  transition: width 720ms var(--molla);
 }
+.stack { transform-origin: left center; transition: transform 720ms var(--molla); }
 .legenda {
   display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px;
   font-size: var(--t-mini); color: var(--tenue);
@@ -661,7 +662,7 @@
   border: 1px solid var(--bordo); border-left: 3px solid var(--t, var(--bordo-forte));
   transition: transform var(--rapido), border-color var(--rapido);
 }
-.legenda-tessere .vc:hover { transform: translateY(-2px); border-color: var(--bordo-forte); }
+.legenda-tessere .vc:hover { border-color: var(--bordo-forte); }
 .legenda-tessere .vc i { display: none; }
 .legenda-tessere .vc span { font-size: var(--t-micro); color: var(--tenue); }
 .legenda-tessere .vc b { margin-left: 0; font: 600 24px/1 var(--f-display); letter-spacing: -.03em; }
@@ -707,18 +708,17 @@
    quindi non riparte nulla e la pagina non lampeggia. */
 .carta:not(.entrata) .pista i,
 .carta:not(.entrata) .barra-pista i,
-.carta:not(.entrata) .barra-pista i b,
-.carta:not(.entrata) .stack i { width: 0; }
+.carta:not(.entrata) .stack { transform: scaleX(0); }
 .carta:not(.entrata) { opacity: 0; transform: translateY(16px); }
 .carta {
   transition: box-shadow var(--medio), border-color var(--medio),
               opacity 560ms var(--molla) calc(var(--r, 0) * 70ms),
               transform 560ms var(--molla) calc(var(--r, 0) * 70ms);
 }
-/* entrata fatta, la carta risponde alla mano: si alza di 2px al passaggio, con
-   una transizione corta e senza il ritardo di gruppo dell'entrata */
+/* entrata fatta: transizione corta e senza il ritardo di gruppo dell'entrata
+   (al passaggio cambia solo il bordo, non si sposta: VIS-13) */
 .carta.entrata { transition: box-shadow var(--medio), border-color var(--medio), transform var(--medio); }
-.carta.entrata:hover { transform: translateY(-2px); }
+
 /* Ciambelle e quadrante entrano ruotando sul proprio centro: `transform-box`
    serve perche' in SVG l'origine di default e' quella del viewBox. */
 .torta .fette, .quadrante .settori {
@@ -734,7 +734,7 @@
 @media (prefers-reduced-motion: reduce) {
   .pista i, .barra-pista i, .barra-pista i b, .stack i, .col-pista, .col-pista i, .col-n,
   .torta .fette, .quadrante .settori, .quadrante .q-tacca, .quadrante .q-nomi,
-  .anello .fette, .graf *, .obiettivo, .carta, .passi-mini i { transition: none; }
+  .anello .fette, .graf *, .obiettivo, .carta, .passi-mini i, .stack { transition: none; }
   .eroe-quadro::before, .fine .onda { animation: none; }
   .fine .onda { display: none; }
 }
@@ -761,6 +761,14 @@
   .colonne { height: 200px; }
   .agenda-riga { grid-template-columns: 42px minmax(0, 1fr) 40px; }
   .agenda-passi { display: none; }
+}
+/* VIS-25: sul telefono le carte vanno quasi a filo dello schermo e i comandi
+   della testa ("Tutti i siti", "Espandi", "Tabella") vanno a capo sotto il
+   titolo invece di spingere la pagina di lato. */
+@media (max-width: 760px) {
+  .stat { padding: 12px 12px 60px; }
+  .carta-testa { flex-wrap: wrap; }
+  .carta-comandi { flex-wrap: wrap; }
 }
 
 @media print {
