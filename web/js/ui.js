@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* ui.js - primitive: icone, avvisi, modale, mini-hyperscript, formattatori.
    #ANCHOR: ui */
 
@@ -44,7 +45,7 @@ export function frecceEntrano(attiva, bersagli, dentro) {
   addEventListener('keydown', e => {
     if (!(e.key in FRECCE) || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
     if (!attiva()) return;
-    if (e.target?.closest?.(dentro + ',' + FUORI)) return;
+    if (/** @type {Element} */ (e.target)?.closest?.(dentro + ',' + FUORI)) return;
     const n = bersagli();
     if (!n.length) return;
     const box = (document.querySelector('.area') || document.documentElement)
@@ -106,6 +107,7 @@ export function segnala(err, dove = '') {
    `'Non salvato: ' + e.message` non vanno toccati uno a uno. Il testo tecnico
    non si perde: va a `segnala()`.
    Ritorna { testo, tecnico }: `tecnico` c'e' solo se qualcosa e' stato tradotto. */
+/** @type {Array<[RegExp, string]>} */
 const TRADUZIONI = [
   [/failed to fetch|networkerror|load failed|network ?error|fetch failed|net::err/i,
     'server non raggiungibile: controlla la rete e riprova'],
@@ -180,7 +182,9 @@ export function avviso(testo, opz = {}) {
    Il campo non apre una finestra sua: sta DENTRO quella che c'e' gia', cosi'
    il conto esatto ("1.284 spunte da togliere") resta sotto gli occhi mentre si
    conferma. Governa il bottone, che nasce disabilitato.  #ANCHOR: conferma-ok */
-export function campoOK(bottone, { parola = 'OK', etichetta } = {}) {
+/** @param {HTMLButtonElement} bottone
+ *  @param {{parola?: string, etichetta?: string}} [opz] */
+export function campoOK(bottone, { parola = 'OK', etichetta = '' } = {}) {
   const id = 'ok-' + Math.random().toString(36).slice(2, 8);
   const inp = h('input.campo.campo-ok', {
     id, type: 'text', autocomplete: 'off', spellcheck: 'false', placeholder: parola,
@@ -213,7 +217,7 @@ export function trappolaTab(e, contenitore) {
 }
 export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   const velo = h('div.velo');
-  const prima = document.activeElement;   // a chi torna il fuoco alla chiusura
+  const prima = /** @type {HTMLElement | null} */ (document.activeElement);   // a chi torna il fuoco alla chiusura
   const chiudi = () => {
     velo.remove(); document.removeEventListener('keydown', tasto);
     if (prima?.isConnected) prima.focus?.();
@@ -325,7 +329,7 @@ export const esc = s => String(s ?? '').replace(/[&<>"]/g,
 export function quando(iso) {
   if (!iso) return '';
   const d = new Date(iso), o = new Date();
-  const g = Math.round((new Date(o.toDateString()) - new Date(d.toDateString())) / 864e5);
+  const g = Math.round((new Date(o.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5);
   const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   if (g === 0) return 'oggi ' + ora;
   if (g === 1) return 'ieri ' + ora;

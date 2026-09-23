@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* documenti.js - i PDF dei generatori, lato tracker.  #ANCHOR: documenti
 
 Due generatori producono PDF e li consegnano qui, una riga in `documenti`
@@ -180,7 +181,7 @@ export function annunciaAltreSchede(ev) {
  *  schede, la spunta "stampata" va sulla prima visita in arrivo, mai su una
  *  passata (#ANCHOR: mese-stampa in stato.js). */
 export function urlGeneratore(s, tipo = 'schede') {
-  const p = new URLSearchParams({ anno: st.anno });
+  const p = new URLSearchParams({ anno: String(st.anno) });
   if (s) {
     const cli = st.clienti.get(s.cli);
     p.set('service', s.id);
@@ -268,9 +269,12 @@ function trovaDoc(idDoc) {
 
 /** Deleghe globali: un ascoltatore per tutta la pagina, chip compresi quelli
  *  disegnati dopo. */
+/** Il chip sotto l'evento, se c'e' (il bersaglio puo' essere document o window). */
+const chipDi = (/** @type {Event} */ e) => /** @type {HTMLElement | null} */ (
+  /** @type {Element} */ (e.target)?.closest?.('.doc-chip[data-doc]'));
 export function collegaChip() {
   document.addEventListener('click', e => {
-    const c = e.target?.closest?.('.doc-chip[data-doc]');
+    const c = chipDi(e);
     if (!c) return;
     e.preventDefault(); e.stopPropagation();
     nascondiAnteprima();
@@ -278,13 +282,13 @@ export function collegaChip() {
     if (d) apriDocumento(d);
   }, true);
   document.addEventListener('mouseover', e => {
-    const c = e.target?.closest?.('.doc-chip[data-doc]');
+    const c = chipDi(e);
     if (!c) return;
     clearTimeout(antTimer);
     antTimer = setTimeout(() => mostraAnteprima(c), 260);
   });
   document.addEventListener('mouseout', e => {
-    if (e.target?.closest?.('.doc-chip[data-doc]')) nascondiAnteprima();
+    if (chipDi(e)) nascondiAnteprima();
   });
   addEventListener('scroll', nascondiAnteprima, true);
 }
@@ -464,6 +468,29 @@ export async function svuotaCestino(giorni = 30) {
   percorsi.forEach(scordaFirma);
   if (percorsi.length) { try { await nuvola.eliminaOggetti('documenti', percorsi); } catch { } }
   return { n: r.dati?.n || 0, bytes: r.dati?.bytes || 0 };
+}
+
+/** Il contenuto del cestino dei PDF (solo online, `app_cestino_documenti`):
+ *  dal piu' recente, ognuno con `eliminabile` = chi chiede puo' cancellarlo
+ *  per sempre (l'amministratore, o chi l'ha caricato). */
+export async function cestinoDocumenti() {
+  const r = await chiama('/api/cestino');
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  return r.dati?.cestino || [];
+}
+
+/** Un PDF del cestino via per sempre: prima la riga (il server decide se
+ *  puoi), POI il file, che lo Storage lascia togliere solo quando nessuna riga
+ *  lo usa piu'. Uno strascico nel bucket non fa fallire l'operazione: lo trova
+ *  la query degli orfani (cloud/LEGGIMI.md). Ritorna i byte liberati. */
+export async function eliminaDefinitivo(d) {
+  const r = await chiama('/api/documento_definitivo', { metodo: 'POST', body: { id: d.id } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const p = r.dati?.percorso || percorsoDi(d);
+  scordaFirma(p);
+  try { await nuvola.eliminaOggetto('documenti', p); } catch { }
+  togli(d.id, d.id_service);   // se era ancora in archivio (non dal cestino)
+  return d.bytes || 0;
 }
 
 /** L'eco di una cancellazione in blocco fatta da un altro (flusso o altra

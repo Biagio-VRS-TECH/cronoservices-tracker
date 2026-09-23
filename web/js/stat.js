@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* stat.js - la vista Statistiche: quello che i numeri dell'anno dicono, letto a
    colpo d'occhio.  #ANCHOR: vista-stat
 
@@ -943,7 +944,7 @@ function rivela(area, animato) {
     let k = 0;
     for (const v of voci) {
       if (!v.isIntersecting) continue;
-      v.target.style.setProperty('--r', String(k++));
+      /** @type {HTMLElement} */ (v.target).style.setProperty('--r', String(k++));
       v.target.classList.add('entrata');
       contaSu(v.target);
       io.unobserve(v.target);

@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* affinita.js - quanto si somigliano due nomi scritti da mani diverse.
    #ANCHOR: affinita
 

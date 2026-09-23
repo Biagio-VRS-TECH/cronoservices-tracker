@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* spunte.js - il popover della cella: i quattro passi, nota, storia.
    Usato dalla vista Anno; la vista Mese ha i passi in linea.
    #ANCHOR: popover */

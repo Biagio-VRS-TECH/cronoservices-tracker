@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* api.js - rete, coda offline, flusso in diretta.  #ANCHOR: api-client
 
 DUE TRASPORTI, UNA FIRMA SOLA. In locale (avvia.bat) si parla con server.py via
@@ -18,7 +19,7 @@ api._applica in locale, public._applica in Postgres online)
  6. Conflitto vero (stesso campo, stessa cella, valori diversi) -> avviso con
     scelta esplicita; tutto il resto viene unito in silenzio.
 */
-import { avviso } from './ui.js';
+import { avviso, modale, h } from './ui.js';
 import * as nuvola from './nuvola.js';
 
 const K_CODA = 'cs.coda.v1';
@@ -83,10 +84,62 @@ addEventListener('storage', e => {
   for (const op of partite) rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: {} } }));
 });
 
+/* ------------------------------------------------- PIN dell'admin --- */
+/* SEC-12, solo in locale: se il server ha un `pin_admin` in config.json, le
+   azioni da amministratore rispondono 403 con `pin_richiesto`. Si chiede il
+   PIN una volta, lo si tiene per la sessione del browser (sessionStorage: si
+   scorda chiudendo la scheda) e si riprova. Online non serve: il ruolo lo da'
+   il login, non un nome scritto dal client. */
+const K_PIN = 'cs.pin';
+let pinMem = '';   // se sessionStorage non c'e' (finestra privata bloccata)
+const pinDato = () => {
+  let p = pinMem;
+  try { p = sessionStorage.getItem(K_PIN) || pinMem; } catch { }
+  return p ? { pin: p } : {};
+};
+const tieniPin = p => {
+  pinMem = p || '';
+  try { if (p) sessionStorage.setItem(K_PIN, p); else sessionStorage.removeItem(K_PIN); } catch { }
+};
+let pinInCorso = null;
+function chiediPin(sbagliato) {
+  pinInCorso ||= new Promise(fatto => {
+    let dato = null;
+    const inp = h('input.campo', {
+      id: 'pin-admin', type: 'password', inputmode: 'numeric', autocomplete: 'off',
+      name: 'pin-admin', spellcheck: 'false', placeholder: 'PIN…',
+    });
+    modale(chiudi => {
+      const ok = h('button.bottone', { testo: 'Continua', onclick: () => {
+        dato = inp.value.trim(); chiudi(); } });
+      inp.onkeydown = e => { if (e.key === 'Enter') ok.click(); };
+      return [
+        h('h2', { testo: 'PIN dell’amministratore' }),
+        h('p.sotto', { testo: (sbagliato ? 'Il PIN non era giusto. ' : '') +
+          'Questa azione è dell’amministratore: sul server dell’ufficio serve anche il PIN.' }),
+        h('label', { for: 'pin-admin', testo: 'PIN', style: 'display:block;margin-bottom:6px' }),
+        inp,
+        h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px' },
+          h('button.bottone.piatto', { testo: 'Lascia stare', onclick: () => chiudi() }), ok),
+      ];
+    });
+    // la modale si chiude da sola (Esc, clic fuori, un bottone): la risposta arriva li'
+    const guarda = new MutationObserver(() => {
+      if (inp.isConnected) return;
+      guarda.disconnect(); pinInCorso = null; fatto(dato);
+    });
+    guarda.observe(document.body, { childList: true });
+  });
+  return pinInCorso;
+}
+
 /* --------------------------------------------------------------- fetch --- */
 /* Due trasporti, una firma sola. In locale si parla con server.py; online le
    stesse rotte /api/... diventano funzioni Postgres (vedi nuvola.js). Da qui in
    poi - coda, conflitti, presenza - nessun altro file sa quale dei due sia. */
+/** Le opzioni di `chiama`, uguali per i due trasporti.
+ *  @typedef {{metodo?: string, body?: Record<string, any>, ms?: number}} OpzChiama */
+/** @param {string} path  @param {OpzChiama} opz */
 async function locale(path, { metodo, body, ms }) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -94,7 +147,7 @@ async function locale(path, { metodo, body, ms }) {
     const r = await fetch(path, {
       method: metodo,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify({ ...body, client_id: rete.clientId }) : undefined,
+      body: body ? JSON.stringify({ ...body, client_id: rete.clientId, ...pinDato() }) : undefined,
       signal: ctrl.signal,
     });
     const testo = await r.text();
@@ -105,7 +158,9 @@ async function locale(path, { metodo, body, ms }) {
   }
 }
 
-export async function chiama(path, { metodo = 'GET', body, ms = 12000 } = {}) {
+/** @param {string} path  @param {OpzChiama} [opz]
+ *  @returns {Promise<{ok: boolean, stato: number, dati: any}>} */
+export async function chiama(path, { metodo = 'GET', body = undefined, ms = 12000 } = {}) {
   try {
     let r = nuvola.attiva()
       ? await nuvola.chiama(path, { metodo, body, ms })
@@ -115,6 +170,15 @@ export async function chiama(path, { metodo = 'GET', body, ms = 12000 } = {}) {
     if (r.stato === 401 && nuvola.attiva()) {
       await nuvola.assicuraSessione();
       r = await nuvola.chiama(path, { metodo, body, ms });
+    }
+    // SEC-12: in locale l'azione da admin vuole il PIN; due tentativi al massimo
+    for (let giro = 0; giro < 2 && !nuvola.attiva() && r.stato === 403 && r.dati?.pin_richiesto; giro++) {
+      const sbagliato = !!pinDato().pin;
+      tieniPin('');
+      const pin = await chiediPin(sbagliato);
+      if (!pin) break;
+      tieniPin(pin);
+      r = await locale(path, { metodo, body, ms });
     }
     rete.ultimoContatto = Date.now();
     if (!rete.online) { rete.online = true; notifica(); }

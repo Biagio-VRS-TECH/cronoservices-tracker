@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* stato.js - modello in memoria, stato temporale delle celle, filtri, e l'unico
    punto da cui passa una scrittura di spunta.  #ANCHOR: stato
 
@@ -177,10 +178,11 @@ export const ORE_ANAGRAFICA = 26;
 export function etaAnagrafica(ts = st.ultimoSync, adesso = new Date()) {
   if (!ts) return null;
   const d = new Date(String(ts).replace(' ', 'T'));
-  if (isNaN(d)) return null;
-  const ore = (adesso - d) / 36e5;
+  if (isNaN(d.getTime())) return null;
+  const ore = (adesso.getTime() - d.getTime()) / 36e5;
   const hhmm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  const g = Math.round((new Date(adesso.toDateString()) - new Date(d.toDateString())) / 864e5);
+  const g = Math.round((new Date(adesso.toDateString()).getTime() -
+                         new Date(d.toDateString()).getTime()) / 864e5);
   const quando = g <= 0 ? `oggi ${hhmm}` : g === 1 ? `ieri ${hhmm}`
     : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) + ' ' + hhmm;
   return { testo: `Anagrafica di Access: ${quando}`, quando, ore, giorni: g,
@@ -240,7 +242,7 @@ export function applica(d) {
   st.gruppi = [...per.entries()]
     .map(([cid, srvs]) => ({
       cli: st.clienti.get(cid) || { id: cid, rs: '(cliente ' + cid + ')' },
-      srvs: srvs.sort((x, y) => (y.stato === 'APERTO') - (x.stato === 'APERTO') ||
+      srvs: srvs.sort((x, y) => Number(y.stato === 'APERTO') - Number(x.stato === 'APERTO') ||
         x.dest.localeCompare(y.dest, 'it')),
     }))
     .sort((x, y) => x.cli.rs.localeCompare(y.cli.rs, 'it'));

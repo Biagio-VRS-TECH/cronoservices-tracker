@@ -15,3 +15,10 @@ data/
 
 __pycache__/
 *.pyc
+
+# SEC-22: i fogli dei clienti (esportazioni da Access) nella radice non sono
+# codice: restano sul PC, fuori dal repository. Solo in radice.
+/*.xls
+/*.XLS
+/*.xlsx
+/*.XLSX

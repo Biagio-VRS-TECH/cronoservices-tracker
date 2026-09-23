@@ -7,7 +7,7 @@ ctx = {"cfg":..., "base":...}
 q    = dict dei query string (valori singoli)
 body = dict del JSON in ingresso (vuoto sui GET)
 """
-import base64, calendar, csv, datetime, io, json, os, re, threading, time, uuid
+import base64, calendar, csv, datetime, hmac, io, json, os, re, threading, time, uuid
 import db, sync
 
 CAMPI = db.CAMPI  # ("stampata","controllata","corretta","ricambi")
@@ -237,7 +237,7 @@ def toggle(ctx, q, body):
                 body.get("base_rev"), body.get("base_valore"), op_id,
                 body.get("origine") or "live",
                 approva=db.puo_approvare(c, operatore, ctx["cfg"]),
-                admin=db.e_admin(c, operatore, ctx["cfg"]))
+                admin=_admin_con_pin(c, body, ctx, operatore))
             if op_id and st == 200:
                 c.execute("INSERT OR REPLACE INTO ops(op_id,ts,esito,rev) VALUES(?,?,?,?)",
                           (op_id, db.now(), out.get("esito"),
@@ -274,6 +274,12 @@ def bulk(ctx, q, body):
             if origine == "massa" and not admin:
                 c.close()
                 return 403, {"errore": "le azioni di massa sono dell'amministratore"}, None
+            # SEC-12: col PIN configurato l'admin senza PIN resta un approvatore
+            no_pin = _pin_admin(body, ctx["cfg"]) if admin else None
+            if origine == "massa" and no_pin:
+                c.close()
+                return no_pin
+            admin = admin and no_pin is None
             c.execute("BEGIN IMMEDIATE")
             for i, v in enumerate(body.get("celle") or []):
                 op_id = v.get("op_id") or (body.get("op_id") and
@@ -538,10 +544,53 @@ def ripristina(ctx, q, body):
                  "blocco": blocco}, ev
 
 
-def _solo_admin(c, body, ctx):
-    """None se chi chiama e' admin, altrimenti la risposta 403 (#ANCHOR: ruoli)."""
-    if db.e_admin(c, body.get("operatore"), ctx["cfg"]):
+# SEC-12: in modalita' locale il ruolo lo dichiara il client (`operatore`), e
+# chi e' in rete poteva scrivere il nome dell'amministratore e azzerare il
+# diario. Con `pin_admin` in config.json le azioni da amministratore vogliono
+# anche il PIN (campo `pin` del corpo, lo aggiunge web/js/api.js). Senza la
+# chiave tutto resta com'era. Cinque PIN sbagliati di fila fermano i tentativi
+# per un minuto: quattro cifre non reggono a un giro di prove a macchina.
+PIN_TENTATIVI = 5
+PIN_PAUSA = 60
+_PIN_LOCK = threading.Lock()
+_PIN_ERRORI = {"n": 0, "fino": 0.0}
+
+
+def _pin_admin(body, cfg):
+    """None se il PIN va bene (o non e' richiesto), altrimenti la risposta."""
+    atteso = str((cfg or {}).get("pin_admin") or "").strip()
+    if not atteso:
         return None
+    dato = str((body or {}).get("pin") or "").strip()
+    with _PIN_LOCK:
+        ora = time.time()
+        if _PIN_ERRORI["fino"] > ora:
+            return 429, {"errore": "troppi PIN sbagliati: riprova fra un minuto",
+                         "pin_richiesto": True}, None
+        if dato and hmac.compare_digest(dato.encode("utf-8"), atteso.encode("utf-8")):
+            _PIN_ERRORI["n"] = 0
+            return None
+        if dato:
+            _PIN_ERRORI["n"] += 1
+            if _PIN_ERRORI["n"] >= PIN_TENTATIVI:
+                _PIN_ERRORI["n"], _PIN_ERRORI["fino"] = 0, ora + PIN_PAUSA
+    return 403, {"errore": ("PIN dell'amministratore sbagliato" if dato
+                            else "serve il PIN dell'amministratore"),
+                 "pin_richiesto": True}, None
+
+
+def _admin_con_pin(c, body, ctx, operatore=None):
+    """True se chi chiama e' admin E (se richiesto) ha dato il PIN giusto: per i
+    punti dove l'admin ha un potere in piu' ma l'azione non e' solo sua."""
+    nome = body.get("operatore") if operatore is None else operatore
+    return db.e_admin(c, nome, ctx["cfg"]) and _pin_admin(body, ctx["cfg"]) is None
+
+
+def _solo_admin(c, body, ctx):
+    """None se chi chiama e' admin (col PIN, se c'e'), altrimenti la risposta
+    403 (#ANCHOR: ruoli)."""
+    if db.e_admin(c, body.get("operatore"), ctx["cfg"]):
+        return _pin_admin(body, ctx["cfg"])
     return 403, {"errore": "questa azione e' dell'amministratore"}, None
 
 

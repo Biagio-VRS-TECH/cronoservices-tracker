@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* cassetto.js - pannello laterale di un sito: dati di contratto, la mappatura
    dell'anno di QUESTO sito (quando scade e in quale mese e' stata chiusa), i
    mesi con le quattro spunte, ultime modifiche.
@@ -33,14 +34,25 @@ export function chiudiCassetto() {
   if (dentro && prima?.isConnected) prima.focus?.();
   prima = null;
 }
-const esc0 = e => { if (e.key === 'Escape') chiudiCassetto(); };
+/* A11Y-09: il pannello NON e' modale (la griglia dietro resta viva e si spunta
+   mentre e' aperto), quindi niente `aria-modal` e niente trappola del Tab. Il
+   fuoco pero' si gestisce: entra nel pannello all'apertura, ci resta se un
+   redisegno toglie il nodo che lo aveva, torna a chi l'ha aperto alla
+   chiusura. Escape e' del foglio davanti: con una modale o il giro guidato
+   sopra, chiude quelli e non anche il pannello. */
+const esc0 = e => {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (document.querySelector('.velo, #tourPop')) return;
+  chiudiCassetto();
+};
 
 export function apriCassetto(id) {
   if (idAperto === id) return chiudiCassetto();
   chiudiCassetto();
   idAperto = id;
   prima = document.activeElement;
-  nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio del sito' });
+  nodo = h('div.cassetto', { role: 'dialog', 'aria-labelledby': 'cassetto-titolo',
+    tabindex: '-1' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
   /* Tutte le righe, non solo quella del mese toccato: una spunta messa o
@@ -52,6 +64,7 @@ export function apriCassetto(id) {
   });
   stacca = () => { s1(); s2(); };
   disegna();
+  nodo.focus({ preventScroll: true });
   caricaStoria(id);
 }
 
@@ -132,12 +145,13 @@ function disegna() {
     if (prev || e.mie) mesi.push(rigaMese(s.id, m, prev));
   }
   const storia = nodo.querySelector('.storia');   // conservo la storia già caricata
+  const conFuoco = nodo.contains(document.activeElement) && document.activeElement !== nodo;
 
   nodo.replaceChildren(
     h('header', {},
       h('button.chiudi', { html: ICO.ics, title: 'Chiudi (Esc)', 'aria-label': 'Chiudi',
         onclick: chiudiCassetto }),
-      h('h2', { testo: cli.rs || '(cliente ' + s.cli + ')', style: 'margin:0 30px 2px 0;font-size:var(--t-grande);letter-spacing:-.02em' }),
+      h('h2', { id: 'cassetto-titolo', testo: cli.rs || '(cliente ' + s.cli + ')', style: 'margin:0 30px 2px 0;font-size:var(--t-grande);letter-spacing:-.02em' }),
       h('p', {
         testo: s.dest || '(senza destinazione)',
         style: 'margin:0;color:var(--tenue);font-size:var(--t-mini)'
@@ -199,6 +213,8 @@ function disegna() {
       storia || h('p.js-attesa', { testo: 'Caricamento…', style: 'color:var(--tenue);font-size:var(--t-mini)' }),
     ),
   );
+  // il bottone col fuoco e' appena sparito: il fuoco resta nel pannello, non sul body
+  if (conFuoco && !nodo.contains(document.activeElement)) nodo.focus({ preventScroll: true });
 }
 
 /** Chi risponde del sito (PRD-04, #ANCHOR: responsabile in stato.js): due

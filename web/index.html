@@ -20,6 +20,22 @@
 <link rel="stylesheet" href="/css/griglia.css">
 <link rel="stylesheet" href="/css/stat.css">
 <link rel="stylesheet" href="/css/stampa.css">
+<!-- PERF-14: i moduli di app.js si scaricano tutti insieme, non uno dopo l'altro
+     man mano che il browser scopre gli import (senza bundler). L'elenco lo
+     controlla tests/js/web-precarico.test.mjs: un import nuovo va aggiunto qui. -->
+<link rel="modulepreload" href="/js/app.js">
+<link rel="modulepreload" href="/js/ui.js">
+<link rel="modulepreload" href="/js/api.js">
+<link rel="modulepreload" href="/js/nuvola.js">
+<link rel="modulepreload" href="/js/nuvola-config.js">
+<link rel="modulepreload" href="/js/stato.js">
+<link rel="modulepreload" href="/js/affinita.js">
+<link rel="modulepreload" href="/js/documenti.js">
+<link rel="modulepreload" href="/js/cassetto.js">
+<link rel="modulepreload" href="/js/spunte.js">
+<link rel="modulepreload" href="/js/anno.js">
+<link rel="modulepreload" href="/js/mese.js">
+<link rel="modulepreload" href="/js/stat.js">
 </head>
 <body>
 <a class="skip-link" href="#area">Salta al contenuto</a>

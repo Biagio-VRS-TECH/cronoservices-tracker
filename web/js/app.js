@@ -1,3 +1,4 @@
+// @ts-check  (COD-04, jsconfig.json nella radice)
 /* app.js - guscio dell'applicazione: avvio, viste, filtri, tema, tastiera,
    identita' operatore, azioni di massa, stato del collegamento.  #ANCHOR: app */
 import {
@@ -28,6 +29,7 @@ import {
   eventoDocumento, eventoDocumentiEliminati, ricaricaDocumenti, ascoltaAltreSchede,
   collegaChip, rinfrescaChip, urlGeneratore, ICO_PDF, ICO_REGISTRO, TIPI,
   riepilogoDocumenti, eliminaDocumenti, dimensione, svuotaCestino,
+  cestinoDocumenti, ripristinaDocumento, eliminaDefinitivo, titoloDocumento, tipoDi,
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
@@ -411,9 +413,10 @@ function riflettiFiltri() {
   }
 }
 
+let tFiltrato = 0;
 function ridisegnaFiltrato() {
-  clearTimeout(ridisegnaFiltrato.t);
-  ridisegnaFiltrato.t = setTimeout(disegna, 130);
+  clearTimeout(tFiltrato);
+  tFiltrato = setTimeout(disegna, 130);
 }
 
 /* Il filtro per tipo di gas e' stato tolto alla 15a sessione: era una tendina
@@ -539,6 +542,9 @@ function apriAzioni(bottone) {
     null,
     { et: 'Diario attività', ico: ICO.gente, nota: 'chi ha fatto cosa', fn: mostraDiario },
     { et: 'Possibili doppioni', ico: ICO.cerca, nota: 'nomi che si somigliano', fn: mostraDoppioni },
+    // il cestino dei PDF esiste solo online (SEC-05, cloud/10-migliorie-2026-09.sql)
+    ...(inNuvola() ? [{ et: 'Cestino dei PDF…', nota: 'rimetti o elimina per sempre',
+      fn: mostraCestino }] : []),
     ...(admin ? [
       null,
       { et: 'Elimina il diario attività', ico: ICO.ics, tono: 'pericolo',
@@ -787,8 +793,8 @@ function stampa() {
 }
 
 function scaricaCsv() {
-  const q = new URLSearchParams({ anno: st.anno });
-  if (st.vista === 'mese') q.set('mese', st.mese);
+  const q = new URLSearchParams({ anno: String(st.anno) });
+  if (st.vista === 'mese') q.set('mese', String(st.mese));
   esportaCsv(q.toString());
 }
 
@@ -1428,7 +1434,12 @@ function mostraImpostazioni() {
             : 'Non si torna indietro.')
       }),
       pdfBox,
-      inNuvola() ? h('div', { style: 'display:flex;justify-content:flex-end;margin-top:8px' },
+      inNuvola() ? h('div', { style: 'display:flex;gap:6px;justify-content:flex-end;margin-top:8px' },
+        h('button.pill.mini.debole', {
+          testo: 'Apri il cestino…',
+          title: 'I PDF nel cestino, uno per uno: rimettili o eliminali per sempre',
+          onclick: () => mostraCestino(),
+        }),
         h('button.pill.mini.debole', {
           testo: 'Svuota il cestino…',
           title: 'Elimina per sempre i PDF nel cestino e libera lo spazio',
@@ -1499,7 +1510,7 @@ function confermaCancellaPdf(a, bott, ridisegna) {
 /** SEC-05: svuotare il cestino dei PDF (solo amministratore, solo online) e'
  *  l'unico modo di liberare davvero lo spazio: elimina per sempre righe e
  *  file. Chiede OK come le altre azioni che non si disfano. */
-function confermaSvuotaCestino(bott) {
+function confermaSvuotaCestino(bott, dopo = null) {
   modale(chiudi => {
     const via = h('button.bottone.pericolo', { testo: 'Svuota il cestino' });
     const ok = campoOK(via);
@@ -1511,6 +1522,7 @@ function confermaSvuotaCestino(bott) {
         chiudi();
         avviso(n ? `Cestino svuotato: ${n} PDF eliminati per sempre, ${dimensione(bytes)} liberati.`
                  : 'Il cestino era già vuoto.', { tono: 'ok', durata: 9000 });
+        dopo?.();
       } catch (ex) {
         chiudi();
         avviso('Cestino non svuotato: ' + (ex.message || ex), { tono: 'allerta' });
@@ -1528,6 +1540,145 @@ function confermaSvuotaCestino(bott) {
       h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
         h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
         via),
+    ];
+  });
+}
+
+/* ------------------------------------------------------------- cestino --- */
+/** SEC-05: la finestra del cestino dei PDF (solo online). Un PDF eliminato ci
+ *  resta finche' l'amministratore non lo svuota: da qui chiunque lo rimette al
+ *  suo sito, e chi l'ha caricato (o l'amministratore) lo elimina per sempre,
+ *  uno per uno. `app_cestino_documenti` dice per ogni file se si puo'
+ *  (`eliminabile`); il server lo ricontrolla comunque. */
+function mostraCestino() {
+  if (!inNuvola()) return avviso('Il cestino dei PDF c’è solo online.');
+  modale(chiudi => {
+    // gli esiti li dicono gli avvisi (aria-live): l'elenco non si rilegge da capo a ogni riga tolta
+    const corpo = h('div.cestino', { tabindex: '-1', role: 'region', 'aria-label': 'PDF nel cestino' });
+    const piede = h('p.cestino-piede');
+    const svuota = sonoAdmin() ? h('button.pill.mini.debole', {
+      testo: 'Svuota il cestino…',
+      title: 'Elimina per sempre tutti i PDF nel cestino e libera lo spazio',
+      onclick: e => confermaSvuotaCestino(e.currentTarget, carica),
+    }) : null;
+    // «Chiudi» c'e' sempre ed e' il primo fuoco; «Svuota» entra solo se c'e' qualcosa
+    const fondo = h('div', { style: 'display:flex;gap:8px;align-items:center' },
+      h('button.bottone.piatto', { testo: 'Chiudi', onclick: chiudi }));
+    let lista = [];
+
+    const sito = d => {
+      const s = st.perServ.get(d.id_service);
+      if (!s) return `service #${d.id_service}`;
+      const cli = st.clienti.get(s.cli);
+      return `${cli?.rs || 'cliente ' + s.cli} · ${s.dest || '#' + s.id}`;
+    };
+    const conta = () => {
+      const peso = lista.reduce((t, d) => t + (d.bytes || 0), 0);
+      piede.textContent = lista.length
+        ? `${lista.length} PDF nel cestino · ${dimensione(peso)}` : '';
+      if (svuota && lista.length) fondo.prepend(svuota); else svuota?.remove();
+    };
+    const vuoto = () => corpo.replaceChildren(h('p.cestino-vuoto', {
+      testo: 'Il cestino è vuoto: nessun PDF eliminato da rimettere.' }));
+    /* tolta una riga, il fuoco va sulla vicina (o sull'elenco): non cade sul body */
+    const togliRiga = (d, li) => {
+      lista = lista.filter(x => x.id !== d.id);
+      const vicina = li.nextElementSibling || li.previousElementSibling;
+      const aveva = li.contains(document.activeElement);
+      li.remove();
+      if (!lista.length) vuoto();
+      conta();
+      if (aveva) (vicina?.querySelector('button') || corpo).focus();
+    };
+    const occupa = (b, testo) => { b.disabled = true; b.dataset.et = b.textContent; b.textContent = testo; };
+    const libera = b => { if (!b.isConnected) return; b.disabled = false; b.textContent = b.dataset.et; };
+
+    const riga = d => {
+      const li = h('li.cestino-riga');
+      const nome = d.nome || '(senza nome)';
+      const rimetti = h('button.pill.mini', {
+        testo: 'Rimetti', 'aria-label': 'Rimetti ' + nome,
+        title: 'Torna fra i PDF del suo sito, com’era',
+      });
+      rimetti.onclick = async () => {
+        occupa(rimetti, 'Rimetto…');
+        try {
+          await ripristinaDocumento(d.id);
+          togliRiga(d, li);
+          avviso(`«${titoloDocumento(d) || nome}» è di nuovo fra i PDF del sito.`, { tono: 'ok' });
+        } catch (ex) {
+          libera(rimetti);
+          avviso('Non rimesso: ' + (ex.message || ex), { tono: 'allerta' });
+        }
+      };
+      const via = d.eliminabile ? h('button.pill.mini.cestino-via', {
+        testo: 'Elimina per sempre…', 'aria-label': 'Elimina per sempre ' + nome,
+        title: 'Via il file e la riga: non si torna indietro',
+      }) : null;
+      if (via) via.onclick = () => modale(chiudi2 => {
+        const si = h('button.bottone.pericolo', { testo: 'Elimina per sempre' });
+        si.onclick = async () => {
+          occupa(si, 'Elimino…'); occupa(via, 'Elimino…');
+          try {
+            const bytes = await eliminaDefinitivo(d);
+            chiudi2();
+            togliRiga(d, li);
+            avviso(`«${nome}» eliminato per sempre${bytes ? ': ' + dimensione(bytes) + ' liberati' : ''}.`,
+                   { tono: 'ok' });
+          } catch (ex) {
+            chiudi2(); libera(via);
+            avviso('Non eliminato: ' + (ex.message || ex), { tono: 'allerta' });
+          }
+        };
+        return [
+          h('h2', { testo: 'Eliminare per sempre questo PDF?' }),
+          h('p.sotto', { testo: `«${nome}», ${sito(d)}. Sparisce il file e non si può ` +
+            'più rimettere. Le spunte «stampata» restano.' }),
+          h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+            h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi2 }), si),
+        ];
+      });
+      const quandoMese = (d.mese ? (st.mesiNome[d.mese - 1] || '') + ' ' : '') + (d.anno || '');
+      li.append(
+        h('div.cestino-info', {},
+          h('b.cestino-nome', { testo: nome, title: nome }),
+          h('span.cestino-meta', { testo: [sito(d), TIPI[tipoDi(d)].et, quandoMese,
+            dimensione(d.bytes || 0)].filter(Boolean).join(' · ') }),
+          h('span.cestino-meta', { testo: 'Eliminato ' + quando(d.eliminato_il) +
+            (d.eliminato_da ? ' da ' + d.eliminato_da : '') })),
+        h('div.cestino-azioni', {}, rimetti, via));
+      return li;
+    };
+
+    async function carica() {
+      corpo.setAttribute('aria-busy', 'true');
+      corpo.replaceChildren(h('p.cestino-vuoto', { testo: 'Caricamento…' }));
+      try {
+        lista = await cestinoDocumenti();
+        if (!corpo.isConnected) return;
+        if (lista.length) corpo.replaceChildren(h('ul.cestino-lista', {}, lista.map(riga)));
+        else vuoto();
+      } catch (ex) {
+        lista = [];
+        corpo.replaceChildren(h('p.cestino-vuoto', {},
+          'Non riesco a leggere il cestino: ' + umano(ex.message || String(ex)).testo + ' ',
+          h('button.pill.mini', { testo: 'Riprova', onclick: carica })));
+      } finally {
+        corpo.removeAttribute('aria-busy');
+        conta();
+      }
+    }
+    carica();
+
+    return [
+      h('h2', { testo: 'Cestino dei PDF' }),
+      h('p.sotto', {
+        testo: 'I PDF eliminati restano qui finché l’amministratore non svuota il ' +
+          'cestino. «Rimetti» li riporta al loro sito; «Elimina per sempre» libera lo ' +
+          'spazio, ed è solo per i file caricati da te (o per l’amministratore).',
+      }),
+      corpo,
+      h('div.cestino-fondo', {}, piede, fondo),
     ];
   });
 }
@@ -1601,14 +1752,15 @@ function mostraDoppioni() {
 function tastiera() {
   addEventListener('keydown', e => {
     // e.target puo' essere document o window (nessun .matches/.closest): guardie.
-    if (e.target?.matches?.('input,textarea,select')) {
-      if (e.key === 'Escape') e.target.blur();
+    const t = /** @type {HTMLElement} */ (e.target);
+    if (t?.matches?.('input,textarea,select')) {
+      if (e.key === 'Escape') t.blur();
       return;
     }
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
     if (e.key === '?') { e.preventDefault(); mostraAiuto(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.target?.closest?.('.cella')) return;
+    if (t?.closest?.('.cella')) return;
     const k = e.key.toLowerCase();
     const v = { a: 'anno', m: 'mese', s: 'stat' }[k];
     if (v) { st.vista = v; chiudiCassetto(); disegna(); return; }
@@ -1625,6 +1777,8 @@ function mostraAiuto() {
        qui, 2 ereditato (tenue), 3 proposto e in attesa (a righe). Puo' essere
        una funzione dell'indice, per la riga dove non tutti i passi sono uguali. */
     const S = { stampata: 's', controllata: 'c', corretta: 'k', ricambi: 'r' };
+    /** @param {string} cl  @param {number} n
+     *  @param {number | ((i: number) => number)} [v]  @param {string} [misura] */
     const cel = (cl, n, v = 1, misura = 'width:40px;height:20px;flex:none') =>
       h('span.cella' + (cl ? '.' + cl : ''), {
         style: misura,

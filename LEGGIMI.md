@@ -63,6 +63,14 @@ Come si fa, in pratica:
 La prima volta che un collega si collega, Windows chiede di autorizzare Python
 sulla rete: rispondere **Consenti** sulle reti private.
 
+**PIN dell'amministratore (consigliato in rete).** In modalità locale il ruolo
+lo dichiara il browser, quindi chiunque in rete potrebbe presentarsi con il nome
+dell'amministratore. Scrivendo in `app/config.json` una riga
+`"pin_admin": "1234"` (un PIN a vostra scelta), le azioni da amministratore
+(azioni di massa, diario, ripristini, ruoli, impostazioni, sincronizzazione)
+chiedono anche il PIN, una volta per sessione del browser. Cinque PIN sbagliati
+di fila fermano i tentativi per un minuto. Senza la riga tutto resta com'era.
+
 ### Cosa succede se cade la rete o si spegne il server
 
 Niente di grave, e lo vedete subito: compare una fascia arancione in cima e la
