@@ -134,6 +134,18 @@ class Csv(ConDB):
         r = list(csv.reader(io.StringIO(out["__csv__"]), delimiter=";"))
         self.assertEqual(r[1][10:14], ["X", "", "", ""])
 
+    def test_niente_formule_excel(self):
+        # = + - @ in testa: Excel la eseguirebbe come formula. Davanti va una tabulazione
+        self.cliente(rs="=HYPERLINK(\"http://x\")")
+        self.servizio(mesi="001000000000")
+        st, out, _ = api.esporta_csv(self.ctx, {"anno": "2026"}, {})
+        import csv, io
+        r = list(csv.reader(io.StringIO(out["__csv__"]), delimiter=";"))
+        self.assertEqual(r[1][4], "\t=HYPERLINK(\"http://x\")")
+        self.assertEqual(api._testo_csv("- sostituito filtro"), "\t- sostituito filtro")
+        self.assertEqual(api._testo_csv("nota normale"), "nota normale")
+        self.assertEqual(api._testo_csv(None), "")
+
     def test_filtro_mese(self):
         self.cliente()
         self.servizio()

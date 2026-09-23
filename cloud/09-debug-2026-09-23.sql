@@ -130,6 +130,20 @@ drop policy if exists dizionario_leggi on public.dizionario_componenti;
 create policy dizionario_leggi on public.dizionario_componenti for select to authenticated
   using ((select public.autorizzato()));
 
+-- ------------------------------------- 5. niente formule nel CSV esportato
+-- Un testo che comincia con = + - @ (una nota "- sostituito filtro", una ragione
+-- sociale scritta male) Excel lo esegue come formula, anche una chiamata verso
+-- l'esterno. Davanti si mette una tabulazione, invisibile: come app/api.py
+-- (_testo_csv) e come il CSV del Planning.
+create or replace function public._csv(v text) returns text
+language sql immutable set search_path = public as $fn$
+  select case
+    when w is null then ''
+    when w ~ '[";\r\n]' then '"' || replace(w, '"', '""') || '"'
+    else w end
+  from (select case when left(v, 1) in ('=', '+', '-', '@') then E'\t' || v else v end as w) x
+$fn$;
+
 -- ------------------------------------------------------------- controllo ----
 -- Deve tornare `anon_esegue = false` su tutte le funzioni della parte 3.
 select p.proname,

@@ -672,6 +672,13 @@ def _mese_scadenza(s, anno, oggi=None):
     return 0
 
 
+def _testo_csv(v):
+    """Un testo che comincia con = + - @ Excel lo legge come formula (anche una chiamata
+    verso l'esterno): davanti si mette una tabulazione, invisibile, come fa il Planning."""
+    v = "" if v is None else str(v)
+    return "\t" + v if v[:1] in ("=", "+", "-", "@") else v
+
+
 def esporta_csv(ctx, q, body):
     """Checklist stampabile/foglio di lavoro. Se manca `mese` esporta l'anno intero."""
     with db.sess() as c:
@@ -699,16 +706,17 @@ def esporta_csv(ctx, q, body):
                 cel = celle.get("%d-%d" % (s["id_service"], m))
                 w.writerow([anno, db.MESI_NOME[m - 1],
                             "MAPPATURA" if m == scad else "visita",
-                            s["id_service"], s["rag_soc"],
-                            s["destinazione"], s["localita"], s["provincia"], s["tipo"],
-                            s["cadenza"],
+                            s["id_service"], _testo_csv(s["rag_soc"]),
+                            _testo_csv(s["destinazione"]), _testo_csv(s["localita"]),
+                            _testo_csv(s["provincia"]), _testo_csv(s["tipo"]),
+                            _testo_csv(s["cadenza"]),
                             "X" if cel and cel["stampata"] == 1 else "",
                             "X" if cel and cel["controllata"] == 1 else "",
                             "X" if cel and cel["corretta"] == 1 else "",
                             "X" if cel and cel["ricambi"] == 1 else "",
-                            (cel["nota"] if cel else "") or "",
+                            _testo_csv(cel["nota"] if cel else ""),
                             (cel["updated_at"] if cel else "") or "",
-                            (cel["updated_by"] if cel else "") or ""])
+                            _testo_csv(cel["updated_by"] if cel else "")])
     nome = "mappature_%d%s.csv" % (anno, "_%02d" % mese if mese else "")
     return 200, {"__csv__": out.getvalue(), "__nome__": nome}, None
 
