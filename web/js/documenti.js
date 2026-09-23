@@ -209,7 +209,7 @@ export function htmlChipDocumento(id) {
       (altroAnno ? ` · del ${d.anno}` : '') +
       ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
       (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
-    chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${d.id}"
+    chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${esc(d.id)}"
         title="${titolo}" aria-label="Apri il PDF: ${TIPI[tipo].et}">
         ${ICONA_TIPO[tipo]}${g.length > 1 ? `<i>${g.length}</i>` : ''}
       </button>`);
@@ -234,8 +234,11 @@ function mostraAnteprima(chip) {
   const d = trovaDoc(chip.dataset.doc);
   if (!d?.anteprima) return;
   ant ||= document.body.appendChild(h('div.doc-anteprima', { role: 'tooltip' }));
-  ant.innerHTML = `<img src="${d.anteprima}" alt=""><span>${esc(d.nome)} · ` +
-    `${d.pagine || '?'} pag.</span>`;
+  /* `anteprima` la scrive chi consegna il PDF, e il server controlla solo che
+     COMINCI per "data:image/jpeg;base64,": una virgoletta dopo il prefisso
+     usciva dall'attributo (onerror=...) nel browser di tutti i colleghi. */
+  ant.innerHTML = `<img src="${esc(d.anteprima)}" alt=""><span>${esc(d.nome)} · ` +
+    `${esc(d.pagine || '?')} pag.</span>`;
   const r = chip.getBoundingClientRect();
   ant.style.left = Math.min(innerWidth - 150, r.left) + 'px';
   ant.style.top = (r.bottom + 6) + 'px';

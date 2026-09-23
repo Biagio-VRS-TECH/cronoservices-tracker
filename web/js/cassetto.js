@@ -81,7 +81,8 @@ function rigaMese(id, m, previsto) {
         'aria-checked': (!e.ered[campo] && proposto(c, campo)) ? 'mixed' : String(fatto(c, campo) || !!e.ered[campo]),
         'data-campo': campo,
         title: titoloPasso(campo, e.ered[campo], c),
-        onclick: () => toccaPasso(id, m, campo),
+        // doppio clic = un clic: il secondo disfaceva il primo
+        onclick: ev => { if (ev.detail <= 1) toccaPasso(id, m, campo); },
       },
         h('span.box', { html: ICO.ok }),
         h('span.et', { testo: BREVE[campo] }),

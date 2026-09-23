@@ -93,7 +93,7 @@ async function avvia() {
     /* nel foglio del Mese la scheda di QUESTO mese puo' cambiare anche per una
        spunta messa in un altro mese dello stesso sito: i passi si ereditano */
     else if (st.vista === 'mese') vMese.aggiornaCella(d.id, st.mese);
-    else if (st.vista === 'stat') vStat.aggiorna();
+    else if (st.vista === 'stat') statPresto();
     aggiornaTestaPresto();
     aggiornaApprova();
   });
@@ -121,7 +121,8 @@ async function avvia() {
   });
   on('sync-fatto', rs => {
     avviso(riassuntoSync(rs) + ' Ricarico i dati.', { tono: 'ok' });
-    cambiaAnno(st.anno).then(() => { riempiFiltri(); disegna(); });
+    cambiaAnno(st.anno).then(() => { riempiFiltri(); disegna(); })
+      .catch(() => avviso('Dati nuovi non caricati: ricarica la pagina.', { tono: 'allerta' }));
   });
 
   tastiera();
@@ -152,6 +153,16 @@ function aggiornaTestaPresto() {
   if (testaInCoda) return;
   testaInCoda = true;
   requestAnimationFrame(() => { testaInCoda = false; aggiornaTesta(); });
+}
+/* Stessa cosa per le Statistiche, che a ogni cella si ridisegnano INTERE: un
+   collega che completa un cliente online arriva come una raffica di eventi
+   `cella` (Realtime ne manda uno per riga) e ognuno rifaceva tutti i grafici.
+   Uno per frame basta; i clic dentro i grafici chiamano `aggiorna` diretti. */
+let statInCoda = false;
+function statPresto() {
+  if (statInCoda) return;
+  statInCoda = true;
+  requestAnimationFrame(() => { statInCoda = false; vStat.aggiorna(); });
 }
 
 /** Il riepilogo appartiene alla vista Anno. Cambiando vista va SVUOTATO, non
@@ -444,8 +455,13 @@ function mostraApprovazioni() {
           testo: `Approva tutte (${lista.length})`,
           onclick: () => {
             spuntaMolte(lista.map(v => ({ ...v, valore: 1 })), 'Approvazione di tutte le proposte', 'approvazione');
+            const questa = st.ultimaAzione;   // l'Annulla dell'avviso disfa QUESTA, non l'ultima che capita
             avviso(`${lista.length} spunte approvate.`, { tono: 'ok', durata: 15000, azione: {
-              et: 'Annulla', fn: () => { const m = annullaUltima(); disegna(); avviso(`Annullato: ${m} spunte di nuovo in attesa.`); } } });
+              et: 'Annulla', fn: () => {
+                const m = annullaUltima(questa);
+                if (m < 0) return avviso('Non annullato: nel frattempo hai fatto altro.', { tono: 'allerta' });
+                disegna(); avviso(`Annullato: ${m} spunte di nuovo in attesa.`);
+              } } });
             ridisegna();
           },
         })] : []));
@@ -533,13 +549,15 @@ function massa(modo) {
         /* il colpo si VEDE: l'onda attraversa le celle toccate
            (#ANCHOR: onda-massa in anno.js) */
         if (st.vista === 'anno') vAnno.onda(completa ? 'su' : 'giu');
+        const questa = st.ultimaAzione;   // l'Annulla dell'avviso disfa QUESTA, non l'ultima che capita
         const uno = n === 1;
         const detto = completa ? (uno ? 'messa' : 'messe') : (uno ? 'rimossa' : 'rimosse');
         avviso(`${n} ${uno ? 'spunta' : 'spunte'} ${detto}.`, {
           tono: completa ? 'ok' : 'allerta', durata: 15000,
           azione: {
             et: 'Annulla', fn: () => {
-              const m = annullaUltima();      // ridisegna da se' ('rilegge')
+              const m = annullaUltima(questa);      // ridisegna da se' ('rilegge')
+              if (m < 0) return avviso('Non annullato: nel frattempo hai fatto altro. Il diario ha il Ripristina del blocco.', { tono: 'allerta' });
               avviso(`Annullato: ${m} spunte riportate come prima.`);
             }
           },

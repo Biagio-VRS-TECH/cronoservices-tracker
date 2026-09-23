@@ -212,14 +212,28 @@ addEventListener('beforeunload', e => {
 /* ---------------------------------------------------------------- SSE ---- */
 export function apriStream(onEvento) {
   if (nuvola.attiva()) return nuvola.apriStream(onEvento, () => rete.operatore);
-  let es, tentativi = 0;
+  /* `caduto`: il flusso si e' interrotto. L'hub non ripete quello che e'
+     passato mentre eravamo fuori (server riavviato, Wi-Fi caduto): al ritorno
+     lo si dice a chi ascolta con un evento `riconnesso`, e lo stato rilegge
+     l'anno invece di restare indietro in silenzio fino al ricarico.
+     `chiuso`: chi ha aperto il flusso lo ha chiuso, e un tentativo gia' in
+     programma non deve riaprirlo. */
+  let es, tentativi = 0, caduto = false, chiuso = false, timer = null;
   const apri = () => {
+    if (chiuso) return;
     es = new EventSource('/api/stream?client_id=' + rete.clientId);
-    es.onopen = () => { tentativi = 0; if (!rete.online) { rete.online = true; notifica(); } svuota(); };
+    es.onopen = () => {
+      tentativi = 0;
+      if (!rete.online) { rete.online = true; notifica(); }
+      svuota();
+      if (caduto) { caduto = false; try { onEvento({ tipo: 'riconnesso' }); } catch { } }
+    };
     es.onerror = () => {
       es.close();
+      caduto = true;
       rete.online = false; notifica();
-      setTimeout(apri, Math.min(1000 * 2 ** tentativi++, 20000));
+      clearTimeout(timer);
+      timer = setTimeout(apri, Math.min(1000 * 2 ** tentativi++, 20000));
     };
     /* Tutti i tipi che api.py emette (`"tipo": ...`): il server li manda come
        `event: <tipo>`, e EventSource consegna solo quelli a cui ci si iscrive.
@@ -232,7 +246,7 @@ export function apriStream(onEvento) {
     }
   };
   apri();
-  return () => es?.close();
+  return () => { chiuso = true; clearTimeout(timer); es?.close(); };
 }
 
 /* -------------------------------------------------------------- presenza - */

@@ -7,7 +7,7 @@ ctx = {"cfg":..., "base":...}
 q    = dict dei query string (valori singoli)
 body = dict del JSON in ingresso (vuoto sui GET)
 """
-import base64, calendar, csv, datetime, io, json, os, re, time, uuid
+import base64, calendar, csv, datetime, io, json, os, re, threading, time, uuid
 import db, sync
 
 CAMPI = db.CAMPI  # ("stampata","controllata","corretta","ricambi")
@@ -15,12 +15,17 @@ CAMPI = db.CAMPI  # ("stampata","controllata","corretta","ricambi")
 # presenze: nome_operatore -> {"ts": epoch, "dove": "2026-09", "client": id}
 PRESENZE = {}
 PRESENZA_TTL = 45
+# ThreadingHTTPServer: ping e bootstrap di operatori diversi girano in thread
+# diversi. Senza lock il giro di _online() su PRESENZE mentre un altro thread ci
+# scrive puo' alzare "dictionary changed size during iteration" (500 a caso).
+_PRESENZE_LOCK = threading.Lock()
 
 
 # ---------------------------------------------------------------- helpers ----
 def _anno(q, c):
-    a = q.get("anno")
-    if a and str(a).isdigit():
+    a = str(q.get("anno") or "")
+    # isdecimal, non isdigit: "²" e' una cifra per isdigit ma int() la rifiuta
+    if a.isdecimal():
         return int(a)
     return datetime.date.today().year
 
@@ -50,9 +55,10 @@ def _cella_out_vuota():
 
 def _online():
     ora = time.time()
-    for k in [k for k, v in PRESENZE.items() if ora - v["ts"] > PRESENZA_TTL]:
-        PRESENZE.pop(k, None)
-    return [{"nome": k, "dove": v.get("dove")} for k, v in sorted(PRESENZE.items())]
+    with _PRESENZE_LOCK:
+        for k in [k for k, v in PRESENZE.items() if ora - v["ts"] > PRESENZA_TTL]:
+            PRESENZE.pop(k, None)
+        return [{"nome": k, "dove": v.get("dove")} for k, v in sorted(PRESENZE.items())]
 
 
 # ------------------------------------------------------------- bootstrap ----
@@ -385,7 +391,13 @@ def storia(ctx, q, body):
 
 
 def attivita(ctx, q, body):
-    lim = min(int(q.get("limit", 60)), 300)
+    # `LIMIT -1` in SQLite vuol dire "nessun limite": un ?limit=-5 si sarebbe
+    # tirato dietro tutto il diario. Fuori dall'intervallo si torna a 1..300.
+    try:
+        lim = int(q.get("limit", 60))
+    except (TypeError, ValueError):
+        lim = 60
+    lim = max(1, min(lim, 300))
     with db.sess() as c:
         rows = c.execute("""SELECT e.ts,e.operatore,e.id_service,e.anno,e.mese,e.campo,
                                    e.da, e.a, e.origine, e.op_id, s.destinazione, c.rag_soc
@@ -483,8 +495,13 @@ def ripristina(ctx, q, body):
             if no:
                 c.close()
                 return no
-            eventi = c.execute("""SELECT * FROM eventi WHERE op_id=? OR op_id LIKE ?
-                                  ORDER BY id DESC""", (op_id, op_id + ":%")).fetchall()
+            # Il blocco si confronta con substr, non con LIKE: in un LIKE un '%' o
+            # un '_' dentro l'op_id farebbero da jolly e ripristinerebbero
+            # blocchi che non c'entrano (op_id "%" = tutti i bulk del diario).
+            eventi = c.execute("""SELECT * FROM eventi
+                                  WHERE op_id=? OR substr(op_id,1,?)=?
+                                  ORDER BY id DESC""",
+                               (op_id, len(op_id) + 1, op_id + ":")).fetchall()
             if not eventi:
                 c.close()
                 return 404, {"errore": "nessuna modifica con questo identificativo"}, None
@@ -557,9 +574,10 @@ def ruolo(ctx, q, body):
 def impostazioni(ctx, q, body):
     """Per ora una sola voce: da quale mese l'azienda registra le spunte qui.
     Serve a non dipingere "in ritardo" tutti i mesi precedenti all'adozione."""
-    v = (body.get("inizio_tracciamento") or "").strip()
-    import re
-    if not re.fullmatch(r"\d{4}-\d{2}", v):
+    v = str(body.get("inizio_tracciamento") or "").strip()
+    # il mese 01..12: un "2026-13" passava e, confrontato come stringa, rendeva
+    # "non tracciato" tutto il 2026
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", v):
         return 400, {"errore": "formato atteso AAAA-MM"}, None
     with db.WRITE_LOCK, db.sess() as c:
         no = _solo_admin(c, body, ctx)
@@ -574,8 +592,9 @@ def ping(ctx, q, body):
     nome = (body.get("operatore") or "").strip()
     ev = None
     if nome:
-        prima = PRESENZE.get(nome, {}).get("dove")
-        PRESENZE[nome] = {"ts": time.time(), "dove": body.get("dove")}
+        with _PRESENZE_LOCK:
+            prima = PRESENZE.get(nome, {}).get("dove")
+            PRESENZE[nome] = {"ts": time.time(), "dove": body.get("dove")}
         # "dove" porta anche la cella che l'operatore ha aperta (#ANCHOR: fuoco
         # in web/js/stato.js): se e' cambiata, gli altri lo sanno subito via
         # SSE, non al loro prossimo battito venti secondi dopo.
@@ -598,7 +617,7 @@ def fai_sync(ctx, q, body):
     return 200, r, {"tipo": "sync", "riepilogo": r}
 
 
-def _scad_effettiva(s):
+def _scad_effettiva(s, oggi=None):
     """Fine del termine contrattuale IN CORSO oggi: gemello Python di
     `scadEffettiva` in web/js/stato.js (#ANCHOR: rinnovo).
 
@@ -617,7 +636,8 @@ def _scad_effettiva(s):
         n = (a2 - a1) * 12 + (m2 - m1) + (1 if g2 >= g1 else 0)
         passo = n if n >= 1 else 12
     a, m = a2, m2
-    oggi = datetime.date.today().isoformat()
+    # `oggi` (AAAA-MM-GG) si passa solo nelle prove: di norma e' la data del server
+    oggi = oggi or datetime.date.today().isoformat()
     fine = lambda: "%04d-%02d-%02d" % (
         a, m, min(g2, calendar.monthrange(a, m)[1]))
     for _ in range(200):          # cintura: 200 termini sono oltre un secolo
@@ -629,7 +649,7 @@ def _scad_effettiva(s):
     return fine()
 
 
-def _mese_scadenza(s, anno):
+def _mese_scadenza(s, anno, oggi=None):
     """Primo mese di manutenzione di UN SITO dentro la finestra del contratto, e
     cioe' il mese in cui scade la sua mappatura dell'anno: gemello Python di
     `meseScadenza` in web/js/stato.js (#ANCHOR: mappatura-anno). 0 = nessun mese
@@ -639,7 +659,7 @@ def _mese_scadenza(s, anno):
     L'inizio del tracciamento non c'entra: se la scadenza e' anteriore, quella
     mappatura e' pre-tracciamento (fuori dai totali) ma resta la scadenza. Farla
     slittare al primo mese tracciato contava una VISITA come mappatura."""
-    scad = _scad_effettiva(s)
+    scad = _scad_effettiva(s, oggi)
     for m in range(1, 13):
         if s["mesi"][m - 1] != "1":
             continue
@@ -712,6 +732,16 @@ def _cartella_documenti():
     return d
 
 
+def _file_documento(percorso):
+    """Il file su disco di una riga di `documenti`, oppure None se il percorso
+    esce dalla cartella. Cintura: il percorso lo scrive solo salva_documento, ma
+    una riga messa a mano (o un .db ripristinato) con "../" non deve far leggere
+    ne' cancellare niente fuori da data/documenti/."""
+    base = os.path.abspath(_cartella_documenti())
+    p = os.path.abspath(os.path.join(base, str(percorso or "")))
+    return p if p.startswith(base + os.sep) else None
+
+
 def _doc_out(r):
     return dict(id=r["id"], id_service=r["id_service"], anno=r["anno"], mese=r["mese"],
                 nome=r["nome"], percorso=r["percorso"], bytes=r["bytes"],
@@ -771,8 +801,16 @@ def salva_documento(ctx, q, body):
     # il cliente e si archivia e basta, senza toccare la mappatura.
     tipo = "registro" if body.get("tipo") == "registro" else "schede"
     nome = re.sub(r"[^\w\-. ()°]", "_", str(body.get("nome") or tipo)).strip() or tipo
-    if not nome.lower().endswith(".pdf"):
-        nome += ".pdf"
+    # Un nome lunghissimo (una ragione sociale intera piu' destinazione) portava
+    # il percorso oltre i 260 caratteri di Windows: open() falliva con un 500.
+    # 120 bastano e avanzano per leggerlo nell'elenco.
+    if nome.lower().endswith(".pdf"):
+        nome = nome[:-4]
+    nome = (nome[:120].rstrip(" .") or tipo) + ".pdf"
+    try:
+        pagine = max(0, int(body.get("pagine") or 0))
+    except (TypeError, ValueError):
+        pagine = 0
     doc_id = uuid.uuid4().hex
     # un documento in fascicoli: un PDF per fascicolo, stesso `gruppo`
     gruppo = re.sub(r"[^0-9a-f]", "", str(body.get("gruppo") or ""))[:32] or None
@@ -811,7 +849,7 @@ def salva_documento(ctx, q, body):
                       "pagine,anteprima,creato_il,creato_da,gruppo,fascicolo,fascicoli,tipo) "
                       "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (doc_id, sid, anno, mese or None, nome, rel.replace(os.sep, "/"),
-                       len(dati), int(body.get("pagine") or 0), anteprima, ts, operatore,
+                       len(dati), pagine, anteprima, ts, operatore,
                        gruppo, fascicolo, fascicoli, tipo))
             if mese:
                 st, out = _applica(c, operatore, sid, anno, mese, "stampata", 1,
@@ -842,7 +880,9 @@ def scarica_documento(ctx, q, body):
         r = c.execute("SELECT * FROM documenti WHERE id=?", (q.get("id"),)).fetchone()
     if not r:
         return 404, {"errore": "documento non trovato"}, None
-    p = os.path.join(_cartella_documenti(), r["percorso"])
+    p = _file_documento(r["percorso"])
+    if p is None:
+        return 404, {"errore": "percorso del documento non valido"}, None
     if not os.path.isfile(p):
         return 404, {"errore": "file mancante sul disco: " + r["percorso"]}, None
     with open(p, "rb") as fh:
@@ -861,8 +901,10 @@ def elimina_documento(ctx, q, body):
             if not r:
                 return 404, {"errore": "documento non trovato"}, None
             c.execute("DELETE FROM documenti WHERE id=?", (doc_id,))
+    p = _file_documento(r["percorso"])
     try:
-        os.remove(os.path.join(_cartella_documenti(), r["percorso"]))
+        if p:
+            os.remove(p)
     except OSError:
         pass
     ev = {"tipo": "documento", "anno": r["anno"], "id_service": r["id_service"],
@@ -911,8 +953,10 @@ def elimina_documenti(ctx, q, body):
             # vuole liberare.
             base = _cartella_documenti()
             for r in righe:
+                p = _file_documento(r["percorso"])
                 try:
-                    os.remove(os.path.join(base, r["percorso"]))
+                    if p:
+                        os.remove(p)
                 except OSError:
                     pass
             c.executemany("DELETE FROM documenti WHERE id=?", [(r["id"],) for r in righe])

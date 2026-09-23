@@ -20,9 +20,9 @@
 import { esc, ICO, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import { htmlChipDocumento } from './documenti.js';
 import {
-  st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, spunta,
+  st, cella, statoCella, progresso, progressoGruppo, gruppiFiltrati, toccaPasso,
   mappaturaSito, meseScadenza, scadEffettiva, statoMappatura, notaEredita, fuochiSu,
-  PROPOSTA, notaProposta, prossimo, fatto,
+  PROPOSTA, notaProposta, fatto,
   CAMPI, SIGLA, PASSI, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriPop, chiudiPop, popAperto } from './spunte.js';
@@ -169,28 +169,29 @@ function htmlGruppo(g, rit) {
   </section>`;
 }
 
-/* Mappature complete / in scadenza in un mese, su tutto il set filtrato: una
-   per SITO. */
-function totaliMese(gruppi, m) {
-  let fatte = 0, tot = 0;
+/* Mappature complete / in scadenza per ogni mese, su tutto il set filtrato: una
+   per SITO. Un giro solo per i dodici mesi (prima erano dodici giri su tutti i
+   siti, a ogni disegno e a ogni spunta): [[fatte, tot] x 12], indice = mese-1. */
+export function totaliMesi(gruppi) {
+  const out = Array.from({ length: 12 }, () => [0, 0]);
   for (const g of gruppi) {
     for (const s of g.srvs) {
       if (s.stato !== 'APERTO') continue;
       const ma = mappaturaSito(s);
-      if (!ma.prevista || ma.scad !== m) continue;
-      tot++;
-      if (ma.completa) fatte++;
+      if (!ma.prevista || !(ma.scad >= 1 && ma.scad <= 12)) continue;
+      const t = out[ma.scad - 1];
+      t[1]++;
+      if (ma.completa) t[0]++;
     }
   }
-  return [fatte, tot];
+  return out;
 }
 
 /** Il totale del mese sotto il suo nome, nell'intestazione: chiuse/in scadenza
  *  e il filo che si riempie (`--p`). E' quello che si guarda per capire dove
  *  intervenire senza contare le celle a occhio. Lo span c'e' sempre, anche
  *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola. */
-function htmlTotaleMese(gruppi, m) {
-  const [fatte, tot] = totaliMese(gruppi, m);
+function htmlTotaleMese([fatte, tot]) {
   return `<span class="tm${tot && fatte === tot ? ' pieno' : ''}"
     style="--p:${tot ? Math.round(fatte / tot * 100) : 0}%"
     title="${fatte} chiuse su ${tot} mappature (una per sito) che scadono in questo mese">${tot ? `${fatte}/${tot}` : ''}</span>`;
@@ -221,6 +222,7 @@ export function disegna(area) {
      lo stesso elenco e non si rifa' il giro. */
   const tutti = st.filtri.stato ? gruppiFiltrati({ ignoraStato: true }) : gruppi;
   const chiuse = tuttiPiegati(gruppi);
+  const totali = totaliMesi(tutti);
   const testa = `<div class="riga crono-testa">
     <div class="col-nome">
       <button class="piega-tutti" data-piega="${chiuse ? 0 : 1}"
@@ -232,7 +234,7 @@ export function disegna(area) {
       <i title="Sotto ogni mese: mappature chiuse / in scadenza in quel mese">chiuse / in scadenza</i>
     </div>
     <div class="mesi">${st.mesi.map((m, i) =>
-    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(tutti, i + 1)}</div>`).join('')}</div>
+    `<div class="m${oggiCl(i + 1) ? ' oggi' : ''}">${m}${htmlTotaleMese(totali[i])}</div>`).join('')}</div>
     <div class="col-tot">Anno</div>
   </div>`;
   area.innerHTML = `<div class="crono">${testa}${gruppi.length
@@ -317,8 +319,17 @@ function collega(r) {
     const [id, m] = cel.dataset.cella.split('-').map(Number);
     const i = '1234'.indexOf(e.key);
     if (i >= 0) {
+      /* col popover aperto sulla cella il tasto l'ha gia' usato lui (spunte.js,
+         in cattura sul documento): rifarlo qui lo annullava, due scritture per
+         niente e la spunta che non restava */
+      if (e.defaultPrevented) return;
       e.preventDefault();
-      return spunta(id, m, CAMPI[i], prossimo(id, m, CAMPI[i]));
+      /* come il clic nel popover e i tasti della vista Mese: un passo ereditato
+         (#ANCHOR: passi-cumulativi) si toglie da dove e' stato messo. Con
+         `spunta` diretto il tasto lo rimetteva anche qui, e la capsula non
+         cambiava a schermo */
+      toccaPasso(id, m, CAMPI[i]);
+      return;
     }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); return apriPop(cel, id, m); }
     const dx = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && FRECCE[e.key];
@@ -522,18 +533,30 @@ function aggiornaTotali(id) {
     sez.classList.add('festa');
     sez.addEventListener('animationend', () => sez.classList.remove('festa'), { once: true });
   }
-  aggiornaRigaTotali();
+  rigaTotaliPresto();
+}
+
+/* I totali per mese guardano TUTTI i siti filtrati: rifarli a ogni cella voleva
+   dire, con una raffica di eventi (un collega che completa un cliente online:
+   Realtime manda una riga per passo), migliaia di giri completi uno dietro
+   l'altro. Si accumulano e se ne fa uno per frame; le righe e le carte dei
+   clienti restano immediate. */
+let totaliInCoda = false;
+function rigaTotaliPresto() {
+  if (totaliInCoda) return;
+  totaliInCoda = true;
+  requestAnimationFrame(() => { totaliInCoda = false; aggiornaRigaTotali(); });
 }
 
 /* Tiene al passo i totali per mese nell'intestazione durante le spunte in serie. */
 function aggiornaRigaTotali() {
   const tms = radice?.querySelectorAll('.crono-testa .tm');
   if (!tms?.length) return;
-  const gruppi = gruppiFiltrati({ ignoraStato: true });   // come in `disegna`
+  const totali = totaliMesi(gruppiFiltrati({ ignoraStato: true }));   // come in `disegna`
   for (let m = 1; m <= 12; m++) {
     const tm = tms[m - 1];
     if (!tm) continue;
-    const [fatte, tot] = totaliMese(gruppi, m);
+    const [fatte, tot] = totali[m - 1];
     tm.textContent = tot ? `${fatte}/${tot}` : '';
     tm.title = `${fatte} chiuse su ${tot} mappature che scadono in questo mese`;
     tm.classList.toggle('pieno', tot > 0 && fatte === tot);

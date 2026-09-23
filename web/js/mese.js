@@ -218,11 +218,19 @@ function collega(r) {
   if (r.__collegatoMese) return;
   r.__collegatoMese = true;
   r.addEventListener('click', e => {
+    /* `r` e' l'#area di tutte le viste e questo ascoltatore ci resta anche
+       tornando alla vista Anno: parla solo quando il foglio e' il suo */
+    if (st.vista !== 'mese') return;
     const m = e.target?.closest?.('[data-mese]');
     if (m) return cambiaMese(Number(m.dataset.mese));
     const fs = e.target?.closest?.('[data-stato]');
     if (fs) return filtraStato(fs.dataset.stato, true);
     const pal = e.target?.closest?.('[data-comp]');
+    /* Il DOPPIO clic su un pallino o su un passo arriva come due clic: il
+       secondo (detail 2) disfaceva il primo - la scheda chiusa si riapriva
+       con l'avviso "Tolti i 4 passi". Conta il primo, il resto no. La
+       tastiera (detail 0) non passa di qui. */
+    if ((pal || e.target.closest('.passo')) && e.detail > 1) return;
     if (pal) {
       const id = Number(pal.dataset.comp);
       return (e.ctrlKey || e.metaKey || e.shiftKey)

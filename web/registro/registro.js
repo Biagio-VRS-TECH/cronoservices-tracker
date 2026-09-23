@@ -337,6 +337,7 @@ export function costruisciRegistro(ex, { dizionario = {}, priorita = {}, oggi = 
   });
 
   const sezioni = [];
+  const sidVisti = new Map();
   for (const k of chiaviSezione) {
     const [tipoK, resto] = k.split('\u0000');
     let titolo, breve, sotto, tipo, sid;
@@ -355,6 +356,13 @@ export function costruisciRegistro(ex, { dizionario = {}, priorita = {}, oggi = 
         `Il piano "${resto}" non e\u0300 un numero: nel documento compare in coda, dopo i piani numerati.`,
         righe.filter(r => r.piano === resto).map(r => r.indice));
     }
+    /* id univoci anche fra piani non numerici che lo slug schiaccia sullo
+       stesso nome ("PIANO TERRA" / "PIANO-TERRA", o due nomi tutti accentati
+       che diventano "x"): con due `id` uguali il sommario prendeva il numero
+       di pagina della prima sezione anche per la seconda. Di norma non cambia
+       niente: il suffisso compare solo alla seconda comparsa. */
+    conta(sidVisti, sid);
+    if (sidVisti.get(sid) > 1) sid = `${sid}-${sidVisti.get(sid)}`;
 
     /* centrali e locali tecnici per primi, poi gli altri in ordine naturale */
     const chiaviRep = [...gruppi.get(k).keys()].sort((a, b) => {

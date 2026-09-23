@@ -9,7 +9,7 @@ Percorsi:
   /api/stream        -> Server-Sent Events (aggiornamenti in tempo reale)
 Avvio: python server.py [--porta 8770] [--no-sync]
 """
-import argparse, json, mimetypes, os, queue, socket, sys, threading, time
+import argparse, json, mimetypes, os, queue, socket, sqlite3, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -64,6 +64,13 @@ class Hub:
             for q in morti:
                 self.clients.discard(q)
 
+    def iscritto(self, q):
+        """Falso se diffondi() l'ha buttato fuori perche' la sua coda era piena:
+        lo stream allora va chiuso, cosi' il browser si riconnette e si
+        riallinea. Prima restava aperto a soli ping e non riceveva piu' niente."""
+        with self.lock:
+            return q in self.clients
+
     @property
     def quanti(self):
         with self.lock:
@@ -71,6 +78,8 @@ class Hub:
 
 
 HUB = Hub()
+# Secondi fra due ": ping" di uno stream fermo (le prove lo accorciano)
+PING_SSE = 20
 
 
 # ---------------------------------------------------------------- handler ----
@@ -112,12 +121,24 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         u = urlparse(self.path)
-        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = -1
+        if n < 0:
+            # senza una lunghezza leggibile il corpo non si sa dove finisca: si
+            # risponde e si chiude, invece di far cadere la connessione
+            self.close_connection = True
+            return self._json(400, {"errore": "Content-Length non valido"})
         raw = self.rfile.read(n) if n else b""
         try:
             body = json.loads(raw.decode("utf-8")) if raw else {}
         except ValueError:
             return self._json(400, {"errore": "JSON non valido"})
+        # ogni handler fa body.get(...): un JSON valido ma non oggetto ([1], "x")
+        # finiva in AttributeError e 500
+        if not isinstance(body, dict):
+            return self._json(400, {"errore": "JSON non valido: serve un oggetto"})
         return self._api("POST", u, body)
 
     def _api(self, metodo, u, body):
@@ -127,6 +148,19 @@ class H(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         try:
             st, out, ev = fn(CTX, q, body)
+        except (KeyError, ValueError, TypeError) as e:
+            # campo obbligatorio mancante o non numerico (id_service="abc"):
+            # e' la richiesta a essere sbagliata, non il server
+            return self._json(400, {"errore": "richiesta non valida (%s: %s)"
+                                              % (type(e).__name__, e)})
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e) or "busy" in str(e):
+                # un altro processo (python sync.py a mano) tiene l'archivio
+                # oltre il busy_timeout: si puo' riprovare, non e' un guasto
+                return self._json(503, {"errore": "archivio occupato, riprova fra poco"})
+            import traceback
+            traceback.print_exc()
+            return self._json(500, {"errore": "%s: %s" % (type(e).__name__, e)})
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -162,24 +196,32 @@ class H(BaseHTTPRequestHandler):
             self.wfile.flush()
             while True:
                 try:
-                    ev = q.get(timeout=20)
+                    ev = q.get(timeout=PING_SSE)
                     dati = json.dumps(ev, ensure_ascii=False)
                     self.wfile.write(("event: %s\ndata: %s\n\n"
                                       % (ev.get("tipo", "msg"), dati)).encode("utf-8"))
                 except queue.Empty:
+                    if not HUB.iscritto(q):
+                        break                         # scartato: si riconnetta
                     self.wfile.write(b": ping\n\n")   # tiene viva la connessione
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
         finally:
             HUB.disiscrivi(q)
+            # lo stream non ha Content-Length: finisce solo chiudendo il socket,
+            # altrimenti HTTP/1.1 aspetterebbe un'altra richiesta e il browser
+            # non si accorgerebbe mai di doversi riconnettere
+            self.close_connection = True
 
     def _statico(self, path):
         rel = "index.html" if path in ("/", "") else path.lstrip("/")
         f = os.path.abspath(os.path.join(WEB, rel))
         if os.path.isdir(f):                     # /schede/ -> schede/index.html
             f = os.path.join(f, "index.html")
-        if not f.startswith(WEB) or not os.path.isfile(f):
+        # WEB + os.sep: col solo prefisso passava anche una cartella accanto che
+        # comincia per "web" (../web-vecchio/, ../webbak/)
+        if not f.startswith(WEB + os.sep) or not os.path.isfile(f):
             return self._invia(404, "Non trovato: %s" % rel, "text/plain; charset=utf-8")
         ctype = mimetypes.guess_type(f)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype in ("application/javascript",
@@ -188,7 +230,9 @@ class H(BaseHTTPRequestHandler):
             ctype += "; charset=utf-8"
         with open(f, "rb") as fh:
             dati = fh.read()
-        cache = "no-store" if rel.endswith((".html", "sw.js")) else "no-cache"
+        # su `f`, non su `rel`: /schede/ serve schede/index.html e va no-store
+        # come ogni pagina
+        cache = "no-store" if f.endswith((".html", "sw.js")) else "no-cache"
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(dati)))

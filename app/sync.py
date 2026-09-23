@@ -7,7 +7,7 @@ Microsoft.ACE.OLEDB.12.0, raggiungibile da COM senza installare pyodbc.
 Ogni sync: backup del .db, diff riassuntivo (nuovi/chiusi/mesi cambiati/spunte
 orfane) scritto in sync_log e restituito al client per la notifica.
 """
-import glob, json, os, shutil, subprocess, tempfile, unicodedata
+import glob, json, os, shutil, subprocess, tempfile, unicodedata, uuid
 import db
 
 ACCESS_MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
@@ -41,6 +41,71 @@ def _txt(v):
     return v if v else None
 
 
+def normalizza(payload):
+    """Payload dell'export -> (clienti, services), liste di dict con i nomi di
+    colonna di SQLite (che sono anche quelli di Postgres). UN posto solo per le
+    regole, usato da esegui() qui sotto e da push_cloud.righe(): la bitmask dei
+    mesi in ordine Gen..Dic, lo stato in maiuscolo, i service senza IDService
+    saltati, e solo i clienti che hanno almeno un service (gli altri 8000
+    dell'anagrafica qui non servono)."""
+    servs, usati = [], set()
+    for raw in payload.get("services") or []:
+        s = _row(raw)
+        sid = _int(s.get("idservice"))
+        if sid is None:
+            continue
+        cid = _int(s.get("idcliente")) or 0
+        servs.append({
+            "id_service": sid,
+            "id_cliente": cid,
+            "tipo": _txt(s.get("tipo")),
+            "stato": (s.get("stato") or "").strip().upper(),
+            "destinazione": _txt(s.get("destinazione")),
+            "localita": _txt(s.get("localita")),
+            "provincia": _txt(s.get("provincia")),
+            "mappatura": _si(s.get("mappatura")),
+            "subappalto": _si(s.get("subappalto")),
+            "n_contratto": _txt(s.get("ncontratto")),
+            "data_inizio": _txt(s.get("datainizio")),
+            "data_scadenza": _txt(s.get("datascadenza")),
+            "cadenza": _txt(s.get("cadenza")),
+            "qva": _int(s.get("qva")),
+            "causale_rinnovo": _txt(s.get("causalerinnovo")),
+            "rinnovo_auto": _si(s.get("rinnovoautomatico")),
+            "mesi": "".join("1" if _si(s.get(_norm(m))) else "0" for m in ACCESS_MESI),
+            "note": _txt(s.get("note")),
+        })
+        usati.add(cid)
+
+    cli = []
+    for raw in payload.get("clienti") or []:
+        k = _row(raw)
+        cid = _int(k.get("idcliente"))
+        if cid is None or cid not in usati:
+            continue
+        cli.append({
+            "id_cliente": cid,
+            "rag_soc": (k.get("ragsoc") or "").strip(),
+            "indirizzo": _txt(k.get("indirizzo")),
+            "cap": _txt(k.get("cap")),
+            "citta": _txt(k.get("citta")),
+            "provincia": _txt(k.get("provincia")),
+            "telefono": _txt(k.get("telefono")),
+            "email": _txt(k.get("email")),
+            "non_utilizzabile": _si(k.get("nonutilizzabile")),
+        })
+    return cli, servs
+
+
+# L'ordine delle colonne negli INSERT di esegui()
+COL_SERVICES = ("id_service", "id_cliente", "tipo", "stato", "destinazione", "localita",
+                "provincia", "mappatura", "subappalto", "n_contratto", "data_inizio",
+                "data_scadenza", "cadenza", "qva", "causale_rinnovo", "rinnovo_auto",
+                "mesi", "note")
+COL_CLIENTI = ("id_cliente", "rag_soc", "indirizzo", "cap", "citta", "provincia",
+               "telefono", "email", "non_utilizzabile")
+
+
 def estrai(cfg, base):
     """Lancia l'export PowerShell e ritorna il payload JSON.
 
@@ -56,8 +121,12 @@ def estrai(cfg, base):
     if not os.path.exists(accdb):
         raise RuntimeError("Backend Access non trovato: %s" % accdb)
     ps1 = os.path.join(base, "export_access.ps1")
-    tmp = os.path.join(tempfile.gettempdir(), "cronoservice_export.json")
-    copia = os.path.join(tempfile.gettempdir(), "cronoservice_be_copia_%d.accdb" % os.getpid())
+    # Nomi unici per ogni estrazione, non solo per processo: il sync all'avvio,
+    # un /api/sync e il push_cloud delle 08:15 possono girare insieme, e con un
+    # JSON dal nome fisso uno cancellava (o leggeva a meta') quello dell'altro.
+    unico = "%d_%s" % (os.getpid(), uuid.uuid4().hex[:8])
+    tmp = os.path.join(tempfile.gettempdir(), "cronoservice_export_%s.json" % unico)
+    copia = os.path.join(tempfile.gettempdir(), "cronoservice_be_copia_%s.accdb" % unico)
     try:
         os.remove(tmp)
     except OSError:
@@ -75,8 +144,14 @@ def estrai(cfg, base):
                 pass
     if not os.path.exists(tmp):
         raise RuntimeError("Export Access fallito.\n%s\n%s" % (p.stdout, p.stderr))
-    with open(tmp, encoding="utf-8-sig") as f:
-        d = json.load(f)
+    try:
+        with open(tmp, encoding="utf-8-sig") as f:
+            d = json.load(f)
+    finally:
+        try:
+            os.remove(tmp)      # l'anagrafica non resta in %TEMP%
+        except OSError:
+            pass
     d["sorgente"] = accdb          # nel log deve comparire il file vero, non la copia
     return d
 
@@ -104,6 +179,12 @@ def backup(cfg, base):
 def esegui(cfg, base):
     """Sync completo. Ritorna il dizionario di riepilogo."""
     payload = estrai(cfg, base)
+    # Un export vuoto (tabella non letta, copia troncata) avrebbe archiviato
+    # TUTTI i service in un colpo. Il gemello online (sync_applica in
+    # cloud/05-sync.sql) e push_cloud.main lo rifiutano gia': qui uguale.
+    cli_d, servs_d = normalizza(payload)
+    if not servs_d:
+        raise RuntimeError("Access non ha restituito nessun service: sync annullato.")
     backup(cfg, base)
     ts = db.now()
     det = []
@@ -116,25 +197,8 @@ def esegui(cfg, base):
             prima = {r["id_service"]: r for r in
                      c.execute("SELECT id_service, stato, mesi FROM services")}
 
-            servs, usati = [], set()
-            for raw in payload["services"]:
-                s = _row(raw)
-                sid = _int(s.get("idservice"))
-                if sid is None:
-                    continue
-                mesi = "".join("1" if _si(s.get(_norm(m))) else "0" for m in ACCESS_MESI)
-                cid = _int(s.get("idcliente")) or 0
-                servs.append((sid, cid, _txt(s.get("tipo")),
-                              (s.get("stato") or "").strip().upper(),
-                              _txt(s.get("destinazione")), _txt(s.get("localita")),
-                              _txt(s.get("provincia")), _si(s.get("mappatura")),
-                              _si(s.get("subappalto")), _txt(s.get("ncontratto")),
-                              _txt(s.get("datainizio")), _txt(s.get("datascadenza")),
-                              _txt(s.get("cadenza")), _int(s.get("qva")),
-                              _txt(s.get("causalerinnovo")),
-                              _si(s.get("rinnovoautomatico")),
-                              mesi, _txt(s.get("note")), ts))
-                usati.add(cid)
+            # tuple nell'ordine di COL_SERVICES, piu' visto_il in coda
+            servs = [tuple(s[k] for k in COL_SERVICES) + (ts,) for s in servs_d]
 
             c.executemany("""
                 INSERT INTO services(id_service,id_cliente,tipo,stato,destinazione,localita,
@@ -154,16 +218,7 @@ def esegui(cfg, base):
             """, servs)
 
             # Solo i clienti con almeno un service: gli altri 8000+ non servono qui.
-            cli = []
-            for raw in payload["clienti"]:
-                k = _row(raw)
-                cid = _int(k.get("idcliente"))
-                if cid is None or cid not in usati:
-                    continue
-                cli.append((cid, (k.get("ragsoc") or "").strip(), _txt(k.get("indirizzo")),
-                            _txt(k.get("cap")), _txt(k.get("citta")),
-                            _txt(k.get("provincia")), _txt(k.get("telefono")),
-                            _txt(k.get("email")), _si(k.get("nonutilizzabile"))))
+            cli = [tuple(k[x] for x in COL_CLIENTI) for k in cli_d]
             c.executemany("""
                 INSERT INTO clienti(id_cliente,rag_soc,indirizzo,cap,citta,provincia,
                     telefono,email,non_utilizzabile)
@@ -204,7 +259,7 @@ def esegui(cfg, base):
             cnt["spunte_orfane"] = c.execute("""
                 SELECT COUNT(*) FROM mappature m JOIN services s USING(id_service)
                 WHERE substr(s.mesi, m.mese, 1) <> '1'
-                  AND (m.stampata OR m.controllata OR m.corretta)
+                  AND (m.stampata OR m.controllata OR m.corretta OR m.ricambi)
             """).fetchone()[0]
 
             c.execute("""INSERT INTO sync_log(ts,clienti,services,nuovi,riaperti,chiusi,

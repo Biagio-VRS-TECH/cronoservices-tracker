@@ -4,7 +4,7 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v27';
+const CACHE = 'crono-guscio-v28';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
   '/css/fonti.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
@@ -42,7 +42,11 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     try {
       const r = await fetch(e.request);
-      if (r.ok) (await caches.open(CACHE)).put(e.request, r.clone());
+      /* Una copia per PAGINA, non per indirizzo: il generatore si apre con
+         ?service=..&mese=.. diversi per ogni sito, e ognuno lasciava in cache
+         la sua copia di schede/index.html (200 KB) fino al cambio di versione.
+         Il ripiego qui sotto cerca gia' con ignoreSearch. */
+      if (r.ok) (await caches.open(CACHE)).put(u.search ? u.origin + u.pathname : e.request, r.clone());
       return r;
     } catch {
       return (await caches.match(e.request, { ignoreSearch: true })) ||

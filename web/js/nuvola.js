@@ -28,10 +28,15 @@ const K_MAIL = 'cs.email';       // solo per riproporre la casella, mai la passw
 const emailRicordata = () => localStorage.getItem(K_MAIL) || '';
 const ORIGINE = URL_SUPABASE.replace(/\/+$/, '');
 
-let ses = null;
-try { ses = JSON.parse(localStorage.getItem(K_SES) || 'null'); } catch { }
+/* La sessione salvata. Chi la scrive puo' essere anche UN'ALTRA SCHEDA dello
+   stesso sito: si rilegge prima di ogni rinnovo (vedi `token`). */
+function sessioneSalvata() {
+  try { return JSON.parse(localStorage.getItem(K_SES) || 'null'); } catch { return null; }
+}
+let ses = sessioneSalvata();
 let ultimoAnno = new Date().getFullYear();
 let ultimoErrore = '';           // motivo dell'ultimo rifiuto, mostrato al login
+let rinnovo = null;              // il rinnovo in corso: uno solo alla volta
 
 /* ------------------------------------------------------------- sessione -- */
 function salvaSessione(s) {
@@ -41,8 +46,12 @@ function salvaSessione(s) {
     email: s.user?.email || ses?.email || '',
     scade: Date.now() + (s.expires_in || 3600) * 1000,
   };
-  if (ses) localStorage.setItem(K_SES, JSON.stringify(ses));
-  else localStorage.removeItem(K_SES);
+  // localStorage puo' mancare o essere pieno (navigazione privata): la
+  // sessione in memoria vale lo stesso fino al ricarico
+  try {
+    if (ses) localStorage.setItem(K_SES, JSON.stringify(ses));
+    else localStorage.removeItem(K_SES);
+  } catch { }
   return ses;
 }
 
@@ -53,22 +62,61 @@ async function auth(percorso, corpo) {
     body: JSON.stringify(corpo),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error_description || d.msg || d.message || 'accesso rifiutato');
+  if (!r.ok) {
+    const e = new Error(d.error_description || d.msg || d.message || 'accesso rifiutato');
+    e.stato = r.status;               // c'e' = ha risposto il server, non la rete
+    throw e;
+  }
   return d;
 }
 
-/** Token valido, rinfrescato se sta per scadere. null = non collegato. */
+/** Token valido, rinfrescato se sta per scadere. null = non collegato.
+ *  Lancia (come un fetch) se il rinnovo non arriva al server: rete giu'. */
 async function token() {
   if (!ses) return null;
+  // Un'altra scheda puo' aver gia' rinnovato: Supabase RUOTA il refresh token,
+  // e quello che teniamo in memoria sarebbe gia' consumato.
+  const disco = sessioneSalvata();
+  if (disco?.access_token && disco.access_token !== ses.access_token
+      && (disco.scade || 0) > (ses.scade || 0)) ses = disco;
   if (Date.now() < ses.scade - 60000) return ses.access_token;
+  // Chiamate che partono insieme (bootstrap, ping, coda) aspettano lo STESSO
+  // rinnovo: due rinnovi in parallelo col refresh token che ruota si
+  // butterebbero fuori a vicenda.
+  if (!rinnovo) rinnovo = rinnova().finally(() => { rinnovo = null; });
+  return rinnovo;
+}
+
+async function rinnova() {
+  const vecchio = ses;
   try {
     salvaSessione(await auth('token?grant_type=refresh_token',
-      { refresh_token: ses.refresh_token }));
+      { refresh_token: vecchio.refresh_token }));
     return ses.access_token;
-  } catch {
-    salvaSessione(null);            // rinfresco fallito: si rifa' il login
+  } catch (e) {
+    // Rete giu' o Supabase che risponde 5xx/429: la sessione e' ancora buona,
+    // non la si butta. Prima un telefono senza campo, al primo token scaduto,
+    // si trovava fuori e doveva rifare il login appena tornava la rete.
+    if (!e.stato || e.stato >= 500 || e.stato === 429) throw e;
+    // Rifiutato davvero. Ma se nel frattempo un'altra scheda ha rinnovato, il
+    // suo refresh token e' quello buono: si prende quello.
+    const disco = sessioneSalvata();
+    if (disco?.refresh_token && disco.refresh_token !== vecchio.refresh_token) {
+      ses = disco;
+      return Date.now() < ses.scade - 60000 ? ses.access_token : null;
+    }
+    salvaSessione(null);            // rinfresco rifiutato: si rifa' il login
     return null;
   }
+}
+
+/* Un 401 dal database: il token `t` non vale piu'. Se pero' un'altra scheda ha
+   gia' salvato una sessione nuova, si butta solo la nostra copia in memoria -
+   cancellare localStorage avrebbe fatto uscire anche lei. */
+function buttaSessione(t) {
+  const disco = sessioneSalvata();
+  if (disco?.access_token && disco.access_token !== t) { ses = disco; return; }
+  salvaSessione(null);
 }
 
 export async function entra(email, password) {
@@ -77,6 +125,18 @@ export async function entra(email, password) {
 }
 
 export function esci() {
+  // Il refresh token si revoca anche sul server (solo questa sessione:
+  // `scope=local`, il Planning e gli altri dispositivi restano dentro), se no
+  // chi lo avesse copiato potrebbe rinnovarlo per settimane. `keepalive` fa
+  // partire la richiesta anche se la pagina si ricarica subito dopo.
+  if (ses?.access_token) {
+    try {
+      fetch(ORIGINE + '/auth/v1/logout?scope=local', {
+        method: 'POST', keepalive: true,
+        headers: { apikey: CHIAVE_ANON, Authorization: 'Bearer ' + ses.access_token },
+      }).catch(() => { });
+    } catch { }
+  }
   salvaSessione(null);
   location.reload();
 }
@@ -114,7 +174,7 @@ async function rpc(nome, args, ms = 20000) {
       // 401 = il token non vale piu'. Questa e' l'UNICA ragione per cui si
       // butta la sessione e si torna alla maschera d'accesso.
       ultimoErrore = 'Sessione scaduta: rientra.';
-      salvaSessione(null);
+      buttaSessione(t);
       return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
     }
     if (r.status === 403) {
@@ -175,7 +235,7 @@ async function funzione(percorso, corpo, ms = 20000) {
     }
     if (r.status === 401) {
       ultimoErrore = 'Sessione scaduta: rientra.';
-      salvaSessione(null);
+      buttaSessione(t);
       return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
     }
     return { ok: r.ok, stato: r.status,
@@ -387,6 +447,36 @@ const cellaDa = r => ({
   rev: r.rev, by: r.updated_by, at: r.updated_at, nota: r.nota || '',
 });
 
+/** Da quando chiedere le celle cambiate: `ts` (l'ultimo `updated_at` visto,
+ *  ISO locale "2026-09-23T10:00:05") meno un margine. Senza margine se ne
+ *  perdevano due tipi, perche' `app_celle_dopo` vuole `updated_at > p_da`:
+ *   - quelle scritte nello STESSO secondo dell'ultima vista, dopo la domanda;
+ *   - quelle di una transazione lunga (un bulk da 40 s): `updated_at` e' l'ora
+ *     d'INIZIO della transazione, e la riga diventa visibile solo al commit.
+ *  Le celle ripescate due volte non fanno danno: stessa revisione, si buttano.
+ *  null = da sempre (nessuna cella vista ancora). */
+export function daQuando(ts, margine = 60) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(ts || '');
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) - margine * 1000);
+  return d.toISOString().slice(0, 19);
+}
+
+/** Le celle di `app_celle_dopo` diventano eventi per stato.js. Poche: una per
+ *  una, col nome di chi le ha toccate (il lampo "l'ha fatto un altro"). Tante
+ *  (un riaggancio dopo un'ora, un'azione di massa): UN evento `celle`, cioe'
+ *  un ridisegno solo invece di centinaia. */
+export function eventiDaCelle(celle, anno, io = '', soglia = 20) {
+  const lista = (celle || []).filter(c => c && c.cella);
+  if (lista.length > soglia) {
+    return [{ tipo: 'celle', anno, operatore: '',
+              celle: lista.map(c => ({ id_service: c.id_service, mese: c.mese, cella: c.cella })) }];
+  }
+  return lista.map(c => ({ tipo: 'cella', anno, id_service: c.id_service, mese: c.mese,
+                           cella: c.cella,
+                           operatore: c.cella.by === io ? '' : (c.cella.by || '') }));
+}
+
 /* Il canale aperto da apriStream, per parlare agli altri client senza passare
    dal database: e' il broadcast di Realtime, gratis e immediato. Lo usa la
    presenza per dire quale cella ho aperta (#ANCHOR: fuoco in stato.js). */
@@ -405,7 +495,7 @@ export function trasmetti(evento, payload) {
  *  altro". Ritorna la funzione per chiudere. */
 export function apriStream(onEvento, mio = () => '') {
   let ws = null, chiuso = false, tentativi = 0, batti = null, sonda = null;
-  let rif = 0, ultimoTs = '';
+  let rif = 1, ultimoTs = '';        // il ref '1' e' dell'iscrizione (phx_join)
   const TOPIC = 'realtime:crono';
 
   const spedisci = (event, payload, topic = TOPIC) => {
@@ -414,28 +504,38 @@ export function apriStream(onEvento, mio = () => '') {
     }
   };
 
+  /* Le celle cambiate dopo l'ultima vista (con un margine: vedi `daQuando`).
+     Le serve la sonda e il riaggancio dopo un buco del WebSocket. Le celle gia'
+     viste tornano indietro e si buttano da sole (#ANCHOR: eco-vecchia). */
+  const recupera = async () => {
+    let r;
+    try {
+      r = await rpc('app_celle_dopo', { p_anno: ultimoAnno, p_da: daQuando(ultimoTs) });
+    } catch { return; }                // rete giu': ci riprova il prossimo giro
+    if (!r.ok) return;
+    for (const ev of eventiDaCelle(r.dati?.celle, ultimoAnno, mio())) onEvento(ev);
+    for (const c of r.dati?.celle || []) if (c.cella?.at > ultimoTs) ultimoTs = c.cella.at;
+  };
+
   /* Ripiego: se il WebSocket non regge, si chiedono ogni 15 s solo le celle
      cambiate dopo l'ultima vista. Poche righe, non tutto il bootstrap. */
   const avviaSonda = () => {
     if (sonda || chiuso) return;
-    sonda = setInterval(async () => {
-      const { ok, dati } = await rpc('app_celle_dopo',
-        { p_anno: ultimoAnno, p_da: ultimoTs || null });
-      if (!ok) return;
-      for (const c of dati.celle || []) {
-        if (c.cella?.at > ultimoTs) ultimoTs = c.cella.at;
-        onEvento({ tipo: 'cella', anno: ultimoAnno, id_service: c.id_service,
-                   mese: c.mese, cella: c.cella,
-                   operatore: c.cella?.by === mio() ? '' : (c.cella?.by || '') });
-      }
-    }, 15000);
+    sonda = setInterval(recupera, 15000);
   };
   const fermaSonda = () => { clearInterval(sonda); sonda = null; };
 
+  let giaAperto = false;             // il primo aggancio non ha niente da recuperare
+  let daRecuperare = false;
+  const riprova = () => { if (!chiuso) setTimeout(apri, Math.min(1000 * 2 ** ++tentativi, 20000)); };
+
   const apri = async () => {
     if (chiuso) return;
-    const t = await token();
-    if (!t) return;
+    let t;
+    try { t = await token(); } catch { riprova(); return; }   // rete giu'
+    // Senza sessione si riprova piu' tardi: se si rientra (401 -> maschera
+    // d'accesso in api.js) la diretta riparte da sola, senza ricaricare.
+    if (!t) { if (!chiuso) setTimeout(apri, 20000); return; }
     ws = new WebSocket(
       `${ORIGINE.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${CHIAVE_ANON}&vsn=1.0.0`);
 
@@ -460,14 +560,27 @@ export function apriStream(onEvento, mio = () => '') {
       }));
       batti = setInterval(async () => {
         spedisci('heartbeat', {}, 'phoenix');
-        const nuovo = await token();       // il token scade: va rinnovato anche qui
-        if (nuovo && nuovo !== t) spedisci('access_token', { access_token: nuovo });
+        let nuovo = null;
+        try { nuovo = await token(); } catch { }   // rete giu': al prossimo battito
+        // il token scade: va rinnovato anche qui, una volta sola per token nuovo
+        if (nuovo && nuovo !== t) { t = nuovo; spedisci('access_token', { access_token: nuovo }); }
       }, 25000);
+      // Riaggancio dopo un buco: quello che e' cambiato mentre eravamo staccati
+      // Realtime non lo rimanda, e lo schermo restava indietro fino al ricarico.
+      // Si chiede DOPO la conferma dell'iscrizione (phx_reply qui sotto), cosi'
+      // fra la domanda e la diretta non resta scoperto niente.
+      daRecuperare = giaAperto;
+      giaAperto = true;
     };
 
     ws.onmessage = e => {
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event === 'phx_reply' && m.topic === TOPIC && m.ref === '1' && daRecuperare) {
+        daRecuperare = false;
+        recupera();
+        return;
+      }
       if (m.event === 'broadcast') {
         const p = m.payload || {};
         if (p.event === 'fuoco' && p.payload?.nome && p.payload.nome !== mio()) {
@@ -519,7 +632,14 @@ export function apriStream(onEvento, mio = () => '') {
  *  buona: chi chiama puo' fare finta che il login non esista. */
 export function assicuraSessione() {
   return new Promise(async resolve => {
-    if (await token()) return resolve(ses);
+    try {
+      if (await token()) return resolve(ses);
+    } catch {
+      // Rete giu' con una sessione da rinnovare: la sessione c'e', si lavora
+      // dalla copia e dalla coda offline, e si rinnova quando torna la rete.
+      // Prima qui la promessa restava appesa e l'app non partiva.
+      return resolve(ses);
+    }
 
     const velo = document.createElement('div');
     velo.className = 'velo accesso';

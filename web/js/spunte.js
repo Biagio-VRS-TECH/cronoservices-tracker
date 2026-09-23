@@ -59,7 +59,9 @@ function rigaPasso(campo, n, e) {
     title: er ? `Gi\u00e0 fatta ${doveFatto(er)}${er.by ? ' da ' + er.by : ''}: un clic la toglie da l\u00ec`
       : pr ? (possoApprovare() ? 'Proposta dall\u2019operatore: un clic la approva' : 'In attesa di chi approva: un clic la ritira')
       : null,
-    onclick: () => attiva(campo),
+    // il secondo clic di un doppio clic disfaceva il primo (e un passo
+    // ereditato, tolto dal suo mese, lo rimetteva qui): conta solo il primo
+    onclick: e => { if (e.detail <= 1) attiva(campo); },
   },
     h('span.n-passo', { testo: n + '.' }),
     h('span.box', { html: ICO.ok }),
@@ -126,7 +128,8 @@ export function apriPop(bersaglio, id, mese) {
       })),
     h('div.pop-piede', {},
       h('button.js-tutte', {
-        onclick: () => {
+        onclick: ev => {
+          if (ev.detail > 1) return;      // doppio clic: completava e subito azzerava
           const e = statoCella(id, mese);
           const v = e.n !== PASSI;
           // si mettono solo i passi che mancano davvero (non gli ereditati) e

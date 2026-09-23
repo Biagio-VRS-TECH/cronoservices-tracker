@@ -39,7 +39,9 @@ export default async (req) => {
     return risposta(405, { errore: 'metodo non ammesso' });
   }
 
-  const URL_SB = process.env.SUPABASE_URL;
+  // la barra finale si toglie come fa nuvola.js: "https://x.supabase.co/" dava
+  // "//rest/v1/..." e un 404 letto come "il database non conosce ruolo_corrente()"
+  const URL_SB = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const ANON = process.env.SUPABASE_ANON_KEY;
   const SERVICE = process.env.SUPABASE_SERVICE_KEY;
   if (!URL_SB || !ANON || !SERVICE) {

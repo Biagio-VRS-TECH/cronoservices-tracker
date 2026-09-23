@@ -52,55 +52,10 @@ def righe(payload):
 
     Le regole sono quelle di sync.esegui e non vanno reinventate: la bitmask dei
     mesi in ordine Gen..Dic, lo stato in maiuscolo, e solo i clienti che hanno
-    almeno un service (gli altri 8000 dell'anagrafica qui non servono)."""
-    servs, usati = [], set()
-    for raw in payload["services"]:
-        s = sync._row(raw)
-        sid = sync._int(s.get("idservice"))
-        if sid is None:
-            continue
-        cid = sync._int(s.get("idcliente")) or 0
-        servs.append({
-            "id_service": sid,
-            "id_cliente": cid,
-            "tipo": sync._txt(s.get("tipo")),
-            "stato": (s.get("stato") or "").strip().upper(),
-            "destinazione": sync._txt(s.get("destinazione")),
-            "localita": sync._txt(s.get("localita")),
-            "provincia": sync._txt(s.get("provincia")),
-            "mappatura": sync._si(s.get("mappatura")),
-            "subappalto": sync._si(s.get("subappalto")),
-            "n_contratto": sync._txt(s.get("ncontratto")),
-            "data_inizio": sync._txt(s.get("datainizio")),
-            "data_scadenza": sync._txt(s.get("datascadenza")),
-            "cadenza": sync._txt(s.get("cadenza")),
-            "qva": sync._int(s.get("qva")),
-            "causale_rinnovo": sync._txt(s.get("causalerinnovo")),
-            "rinnovo_auto": sync._si(s.get("rinnovoautomatico")),
-            "mesi": "".join("1" if sync._si(s.get(sync._norm(m))) else "0"
-                            for m in sync.ACCESS_MESI),
-            "note": sync._txt(s.get("note")),
-        })
-        usati.add(cid)
-
-    cli = []
-    for raw in payload["clienti"]:
-        k = sync._row(raw)
-        cid = sync._int(k.get("idcliente"))
-        if cid is None or cid not in usati:
-            continue
-        cli.append({
-            "id_cliente": cid,
-            "rag_soc": (k.get("ragsoc") or "").strip(),
-            "indirizzo": sync._txt(k.get("indirizzo")),
-            "cap": sync._txt(k.get("cap")),
-            "citta": sync._txt(k.get("citta")),
-            "provincia": sync._txt(k.get("provincia")),
-            "telefono": sync._txt(k.get("telefono")),
-            "email": sync._txt(k.get("email")),
-            "non_utilizzabile": sync._si(k.get("nonutilizzabile")),
-        })
-    return cli, servs
+    almeno un service (gli altri 8000 dell'anagrafica qui non servono).
+    Le regole stanno in sync.normalizza, lo stesso codice del sync locale: una
+    copia qui era gia' il secondo posto da tenere allineato a mano."""
+    return sync.normalizza(payload)
 
 
 def manda(url, key, cli, servs):
@@ -144,7 +99,8 @@ def main():
 
     if prova:
         print(json.dumps({"clienti": len(cli), "services": len(servs),
-                          "primo_service": servs[0], "primo_cliente": cli[0]},
+                          "primo_service": servs[0],
+                          "primo_cliente": cli[0] if cli else None},
                          ensure_ascii=False, indent=2))
         return 0
 
