@@ -30,6 +30,7 @@ import {
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
+import { serviceDaIndirizzo } from './condividi.js';
 
 const area = $('#area');
 
@@ -60,6 +61,20 @@ function registraSw() {
    li vedeva (e una pagina bianca si scopriva per telefono). */
 addEventListener('error', e => segnala(e.error || e.message, 'window.error'));
 addEventListener('unhandledrejection', e => segnala(e.reason, 'promessa'));
+
+/* MOB-16 · `?service=<id>` e' il link che manda "Condividi…" / "Copia link"
+   del cassetto (js/condividi.js): dopo il primo disegno si apre il cassetto di
+   quel sito. Il parametro poi si toglie dall'indirizzo, cosi' un ricaricamento
+   non lo riapre a sorpresa.  #ANCHOR: apri-da-indirizzo */
+function apriDaIndirizzo() {
+  const id = serviceDaIndirizzo();
+  if (!id) return;
+  const u = new URL(location.href);
+  u.searchParams.delete('service');
+  history.replaceState(history.state, '', u);
+  if (st.perServ.has(id)) apriCassetto(id);
+  else avviso(`Il sito del link (service #${id}) non c'è fra quelli caricati.`, { tono: 'allerta' });
+}
 
 async function avvia() {
   registraSw();
@@ -102,6 +117,7 @@ async function avvia() {
   disegna();
   statoCollegamento();
   avvisaAnagraficaVecchia();
+  apriDaIndirizzo();
 
   apriStream(eventoRemoto);
   /* "dove sono" porta anche la cella che ho aperta adesso, cosi' i colleghi la

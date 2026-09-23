@@ -7,7 +7,8 @@
    (`replaceChildren`) riportava lo scorrimento in cima a ogni clic - con dodici
    mesi a schermo era il difetto piu' fastidioso dell'applicazione.
    #ANCHOR: cassetto */
-import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
+import { h, ICO, esc, dataIt, quando, avviso, copia } from './ui.js';
+import { condividiLink, condivisioneNativa, linkService } from './condividi.js';
 import { chiama, inNuvola } from './api.js';
 import {
   documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
@@ -90,6 +91,28 @@ function rigaMese(id, m, previsto) {
   );
 }
 
+/* MOB-16 · Il link di questo sito, da mandare a un collega: sul telefono con
+   il foglio di condivisione del sistema, sul computer (o in ufficio, in http)
+   negli appunti. Chi lo apre si trova questo cassetto (#ANCHOR: condividi). */
+function bottoneCondividi(s, cli) {
+  const nativo = condivisioneNativa();
+  const nome = [cli.rs, s.dest].filter(Boolean).join(' – ') || 'service #' + s.id;
+  return h('button.pill.mini.cass-condividi', {
+    type: 'button',
+    testo: nativo ? 'Condividi…' : 'Copia link',
+    title: nativo ? "Manda il link di questo sito con un'altra app"
+      : "Copia negli appunti l'indirizzo che apre questo sito",
+    style: 'margin-top:8px',
+    onclick: async () => {
+      const esito = await condividiLink(
+        { titolo: nome, testo: 'Mappatura ' + nome, url: linkService(s.id) },
+        { nativo, copia });
+      if (esito === 'copiato') avviso('Link copiato.', { tono: 'ok' });
+      else if (esito === 'non-riuscito') avviso('Non riesco a copiare il link: il browser non me lo permette.', { tono: 'allerta' });
+    },
+  });
+}
+
 function disegna() {
   const s = st.perServ.get(idAperto);
   if (!s || !nodo) return;
@@ -117,7 +140,8 @@ function disegna() {
       h('p', {
         testo: s.dest || '(senza destinazione)',
         style: 'margin:0;color:var(--tenue);font-size:var(--t-mini)'
-      })),
+      }),
+      bottoneCondividi(s, cli)),
     h('div.corpo', {},
       h('dl.dettaglio', {}, [
         ['Service', '#' + s.id], ['Stato', s.stato], ['Tipo', s.tipo],
