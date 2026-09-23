@@ -156,3 +156,49 @@ class Dizionario(ConDB):
         self.imposta(nome="X", descrizione="orig")
         self.imposta(descrizione="   ")
         self.assertEqual(api.dizionario(self.ctx, {}, {})[1]["voci"][0]["descrizione"], "orig")
+
+
+class PinAdmin(ConDB):
+    """SEC-12: con `pin_admin` in config.json l'azione da admin vuole il PIN."""
+
+    def setUp(self):
+        super().setUp()
+        self.cfg["pin_admin"] = "4321"
+        api._PIN_ERRORI.update(n=0, fino=0.0)
+
+    def tearDown(self):
+        api._PIN_ERRORI.update(n=0, fino=0.0)
+        super().tearDown()
+
+    def azzera(self, **extra):
+        return api.azzera_diario(self.ctx, {}, {"operatore": "Capo", **extra})
+
+    def test_senza_pin_configurato_come_prima(self):
+        del self.cfg["pin_admin"]
+        self.assertEqual(self.azzera()[0], 200)
+
+    def test_senza_pin_o_sbagliato_403(self):
+        st, out, _ = self.azzera()
+        self.assertEqual((st, out.get("pin_richiesto")), (403, True))
+        st, out, _ = self.azzera(pin="0000")
+        self.assertEqual((st, out.get("pin_richiesto")), (403, True))
+        self.assertEqual(self.azzera(pin=" 4321 ")[0], 200)
+
+    def test_il_pin_non_fa_admin_chi_non_lo_e(self):
+        st, out, _ = api.azzera_diario(self.ctx, {}, {"operatore": "Anna", "pin": "4321"})
+        self.assertEqual(st, 403)
+        self.assertNotIn("pin_richiesto", out)
+
+    def test_troppi_tentativi_fermano_anche_il_pin_giusto(self):
+        for _ in range(api.PIN_TENTATIVI):
+            self.assertEqual(self.azzera(pin="1111")[0], 403)
+        self.assertEqual(self.azzera(pin="4321")[0], 429)
+        api._PIN_ERRORI["fino"] = time.time() - 1       # passato il minuto
+        self.assertEqual(self.azzera(pin="4321")[0], 200)
+
+    def test_massa_vuole_il_pin(self):
+        body = {"anno": 2026, "operatore": "Capo", "origine": "massa",
+                "celle": [dict(id_service=10, mese=3, campo="stampata", valore=1)]}
+        self.assertEqual(api.bulk(self.ctx, {}, dict(body))[0], 403)
+        self.cliente(); self.servizio()
+        self.assertEqual(api.bulk(self.ctx, {}, dict(body, pin="4321"))[0], 200)

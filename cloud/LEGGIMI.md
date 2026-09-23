@@ -192,6 +192,12 @@ Ogni esecuzione lascia una riga in `data/push_cloud.log`.
 
 Per vedere cosa manderebbe senza mandare niente: `python app/push_cloud.py --prova`.
 
+Poi chiudi le chiavi (SEC-04): `python app/push_cloud.py --cifra` riscrive
+`cloud.json` con le chiavi cifrate dalla DPAPI di Windows, legate a **questo
+utente su questo PC** (lo stesso dell'operazione pianificata del punto 4). In
+chiaro resta solo l'URL. Copiato altrove, il file non si apre. Per cambiare una
+chiave: riscrivi `cloud.json` in chiaro e rilancia `--cifra`.
+
 ## 4. Che giri da solo, ogni giorno
 
 Sul PC dell'ufficio, doppio clic su **`cloud/installa-sync-cloud.cmd`**.

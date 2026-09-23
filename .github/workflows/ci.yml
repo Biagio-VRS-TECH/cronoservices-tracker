@@ -48,6 +48,11 @@ jobs:
           done
           exit $errori
 
+      # COD-04: controllo dei tipi dei moduli con `// @ts-check` in testa (jsconfig.json), senza build.
+      # La versione e' fissata: una TypeScript nuova con regole nuove non deve rompere il CI da sola.
+      - name: Controllo dei tipi (tsc su jsconfig.json)
+        run: npx -y -p typescript@6.0.3 tsc -p jsconfig.json
+
       # SEC-10: un `revoke … on all tables/functions in schema public` nei file di cloud/ toglierebbe
       # i permessi anche a tutto il Planning, che vive sullo stesso database.
       - name: Niente revoke di massa negli script SQL

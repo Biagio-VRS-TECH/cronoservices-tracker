@@ -264,6 +264,9 @@ select.pill {
 .spia { width: 7px; height: 7px; border-radius: var(--r-tonda); background: var(--accento); flex: none; }
 .spia.giu  { background: var(--allerta); }
 .spia.coda { background: var(--marchio); animation: pulsa 1.4s infinite; }
+/* collegati, ma l'anagrafica di Access e' ferma da oltre 26 ore: ambra come
+   "giu'", ma ad anello, perche' la forma dica che la rete invece c'e' */
+.spia.vecchia { background: transparent; box-shadow: inset 0 0 0 2px var(--allerta); }
 @keyframes pulsa { 50% { opacity: .25; } }
 
 /* --------------------------------------------------------- linea di stato -- */
@@ -349,6 +352,9 @@ select.pill {
      avorio, e il velo diventava grigio chiaro). Piatto, senza sfocatura. */
   background: var(--velo-modale);
   display: grid; place-items: center; padding: 20px;
+  /* MOB-17: le finestre stanno dentro le aree sicure (tacca, barra dei gesti) */
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+           max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
   overscroll-behavior: contain;
   animation: sfuma var(--rapido) both;
 }
@@ -493,10 +499,14 @@ code.lan {
   border-left: 1px solid var(--bordo-lieve); box-shadow: var(--ombra-3);
   display: flex; flex-direction: column;
   animation: scorri var(--medio) both;
+  /* MOB-17: a tutta altezza sul telefono installato (viewport-fit=cover) il
+     pannello non finisce sotto la tacca in alto ne' sotto la barra dei gesti */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) 0;
 }
 @keyframes scorri { from { transform: translateX(24px); opacity: 0; } }
 .cassetto header { padding: 20px 22px 15px; border-bottom: 1px solid var(--bordo-lieve);
-  background: var(--superficie); }
+  background: var(--superficie); position: relative; /* la X segue l'area sicura */ }
 
 /* ---- Possibili doppioni (Azioni): coppie di nomi che si somigliano ---- */
 .dop-titolo { margin: 18px 0 8px; font-size: var(--t-mini); font-weight: 600; color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; }
@@ -514,6 +524,31 @@ code.lan {
 button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { color: var(--marchio-scuro); text-decoration: underline; }
 .dop-voce .dato { font-family: var(--f-dato); font-size: var(--t-micro); color: var(--tenue-2); flex: none; }
 .dop-voce span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- Cestino dei PDF (Azioni, SEC-05): un file per riga, Rimetti / Elimina ---- */
+.cestino { margin: 0 0 14px; }
+.cestino:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; border-radius: var(--r-2); }
+.cestino-vuoto { margin: 0; color: var(--tenue); font-size: var(--t-mini); }
+.cestino-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+  max-height: 52vh; overflow: auto; overscroll-behavior: contain; }
+.cestino-riga { display: flex; gap: 12px; align-items: center; padding: 8px 10px;
+  border: 1px solid var(--bordo); border-radius: var(--r-2); background: var(--superficie-2); }
+.cestino-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cestino-nome { font-size: var(--t-mini); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cestino-meta { color: var(--tenue); font-size: var(--t-micro); overflow-wrap: anywhere; }
+.cestino-azioni { display: flex; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+/* l'ambra scurita, come .pill.attesa: quella pura sul bianco non basta al testo */
+.pill.cestino-via { color: color-mix(in srgb, var(--allerta) 82%, var(--inchiostro)); }
+.pill.cestino-via:hover { color: var(--allerta); border-color: var(--allerta); background: var(--allerta-tenue); }
+.cestino-fondo { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.cestino-piede { margin: 0; color: var(--tenue); font-size: var(--t-mini); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .cestino-riga { flex-direction: column; align-items: stretch; }
+  .cestino-azioni { justify-content: flex-start; }
+}
+@media (pointer: coarse) {
+  .cestino-azioni .pill.mini { min-height: 44px; padding-inline: 14px; }
+}
 
 /* ---- Schede tecnici: l'icona del PDF accanto al nome del sito ---------------
    Il chip c'e' solo se il sito ha un PDF quest'anno. Cyan tenue del marchio,

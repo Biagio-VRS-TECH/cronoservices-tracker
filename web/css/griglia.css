@@ -248,19 +248,28 @@
   background: transparent; box-shadow: inset 0 0 0 1.5px var(--bordo-forte);
   transition: var(--transizione);
 }
-.punto-stato.corso    { background: var(--marchio); box-shadow: none; }
-.punto-stato.ritardo  { background: var(--allerta);
+/* Una FORMA per stato, non solo un colore (A11Y-17, chi non distingue ambra
+   da verde): cerchio vuoto = da fare, mezzo cerchio = iniziata, rombo = in
+   ritardo, cerchio pieno = a posto, quadratino vuoto = pre-tracciamento,
+   puntino = non dovuta, trattino = service chiuso. */
+.punto-stato.corso    { background: linear-gradient(90deg, var(--marchio) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px var(--marchio); }
+.punto-stato.ritardo  { background: var(--allerta); border-radius: 1px;
+  transform: rotate(45deg) scale(.9);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--allerta) 20%, transparent); }
 .punto-stato.completa { background: var(--completa);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--completa) 22%, transparent); }
-/* Pre-tracciamento: cerchio appena accennato. Non e' un impegno dell'anno, ma
-   e' lavoro che si puo' recuperare - diverso dal sito che non ha mappatura. */
+/* Pre-tracciamento: quadratino appena accennato. Non e' un impegno dell'anno,
+   ma e' lavoro che si puo' recuperare - diverso dal sito che non ha mappatura. */
 .punto-stato.pretrac {
-  width: 6px; height: 6px; margin: 0 .5px;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bordo-forte) 55%, transparent);
+  width: 6px; height: 6px; margin: 0 .5px; border-radius: 1px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bordo-forte) 70%, transparent);
 }
-.punto-stato.fuori, .punto-stato.chiuso {
+.punto-stato.fuori {
   width: 4px; height: 4px; margin: 0 1.5px; background: var(--bordo-forte); box-shadow: none;
+}
+.punto-stato.chiuso {
+  width: 7px; height: 2px; border-radius: 1px; background: var(--bordo-forte); box-shadow: none;
 }
 
 .col-tot { text-align: right; padding-right: 12px; font-family: var(--f-dato);
@@ -640,7 +649,9 @@
 .selez:focus-visible { outline: 2px solid var(--marchio); outline-offset: 2px; }
 
 .barra-massa {
-  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 75;
+  /* MOB-17: sopra la barra dei gesti, come gli avvisi */
+  position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%;
+  transform: translateX(-50%); z-index: 75;
   display: flex; align-items: center; gap: 10px; padding: 9px 12px;
   background: var(--inchiostro); color: var(--fondo); border-radius: var(--r-tonda);
   box-shadow: var(--ombra-3); font-size: var(--t-mini);
