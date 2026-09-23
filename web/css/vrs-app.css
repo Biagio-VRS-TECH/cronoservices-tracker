@@ -1,0 +1,134 @@
+/* ============================================================================
+   vrs-app.css — il selettore d'app di famiglia e il tema a tre posizioni
+   (VIS-05 / PRD-01, VIS-22, VIS-04)
+   ----------------------------------------------------------------------------
+   IDENTICO nei due repository: planning/web/src/styles/vrs-app.css e
+   cronoservice/web/css/vrs-app.css. Si cambia in uno e si copia nell'altro.
+
+   Usa solo le primitive di vrs-famiglia.css (--vrs-*) e misure in px: le due
+   app hanno radici diverse (15 e 16 px) e il selettore deve essere lo stesso
+   al pixel da una parte e dall'altra.
+
+   · .vrs-app-btn  il marchio in alto, che è anche il pulsante del selettore;
+   · .vrs-app-pop  la finestrella: logo VRS, poi Planning · CronoService ·
+                   Cantieri, con «Sei qui» sull'app in cui si è;
+   · .vrs-seg      il controllo del tema a tre posizioni (Auto · Chiaro ·
+                   Scuro), lo stesso disegno del Planning.
+   ========================================================================== */
+
+.vrs-app-btn {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 0; min-height: 40px; padding: 4px 6px;
+  border: 0; border-radius: 10px;
+  background: transparent; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-app-btn:hover,
+.vrs-app-btn[aria-expanded='true'] { background: var(--vrs-surface-3); }
+.vrs-app-btn:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 2px; }
+.vrs-app-giu {
+  flex: none; color: var(--vrs-muted);
+  transition: transform var(--vrs-t) var(--vrs-ease);
+}
+.vrs-app-btn[aria-expanded='true'] .vrs-app-giu { transform: rotate(180deg); }
+
+.vrs-app-pop {
+  position: fixed; z-index: 90;
+  width: 300px; max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px;
+  background: var(--vrs-surface); color: var(--vrs-text);
+  border: 1px solid var(--vrs-border); border-radius: 14px;
+  box-shadow: var(--vrs-shadow-pop);
+  animation: vrs-app-entra var(--vrs-t) var(--vrs-ease) both;
+}
+/* la variante stretta: il solo controllo del tema, in CronoService */
+.vrs-app-pop.stretta { width: auto; min-width: 248px; }
+@keyframes vrs-app-entra {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* VIS-04: il logo VRS, quello che l'azienda usa (raster), una volta sola e
+   abbastanza grande da leggere «GROUP». Al buio sta su una piastrina chiara:
+   il grigio scuro della parola, sul fondo scuro, si perderebbe. */
+.vrs-app-testa {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 8px 10px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--vrs-border);
+}
+.vrs-app-logo { display: block; height: 36px; width: auto; flex: none; }
+:root[data-theme='dark'] .vrs-app-logo {
+  background: var(--vrs-text); padding: 3px 5px; border-radius: 6px; box-sizing: content-box;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .vrs-app-logo {
+    background: var(--vrs-text); padding: 3px 5px; border-radius: 6px; box-sizing: content-box;
+  }
+}
+.vrs-app-titolo {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--vrs-muted);
+}
+
+.vrs-app-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.vrs-app-voce {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px; padding: 6px 10px; border-radius: 10px;
+  color: var(--vrs-text); text-decoration: none;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-app-voce:hover { background: var(--vrs-surface-3); color: var(--vrs-text); text-decoration: none; }
+.vrs-app-voce:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: -2px; }
+.vrs-app-voce[aria-current='page'] { background: var(--vrs-accent-soft); }
+.vrs-app-ico {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  border-radius: 8px; background: var(--vrs-surface-3); color: var(--vrs-text-2);
+}
+.vrs-app-voce[aria-current='page'] .vrs-app-ico { background: var(--vrs-accent); color: var(--vrs-on-accent); }
+.vrs-app-testi { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.vrs-app-nome { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.vrs-app-nota { font-size: 12px; line-height: 1.3; color: var(--vrs-muted); overflow-wrap: anywhere; }
+.vrs-app-qui {
+  flex: none; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--vrs-accent);
+}
+
+/* ---- Tema a tre posizioni (VIS-22) ---------------------------------------- */
+.vrs-tema { padding: 4px 4px 2px; }
+.vrs-tema-et {
+  display: block; margin-bottom: 6px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--vrs-muted);
+}
+.vrs-seg {
+  display: flex; gap: 2px; padding: 2px;
+  border: 1px solid var(--vrs-border); border-radius: 10px; background: var(--vrs-surface-3);
+}
+.vrs-seg button {
+  flex: 1; min-width: 0; min-height: 32px; padding: 0 10px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; border-radius: 7px; background: transparent; color: var(--vrs-muted);
+  font: inherit; font-size: 13px; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease), color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-seg button:hover { color: var(--vrs-text); }
+.vrs-seg button:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 1px; }
+.vrs-seg button[aria-pressed='true'] {
+  background: var(--vrs-surface); color: var(--vrs-text); font-weight: 600; box-shadow: var(--vrs-shadow-1);
+}
+.vrs-seg svg { flex: none; }
+
+/* Sul tocco: bersagli da 44 px */
+@media (pointer: coarse) {
+  .vrs-app-btn { min-height: 44px; }
+  .vrs-app-voce { min-height: 52px; }
+  .vrs-seg button { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vrs-app-pop { animation: none; }
+  .vrs-app-btn, .vrs-app-giu, .vrs-app-voce, .vrs-seg button { transition: none; }
+}

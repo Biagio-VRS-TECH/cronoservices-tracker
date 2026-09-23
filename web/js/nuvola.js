@@ -151,6 +151,47 @@ export function nomeDaEmail(mail = emailSessione()) {
     .join(' ');
 }
 
+/* ------------------------------------------------ metadati dell'account -- */
+/* VIS-22 (#ANCHOR: famiglia in js/famiglia.js): il tema scelto nel Planning
+   viaggia nei metadati dell'utente (`user_metadata`), che sono anche dentro il
+   token: leggerli da li' non costa nessuna chiamata. Non servono a nessun
+   controllo d'accesso, sono solo preferenze che la persona scrive per se'. */
+
+/** I metadati dentro il token di adesso (null senza sessione o token illeggibile). */
+export function metadatiSessione() {
+  try {
+    const p = ses?.access_token?.split('.')[1];
+    if (!p) return null;
+    const b = atob(p.replace(/-/g, '+').replace(/_/g, '/'));
+    const json = new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0)));
+    return JSON.parse(json).user_metadata || null;
+  } catch { return null; }
+}
+
+/** I metadati freschi dal server: il token puo' averli di prima del rinnovo. */
+export async function metadatiFreschi() {
+  const t = await token();
+  if (!t) return null;
+  const r = await fetch(ORIGINE + '/auth/v1/user', {
+    headers: { apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t },
+  });
+  if (!r.ok) return null;
+  const d = await r.json().catch(() => ({}));
+  return d.user_metadata || null;
+}
+
+/** Aggiunge (o sostituisce) chiavi dei metadati: le altre restano come sono. */
+export async function salvaMetadati(dati) {
+  const t = await token();
+  if (!t) return false;
+  const r = await fetch(ORIGINE + '/auth/v1/user', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t },
+    body: JSON.stringify({ data: dati }),
+  });
+  return r.ok;
+}
+
 /* ------------------------------------------------------------------ RPC -- */
 async function rpc(nome, args, ms = 20000) {
   const t = await token();
