@@ -23,9 +23,12 @@
    = pieno, nessuno = vuoto, qualcuno = trattino ("in parte" risale). Il clic su
    un contenitore vale per tutto quello che ha sotto; verso l'alto non si
    propaga niente a mano, ci pensa `sincronizza`. */
-const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l7 8 7-8"/></svg>';
-export const ICO_CHIUDI_RAMI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/><path d="M4 20h16"/></svg>';
-export const ICO_APRI_RAMI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/><path d="M4 4h16"/></svg>';
+
+import { svgIcona } from './vrs-icone.js';
+/* VIS-12: icone di famiglia (vrs-icone.js). Il lato lo decide il CSS (#tree .tw svg). */
+const CHEV = svgIcona('giu', 12);
+export const ICO_CHIUDI_RAMI = svgIcona('chiudi-rami', 16);
+export const ICO_APRI_RAMI = svgIcona('apri-rami', 16);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export function creaAlbero(el, cfg) {

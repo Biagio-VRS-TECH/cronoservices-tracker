@@ -18,6 +18,7 @@ import { chiama, rete } from './api.js';
 import * as nuvola from './nuvola.js';
 import { st, emetti, mappaDocumenti, mesePerStampa } from './stato.js';
 import { h, esc, quando, avviso } from './ui.js';
+import { svgIcona } from './vrs-icone.js';
 
 /* I due tipi di documento (#ANCHOR: tipi-documento). `et` e' l'etichetta
    corta, `pagina` il generatore che lo produce, `spunta` se la consegna mette
@@ -192,17 +193,10 @@ export function urlGeneratore(s, tipo = 'schede') {
 }
 
 /* ------------------------------------------------------------- icona ----- */
-export const ICO_PDF = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
-  '<path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
-
-/* Il registro dei componenti ha la sua icona: un libretto, non un foglio. */
-export const ICO_REGISTRO = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>' +
-  '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' +
-  '<path d="M9 7h7M9 11h5"/></svg>';
+/* VIS-12: icone di famiglia (vrs-icone.js): il foglio del Planning per le
+   schede, un libretto per il registro dei componenti. */
+export const ICO_PDF = svgIcona('documento', 13);
+export const ICO_REGISTRO = svgIcona('registro', 13);
 export const ICONA_TIPO = { schede: ICO_PDF, registro: ICO_REGISTRO };
 
 /** I chip da mettere accanto al nome del sito: uno per TIPO di documento, e

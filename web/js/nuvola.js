@@ -20,6 +20,7 @@ Tre cose che in locale erano del server e qui non ci sono piu':
 */
 import { URL_SUPABASE, CHIAVE_ANON } from './nuvola-config.js';
 import { dimensione, impostaSegnalatore, umano } from './ui.js';
+import { svgIcona } from './vrs-icone.js';
 
 export const attiva = () => !!(URL_SUPABASE && CHIAVE_ANON);
 
@@ -27,6 +28,9 @@ const K_SES = 'cs.sessione.v1';
 const K_MAIL = 'cs.email';       // solo per riproporre la casella, mai la password
 const emailRicordata = () => localStorage.getItem(K_MAIL) || '';
 const ORIGINE = URL_SUPABASE.replace(/\/+$/, '');
+/* Dove vive la pagina «Nuova password» (il link della mail di «Password
+   dimenticata»): l'account e' lo stesso del Planning. */
+const URL_PLANNING = 'https://vrs-planning.netlify.app';
 
 /* La sessione salvata. Chi la scrive puo' essere anche UN'ALTRA SCHEDA dello
    stesso sito: si rilegge prima di ogni rinnovo (vedi `token`). */
@@ -173,7 +177,7 @@ async function rpc(nome, args, ms = 20000) {
     if (r.status === 401) {
       // 401 = il token non vale piu'. Questa e' l'UNICA ragione per cui si
       // butta la sessione e si torna alla maschera d'accesso.
-      ultimoErrore = 'Sessione scaduta: rientra.';
+      ultimoErrore = 'Sessione scaduta: accedi di nuovo.';
       buttaSessione(t);
       return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
     }
@@ -234,7 +238,7 @@ async function funzione(percorso, corpo, ms = 20000) {
         `La Function ha risposto ${r.status} senza un esito leggibile: riprova fra un momento.` } };
     }
     if (r.status === 401) {
-      ultimoErrore = 'Sessione scaduta: rientra.';
+      ultimoErrore = 'Sessione scaduta: accedi di nuovo.';
       buttaSessione(t);
       return { ok: false, stato: 401, dati: { errore: ultimoErrore } };
     }
@@ -663,7 +667,7 @@ export function apriStream(onEvento, mio = () => '') {
 }
 
 /* -------------------------------------------------------------- accesso -- */
-/** Mostra la maschera di accesso finche' non si entra. Si risolve a sessione
+/** Mostra la pagina d'accesso finche' non si entra. Si risolve a sessione
  *  buona: chi chiama puo' fare finta che il login non esista. */
 export function assicuraSessione() {
   return new Promise(async resolve => {
@@ -676,48 +680,148 @@ export function assicuraSessione() {
       return resolve(ses);
     }
 
-    const velo = document.createElement('div');
-    velo.className = 'velo accesso';
-    velo.innerHTML = `
-      <form class="foglio">
-        <h2>Crono Mappature</h2>
-        <p class="sotto">Entra con la tua casella aziendale. Il nome che firma le
-          spunte è questo: si sa sempre chi ha fatto cosa.</p>
-        <label class="acc-et" for="acc-mail">Casella</label>
-        <input class="campo" id="acc-mail" type="email" autocomplete="username"
-               placeholder="nome.cognome@vrs-tech.it" required>
-        <label class="acc-et" for="acc-pwd">Password</label>
-        <input class="campo" id="acc-pwd" type="password" autocomplete="current-password"
-               required>
-        <p class="acc-errore" role="alert" hidden></p>
-        <button class="bottone acc-invia" type="submit">Entra</button>
-      </form>`;
-    document.body.appendChild(velo);
+    /* VIS-06 / PRD-11 / TXT-09: una PAGINA d'accesso, non una modale sopra
+       l'app (che lasciava gia' vedere «collegato»). Stessa struttura, stesse
+       parole e stesso ordine della pagina del Planning (pages/Login.tsx):
+       marchio con la riga del tempo, «Email», «Password» con l'occhio,
+       «Accedi», «Password dimenticata». Le classi `auth-*` sono le stesse del
+       Planning; lo stile e' in css/base.css (sezione accesso). */
+    const pagina = document.createElement('section');
+    pagina.className = 'auth';
+    pagina.setAttribute('aria-labelledby', 'acc-tit');
+    pagina.innerHTML = `
+      <div class="auth-box">
+        <div class="auth-brand">
+          <div class="auth-name" translate="no">Crono Mappature</div>
+          <div class="auth-sub" translate="no">VRS</div>
+          <div class="auth-rail" aria-hidden="true">
+            <span class="auth-rail-now"></span><span class="auth-rail-label">oggi</span>
+          </div>
+        </div>
+        <div class="auth-card">
+          <h1 class="solo-lettori" id="acc-tit">Accedi a Crono Mappature</h1>
+          <p class="auth-intro">Accedi con le credenziali aziendali. Il nome che firma
+            le spunte è questo: si sa sempre chi ha fatto cosa.</p>
+          <p class="auth-avviso" role="status" hidden></p>
+          <p class="auth-errore" role="alert" hidden></p>
+          <form class="auth-form" novalidate>
+            <div class="auth-campo">
+              <label for="acc-mail">Email</label>
+              <input class="campo" id="acc-mail" type="email" name="email" inputmode="email"
+                     autocapitalize="none" autocorrect="off" spellcheck="false"
+                     enterkeyhint="next" autocomplete="username">
+              <p class="auth-campo-err" id="acc-mail-err" hidden></p>
+            </div>
+            <div class="auth-campo">
+              <label for="acc-pwd">Password</label>
+              <div class="auth-pw">
+                <input class="campo" id="acc-pwd" type="password" name="password"
+                       enterkeyhint="go" autocomplete="current-password">
+                <button type="button" class="auth-eye" aria-pressed="false" aria-controls="acc-pwd"
+                        aria-label="Mostra la password" title="Mostra la password">${svgIcona('occhio', 18)}</button>
+              </div>
+              <p class="auth-campo-err" id="acc-pwd-err" hidden></p>
+            </div>
+            <button class="bottone auth-invia" type="submit">Accedi</button>
+          </form>
+          <div class="auth-links">
+            <button type="button" class="auth-link" data-dimenticata>Password dimenticata</button>
+          </div>
+        </div>
+      </div>`;
+    /* L'app sotto non si raggiunge ne' con il Tab ne' con il lettore di
+       schermo finche' non si e' entrati. */
+    const sotto = [...document.body.children].filter(n => !n.inert);
+    for (const n of sotto) n.inert = true;
+    document.body.appendChild(pagina);
 
-    const form = velo.querySelector('form');
-    const err = velo.querySelector('.acc-errore');
-    const bot = velo.querySelector('.acc-invia');
-    const mail = velo.querySelector('#acc-mail');
+    const $ = s => pagina.querySelector(s);
+    const form = $('form'), bot = $('.auth-invia'), mail = $('#acc-mail'), pwd = $('#acc-pwd');
+    const occhio = $('.auth-eye'), dimenticata = $('[data-dimenticata]');
+    const avv = $('.auth-avviso'), err = $('.auth-errore');
+    const mostra = (n, testo) => { n.textContent = testo || ''; n.hidden = !testo; };
+
+    /* Errore sotto il campo, come nel Planning: il campo lo annuncia e il
+       fuoco ci va (AGENTS.md: modulo inviabile incompleto, errori in linea). */
+    const erroreCampo = (campo, testo) => {
+      const p = $('#' + campo.id + '-err');
+      mostra(p, testo);
+      if (testo) { campo.setAttribute('aria-invalid', 'true'); campo.setAttribute('aria-describedby', p.id); }
+      else { campo.removeAttribute('aria-invalid'); campo.removeAttribute('aria-describedby'); }
+    };
+    const valida = (conPassword = true) => {
+      const m = mail.value.trim();
+      const eM = !m ? 'Scrivi la tua email aziendale.'
+        : !/^\S+@\S+\.\S+$/.test(m) ? 'L’indirizzo non sembra un’email: controlla la chiocciola e il dominio.' : '';
+      const eP = conPassword && !pwd.value ? 'Scrivi la password.' : '';
+      erroreCampo(mail, eM);
+      erroreCampo(pwd, eP);
+      const primo = eM ? mail : eP ? pwd : null;
+      primo?.focus();
+      return !primo;
+    };
+    /* In attesa: la rotella accanto all'etichetta, che resta «Accedi» (AGENTS.md) */
+    const attesa = si => {
+      bot.disabled = si; dimenticata.disabled = si;
+      if (si) bot.dataset.loading = ''; else delete bot.dataset.loading;
+      bot.setAttribute('aria-busy', String(si));
+    };
+
     if (ses?.email || emailRicordata()) mail.value = ses?.email || emailRicordata();
-    if (ultimoErrore) { err.textContent = ultimoErrore; err.hidden = false; }
-    (mail.value ? velo.querySelector('#acc-pwd') : mail).focus();
+    if (ultimoErrore) mostra(avv, ultimoErrore);
+    (mail.value ? pwd : mail).focus();
+
+    occhio.addEventListener('click', () => {
+      const chiaro = pwd.type === 'password';
+      pwd.type = chiaro ? 'text' : 'password';
+      const et = chiaro ? 'Nascondi la password' : 'Mostra la password';
+      occhio.setAttribute('aria-pressed', String(chiaro));
+      occhio.setAttribute('aria-label', et);
+      occhio.title = et;
+    });
+
+    // Password dimenticata: la mail la manda Supabase; il link apre la pagina
+    // «Nuova password» del Planning, perche' l'account e' lo stesso.
+    dimenticata.addEventListener('click', async () => {
+      mostra(err, ''); mostra(avv, '');
+      if (!mail.value.trim()) {
+        erroreCampo(mail, 'Scrivi qui la tua email, poi premi di nuovo «Password dimenticata».');
+        erroreCampo(pwd, '');
+        mail.focus();
+        return;
+      }
+      if (!valida(false)) return;
+      attesa(true);
+      try {
+        await auth('recover?redirect_to=' + encodeURIComponent(URL_PLANNING + '/reimposta-password'),
+          { email: mail.value.trim() });
+        mostra(avv, `Se l’indirizzo ${mail.value.trim()} è registrato riceverai una mail con il link per ` +
+          'scegliere una nuova password (si apre nel Planning: la password è la stessa). ' +
+          'Controlla anche la posta indesiderata.');
+      } catch (ex) {
+        mostra(err, umano(String(ex.message || ex)).testo);
+      } finally {
+        attesa(false);
+      }
+    });
 
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      err.hidden = true;
-      bot.disabled = true;
-      bot.textContent = 'Un attimo…';
+      mostra(err, '');
+      if (!valida()) return;
+      mostra(avv, '');
+      attesa(true);
       try {
-        await entra(mail.value.trim(), velo.querySelector('#acc-pwd').value);
+        await entra(mail.value.trim(), pwd.value);
         localStorage.setItem(K_MAIL, mail.value.trim());
         ultimoErrore = '';
-        velo.remove();
+        pagina.remove();
+        for (const n of sotto) n.inert = false;
         resolve(ses);
       } catch (ex) {
-        err.textContent = umano(String(ex.message || ex)).testo;
-        err.hidden = false;
-        bot.disabled = false;
-        bot.textContent = 'Entra';
+        mostra(err, umano(String(ex.message || ex)).testo);
+        attesa(false);
+        pwd.focus();
       }
     });
   });

@@ -218,7 +218,7 @@
 #tree .out>.nm .cnt{opacity:.55}
 #tree .tw{flex:0 0 auto;width:15px;height:15px;padding:0;border:0;background:none;color:var(--ui-tx3);
   cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--ease),color .13s}
-#tree .tw svg{width:9px;height:9px;display:block}
+#tree .tw svg{width:12px;height:12px;display:block} /* VIS-12: tratto 1.75 di famiglia, a 9px spariva */
 #tree .tw.closed{transform:rotate(-90deg)}
 #tree .tw:hover{color:var(--acc)}
 #treebar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
