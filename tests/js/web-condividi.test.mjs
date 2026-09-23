@@ -63,3 +63,18 @@ test('ne foglio ne appunti: non-riuscito, senza eccezioni', async () => {
   assert.equal(await condividiLink(dati, { nav: { clipboard: { writeText: async () => { throw new Error('no'); } } } }), 'non-riuscito');
   assert.equal(await condividiLink(dati, { nav: { clipboard: { writeText: async () => {} } } }), 'copiato');
 });
+
+test('una copia che LANCIA (appunti negati dal browser) e\' non-riuscito, non un errore non gestito', async () => {
+  const copia = async () => { throw new Error('Document is not focused'); };
+  assert.equal(await condividiLink(dati, { nav: {}, copia }), 'non-riuscito');
+  const copiaSincrona = () => { throw new Error('no'); };
+  assert.equal(await condividiLink(dati, { nav: {}, copia: copiaSincrona }), 'non-riuscito');
+  // anche dopo un foglio del sistema che ha rifiutato
+  const rifiuta = { share: async () => { throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } };
+  assert.equal(await condividiLink(dati, { nav: rifiuta, copia }), 'non-riuscito');
+});
+
+test('linkService: l\'id va nell\'indirizzo codificato, e un indirizzo vuoto resta relativo', () => {
+  assert.equal(linkService('a&b', 'https://x.it'), 'https://x.it/?service=a%26b');
+  assert.equal(linkService(5, ''), '/?service=5');
+});

@@ -147,8 +147,11 @@ class Esegui(ConDB):
         self.assertTrue(tenuti[-1].endswith("20260923T100004.db"))
 
     def test_backup_senza_archivio(self):
+        # si copia l'archivio IN USO (db.init), non quello di config.json:
+        # "senza archivio" vuol dire che manca quello
         cfg = dict(self.cfgs, sqlite_path="non-esiste.db")
-        self.assertIsNone(sync.backup(cfg, self.dir))
+        with mock.patch.object(db, "_DB_PATH", os.path.join(self.dir, "non-esiste.db")):
+            self.assertIsNone(sync.backup(cfg, self.dir))
 
 
 class Estrai(ConDB):

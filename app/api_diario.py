@@ -1,6 +1,7 @@
 """Letture e diario (COD-07, da app/api.py): storia della cella, attivita',
 azzeramento del diario e controlli di qualita' sul dato Access.
 """
+import re
 import db
 from api_comune import _anno
 from api_permessi import _solo_admin
@@ -8,11 +9,17 @@ from api_permessi import _solo_admin
 
 # ------------------------------------------------------------- letture ------
 def storia(ctx, q, body):
+    # solo cifre ASCII e al piu' 18: un id oltre i 64 bit passava int() e
+    # SQLite alzava OverflowError, che il server non traduce in 400 (500)
+    chiave = tuple(int(v) for v in (str(q.get(k) or "").strip()
+                                    for k in ("id_service", "anno", "mese"))
+                   if re.fullmatch(r"-?[0-9]{1,18}", v))
+    if len(chiave) != 3:
+        return 400, {"errore": "servono id_service, anno e mese numerici"}, None
     with db.sess() as c:
         rows = c.execute("""SELECT ts,operatore,campo,da,a,origine,op_id FROM eventi
                             WHERE id_service=? AND anno=? AND mese=?
-                            ORDER BY id DESC LIMIT 50""",
-                         (int(q["id_service"]), int(q["anno"]), int(q["mese"]))).fetchall()
+                            ORDER BY id DESC LIMIT 50""", chiave).fetchall()
     return 200, {"storia": [dict(r) for r in rows]}, None
 
 

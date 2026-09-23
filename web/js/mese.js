@@ -15,7 +15,7 @@ import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito, toccaPasso, emetti,
   fatto, proposto, notaProposta, aggiornaTitolo,
-  filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
+  filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu, responsabiliAttivi, possoApprovare,
   CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
 import { apriCassetto } from './cassetto.js';
@@ -152,7 +152,9 @@ function htmlCorpo(righe) {
    lavoro (il bottone ha `data-mese`: lo gestisce il clic di `collega`). */
 function htmlVuoto() {
   const f = /** @type {any} */ (st.filtri || {});
-  if (f.q || f.prov || f.stato) {
+  // anche il responsabile («Le mie»): senza, il mese vuoto per colpa sua
+  // diceva «nessun sito aperto ha questo mese»
+  if (f.q || f.prov || f.stato || (f.resp && responsabiliAttivi())) {
     return `<div class="vuoto"><b>Nessuna mappatura con questi filtri</b>
       In ${esc(st.mesiNome[st.mese - 1])} nessun sito corrisponde alla ricerca o ai
       filtri in alto: toglili per vedere tutto il mese.</div>`;
@@ -449,6 +451,25 @@ function alternaSelezione(id, nodo) {
 }
 
 /* ------------------------------------------------------ azioni multiple -- */
+/** Le spunte che la barra delle azioni multiple manda per `ids` nel mese:
+ *  solo i passi che mancano davvero. Non quelli fatti, non gli ereditati da
+ *  una visita prima, e per l'operatore non le proposte gia' in attesa: prima
+ *  finivano nel conto ("12 spunte inviate") pur non cambiando niente, perche'
+ *  rimandare una proposta la lascia proposta. Chi approva invece le approva. */
+export function vociSelezione(ids, mese, campi) {
+  const voci = [];
+  const approva = possoApprovare();
+  for (const id of ids || []) {
+    const e = statoCella(id, mese);
+    for (const campo of campi) {
+      if (fatto(e.c, campo) || e.ered[campo]) continue;
+      if (!approva && proposto(e.c, campo)) continue;
+      voci.push({ id, mese, campo, valore: 1 });
+    }
+  }
+  return voci;
+}
+
 let barra = null;
 function barraMassa() {
   barra?.remove(); barra = null;
@@ -468,17 +489,11 @@ function barraMassa() {
       radice.querySelectorAll('.selez.scelto').forEach(b => b.classList.remove('scelto'));
       return barraMassa();
     }
-    const campi = az === 'tutte' ? CAMPI : [az];
-    const voci = [];
-    for (const id of st.selezione) {
-      const e = statoCella(id, st.mese);
-      for (const campo of campi) {
-        if (!fatto(e.c, campo) && !e.ered[campo]) voci.push({ id, mese: st.mese, campo, valore: 1 });
-      }
-    }
+    const voci = vociSelezione([...st.selezione], st.mese, az === 'tutte' ? CAMPI : [az]);
     if (!voci.length) return avviso('Erano già tutte spuntate.');
-    spuntaMolte(voci);
-    avviso(`${voci.length} spunte inviate.`, { tono: 'ok' });
+    // il conto e' quello davvero partito, non quello chiesto
+    const n = spuntaMolte(voci);
+    avviso(`${n} ${n === 1 ? 'spunta inviata' : 'spunte inviate'}.`, { tono: 'ok' });
     st.selezione.clear();
     barraMassa();
     disegna(radice);

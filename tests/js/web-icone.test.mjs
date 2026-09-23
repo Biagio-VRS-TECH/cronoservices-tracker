@@ -34,3 +34,20 @@ test('svgIcona: titolo come nome accessibile, nome sconosciuto = errore', () => 
   assert.ok(s.includes('<title>Mostra &lt;la&gt; password</title>'));
   assert.throws(() => svgIcona('nessuna'));
 });
+
+test('ogni icona chiamata per nome nelle pagine esiste (un nome sbagliato ferma il modulo al caricamento)', async () => {
+  const { readFileSync, readdirSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const WEB = fileURLToPath(new URL('../../web/', import.meta.url));
+  const tutti = d => readdirSync(d).flatMap(n => {
+    const p = join(d, n);
+    return statSync(p).isDirectory() ? (n === 'lib' ? [] : tutti(p)) : (p.endsWith('.js') ? [p] : []);
+  });
+  const usati = new Set();
+  for (const f of tutti(WEB)) {
+    for (const [, nome] of readFileSync(f, 'utf8').matchAll(/svgIcona\(\s*['"]([\w-]+)['"]/g)) usati.add(nome);
+  }
+  assert.ok(usati.size >= 5);
+  for (const nome of usati) assert.ok(Object.hasOwn(PERCORSI, nome), nome);
+});

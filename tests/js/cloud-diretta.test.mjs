@@ -222,3 +222,102 @@ test('chiudere ferma tutto: nessun riaggancio dopo', async () => {
     mock.timers.reset();
   }
 });
+
+/* 12-debug-2026-09: chiudere MENTRE il token si rinnova. `apri` aspettava il
+   token e poi apriva il WebSocket senza guardare se nel frattempo la diretta
+   era stata chiusa (cambio d'anno, uscita): un socket in piu', mai chiuso, che
+   mandava le celle due volte. */
+test('chiudere durante il rinnovo del token: nessun WebSocket si apre dopo', async () => {
+  let lascia;
+  const { m } = await prepara({
+    sessione: buona({ scade: Date.now() - 1000 }),
+    rispondi: url => url.includes('grant_type=refresh_token')
+      ? new Promise(r => { lascia = () => r(json(200, { access_token: 'nuovo', refresh_token: 'rt2', expires_in: 3600 })); })
+      : json(200, {}) });
+  const chiudi = m.apriStream(() => { });
+  await svuota();
+  assert.ok(lascia, 'il rinnovo e\' partito');
+  chiudi();
+  lascia();
+  await svuota(); await svuota();
+  assert.equal(WSFinto.tutti.length, 0);
+});
+
+/* Iscrizione rifiutata (token scaduto o revocato mentre si era collegati, canale
+   chiuso dal server): prima il messaggio si ignorava e il socket restava aperto
+   ma muto - nessuna cella in diretta, nessuna sonda, fino al ricarico. */
+for (const [caso, msg] of [
+  ['phx_reply con errore', { event: 'phx_reply', topic: 'realtime:crono', ref: '1',
+                             payload: { status: 'error', response: { reason: 'Token has expired' } } }],
+  ['phx_error', { event: 'phx_error', topic: 'realtime:crono', ref: '1', payload: {} }],
+  ['phx_close', { event: 'phx_close', topic: 'realtime:crono', ref: '1', payload: {} }],
+  ['system con errore', { event: 'system', topic: 'realtime:crono', ref: null,
+                          payload: { status: 'error', message: 'Token has expired 3 seconds ago' } }],
+]) {
+  test(`canale rifiutato (${caso}): si chiude e si riaggancia col token di adesso`, async () => {
+    mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+    try {
+      const { m } = await prepara({ sessione: buona(), rispondi: () => json(200, {}) });
+      const chiudi = m.apriStream(() => { });
+      await svuota();
+      const ws0 = WSFinto.tutti[0];
+      ws0.apriti();
+      ws0.ricevi(msg);
+      assert.equal(ws0.readyState, 3, 'il socket muto va chiuso');
+      mock.timers.tick(2000);
+      await svuota();
+      assert.equal(WSFinto.tutti.length, 2, 'si riaggancia');
+      chiudi();
+    } finally {
+      mock.timers.reset();
+    }
+  });
+}
+
+test('iscrizione rifiutata quattro volte di fila: si ripiega sulla sonda', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  try {
+    const { m, chiamate } = await prepara({ sessione: buona(), rispondi: url =>
+      url.includes('app_celle_dopo') ? json(200, { http: 200, celle: [] }) : json(200, {}) });
+    const chiudi = m.apriStream(() => { });
+    await svuota();
+    for (let i = 0; i < 4; i++) {
+      const ws = WSFinto.tutti.at(-1);
+      ws.apriti();                                 // il socket si apre...
+      ws.ricevi({ event: 'phx_reply', topic: 'realtime:crono', ref: '1',
+                  payload: { status: 'error', response: { reason: 'Unauthorized' } } });   // ...il canale no
+      mock.timers.tick(20000);
+      await svuota();
+    }
+    assert.equal(WSFinto.tutti.length, 5, 'ogni rifiuto chiude e riaggancia');
+    const sonde = () => chiamate.filter(c => c.url.includes('app_celle_dopo')).length;
+    const prima = sonde();
+    mock.timers.tick(15000);
+    await svuota(); await svuota();
+    assert.equal(sonde(), prima + 1, 'la sonda non e\' partita');
+    chiudi();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('un\'iscrizione confermata azzera i tentativi: la caduta dopo riaggancia in 2 s', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  try {
+    const { m } = await prepara({ sessione: buona(), rispondi: () => json(200, {}) });
+    const chiudi = m.apriStream(() => { });
+    await svuota();
+    for (let i = 0; i < 3; i++) { WSFinto.tutti.at(-1).close(); mock.timers.tick(20000); await svuota(); }
+    const ws = WSFinto.tutti.at(-1);
+    ws.apriti();
+    ws.ricevi({ event: 'phx_reply', topic: 'realtime:crono', ref: '1', payload: { status: 'ok' } });
+    const prima = WSFinto.tutti.length;
+    ws.close();
+    mock.timers.tick(2000);
+    await svuota();
+    assert.equal(WSFinto.tutti.length, prima + 1);
+    chiudi();
+  } finally {
+    mock.timers.reset();
+  }
+});

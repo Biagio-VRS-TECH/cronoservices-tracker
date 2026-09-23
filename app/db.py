@@ -266,11 +266,25 @@ RUOLI = ("admin", "approvatore", "tecnico")
 APPROVANO = ("admin", "approvatore")
 
 
+def _amministratori(cfg):
+    """I nomi di config.json["amministratori"], ripuliti. Una stringa al posto
+    della lista ("amministratori": "Capo") non va letta lettera per lettera:
+    `nome in "Capo"` e' un confronto fra sottostringhe e faceva admin "C" o
+    "apo". Un null non deve far cadere ogni richiesta con un TypeError."""
+    v = (cfg or {}).get("amministratori") or []
+    if isinstance(v, str):
+        v = [v]
+    if not isinstance(v, (list, tuple)):
+        return []
+    return [n.strip() for n in v if isinstance(n, str) and n.strip()]
+
+
 def ruolo_di(c, nome, cfg=None):
-    nome = (nome or "").strip()
+    # un numero o una lista dal corpo JSON non e' un nome (prima: AttributeError)
+    nome = nome.strip() if isinstance(nome, str) else ""
     if not nome:
         return "tecnico"
-    if nome in (cfg or {}).get("amministratori", []):
+    if nome in _amministratori(cfg):
         return "admin"
     r = c.execute("SELECT ruolo FROM operatori WHERE nome=?", (nome,)).fetchone()
     return r["ruolo"] if r and r["ruolo"] in RUOLI else "tecnico"
@@ -288,6 +302,6 @@ def ruoli(c, cfg=None):
     """{nome: ruolo} per tutti gli operatori conosciuti, seme compreso."""
     out = {r["nome"]: (r["ruolo"] if r["ruolo"] in RUOLI else "tecnico")
            for r in c.execute("SELECT nome, ruolo FROM operatori")}
-    for n in (cfg or {}).get("amministratori", []):
+    for n in _amministratori(cfg):
         out[n] = "admin"
     return out

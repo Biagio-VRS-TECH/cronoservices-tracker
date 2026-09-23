@@ -689,3 +689,40 @@ export function testoAnomalie(reg) {
   }
   return r.join('\n') + '\n';
 }
+
+/* -------------------------------------------- dizionario, lato interfaccia */
+/* Non e' del porting Python: e' la regola della casella della scheda «Nomi dei
+   componenti» (app.js, salvaCampo), tirata fuori perche' si possa provare
+   senza DOM (tests/js/web-dizionario.test.mjs). */
+export const PRIORITA_MAX = 10;
+
+/** Cosa fare quando si esce da una casella del dizionario.
+ *    campo        'nome' | 'priorita'
+ *    valore       quello che c'e' scritto adesso
+ *    precedente   quello che c'era (l'ultimo salvato)
+ *    trascritta   la descrizione e' stata copiata dal clic su casella vuota
+ *    descrizione  la descrizione del gestionale
+ *  Ritorna {azione: 'niente'} | {azione: 'ripristina'} (trascritta e non
+ *  toccata: si torna com'era, senza salvare) | {azione: 'errore', testo} |
+ *  {azione: 'salva', valore} con il valore PULITO da spedire: l'ordine come
+ *  intero scritto per bene, perche' la casella numerica lascia passare «3.0» e
+ *  «1e1» e il server locale fa int() della stringa (400 dopo il nostro si'). */
+export function valutaCampoDizionario({ campo, valore, precedente = '', trascritta = false, descrizione = '' }) {
+  const v = String(valore ?? '').trim(), prima = String(precedente ?? '').trim();
+  if (campo === 'nome') {
+    if (trascritta && v === String(descrizione ?? '').trim()) return { azione: 'ripristina' };
+    return v === prima ? { azione: 'niente' } : { azione: 'salva', valore: v };
+  }
+  if (campo !== 'priorita') return { azione: 'niente' };
+  let pulito = '';
+  if (v !== '') {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 1 || n > PRIORITA_MAX) {
+      return { azione: 'errore',
+        testo: `L\u2019ordine nel quadro deve essere un numero intero da 1 a ${PRIORITA_MAX}, oppure vuoto.` };
+    }
+    pulito = String(n);
+  }
+  const primaPulito = prima === '' || !Number.isFinite(Number(prima)) ? prima : String(Number(prima));
+  return pulito === primaPulito ? { azione: 'niente' } : { azione: 'salva', valore: pulito };
+}

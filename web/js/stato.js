@@ -224,6 +224,10 @@ export function applica(d) {
   st.cellePrec = new Map(Object.entries(d.celle_prec || {}));
   st.documenti = mappaDocumenti(d.documenti);
   applicaResponsabili(d);
+  /* I passi "in volo" sono quelli della coda PER QUEST'ANNO: si rifanno da li'.
+     Tenere quelli di prima voleva dire, cambiando anno, lasciare in attesa la
+     stessa cella id-mese dell'anno nuovo (e farle ignorare il server). */
+  st.sospese.clear();
   riapplicaCoda();
 
   /* Un sync o un cambio d'anno rifanno i mesi e le date: le memoizzazioni
@@ -250,7 +254,12 @@ export function applica(d) {
 }
 
 /** Le scritture ancora in coda vanno riproiettate sui dati appena arrivati,
- *  altrimenti un cambio anno o un sync le farebbe sparire dallo schermo. */
+ *  altrimenti un cambio anno o un sync le farebbe sparire dallo schermo.
+ *  E tornano "in volo" (`st.sospese`): dopo un ricarico della pagina con la
+ *  coda piena la memoria e' vuota, e senza questo la cella non si vedeva in
+ *  attesa e la prima eco di un collega su un altro passo cancellava a schermo
+ *  la spunta ancora da spedire. Vale anche per la nota in coda, che prima non
+ *  si riproiettava affatto. */
 function riapplicaCoda() {
   for (const op of rete.coda) {
     const c = op.corpo || {};
@@ -258,10 +267,15 @@ function riapplicaCoda() {
     if (c.campo && c.id_service) {
       const { v } = effettivo(c.campo, cella(c.id_service, c.mese)[SIGLA[c.campo]], c.valore);
       scriviLocale(c.id_service, c.mese, { [SIGLA[c.campo]]: v });
+      st.sospese.add(`${c.id_service}-${c.mese}-${c.campo}`);
+    } else if (c.id_service && typeof c.nota === 'string') {
+      scriviLocale(c.id_service, c.mese, { nota: c.nota });
+      st.sospese.add(`${c.id_service}-${c.mese}-nota`);
     }
     for (const x of c.celle || []) {
       const { v } = effettivo(x.campo, cella(x.id_service, x.mese)[SIGLA[x.campo]], x.valore);
       scriviLocale(x.id_service, x.mese, { [SIGLA[x.campo]]: v });
+      st.sospese.add(`${x.id_service}-${x.mese}-${x.campo}`);
     }
   }
 }
@@ -629,7 +643,10 @@ function passa(s, cli, q, ignoraStato) {
       s.id + ' ' + s.nc + ' ' + s.tipo + ' ' + nomeResponsabile(responsabileDi(s.id))).toLowerCase();
     if (!q.every(t => terminePassa(t, fieno))) return false;   // tollera le grafie (#ANCHOR: affinita)
   }
-  if (f.stato && !ignoraStato && s.stato === 'APERTO' && !statoPassa(s, f.stato)) return false;
+  /* Un sito chiuso non e' mai "da fare", "in ritardo" o "completo": con
+     "Mostra chiusi" acceso passava lo stesso ogni filtro di stato, e il bottone
+     diceva 1 mentre a schermo ce n'erano 7 (`contaStato` i chiusi non li conta). */
+  if (f.stato && !ignoraStato && (s.stato !== 'APERTO' || !statoPassa(s, f.stato))) return false;
   return true;
 }
 
@@ -878,9 +895,48 @@ function cellaDalServer(id, mese, valore) {
     for (const campo of CAMPI) {
       if (st.sospese.has(`${id}-${mese}-${campo}`)) v[SIGLA[campo]] = loc[SIGLA[campo]];
     }
+    // lo stesso per la nota in coda: l'eco di un passo del collega la portava via
+    if (st.sospese.has(`${id}-${mese}-nota`)) v.nota = loc.nota;
   }
   st.celle.set(chiave(id, mese), v);
   tocca(id);
+}
+
+/** Le chiavi "id-mese-campo" che le operazioni ANCORA in coda portano in volo.
+ *  Quando un'operazione finisce (conferma, rifiuto, conflitto) la sua e' gia'
+ *  uscita dalla coda: se un'altra sullo stesso passo e' ancora li' - il doppio
+ *  clic, o due clic con la rete lenta - il passo resta in volo, altrimenti la
+ *  risposta della prima riportava a schermo il valore che la seconda sta
+ *  cambiando (e ci restava, se la rete cadeva in mezzo). */
+function sospeseInCoda(finita) {
+  const out = new Set();
+  for (const op of rete.coda) {
+    if (finita && op.op_id === finita.op_id) continue;   // la sua, se chi chiama non l'ha ancora tolta
+    for (const k of sospeseDi(op)) out.add(k);
+  }
+  return out;
+}
+function liberaSospese(chiavi, ancora = sospeseInCoda()) {
+  for (const k of chiavi) if (!ancora.has(k)) st.sospese.delete(k);
+}
+
+/** Una cella tornata dal server per una NOSTRA operazione. L'operazione porta
+ *  il suo anno (`corpo.anno`), e l'anno a schermo puo' essere cambiato mentre
+ *  era in coda: la risposta del 2026 arrivata guardando il 2027 finiva nelle
+ *  celle del 2027. Se e' l'anno prima aggiorna i passi ereditati, se e' un
+ *  altro anno non tocca niente. `vecchia` scarta le risposte superate. */
+function dalServerPer(anno, id, mese, valore, vecchia) {
+  if (anno != null && anno !== st.anno) {
+    if (anno === st.anno - 1 && valore) {
+      st.cellePrec.set(chiave(id, mese), valore);
+      tocca(id);
+      return true;
+    }
+    return false;
+  }
+  if (vecchia && vecchia(id, mese, valore)) return false;
+  cellaDalServer(id, mese, valore);
+  return true;
 }
 
 /** L'ECO DELLE NOSTRE SCRITTURE (#ANCHOR: eco-vecchia). Un aggiornamento che
@@ -1092,7 +1148,14 @@ export function spuntaMolte(voci, etichetta, origine) {
     avviso(`${vietate} ${vietate === 1 ? 'spunta approvata lasciata' : 'spunte approvate lasciate'} ` +
       'com\u2019era: le toglie solo l\u2019amministratore.', { tono: 'allerta' });
   }
-  if (!celle.length) return 0;
+  /* Un'azione con etichetta che non cambia niente (le voci calcolate prima di
+     una spunta del collega) e' comunque l'ULTIMA azione: chi mostra l'Annulla
+     si prende `st.ultimaAzione` subito dopo, e prima ci trovava quella
+     precedente - l'Annulla di "0 spunte messe" disfaceva un'altra cosa. */
+  if (!celle.length) {
+    if (etichetta) st.ultimaAzione = { et: etichetta, inverse: [] };
+    return 0;
+  }
   if (etichetta) st.ultimaAzione = { et: etichetta, inverse };
   emetti('rilegge');
   /* A blocchi: una richiesta con migliaia di voci sarebbe un unico punto di
@@ -1232,24 +1295,29 @@ export async function salvaNota(id, mese, testo, base) {
   const ora = cella(id, mese);
   const prima = base || { rev: ora.rev, nota: ora.nota };
   if ((ora.nota || '') === testo) return;
+  // in volo come i passi: l'eco di un collega non la toglie dallo schermo
+  const sosp = `${id}-${mese}-nota`;
+  st.sospese.add(sosp);
   scriviLocale(id, mese, { nota: testo });
   emetti('cella', { id, mese });
   accoda({
     rotta: '/api/nota',
     corpo: { id_service: id, anno: st.anno, mese, nota: testo,
              base_rev: prima.rev || null, base_nota: prima.nota || '' },
-    meta: { id, mese, campo: 'nota' },
+    meta: { id, mese, campo: 'nota', sosp },
   });
 }
 
 /* --------------------------------------------- ritorni dal server / SSE -- */
 export function esitoConferma(op, risposta) {
-  if (op.meta?.sosp) st.sospese.delete(op.meta.sosp);
+  const ancora = sospeseInCoda(op);
+  const anno = op?.corpo?.anno;
+  if (op.meta?.sosp) liberaSospese([op.meta.sosp], ancora);
   if (risposta?.cella && risposta.id_service) {
-    if (!rispostaVecchia(risposta.id_service, risposta.mese, risposta.cella)) {
-      cellaDalServer(risposta.id_service, risposta.mese, risposta.cella);
+    const qui = anno == null || anno === st.anno;
+    if (dalServerPer(anno, risposta.id_service, risposta.mese, risposta.cella, rispostaVecchia) || qui) {
+      emetti('cella', { id: risposta.id_service, mese: qui ? risposta.mese : 0 });
     }
-    emetti('cella', { id: risposta.id_service, mese: risposta.mese });
   }
   if (Array.isArray(risposta?.esiti)) {
     /* Una stessa cella torna anche QUATTRO volte nello stesso blocco - una per
@@ -1258,18 +1326,23 @@ export function esitoConferma(op, risposta) {
        confronta lo stato PRIMA con quello DOPO tutto il blocco, non un esito
        per volta. */
     const prima = new Map();
+    let altroAnno = 0;
     for (const e of risposta.esiti) {
       /* prima si libera il passo, poi si applica: l'esito e' autorevole proprio
          per il SUO passo, mentre quelli della stessa cella ancora da leggere
          restano in volo (un esito per passo, in ordine di revisione) */
-      st.sospese.delete(`${e.id_service}-${e.mese}-${e.campo}`);
+      liberaSospese([`${e.id_service}-${e.mese}-${e.campo}`], ancora);
       if (e.cella && e.id_service) {
+        if (anno != null && anno !== st.anno) {
+          if (dalServerPer(anno, e.id_service, e.mese, e.cella)) altroAnno++;
+          continue;
+        }
         const k = chiave(e.id_service, e.mese);
         if (!prima.has(k)) prima.set(k, { id: e.id_service, mese: e.mese, c: cella(e.id_service, e.mese) });
-        if (!rispostaVecchia(e.id_service, e.mese, e.cella)) cellaDalServer(e.id_service, e.mese, e.cella);
+        dalServerPer(anno, e.id_service, e.mese, e.cella, rispostaVecchia);
       }
     }
-    let cambiate = 0;
+    let cambiate = altroAnno;
     for (const p of prima.values()) if (cambiaAVista(p.c, cella(p.id, p.mese))) cambiate++;
     /* "Completa tutte" e "Azzera tutte" partono a blocchi da 250 (`spuntaMolte`):
        una `rilegge` per ogni blocco voleva dire dieci o venti ridisegni di
@@ -1281,6 +1354,11 @@ export function esitoConferma(op, risposta) {
        qualcosa di diverso (un merge, una proposta, una nota). */
     if (cambiate) emetti('rilegge');
   }
+  /* L'operazione e' finita: le sue voci non sono piu' in volo, anche quelle
+     di cui la risposta non dice niente. Un blocco spedito da un'altra scheda
+     torna con una risposta vuota (api.js, evento `storage`): senza questa riga
+     le sue 250 voci restavano "sospese" per sempre e ignoravano il server. */
+  liberaSospese(sospeseDi(op), ancora);
 }
 
 /** L'operazione e' stata rifiutata dal server (errore applicativo, non un
@@ -1290,32 +1368,53 @@ export function esitoConferma(op, risposta) {
  *  del server. */
 export function esitoFallita(op, server) {
   /* anche le voci di un blocco rifiutato in blocco (il 403 di "Completa tutte"
-     per chi non e' admin): altrimenti restavano in volo per sempre */
-  for (const k of sospeseDi(op)) st.sospese.delete(k);
+     per chi non e' admin): altrimenti restavano in volo per sempre. Non quelle
+     che un'operazione ancora in coda porta sullo stesso passo (doppio clic):
+     li' vale la scrittura che deve ancora partire. */
+  const ancora = sospeseInCoda(op);
+  liberaSospese(sospeseDi(op), ancora);
+  const corpo = op?.corpo || {};
   /* e le loro scritture ottimistiche tornano com'erano: il server non ne ha
      scritta nessuna, e a schermo restava tutto "completato" fino al ricarico */
-  if (op?.corpo?.celle?.length) {
-    if (op.corpo.anno === st.anno) {
-      for (const c of op.corpo.celle) {
+  if (corpo.celle?.length) {
+    if (corpo.anno === st.anno) {
+      for (const c of corpo.celle) {
+        if (ancora.has(`${c.id_service}-${c.mese}-${c.campo}`)) continue;
         scriviLocale(c.id_service, c.mese, { [SIGLA[c.campo]]: Number(c.base_valore) || 0 });
       }
     }
     emetti('rilegge');
   }
-  const { id, mese } = op?.meta || {};
+  const { id, mese, sosp } = op?.meta || {};
   /* un "vietato" dal server (#ANCHOR: ruoli) porta la cella com'e' davvero:
      la scrittura ottimistica va rimessa a posto, non lasciata a schermo */
-  if (server?.cella && server.id_service) cellaDalServer(server.id_service, server.mese, server.cella);
+  if (server?.cella && server.id_service) {
+    dalServerPer(corpo.anno, server.id_service, server.mese, server.cella);
+  } else if (sosp && corpo.anno === st.anno && corpo.id_service && !ancora.has(sosp)) {
+    /* Rifiuto SENZA la cella (un 400, un 5xx dopo i tentativi): prima la
+       spunta o la nota rifiutata restava a schermo come salvata, fino al
+       ricarico. Si torna al valore da cui si era partiti. */
+    if (corpo.campo) scriviLocale(corpo.id_service, corpo.mese, { [SIGLA[corpo.campo]]: Number(corpo.base_valore) || 0 });
+    else if (typeof corpo.nota === 'string') scriviLocale(corpo.id_service, corpo.mese, { nota: corpo.base_nota || '' });
+  }
   if (id) emetti('cella', { id, mese });
 }
 
 export function esitoConflitto(op, server) {
-  for (const k of sospeseDi(op)) st.sospese.delete(k);
+  liberaSospese(sospeseDi(op), sospeseInCoda(op));
   const { id, mese, campo } = op.meta || {};
   const mio = op.corpo.valore;
-  if (server.cella) cellaDalServer(server.id_service, server.mese, server.cella);
+  if (server?.cella) dalServerPer(op.corpo.anno, server.id_service, server.mese, server.cella);
   emetti('cella', { id, mese });
   if (!campo) return;
+  /* Un conflitto dell'anno che non si guarda piu': "Tieni la mia" scriverebbe
+     nella cella id-mese dell'anno a schermo, cioe' un'altra. Lo si dice e basta. */
+  if (op.corpo.anno != null && op.corpo.anno !== st.anno) {
+    avviso(`${campo === 'nota' ? 'Nota' : ETICHETTA[campo]} (${op.corpo.anno}): ` +
+      `${server?.cella?.by || 'un altro operatore'} l'aveva cambiata prima di te. Ho tenuto la sua.`,
+      { tono: 'allerta', durata: 12000 });
+    return;
+  }
   /* La nota e' testo, non un interruttore: dire "ho tenuto la sua" senza far
      vedere le due frasi non basterebbe a decidere. L'avviso le riporta
      entrambe, e le azioni sono le tre cose sensate da farci. */

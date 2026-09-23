@@ -134,3 +134,47 @@ class Ruoli(ConDB):
         with db.sess() as c:
             r = db.ruoli(c, self.cfg)
         self.assertEqual(r, {"Anna": "approvatore", "Strano": "tecnico", "Capo": "admin"})
+
+    def test_nome_non_testo_e_tecnico(self):
+        """Un `operatore` numerico o una lista nel corpo JSON: prima
+        AttributeError su .strip(), cioe' un 500 su toggle, bulk, ripristino."""
+        with db.sess() as c:
+            for nome in (5, ["Capo"], {"Capo": 1}, True):
+                self.assertEqual(db.ruolo_di(c, nome, self.cfg), "tecnico", nome)
+                self.assertFalse(db.e_admin(c, nome, self.cfg))
+
+    def test_amministratori_scritto_come_testo(self):
+        """config.json con "amministratori": "Capo" (una stringa invece di una
+        lista): `nome in "Capo"` e' un confronto fra SOTTOSTRINGHE, quindi "C",
+        "a", "apo" diventavano amministratori, e ruoli() elencava ogni lettera."""
+        cfg = {"amministratori": "Capo"}
+        with db.sess() as c:
+            self.assertEqual(db.ruolo_di(c, "Capo", cfg), "admin")
+            for pezzo in ("C", "a", "apo", "Cap"):
+                self.assertEqual(db.ruolo_di(c, pezzo, cfg), "tecnico", pezzo)
+            self.assertEqual(db.ruoli(c, cfg), {"Capo": "admin"})
+
+    def test_amministratori_nullo_o_con_spazi(self):
+        with db.sess() as c:
+            self.assertEqual(db.ruolo_di(c, "Capo", {"amministratori": None}), "tecnico")
+            self.assertEqual(db.ruoli(c, {"amministratori": None}), {})
+            cfg = {"amministratori": [" Capo ", "", None, 7]}
+            self.assertEqual(db.ruolo_di(c, "Capo", cfg), "admin")
+            self.assertEqual(db.ruoli(c, cfg), {"Capo": "admin"})
+
+
+class Aggiunte(ConDB):
+    def test_ogni_colonna_aggiunta_esiste(self):
+        with db.sess() as c:
+            for tab, col, _ in db.AGGIUNTE:
+                nomi = [r["name"] for r in c.execute("PRAGMA table_info(%s)" % tab)]
+                self.assertIn(col, nomi, (tab, col))
+
+    def test_archivio_nuovo_ha_mese_da_1_a_12_solo_per_convenzione(self):
+        """SQLite non ha il CHECK del cloud (mese between 1 and 12): il dominio lo
+        difende l'API (test_py_spunte_casi_limite.Dominio). Qui si fissa che lo
+        schema accetta tutto, cosi' se un giorno si aggiunge il vincolo la prova
+        lo dice."""
+        with db.sess() as c:
+            c.execute("INSERT INTO mappature(id_service,anno,mese) VALUES(1,2026,13)")
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM mappature").fetchone()[0], 1)

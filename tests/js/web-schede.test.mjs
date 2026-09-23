@@ -42,7 +42,7 @@ function memoria() {
 }
 
 /** Esegue schede.js e ritorna il contesto: le sue funzioni globali ci stanno sopra. */
-function carica() {
+function carica(extra = {}) {
   const F = finto();
   const ctx = {
     console, Math, JSON, Date, RegExp, String, Number, Array, Object, Intl,
@@ -57,6 +57,7 @@ function carica() {
     getComputedStyle: () => F, addEventListener() { }, removeEventListener() { },
     innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1,
   };
+  Object.assign(ctx, extra);
   ctx.window = ctx;
   ctx.self = ctx;
   createContext(ctx);
@@ -146,4 +147,60 @@ test('la pagina carica schede.js al posto dello script in linea, e il guscio lo 
   assert.ok(pos('/js/schede.js') < pos('src="ponte.js"'));
   const sw = readFileSync(new URL('../../web/sw.js', import.meta.url), 'utf8');
   assert.match(sw, /'\/js\/schede\.js'/);
+});
+
+/* ------------------------------------------------------ il file letto ---
+   readFile legge con FileReader, che e' asincrono: due file lasciati cadere
+   uno dopo l'altro si leggevano insieme, e vinceva quello che FINIVA per
+   ultimo (il piu' grande), non l'ultimo scelto - con il titolo e il sito
+   riconosciuto del file sbagliato. Un file vuoto arrivava fino a XLSX.read
+   e ne usciva un messaggio in inglese. */
+function caricaConLettore() {
+  const lettori = [], avvisi = [], caricati = [];
+  class FileReader {
+    constructor() { lettori.push(this); }
+    readAsArrayBuffer(f) { this.file = f; }
+    finisci() { this.result = new TextEncoder().encode(this.file.name).buffer; this.onload(); }
+  }
+  const XLSX = {
+    read: buf => ({ SheetNames: ['F'], Sheets: { F: new TextDecoder().decode(buf) } }),
+    utils: { sheet_to_json: nome => [['titolo di ' + nome]] },
+  };
+  const ctx = carica({ FileReader, XLSX, alert: m => avvisi.push(String(m)), Uint8Array, TextEncoder, TextDecoder });
+  ctx.loadRows = (rows, name) => { caricati.push(name); };
+  return { ctx, lettori, avvisi, caricati };
+}
+const fileDi = (name, size = 100) => ({ name, size });
+
+test('due file di fila: vale l’ultimo scelto, anche se il primo finisce dopo', () => {
+  const { ctx, lettori, caricati } = caricaConLettore();
+  ctx.readFile(fileDi('grande.xls'));
+  ctx.readFile(fileDi('piccolo.xls'));
+  lettori[1].finisci();
+  lettori[0].finisci();
+  assert.deepEqual(caricati, ['piccolo.xls']);
+});
+
+test('un file tolto mentre si legge non torna a lettura finita', () => {
+  const { ctx, lettori, caricati } = caricaConLettore();
+  ctx.readFile(fileDi('tardi.xls'));
+  ctx.unloadFile();
+  lettori[0].finisci();
+  assert.deepEqual(caricati, []);
+});
+
+test('un file vuoto si dice subito, in italiano, senza leggerlo', () => {
+  const { ctx, lettori, avvisi, caricati } = caricaConLettore();
+  ctx.readFile(fileDi('vuoto.xls', 0));
+  assert.equal(lettori.length, 0);
+  assert.deepEqual(caricati, []);
+  assert.equal(avvisi.length, 1);
+  assert.match(avvisi[0], /vuoto/);
+});
+
+test('un file letto normalmente arriva a loadRows col suo nome', () => {
+  const { ctx, lettori, caricati } = caricaConLettore();
+  ctx.readFile(fileDi('uno.xls'));
+  lettori[0].finisci();
+  assert.deepEqual(caricati, ['uno.xls']);
 });

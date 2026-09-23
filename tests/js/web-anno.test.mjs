@@ -52,6 +52,16 @@ test('passiMancanti: solo le scadenze reali, senza rimettere gli ereditati', () 
   assert.equal(tutte.filter(v => v.mese === 9).length, 3);
 });
 
+test('passiMancanti: un sito chiuso a una visita dopo la scadenza non ha passi mancanti', () => {
+  carica({ ruolo: 'admin', services: [
+    servizio(1, { mesi: '001000000010', inizio: '2020-01-01', scad: '2030-12-31' }),   // chiusa a novembre
+    servizio(2, { mesi: '001000000010', inizio: '2020-01-01', scad: '2030-12-31' }),   // stampata a novembre
+  ], celle: { '1-11': cellaDi('1111'), '2-11': cellaDi('1000') } });
+  const v = passiMancanti(true).map(x => `${x.id}-${x.mese}:${x.campo}`);
+  assert.deepEqual(v, ['2-3:controllata', '2-3:corretta', '2-3:ricambi'],
+    'la mappatura del sito e una sola: quello che e fatto in un mese vale per l anno');
+});
+
 test('passiPresenti: anche le orfane, le proposte e i siti chiusi a schermo', () => {
   carica({ services: [
     servizio(1, { mesi: '001000000000', inizio: '2020-01-01', scad: '2030-12-31' }),

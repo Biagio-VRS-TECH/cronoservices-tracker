@@ -3,7 +3,8 @@ campo (#ANCHOR: merge), spunta singola, in blocco, nota e ripristino.
 """
 import uuid
 import db
-from api_comune import CAMPI, _cella, _cella_out, _cella_out_vuota
+from api_comune import (ANNO_MAX, ANNO_MIN, CAMPI, _cella, _cella_out, _cella_out_vuota,
+                        _fuori_dominio, _intero, _nome_operatore, _op_id)
 from api_permessi import _admin_con_pin, _pin_admin, _solo_admin
 
 
@@ -26,7 +27,7 @@ def _valore_per_ruolo(campo, attuale, valore, approva, admin=False):
     cloud/02-funzioni.sql."""
     try:
         v = int(valore or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):   # Infinity dal JSON: strano = 1
         v = 1
     if v not in (0, 1, 2):
         v = 1 if v else 0
@@ -60,39 +61,40 @@ def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore
     """
     if campo not in CAMPI:
         return 400, {"errore": "campo non valido: %s" % campo}
+    fuori = _fuori_dominio(sid, anno, mese)
+    if fuori:
+        return 400, {"errore": fuori, "esito": "non-valido", "id_service": sid,
+                     "anno": anno, "mese": mese}
 
     r = _cella(c, sid, anno, mese)
-    attuale0 = r[campo] if r is not None else 0
-    valore, vietato = _valore_per_ruolo(campo, attuale0, valore, approva, admin)
+    attuale = r[campo] if r is not None else 0
+    valore, vietato = _valore_per_ruolo(campo, attuale, valore, approva, admin)
     if vietato:
         st, out = vietato
         out.update({"esito": "vietato", "campo": campo, "id_service": sid, "anno": anno,
                     "mese": mese, "cella": _cella_out(r) if r is not None else None})
         return st, out
-    if r is None:
-        # Niente riga e niente da scrivere: non si crea spazzatura a zero.
-        if not valore:
-            return 200, {"esito": "gia-cosi", "cella": dict(_cella_out_vuota()),
-                         "id_service": sid, "anno": anno, "mese": mese}
-        c.execute("""INSERT INTO mappature(id_service,anno,mese,rev,updated_at,updated_by)
-                     VALUES(?,?,?,0,?,?)""", (sid, anno, mese, db.now(), operatore))
-        r = _cella(c, sid, anno, mese)
+    # Niente riga: si ragiona su una cella vuota (rev 0) e la si crea solo al
+    # momento di scrivere. Niente spazzatura a zero, neanche dopo un 409.
+    cella = _cella_out(r) if r is not None else _cella_out_vuota()
 
-    attuale = r[campo]
     esito = "ok"
-    if base_rev is not None and int(base_rev) != r["rev"]:
+    if base_rev is not None and _intero(base_rev, "base_rev") != cella["rev"]:
         if attuale == valore:
-            return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+            return 200, {"esito": "gia-cosi", "cella": cella,
                          "id_service": sid, "anno": anno, "mese": mese}
-        if base_valore is not None and attuale != int(base_valore):
-            return 409, {"esito": "conflitto", "cella": _cella_out(r), "campo": campo,
+        if base_valore is not None and attuale != _intero(base_valore, "base_valore"):
+            return 409, {"esito": "conflitto", "cella": cella, "campo": campo,
                          "tuo": valore, "id_service": sid, "anno": anno, "mese": mese}
         esito = "merge"
 
     if attuale == valore:
-        return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+        return 200, {"esito": "gia-cosi", "cella": cella,
                      "id_service": sid, "anno": anno, "mese": mese}
 
+    if r is None:
+        c.execute("""INSERT INTO mappature(id_service,anno,mese,rev,updated_at,updated_by)
+                     VALUES(?,?,?,0,?,?)""", (sid, anno, mese, db.now(), operatore))
     ts = db.now()
     c.execute("UPDATE mappature SET %s=?, rev=rev+1, updated_at=?, updated_by=? "
               "WHERE id_service=? AND anno=? AND mese=?" % campo,
@@ -105,8 +107,21 @@ def _applica(c, operatore, sid, anno, mese, campo, valore, base_rev, base_valore
                  "id_service": sid, "anno": anno, "mese": mese}
 
 
+def _annulla(c):
+    """ROLLBACK solo se c'e' una transazione: se a fallire e' proprio il BEGIN
+    (archivio tenuto da un altro processo oltre il busy_timeout), un ROLLBACK
+    senza transazione alzava "cannot rollback" al posto di "database is locked",
+    e il server rispondeva 500 invece di 503 "riprova"."""
+    if c.in_transaction:
+        c.execute("ROLLBACK")
+
+
 def toggle(ctx, q, body):
-    op_id = body.get("op_id")
+    op_id = _op_id(body.get("op_id"))
+    operatore = _nome_operatore(body)
+    sid = _intero(body["id_service"], "id_service")
+    anno = _intero(body["anno"], "anno")
+    mese = _intero(body["mese"], "mese")
     with db.WRITE_LOCK:
         c = db.connect()
         try:
@@ -114,17 +129,14 @@ def toggle(ctx, q, body):
             if op_id:
                 prec = c.execute("SELECT * FROM ops WHERE op_id=?", (op_id,)).fetchone()
                 if prec:  # replay della coda offline: rispondo con lo stato attuale
-                    r = _cella(c, int(body["id_service"]), int(body["anno"]),
-                               int(body["mese"]))
+                    r = None if _fuori_dominio(sid, anno, mese) else _cella(c, sid, anno,
+                                                                            mese)
                     c.execute("COMMIT")
                     return 200, {"esito": "replay",
                                  "cella": _cella_out(r) if r else None,
-                                 "id_service": int(body["id_service"]),
-                                 "anno": int(body["anno"]), "mese": int(body["mese"])}, None
-            operatore = body.get("operatore") or "?"
+                                 "id_service": sid, "anno": anno, "mese": mese}, None
             st, out = _applica(
-                c, operatore, int(body["id_service"]),
-                int(body["anno"]), int(body["mese"]), body["campo"], body.get("valore"),
+                c, operatore, sid, anno, mese, body["campo"], body.get("valore"),
                 body.get("base_rev"), body.get("base_valore"), op_id,
                 body.get("origine") or "live",
                 approva=db.puo_approvare(c, operatore, ctx["cfg"]),
@@ -135,7 +147,7 @@ def toggle(ctx, q, body):
                            (out.get("cella") or {}).get("rev")))
             c.execute("COMMIT")
         except Exception:
-            c.execute("ROLLBACK")
+            _annulla(c)
             raise
         finally:
             c.close()
@@ -143,16 +155,23 @@ def toggle(ctx, q, body):
     if st == 200 and out.get("esito") in ("ok", "merge"):
         ev = {"tipo": "cella", "anno": out["anno"], "id_service": out["id_service"],
               "mese": out["mese"], "cella": out["cella"],
-              "operatore": body.get("operatore") or "?"}
+              "operatore": operatore}
     return st, out, ev
 
 
 def bulk(ctx, q, body):
     """Piu' spunte in una transazione: usato da 'segna tutte stampate' e dalla coda
     offline. Ogni voce riporta il proprio esito; i conflitti non bloccano le altre."""
-    anno = int(body["anno"])
-    operatore = body.get("operatore") or "?"
+    anno = _intero(body["anno"], "anno")
+    if not ANNO_MIN <= anno <= ANNO_MAX:
+        return 400, {"errore": "anno non valido: %s" % anno}, None
+    operatore = _nome_operatore(body)
     origine = body.get("origine") or "bulk"
+    blocco = _op_id(body.get("op_id"))
+    voci = body.get("celle") or []
+    # una stringa o un oggetto al posto della lista: v.get() dava AttributeError (500)
+    if not isinstance(voci, list) or not all(isinstance(v, dict) for v in voci):
+        raise TypeError("celle: attesa una lista di oggetti")
     esiti, celle = [], []
     with db.WRITE_LOCK:
         c = db.connect()
@@ -172,17 +191,16 @@ def bulk(ctx, q, body):
                 return no_pin
             admin = admin and no_pin is None
             c.execute("BEGIN IMMEDIATE")
-            for i, v in enumerate(body.get("celle") or []):
-                op_id = v.get("op_id") or (body.get("op_id") and
-                                           "%s:%d" % (body["op_id"], i))
+            for i, v in enumerate(voci):
+                op_id = _op_id(v.get("op_id")) or (blocco and "%s:%d" % (blocco, i))
                 if op_id and c.execute("SELECT 1 FROM ops WHERE op_id=?",
                                        (op_id,)).fetchone():
                     esiti.append({"esito": "replay", "id_service": v["id_service"],
                                   "mese": v["mese"], "campo": v["campo"]})
                     continue
-                st, out = _applica(c, operatore, int(v["id_service"]), anno,
-                                   int(v["mese"]), v["campo"], v.get("valore"),
-                                   v.get("base_rev"), v.get("base_valore"), op_id,
+                st, out = _applica(c, operatore, _intero(v["id_service"], "id_service"),
+                                   anno, _intero(v["mese"], "mese"), v["campo"],
+                                   v.get("valore"), v.get("base_rev"), v.get("base_valore"), op_id,
                                    origine, approva=approva, admin=admin)
                 out["campo"] = v["campo"]
                 out["http"] = st
@@ -196,7 +214,7 @@ def bulk(ctx, q, body):
                                   "cella": out["cella"]})
             c.execute("COMMIT")
         except Exception:
-            c.execute("ROLLBACK")
+            _annulla(c)
             raise
         finally:
             c.close()
@@ -220,43 +238,48 @@ def nota(ctx, q, body):
                                              -> ha toccato una spunta: merge
       rev cambiata e la nota e' un'altra     -> 409, sceglie l'operatore
     Senza `base_rev` (client vecchio) resta il comportamento di prima: scrive."""
-    sid, anno, mese = int(body["id_service"]), int(body["anno"]), int(body["mese"])
-    testo = (body.get("nota") or "").strip()[:500]
+    sid = _intero(body["id_service"], "id_service")
+    anno = _intero(body["anno"], "anno")
+    mese = _intero(body["mese"], "mese")
+    fuori = _fuori_dominio(sid, anno, mese)
+    if fuori:
+        return 400, {"errore": fuori, "esito": "non-valido"}, None
+    testo = body.get("nota") or ""
+    if not isinstance(testo, str):     # un numero: .strip() dava AttributeError (500)
+        raise TypeError("nota: atteso un testo")
+    testo = testo.strip()[:500]
     base_rev = body.get("base_rev")
+    base_rev = None if base_rev is None else _intero(base_rev, "base_rev")
     base_nota = body.get("base_nota")
-    operatore = body.get("operatore") or "?"
+    operatore = _nome_operatore(body)
     with db.WRITE_LOCK:
         c = db.connect()
         try:
             c.execute("BEGIN IMMEDIATE")
             r = _cella(c, sid, anno, mese)
-            if r is None:
-                if not testo:      # niente riga e niente da scrivere
-                    c.execute("COMMIT")
-                    return 200, {"esito": "gia-cosi", "cella": _cella_out_vuota(),
-                                 "id_service": sid, "anno": anno,
-                                 "mese": mese}, None
-                c.execute("""INSERT INTO mappature(id_service,anno,mese,rev,updated_at,
-                             updated_by) VALUES(?,?,?,0,?,?)""",
-                          (sid, anno, mese, db.now(), operatore))
-                r = _cella(c, sid, anno, mese)
-            attuale = r["nota"] or ""
+            # niente riga: cella vuota (rev 0), creata solo se si scrive davvero
+            cella = _cella_out(r) if r is not None else _cella_out_vuota()
+            attuale = cella["nota"]
             esito = "ok"
-            if base_rev is not None and int(base_rev) != r["rev"]:
+            if base_rev is not None and base_rev != cella["rev"]:
                 if attuale == testo:
                     c.execute("COMMIT")
-                    return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+                    return 200, {"esito": "gia-cosi", "cella": cella,
                                  "id_service": sid, "anno": anno, "mese": mese}, None
                 if base_nota is not None and attuale != str(base_nota).strip()[:500]:
                     c.execute("COMMIT")
-                    return 409, {"esito": "conflitto", "cella": _cella_out(r),
+                    return 409, {"esito": "conflitto", "cella": cella,
                                  "campo": "nota", "tuo": testo,
                                  "id_service": sid, "anno": anno, "mese": mese}, None
                 esito = "merge"
             if attuale == testo:
                 c.execute("COMMIT")
-                return 200, {"esito": "gia-cosi", "cella": _cella_out(r),
+                return 200, {"esito": "gia-cosi", "cella": cella,
                              "id_service": sid, "anno": anno, "mese": mese}, None
+            if r is None:
+                c.execute("""INSERT INTO mappature(id_service,anno,mese,rev,updated_at,
+                             updated_by) VALUES(?,?,?,0,?,?)""",
+                          (sid, anno, mese, db.now(), operatore))
             ts = db.now()
             c.execute("""UPDATE mappature SET nota=?, rev=rev+1, updated_at=?, updated_by=?
                          WHERE id_service=? AND anno=? AND mese=?""",
@@ -267,7 +290,7 @@ def nota(ctx, q, body):
             r = _cella(c, sid, anno, mese)
             c.execute("COMMIT")
         except Exception:
-            c.execute("ROLLBACK")
+            _annulla(c)
             raise
         finally:
             c.close()
@@ -291,7 +314,7 @@ def ripristina(ctx, q, body):
     op_id = str(body.get("op_id") or "").strip()
     if not op_id or ":" in op_id:
         return 400, {"errore": "op_id mancante o non e' un blocco"}, None
-    operatore = body.get("operatore") or "?"
+    operatore = _nome_operatore(body)
     esiti, celle, anno_ev = [], {}, None
     with db.WRITE_LOCK:
         c = db.connect()
@@ -327,7 +350,7 @@ def ripristina(ctx, q, body):
                     celle[(e["anno"], e["id_service"], e["mese"])] = out["cella"]
             c.execute("COMMIT")
         except Exception:
-            c.execute("ROLLBACK")
+            _annulla(c)
             raise
         finally:
             c.close()

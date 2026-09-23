@@ -724,8 +724,16 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
   .stato-coll { padding: 6px 8px; gap: 6px; }
   #collegamento-et { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   /* il pallino con le iniziali: il nome sta nell'aria-label */
-  .io { padding: 4px; }
+  .io { padding: 4px; position: relative; }
   .io b { display: none; }
+  /* il ruolo (ADMIN / APPROVA) in fila al pallino allungava il bottone di 50 px
+     e mandava operatore e tema su una seconda riga (tre righe di testa sticky):
+     diventa un'etichetta appoggiata sotto il pallino, come un badge */
+  .io .ruolo {
+    position: absolute; left: 50%; bottom: -3px; translate: -50% 0;
+    font-size: 8px; padding: 1px 3px; pointer-events: none;
+    box-shadow: 0 0 0 1.5px var(--fondo);
+  }
   .cerca input, .cerca input:focus { width: 100%; }
 
   .strumenti { padding: 2px 0; gap: 0; flex-wrap: nowrap; }

@@ -23,7 +23,7 @@ import {
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
 import * as vStat from './stat.js';
-import { chiudiPop, rinfrescaPop } from './spunte.js';
+import { chiudiPop, rinfrescaPop, apriPop } from './spunte.js';
 import { chiudiCassetto } from './cassetto.js';
 import {
   eventoDocumento, eventoDocumentiEliminati, ricaricaDocumenti, ascoltaAltreSchede,
@@ -157,7 +157,7 @@ async function avvia() {
     else if (st.vista === 'mese') vMese.aggiornaFuoco(d.prima, d.dopo);
   });
   on('rilegge', d => {
-    disegna();
+    ridisegnaTenendoPop();
     if (d?.remoto) avviso(`${d.remoto} ha aggiornato più mappature.`);
   });
   on('presenze', statoCollegamento);
@@ -231,6 +231,25 @@ function disegna() {
   $$('#viste button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.vista === st.vista)));
   aggiornaTesta();
+}
+
+/** `rilegge` ridisegna tutta la vista, e `disegna` chiude il popover: il suo
+ *  "Completa i passi mancanti" (quattro spunte = spuntaMolte = rilegge) lo
+ *  faceva sparire sotto il dito, e cosi' l'azione in blocco di un collega.
+ *  Se era aperto su una cella dello stesso anno, si riapre sulla cella nuova
+ *  (la nota scritta l'ha gia' salvata chiudiPop). */
+function ridisegnaTenendoPop() {
+  const aperta = fuocoMioAttuale(), anno = st.anno;   // "id-mese" del popover aperto
+  const att = document.activeElement;
+  // il fuoco torna dov'era: nella nota (si stava scrivendo) o sul bottone in fondo
+  const dove = att?.closest?.('.pop') ? (att.matches('textarea') ? '.pop textarea' : '.pop .js-tutte') : null;
+  disegna();
+  if (!aperta || st.vista !== 'anno' || st.anno !== anno) return;
+  const cel = area.querySelector(`.cella[data-cella="${aperta}"]`);
+  if (!cel) return;
+  const [id, mese] = aperta.split('-').map(Number);
+  apriPop(cel, id, mese);
+  if (dove) /** @type {HTMLElement | null} */ (document.querySelector(dove))?.focus();
 }
 
 /** Il riepilogo costa un giro su tutti i siti filtrati: durante una raffica di
@@ -583,9 +602,11 @@ function mostraApprovazioni() {
         ...(lista.length > 1 ? [h('button.pill', {
           testo: `Approva tutte (${lista.length})`,
           onclick: () => {
-            spuntaMolte(lista.map(v => ({ ...v, valore: 1 })), 'Approvazione di tutte le proposte', 'approvazione');
+            const n = spuntaMolte(lista.map(v => ({ ...v, valore: 1 })), 'Approvazione di tutte le proposte', 'approvazione');
+            // come nella massa: 0 cambiate (le ha gia' chiuse un altro) = niente Annulla
+            if (!n) { avviso('Niente da approvare: le proposte erano già chiuse.'); ridisegna(); return; }
             const questa = st.ultimaAzione;   // l'Annulla dell'avviso disfa QUESTA, non l'ultima che capita
-            avviso(`${lista.length} spunte approvate.`, { tono: 'ok', durata: 15000, azione: {
+            avviso(`${n} ${n === 1 ? 'spunta approvata' : 'spunte approvate'}.`, { tono: 'ok', durata: 15000, azione: {
               et: 'Annulla', fn: () => {
                 const m = annullaUltima(questa);
                 if (m < 0) return avviso('Non annullato: nel frattempo hai fatto altro.', { tono: 'allerta' });
@@ -679,6 +700,12 @@ function massa(modo) {
            quando si torna qui, e un `disegna()` in piu' era un secondo
            ridisegno di tutta la pagina per niente */
         const n = spuntaMolte(voci, completa ? 'Completamento di massa' : 'Azzeramento di massa', 'massa');
+        /* il conto e' di quando si e' aperta la finestra: se intanto un collega
+           ha gia' fatto lo stesso, non cambia niente e non c'e' niente da
+           annullare (l'Annulla di "0 spunte messe" non deve comparire) */
+        if (!n) {
+          return avviso(`Nessuna spunta cambiata: erano già tutte ${completa ? 'messe' : 'tolte'}.`);
+        }
         /* il colpo si VEDE: l'onda attraversa le celle toccate
            (#ANCHOR: onda-massa in anno.js) */
         if (st.vista === 'anno') vAnno.onda(completa ? 'su' : 'giu');
@@ -934,7 +961,8 @@ function statoCollegamento() {
       <span>Anche su ${st.altriServer.map(x => esc(x.host)).join(', ')}. Se ne usate
       due, le spunte finiscono in due archivi separati e non si vedono a vicenda.
       Mettetevi d'accordo su uno solo:</span>
-      ${st.altriServer.map(x => `<a href="${esc(x.url)}">${esc(x.url)}</a>`).join(' ')}`;
+      ${st.altriServer.map(x => httpSicuro(x.url)
+        ? `<a href="${esc(x.url)}">${esc(x.url)}</a>` : `<span>${esc(x.url)}</span>`).join(' ')}`;
     return;
   }
   if (giu) {
@@ -951,6 +979,13 @@ function statoCollegamento() {
     banner.hidden = true;
     banner.innerHTML = '';
   }
+}
+
+/** L'indirizzo dell'altro server diventa un link solo se e' http(s). Il server
+ *  manda gia' solo quelli (rete_locale._url_valido), ma arriva dalla rete, da
+ *  chiunque: qui e' la seconda difesa, un `javascript:` resta testo. */
+function httpSicuro(url) {
+  try { return /^https?:$/.test(new URL(String(url)).protocol); } catch { return false; }
 }
 
 /** "sta guardando settembre 2026 · ha aperto #123 (Set)": dal `dove` della
@@ -1453,9 +1488,13 @@ function mostraImpostazioni() {
             if (!/^\d{4}-\d{2}$/.test(v)) return avviso('Scegli un mese.', { tono: 'allerta' });
             chiudi();
             try {
-              await chiama('/api/impostazioni', {
+              /* un rifiuto (403 senza PIN, 400) e' una risposta, non un errore
+                 di rete: prima si diceva "Tracciamento a partire da..." anche
+                 col server che aveva detto no */
+              const { ok, dati } = await chiama('/api/impostazioni', {
                 metodo: 'POST', body: { inizio_tracciamento: v, operatore: rete.operatore },
               });
+              if (!ok) return avviso('Non salvato: ' + (dati?.errore || 'rifiutato dal server') + '.', { tono: 'allerta' });
               st.inizioTracciamento = v;
               disegna();
               avviso('Tracciamento a partire da ' + v + '.', { tono: 'ok' });

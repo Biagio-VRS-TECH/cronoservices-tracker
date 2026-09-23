@@ -19,7 +19,10 @@ _PIN_ERRORI = {"n": 0, "fino": 0.0}
 
 def _pin_admin(body, cfg):
     """None se il PIN va bene (o non e' richiesto), altrimenti la risposta."""
-    atteso = str((cfg or {}).get("pin_admin") or "").strip()
+    v = (cfg or {}).get("pin_admin")
+    # `or ""` spegneva anche il PIN numerico 0: spento e' solo assente, null,
+    # false o vuoto
+    atteso = "" if v is None or v is False else str(v).strip()
     if not atteso:
         return None
     dato = str((body or {}).get("pin") or "").strip()
@@ -40,17 +43,23 @@ def _pin_admin(body, cfg):
                  "pin_richiesto": True}, None
 
 
+def _nome(v):
+    """Il nome di chi chiama, solo se e' testo: db.ruolo_di fa .strip() e un
+    numero o un oggetto alzava AttributeError (500 invece di 403)."""
+    return v if isinstance(v, str) else ""
+
+
 def _admin_con_pin(c, body, ctx, operatore=None):
     """True se chi chiama e' admin E (se richiesto) ha dato il PIN giusto: per i
     punti dove l'admin ha un potere in piu' ma l'azione non e' solo sua."""
-    nome = body.get("operatore") if operatore is None else operatore
+    nome = _nome(body.get("operatore") if operatore is None else operatore)
     return db.e_admin(c, nome, ctx["cfg"]) and _pin_admin(body, ctx["cfg"]) is None
 
 
 def _solo_admin(c, body, ctx):
     """None se chi chiama e' admin (col PIN, se c'e'), altrimenti la risposta
     403 (#ANCHOR: ruoli)."""
-    if db.e_admin(c, body.get("operatore"), ctx["cfg"]):
+    if db.e_admin(c, _nome(body.get("operatore")), ctx["cfg"]):
         return _pin_admin(body, ctx["cfg"])
     return 403, {"errore": "questa azione e' dell'amministratore"}, None
 
@@ -61,7 +70,7 @@ def ruolo(ctx, q, body):
     'tecnico' (propone). I nomi in config.json restano admin comunque; l'ultimo
     admin non si puo' declassare, altrimenti nessuno azzererebbe, sincronizzerebbe
     o ripristinerebbe piu' niente."""
-    nome = (body.get("nome") or "").strip()[:40]
+    nome = _nome(body.get("nome")).strip()[:40]
     nuovo = body.get("ruolo")
     if not nome or nuovo not in db.RUOLI:
         return 400, {"errore": "servono nome e ruolo (admin|approvatore|tecnico)"}, None
@@ -69,7 +78,9 @@ def ruolo(ctx, q, body):
         no = _solo_admin(c, body, ctx)
         if no:
             return no
-        if nome in ctx["cfg"].get("amministratori", []) and nuovo != "admin":
+        # db._amministratori, come db.ruolo_di: con "amministratori": "Capo" un
+        # `in` sulla stringa rendeva intoccabili "C" e "apo", con null TypeError
+        if nome in db._amministratori(ctx["cfg"]) and nuovo != "admin":
             return 400, {"errore": "%s e' amministratore per configurazione (config.json)" % nome}, None
         attuali = db.ruoli(c, ctx["cfg"])
         if nuovo != "admin" and attuali.get(nome) == "admin" and \

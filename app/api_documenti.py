@@ -20,6 +20,50 @@ from api_spunte import _applica
 # limit* del progetto, che ha la precedenza e sta tenuto piu' alto (250 MB).
 MAX_PDF = 200 * 1024 * 1024
 
+# Gli anni che hanno senso (gli stessi di api_comune._anni_disponibili) e il
+# tetto degli id di Access (int a 32 bit, come online).
+ANNO_MIN, ANNO_MAX = 2001, 2099
+ID_MAX = 2 ** 31 - 1
+# Il nome del file sul disco: NTFS conta le unita' UTF-16, non i caratteri.
+NOME_MAX = 120
+
+
+def _intero(v, minimo, massimo):
+    """int(v) se sta fra minimo e massimo, altrimenti None. Gli interi del
+    client finiscono in colonne INTEGER: oltre i 64 bit sqlite3 alzava
+    OverflowError (500). Niente bool (True non e' l'anno 1) e solo cifre ASCII
+    ("²" passa isdigit ma int() la rifiuta)."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, float):
+        v = int(v) if v.is_integer() else None
+    elif isinstance(v, str):
+        v = v.strip()
+        v = int(v) if re.fullmatch(r"-?[0-9]{1,18}", v) else None
+    elif not isinstance(v, int):
+        v = None
+    return v if v is not None and minimo <= v <= massimo else None
+
+
+def _operatore(body):
+    """La firma: sempre testo e al massimo 40 caratteri, come in /api/operatore.
+    Un oggetto arrivava all'INSERT e sqlite3 alzava ProgrammingError (500)."""
+    v = body.get("operatore")
+    return (v.strip()[:40] if isinstance(v, str) else "") or "?"
+
+
+def _taglia_utf16(s, n):
+    """Al massimo n unita' UTF-16: 120 lettere "astrali" (due unita' l'una)
+    portavano il nome del file oltre i 255 di NTFS e open() falliva."""
+    while len(s.encode("utf-16-le")) // 2 > n:
+        s = s[:-1]
+    return s
+
+
+# Un'anteprima e' una miniatura JPEG in data URL e nient'altro: dopo il prefisso
+# solo base64, cosi' virgolette e markup non arrivano nel bootstrap di tutti.
+_ANTEPRIMA = re.compile(r"data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}")
+
 
 def _cartella_documenti():
     d = os.path.join(os.path.dirname(db._DB_PATH), "documenti")
@@ -56,8 +100,7 @@ def _documenti(c, anno=None):
 
 def documenti(ctx, q, body):
     with db.sess() as c:
-        a = str(q.get("anno") or "")
-        anno = int(a) if a.isdigit() else None
+        anno = _intero(q.get("anno"), 1, 9999)
         return 200, {"anno": anno, "documenti": _documenti(c, anno)}, None
 
 
@@ -66,16 +109,23 @@ def salva_documento(ctx, q, body):
     e si mette la spunta "stampata" sul mese della mappatura del sito (quello
     indicato dal client, altrimenti il mese di scadenza). Riga e spunta stanno
     nella stessa transazione; se salta, il file appena scritto viene tolto."""
-    try:
-        sid, anno = int(body["id_service"]), int(body["anno"])
-    except (KeyError, TypeError, ValueError):
-        return 400, {"errore": "id_service e anno obbligatori"}, None
+    sid = _intero(body.get("id_service"), 1, ID_MAX)
+    anno = _intero(body.get("anno"), ANNO_MIN, ANNO_MAX)
+    if sid is None or anno is None:
+        return 400, {"errore": "id_service e anno obbligatori (anno fra %d e %d)"
+                               % (ANNO_MIN, ANNO_MAX)}, None
     try:
         dati = base64.b64decode(body.get("pdf") or "", validate=True)
     except (ValueError, TypeError):
         return 400, {"errore": "PDF non leggibile"}, None
     if not dati.startswith(b"%PDF"):
         return 400, {"errore": "il contenuto non e' un PDF"}, None
+    # Un PDF finisce con %%EOF (al piu' seguito da qualche a capo: la tolleranza
+    # di Acrobat e' 1024 byte). Senza, e' un invio troncato: archiviarlo
+    # vorrebbe dire mettere la spunta "stampata" su un file che non si apre.
+    if b"%%EOF" not in dati[-1024:]:
+        return 400, {"errore": "PDF incompleto (manca la fine del file): "
+                               "rigeneralo e salva di nuovo"}, None
     # Il gemello di `file_size_limit` del bucket in cloud/06-documenti.sql: il
     # tetto vive in questi due posti e basta, e i due numeri devono restare
     # uguali. 200 MB sono ~800 pagine a 288 dpi. Il messaggio dice cosa fare,
@@ -86,10 +136,10 @@ def salva_documento(ctx, q, body):
                                "del generatore e salva di nuovo."
                                % (len(dati) // (1024 * 1024), MAX_PDF // (1024 * 1024))}, None
     anteprima = body.get("anteprima") or None
-    if anteprima and (not str(anteprima).startswith("data:image/jpeg;base64,")
-                      or len(anteprima) > 80000):
+    if anteprima and (not isinstance(anteprima, str) or len(anteprima) > 80000
+                      or not _ANTEPRIMA.fullmatch(anteprima)):
         anteprima = None
-    operatore = body.get("operatore") or "?"
+    operatore = _operatore(body)
     ts = db.now()
     # Che documento e' (#ANCHOR: documenti): le SCHEDE tecnici mettono la spunta
     # "stampata"; il REGISTRO dei componenti (web/registro/) e' un documento per
@@ -101,26 +151,38 @@ def salva_documento(ctx, q, body):
     # 120 bastano e avanzano per leggerlo nell'elenco.
     if nome.lower().endswith(".pdf"):
         nome = nome[:-4]
-    nome = (nome[:120].rstrip(" .") or tipo) + ".pdf"
-    try:
-        pagine = max(0, int(body.get("pagine") or 0))
-    except (TypeError, ValueError):
-        pagine = 0
+    nome = (_taglia_utf16(nome[:NOME_MAX], NOME_MAX).rstrip(" .") or tipo) + ".pdf"
+    pagine = _intero(body.get("pagine"), 0, 10 ** 6) or 0
     doc_id = uuid.uuid4().hex
-    # un documento in fascicoli: un PDF per fascicolo, stesso `gruppo`
+    # un documento in fascicoli: un PDF per fascicolo, stesso `gruppo`. Un
+    # numero che non si legge (o fuori scala) toglie tutti e due.
     gruppo = re.sub(r"[^0-9a-f]", "", str(body.get("gruppo") or ""))[:32] or None
-    try:
-        fascicolo = int(body.get("fascicolo") or 0) or None
-        fascicoli = int(body.get("fascicoli") or 0) or None
-    except (TypeError, ValueError):
-        fascicolo = fascicoli = None
-    if not gruppo:
+    grezzi = (body.get("fascicolo"), body.get("fascicoli"))
+    letti = [_intero(v, 1, 9999) if v else None for v in grezzi]
+    fascicolo, fascicoli = letti
+    if not gruppo or any(v and n is None for v, n in zip(grezzi, letti)):
         fascicolo = fascicoli = None
     rel = os.path.join(str(anno), "%d-%s-%s" % (sid, doc_id[:8], nome))
     percorso = os.path.join(_cartella_documenti(), rel)
-    os.makedirs(os.path.dirname(percorso), exist_ok=True)
-    with open(percorso, "wb") as fh:
-        fh.write(dati)
+    # Disco pieno a meta' scrittura: niente PDF troncato senza riga che lo trovi.
+    try:
+        for tentativo in (1, 2):
+            os.makedirs(os.path.dirname(percorso), exist_ok=True)
+            try:
+                with open(percorso, "wb") as fh:
+                    fh.write(dati)
+                break
+            except FileNotFoundError:
+                # la cartella dell'anno tolta da elimina_documenti (che pulisce
+                # le vuote fuori dal lucchetto) fra il makedirs e l'open: si rifa'
+                if tentativo == 2:
+                    raise
+    except BaseException:
+        try:
+            os.remove(percorso)
+        except OSError:
+            pass
+        raise
 
     cella = None
     with db.WRITE_LOCK:
@@ -130,14 +192,12 @@ def salva_documento(ctx, q, body):
             s = c.execute("SELECT * FROM services WHERE id_service=?", (sid,)).fetchone()
             if not s:
                 c.execute("ROLLBACK")
-                os.remove(percorso)
+                try:
+                    os.remove(percorso)
+                except OSError:
+                    pass
                 return 404, {"errore": "service #%d sconosciuto" % sid}, None
-            try:
-                mese = int(body.get("mese") or 0)
-            except (TypeError, ValueError):
-                mese = 0
-            if not 1 <= mese <= 12:
-                mese = _mese_scadenza(s, anno)
+            mese = _intero(body.get("mese"), 1, 12) or _mese_scadenza(s, anno)
             if tipo == "registro":
                 mese = 0          # nessuna spunta: non e' un passo della mappatura
             c.execute("INSERT INTO documenti(id,id_service,anno,mese,nome,percorso,bytes,"
@@ -151,10 +211,17 @@ def salva_documento(ctx, q, body):
                                    None, None, None, "schede")
                 if st == 200:
                     cella = out
-            c.execute("COMMIT")
+            # la rilettura PRIMA del COMMIT: dopo, un suo errore farebbe
+            # togliere il file di una riga ormai scritta
             r = c.execute("SELECT * FROM documenti WHERE id=?", (doc_id,)).fetchone()
+            c.execute("COMMIT")
         except Exception:
-            c.execute("ROLLBACK")
+            # Se a fallire e' stato il BEGIN (archivio bloccato da un altro
+            # processo) una transazione non c'e': un ROLLBACK alzerebbe un
+            # secondo errore che copre il primo (500 invece del 503 "riprova")
+            # e salterebbe la rimozione del file.
+            if c.in_transaction:
+                c.execute("ROLLBACK")
             try:
                 os.remove(percorso)
             except OSError:
@@ -203,7 +270,7 @@ def elimina_documento(ctx, q, body):
     except OSError:
         pass
     ev = {"tipo": "documento", "anno": r["anno"], "id_service": r["id_service"],
-          "eliminato": doc_id, "operatore": body.get("operatore") or "?"}
+          "eliminato": doc_id, "operatore": _operatore(body)}
     return 200, {"eliminato": doc_id}, ev
 
 
@@ -221,13 +288,15 @@ def elimina_documenti(ctx, q, body):
     Le spunte "stampata" restano, come per il documento singolo: il PDF si
     butta per fare posto, il lavoro fatto resta scritto.
     """
-    a = str(body.get("anno") or "")
-    sid = str(body.get("id_service") or "")
-    per_anno = a.isdigit()
-    if per_anno == sid.isdigit():
+    # solo cifre ASCII e numeri che SQLite sa tenere: "²" passava isdigit() e
+    # int() alzava ValueError, "9"*30 arrivava alla query (OverflowError, 500)
+    a = _intero(body.get("anno"), 0, 9999)
+    sid = _intero(body.get("id_service"), 0, ID_MAX)
+    per_anno = a is not None
+    if per_anno == (sid is not None):
         return 400, {"errore": "serve anno OPPURE id_service, non entrambi"}, None
-    operatore = body.get("operatore") or "?"
-    dove, val = ("anno", int(a)) if per_anno else ("id_service", int(sid))
+    operatore = _operatore(body)
+    dove, val = ("anno", a) if per_anno else ("id_service", sid)
 
     with db.WRITE_LOCK:
         with db.sess() as c:

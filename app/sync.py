@@ -7,7 +7,7 @@ Microsoft.ACE.OLEDB.12.0, raggiungibile da COM senza installare pyodbc.
 Ogni sync: backup del .db, diff riassuntivo (nuovi/chiusi/mesi cambiati/spunte
 orfane) scritto in sync_log e restituito al client per la notifica.
 """
-import glob, json, os, shutil, subprocess, tempfile, unicodedata, uuid
+import datetime, glob, json, os, shutil, sqlite3, subprocess, tempfile, unicodedata, uuid
 import db
 
 ACCESS_MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
@@ -41,6 +41,37 @@ def _txt(v):
     return v if v else None
 
 
+_FORMATI_DATA = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
+
+
+def _data(v):
+    """Una data dell'export -> 'AAAA-MM-GG', o None se non e' una data.
+    export_access.ps1 le scrive gia' cosi', ma a valle (_scad_effettiva, il
+    CSV, stato.js, sync_applica su Postgres) si leggono come AAAA-MM-GG e
+    basta: un '31/12/2025' arrivato tale e quale faceva fallire il CSV di
+    tutti, e Postgres puo' leggere '01/02/2025' come 2 gennaio. Si accetta
+    anche un orario in coda ('2025-12-31T00:00:00', '31/12/2025 00:00')."""
+    t = _txt(v)
+    if not isinstance(t, str):
+        return None
+    t = t.replace("T", " ").split(" ")[0]
+    for f in _FORMATI_DATA:
+        try:
+            d = datetime.datetime.strptime(t, f).date()
+        except ValueError:
+            continue
+        return d.isoformat() if d.year >= 1900 else None     # '1/2/25' non e' l'anno 25
+    return None
+
+
+def _righe(x):
+    """PowerShell 5.1 srotola una tabella con UNA riga sola: ConvertTo-Json
+    scrive un oggetto invece di una lista, e iterarlo dava le sue chiavi."""
+    if isinstance(x, dict):
+        return [x]
+    return [r for r in (x or []) if isinstance(r, dict)]
+
+
 def normalizza(payload):
     """Payload dell'export -> (clienti, services), liste di dict con i nomi di
     colonna di SQLite (che sono anche quelli di Postgres). UN posto solo per le
@@ -49,7 +80,7 @@ def normalizza(payload):
     saltati, e solo i clienti che hanno almeno un service (gli altri 8000
     dell'anagrafica qui non servono)."""
     servs, usati = [], set()
-    for raw in payload.get("services") or []:
+    for raw in _righe(payload.get("services")):
         s = _row(raw)
         sid = _int(s.get("idservice"))
         if sid is None:
@@ -66,8 +97,8 @@ def normalizza(payload):
             "mappatura": _si(s.get("mappatura")),
             "subappalto": _si(s.get("subappalto")),
             "n_contratto": _txt(s.get("ncontratto")),
-            "data_inizio": _txt(s.get("datainizio")),
-            "data_scadenza": _txt(s.get("datascadenza")),
+            "data_inizio": _data(s.get("datainizio")),
+            "data_scadenza": _data(s.get("datascadenza")),
             "cadenza": _txt(s.get("cadenza")),
             "qva": _int(s.get("qva")),
             "causale_rinnovo": _txt(s.get("causalerinnovo")),
@@ -78,7 +109,7 @@ def normalizza(payload):
         usati.add(cid)
 
     cli = []
-    for raw in payload.get("clienti") or []:
+    for raw in _righe(payload.get("clienti")):
         k = _row(raw)
         cid = _int(k.get("idcliente"))
         if cid is None or cid not in usati:
@@ -128,28 +159,31 @@ def estrai(cfg, base):
     tmp = os.path.join(tempfile.gettempdir(), "cronoservice_export_%s.json" % unico)
     copia = os.path.join(tempfile.gettempdir(), "cronoservice_be_copia_%s.accdb" % unico)
     try:
-        os.remove(tmp)
-    except OSError:
-        pass
-    try:
-        shutil.copyfile(accdb, copia)
-        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-               "-File", ps1, "-Accdb", copia, "-Out", tmp]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    finally:
-        for f in (copia, copia[:-6] + ".laccdb"):
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-    if not os.path.exists(tmp):
-        raise RuntimeError("Export Access fallito.\n%s\n%s" % (p.stdout, p.stderr))
-    try:
+        try:
+            shutil.copyfile(accdb, copia)
+            cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                   "-File", ps1, "-Accdb", copia, "-Out", tmp]
+            # PowerShell scrive nella codepage OEM (cp850), non in cp1252: con
+            # la decodifica di default una 'i' accentata (0x8D) faceva morire il
+            # thread che legge stderr, e l'errore vero diventava "None"
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=300,
+                               encoding="oem" if os.name == "nt" else None,
+                               errors="replace")
+        finally:
+            for f in (copia, copia[:-6] + ".laccdb"):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+        if not os.path.exists(tmp):
+            raise RuntimeError("Export Access fallito.\n%s\n%s" % (p.stdout, p.stderr))
         with open(tmp, encoding="utf-8-sig") as f:
             d = json.load(f)
     finally:
+        # anche se PowerShell va in timeout dopo aver scritto il JSON:
+        # l'anagrafica non resta in %TEMP%
         try:
-            os.remove(tmp)      # l'anagrafica non resta in %TEMP%
+            os.remove(tmp)
         except OSError:
             pass
     d["sorgente"] = accdb          # nel log deve comparire il file vero, non la copia
@@ -157,17 +191,32 @@ def estrai(cfg, base):
 
 
 def backup(cfg, base):
-    src = os.path.abspath(os.path.join(base, cfg["sqlite_path"]))
+    """Copia dell'archivio IN USO (db.init), non per forza quello di
+    config.json: con `server.py --db copia.db` si copiava l'archivio vero (o
+    niente, se mancava) e la copia su cui si lavorava restava senza backup.
+    Si usa il backup di SQLite, non la copia del file: prende anche quello che
+    e' ancora nel WAL (con un lettore aperto il checkpoint non lo riporta nel
+    .db) e da' una fotografia coerente."""
+    src = db._DB_PATH or os.path.abspath(os.path.join(base, cfg["sqlite_path"]))
     if not os.path.exists(src):
         return None
     d = os.path.abspath(os.path.join(base, cfg["backup_dir"]))
     os.makedirs(d, exist_ok=True)
     dst = os.path.join(d, "cronoservice_%s.db" % db.now().replace(":", "").replace("-", ""))
+    tmp = dst + ".tmp"           # fuori dal glob della rotazione finche' non e' completa
     with db.WRITE_LOCK:
-        with db.sess() as c:
-            c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        shutil.copy2(src, dst)
-    tieni = int(cfg.get("backup_da_tenere", 20))
+        sorgente = sqlite3.connect(src, timeout=15)
+        try:
+            copia = sqlite3.connect(tmp)
+            try:
+                sorgente.backup(copia)
+            finally:
+                copia.close()
+        finally:
+            sorgente.close()
+    os.replace(tmp, dst)
+    # almeno una: con 0, [:-0] era [] e non si cancellava piu' niente
+    tieni = max(1, int(cfg.get("backup_da_tenere", 20)))
     for f in sorted(glob.glob(os.path.join(d, "cronoservice_*.db")))[:-tieni]:
         try:
             os.remove(f)
@@ -188,14 +237,14 @@ def esegui(cfg, base):
     backup(cfg, base)
     ts = db.now()
     det = []
-    cnt = dict(nuovi=0, riaperti=0, chiusi=0, mesi_cambiati=0, spunte_orfane=0)
+    cnt = dict(nuovi=0, riaperti=0, chiusi=0, mesi_cambiati=0, archiviati=0, spunte_orfane=0)
 
     with db.WRITE_LOCK:
         c = db.connect()
         try:
             c.execute("BEGIN IMMEDIATE")
             prima = {r["id_service"]: r for r in
-                     c.execute("SELECT id_service, stato, mesi FROM services")}
+                     c.execute("SELECT id_service, stato, mesi, archiviato FROM services")}
 
             # tuple nell'ordine di COL_SERVICES, piu' visto_il in coda
             servs = [tuple(s[k] for k in COL_SERVICES) + (ts,) for s in servs_d]
@@ -247,8 +296,12 @@ def esegui(cfg, base):
                     cnt["mesi_cambiati"] += 1
                     det.append("#%d mesi %s -> %s" % (sid, old["mesi"], mesi))
 
+            # solo quelli spariti in QUESTO giro, come sync_applica online
+            # (cloud/05-sync.sql): prima ogni sync riscriveva nel dettaglio
+            # anche i service archiviati da mesi
             visti = {s[0] for s in servs}
-            spariti = [i for i in prima if i not in visti]
+            spariti = [i for i in prima if i not in visti and not prima[i]["archiviato"]]
+            cnt["archiviati"] = len(spariti)
             if spariti:
                 c.executemany("UPDATE services SET archiviato=1 WHERE id_service=?",
                               [(i,) for i in spariti])
@@ -282,6 +335,7 @@ def esegui(cfg, base):
 
 if __name__ == "__main__":
     base = os.path.dirname(os.path.abspath(__file__))
-    cfg = json.load(open(os.path.join(base, "config.json"), encoding="utf-8"))
+    with open(os.path.join(base, "config.json"), encoding="utf-8") as f:
+        cfg = json.load(f)
     db.init(os.path.join(base, cfg["sqlite_path"]))
     print(json.dumps(esegui(cfg, base), ensure_ascii=False, indent=2))

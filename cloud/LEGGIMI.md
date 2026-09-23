@@ -482,6 +482,44 @@ mie / Senza responsabile / persona** accanto alla provincia, e in **Azioni**
 *Affida i siti filtrati…*. Senza il file 11 applicato filtro e scelta non
 compaiono; in locale non ci sono.
 
+## 6-quater. `12-debug-2026-09.sql`: le correzioni rimaste aperte
+
+Si esegue dall'SQL Editor dopo l'11. Si puo' rilanciare: sono solo quattro
+`create or replace function` e i loro revoke/grant, per firma esatta. Non
+tocca dati e non nomina niente del Planning; `_applica` e `imposta_nota` non le
+riscrive (portano il controllo del Planning).
+
+| funzione | cosa cambia |
+|---|---|
+| `ruolo_corrente()` | chi non e' `autorizzato()` (disattivato nel Planning) risponde `tecnico`, mai `admin`. Prima un amministratore disattivato poteva ancora registrare colleghi dalla Function `registra-utente`, che chiede solo il ruolo. La Function nuova chiede anche `autorizzato()`: le due correzioni si coprono a vicenda |
+| `ripristina_blocco(p_op_id)` | il blocco si riconosce con `left(op_id, n + 1) = p_op_id \|\| ':'` invece di `like p_op_id \|\| ':%'`: con `%` si ripristinava tutto il diario, con `_` ogni blocco di un carattere (come in `app/api_spunte.py`) |
+| `imposta_meta(p)` | il mese va da 01 a 12 (`[0-9]{4}-(0[1-9]\|1[0-2])`): `2026-13` passava e rendeva "non tracciato" tutto il 2026 (come in `app/api_permessi.py`) |
+| `_csv(v)` | formula injection del CSV: una cella che comincia con `=` `+` `-` `@` TAB o CR prende un apice `'` davanti (prima una tabulazione, che non bastava); i numeri semplici (`-5`, `-3,5`) restano com'erano. Come `_testo_csv` in `app/api_scadenze.py` |
+
+In fondo al file ci sono due query di controllo: una riga per funzione con
+tutte le colonne `true` (prima di applicarlo `correzione_presente` e' `false`),
+e la prova della regola del CSV, colonna `giusto` tutta `true`.
+
+## 6-quinquies. `13-debug-2026-09-bis.sql`: la seconda tornata
+
+Si esegue dall'SQL Editor dopo il 12. Si puo' rilanciare: sei `create or
+replace function` (testi presi da quelli online, cambiato il minimo) e i loro
+revoke/grant per firma esatta. Non tocca dati; del Planning **legge** solo
+`pl_profiles` (chi e' disattivato), dentro un ramo `to_regclass`, come il 10 e
+l'11. `_applica` e `imposta_nota` non le riscrive.
+
+| funzione | cosa cambia |
+|---|---|
+| `imposta_ruolo` | il lucchetto "non si toglie l'ultimo admin" conta solo gli admin **attivi** (casella `@vrs-tech.it`, non disattivati nel Planning), e scatta solo se chi si declassa e' uno di loro. Un ruolo nullo e' un 400, non l'errore del vincolo |
+| `imposta_responsabile` | un sito non si affida a chi e' disattivato nel Planning: 400 con il nome. Togliere il responsabile resta possibile |
+| `app_attivita` | il limite si normalizza: nullo 60, sotto 1 diventa 1 (prima un negativo era un errore SQL), oltre 300 resta 300 |
+| `toggle_cella`, `bulk_celle` | mese fuori da 1..12 o anno fuori da 2000..2100: `{http: 400, esito: 'non-valido'}` invece dell'errore del vincolo. Nel bulk l'anno ferma la richiesta, un mese sbagliato solo la sua cella (prima annullava tutto il blocco). La nota no: `imposta_nota` e' la funzione esposta stessa |
+| `ripristina_blocco` | un blocco che c'e' ma non ha niente da ripristinare risponde 200 con `n = 0` (come `app/api_spunte.py`); 404 solo se nel diario quell'op_id non c'e' |
+
+In fondo al file: una riga per funzione con tutte le colonne `true` (prima di
+applicarlo `correzione_presente` e' `false`), e il conto degli admin attivi
+(`admin_attivi` almeno 1).
+
 ## Cosa cambia, usandola online
 
 | | locale | online |

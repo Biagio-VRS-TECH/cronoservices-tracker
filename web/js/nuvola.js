@@ -26,7 +26,12 @@ export const attiva = () => !!(URL_SUPABASE && CHIAVE_ANON);
 
 const K_SES = 'cs.sessione.v1';
 const K_MAIL = 'cs.email';       // solo per riproporre la casella, mai la password
-const emailRicordata = () => localStorage.getItem(K_MAIL) || '';
+/* Come la sessione (salvaSessione), anche la casella ricordata sopravvive a un
+   localStorage che lancia (Safari coi dati bloccati, privata piena): prima qui
+   la pagina d'accesso restava senza ascoltatori, o diceva errore a chi aveva
+   appena messo la password giusta. */
+const emailRicordata = () => { try { return localStorage.getItem(K_MAIL) || ''; } catch { return ''; } };
+const ricordaEmail = m => { try { localStorage.setItem(K_MAIL, m); } catch { } };
 const ORIGINE = URL_SUPABASE.replace(/\/+$/, '');
 /* Dove vive la pagina «Nuova password» (il link della mail di «Password
    dimenticata»): l'account e' lo stesso del Planning. */
@@ -291,6 +296,9 @@ async function funzione(percorso, corpo, ms = 20000) {
 }
 
 /* ------------------------------------------------------- le vecchie rotte - */
+/** Il valore di un passo: 0, 1 e 2 restano se stessi, il resto 0/1 come prima. */
+const passo = v => { const n = Number(v); return n === 0 || n === 1 || n === 2 ? n : (v ? 1 : 0); };
+
 /** Stessa firma di api.chiama: le rotte /api/... diventano funzioni Postgres. */
 export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 } = {}) {
   const u = new URL(percorso, location.origin);
@@ -327,11 +335,15 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('app_export_csv', { p_anno: num(q.anno), p_mese: num(q.mese) }, 60000);
 
     case '/api/toggle':
+      /* Un passo vale 0, 1 o 2 (= proposta sui passi da approvare, #ANCHOR:
+         ruoli): il 2 viaggia com'e' - se e' lecito lo decide _valore_per_ruolo.
+         Schiacciato su 1, l'Annulla dell'admin non rimetteva in attesa e una
+         base 2 dava un 409 finto a chi approvava dopo la spunta di un collega. */
       return rpc('toggle_cella', {
         p_id_service: b.id_service, p_anno: b.anno, p_mese: b.mese,
-        p_campo: b.campo, p_valore: b.valore ? 1 : 0,
+        p_campo: b.campo, p_valore: passo(b.valore),
         p_base_rev: b.base_rev ?? null,
-        p_base_valore: b.base_valore == null ? null : (b.base_valore ? 1 : 0),
+        p_base_valore: b.base_valore == null ? null : passo(b.base_valore),
         p_op_id: b.op_id ?? null, p_origine: b.origine || 'live',
       }, ms);
     case '/api/bulk':
@@ -633,13 +645,18 @@ export function apriStream(onEvento, mio = () => '') {
     // Senza sessione si riprova piu' tardi: se si rientra (401 -> maschera
     // d'accesso in api.js) la diretta riparte da sola, senza ricaricare.
     if (!t) { if (!chiuso) setTimeout(apri, 20000); return; }
-    ws = new WebSocket(
+    // chiusa mentre si aspettava il token (cambio d'anno, uscita): un socket
+    // aperto adesso non lo chiuderebbe piu' nessuno, e le celle arriverebbero due volte
+    if (chiuso) return;
+    const questo = ws = new WebSocket(
       `${ORIGINE.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${CHIAVE_ANON}&vsn=1.0.0`);
 
     ws.onopen = () => {
-      tentativi = 0;
+      // `tentativi` si azzera e la sonda si ferma alla CONFERMA dell'iscrizione
+      // (onmessage), non qui: un socket che si apre ma il cui canale viene
+      // rifiutato non e' una diretta, e ripartendo da zero a ogni apertura non
+      // si arrivava mai alla sonda.
       wsAttivo = ws;
-      fermaSonda();
       ws.send(JSON.stringify({
         topic: TOPIC, event: 'phx_join', ref: '1', join_ref: '1',
         payload: {
@@ -673,10 +690,26 @@ export function apriStream(onEvento, mio = () => '') {
     ws.onmessage = e => {
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
-      if (m.event === 'phx_reply' && m.topic === TOPIC && m.ref === '1' && daRecuperare) {
-        daRecuperare = false;
-        recupera();
-        return;
+      if (m?.topic === TOPIC) {
+        const st = m.payload?.status;
+        /* Il canale non c'e' piu' o non c'e' mai stato: iscrizione rifiutata
+           (token scaduto o revocato), errore o chiusura dal server, oppure il
+           messaggio `system` con cui Realtime avvisa che il token e' scaduto.
+           Prima si ignoravano e il socket restava aperto ma muto fino al
+           ricarico. Chiuso qui, `onclose` riaggancia col token di adesso (e
+           dopo quattro rifiuti ripiega sulla sonda). */
+        if (m.event === 'phx_error' || m.event === 'phx_close' ||
+            (m.event === 'system' && st === 'error') ||
+            (m.event === 'phx_reply' && m.ref === '1' && st && st !== 'ok')) {
+          questo.close();
+          return;
+        }
+        if (m.event === 'phx_reply' && m.ref === '1') {
+          tentativi = 0;
+          fermaSonda();
+          if (daRecuperare) { daRecuperare = false; recupera(); }
+          return;
+        }
       }
       if (m.event === 'broadcast') {
         const p = m.payload || {};
@@ -871,7 +904,7 @@ export function assicuraSessione() {
       attesa(true);
       try {
         await entra(mail.value.trim(), pwd.value);
-        localStorage.setItem(K_MAIL, mail.value.trim());
+        ricordaEmail(mail.value.trim());
         ultimoErrore = '';
         pagina.remove();
         for (const n of sotto) n.inert = false;

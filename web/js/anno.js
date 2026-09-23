@@ -589,18 +589,28 @@ function aggiornaRigaTotali() {
 }
 
 /** Passi ancora da spuntare nel set filtrato: alimenta "Completa tutto".
- *  `soloReali` limita ai mesi dentro contratto e dentro il tracciamento. */
+ *  `soloReali` limita ai mesi dentro contratto e dentro il tracciamento.
+ *
+ *  Con `soloReali` la cella e' UNA per sito, quella della scadenza, e il passo
+ *  manca solo se manca alla MAPPATURA del sito (#ANCHOR: mappatura-anno): un
+ *  passo fatto a una visita DOPO la scadenza non e' "ereditato" dalla cella di
+ *  marzo (il tempo va in una direzione sola), ma e' fatto. Prima un sito chiuso
+ *  a novembre si vedeva rimettere quattro spunte a marzo, e il conto della
+ *  conferma ("N spunte su M mappature") contava mappature gia' a posto. */
 export function passiMancanti(soloReali = true) {
   const voci = [];
   for (const g of gruppiFiltrati()) {
     for (const s of g.srvs) {
       if (s.stato !== 'APERTO') continue;
+      const giaFatti = soloReali ? mappaturaSito(s).passi : {};
       for (let m = 1; m <= 12; m++) {
         const e = statoCella(s.id, m);
         if (soloReali ? !e.reale : !e.spuntabile) continue;
         for (const campo of CAMPI) {
           // un passo ereditato da una visita prima e' gia' fatto: non si rimette
-          if (!fatto(e.c, campo) && !e.ered[campo]) voci.push({ id: s.id, mese: m, campo, valore: 1 });
+          if (!fatto(e.c, campo) && !e.ered[campo] && !giaFatti[campo]) {
+            voci.push({ id: s.id, mese: m, campo, valore: 1 });
+          }
         }
       }
     }

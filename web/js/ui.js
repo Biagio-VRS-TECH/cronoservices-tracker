@@ -327,23 +327,39 @@ export async function copia(testo) {
 export const esc = s => String(s ?? '').replace(/[&<>"]/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-export function quando(iso) {
+/* `adesso` si passa solo nelle prove. Un'ora del server un filo avanti rispetto
+   all'orologio di chi guarda (a mezzanotte) dava un giorno NEGATIVO, e si
+   leggeva "-1 giorni fa": nel futuro vicino e' "oggi". Una data rotta non
+   scrive "Invalid Date". */
+export function quando(iso, adesso = new Date()) {
   if (!iso) return '';
-  const d = new Date(iso), o = new Date();
+  const d = new Date(iso), o = adesso;
+  if (isNaN(d.getTime())) return '';
   const g = Math.round((new Date(o.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5);
   const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  if (g === 0) return 'oggi ' + ora;
+  if (g <= 0) return 'oggi ' + ora;
   if (g === 1) return 'ieri ' + ora;
   if (g < 7) return g + ' giorni fa';
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-/* byte -> testo leggibile, con la virgola italiana */
-export const dimensione = n => n > 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB'
-  : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+/* byte -> testo leggibile, con la virgola italiana. 1024 byte sono 1 KB (con
+   `>` diventavano "1024 B", e 1 MB "1024 KB"); un valore mancante e' 0. */
+export const dimensione = x => {
+  const n = Number(x) || 0;
+  return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB'
+    : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+};
 
+/* Una data SENZA ora ("2026-09-23", come arrivano inizio e scadenza dei
+   contratti) per `new Date` e' la mezzanotte UTC: a ovest di Greenwich e' gia'
+   il giorno prima. La si costruisce nel fuso locale; una data rotta e' un
+   trattino, non "Invalid Date". */
 export function dataIt(iso) {
-  return iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
+  if (!iso) return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('it-IT');
 }
 
 /* colore stabile per operatore: stesso nome -> sempre stessa tinta */

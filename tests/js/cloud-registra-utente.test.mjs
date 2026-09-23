@@ -9,10 +9,11 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fn from '../../netlify/functions/registra-utente.mjs';
 
-let chiamate, ruolo, crea;
+let chiamate, ruolo, abilitato, crea;
 beforeEach(() => {
   chiamate = [];
   ruolo = { stato: 200, corpo: 'admin' };
+  abilitato = { stato: 200, corpo: true };
   crea = { stato: 200, corpo: { id: 'nuovo-id' } };
   process.env.SUPABASE_URL = 'https://finto.supabase.co';
   process.env.SUPABASE_ANON_KEY = 'chiave-anon';
@@ -22,6 +23,9 @@ beforeEach(() => {
     if (String(url).includes('/rpc/ruolo_corrente')) {
       if (ruolo.lancia) throw new TypeError('rete');
       return new Response(JSON.stringify(ruolo.corpo), { status: ruolo.stato });
+    }
+    if (String(url).includes('/rpc/autorizzato')) {
+      return new Response(JSON.stringify(abilitato.corpo), { status: abilitato.stato });
     }
     return new Response(JSON.stringify(crea.corpo), { status: crea.stato });
   };
@@ -128,4 +132,40 @@ test('SUPABASE_URL con la barra finale: niente "//rest/v1"', async () => {
   const out = await fn(richiesta(buono));
   assert.equal(out.status, 200);
   for (const c of chiamate) assert.doesNotMatch(c.url, /\.co\/\//);
+});
+
+/* 12-debug-2026-09: un amministratore DISATTIVATO nel Planning ha ancora un
+   token che si rinnova, e ruolo_corrente() (prima di cloud/12) gli rispondeva
+   'admin'. La Function chiede anche autorizzato(), col suo stesso token. */
+for (const [caso, risposta] of [['false', { stato: 200, corpo: false }],
+                                ['null', { stato: 200, corpo: null }],
+                                ['403', { stato: 403, corpo: { message: 'permission denied' } }]]) {
+  test(`admin non autorizzato (autorizzato() = ${caso}): 403 e service key non toccata`, async () => {
+    abilitato = risposta;
+    const out = await fn(richiesta(buono));
+    assert.equal(out.status, 403);
+    assert.equal(service().length, 0);
+  });
+}
+
+test('autorizzato() si chiede col token di chi preme e la chiave anon', async () => {
+  await fn(richiesta(buono));
+  const c = chiamate.find(x => x.url.includes('/rpc/autorizzato'));
+  assert.ok(c, 'autorizzato() non chiesto');
+  assert.equal(c.o.headers.Authorization, 'Bearer token-di-chi-preme');
+  assert.equal(c.o.headers.apikey, 'chiave-anon');
+});
+
+test('422 che NON e\' una casella doppia (password debole): 400 col motivo, non 409', async () => {
+  crea = { stato: 422, corpo: { code: 422, error_code: 'weak_password',
+                                msg: 'Password should contain at least one character of each: abc, 123' } };
+  const out = await fn(richiesta(buono));
+  assert.equal(out.status, 400);
+  assert.match((await out.json()).errore, /Password should contain/);
+});
+
+test('casella doppia riconosciuta anche dal solo error_code', async () => {
+  crea = { stato: 422, corpo: { code: 422, error_code: 'email_exists', msg: '' } };
+  const out = await fn(richiesta(buono));
+  assert.equal(out.status, 409);
 });

@@ -78,6 +78,26 @@ export default async (req) => {
     return risposta(403, { errore: 'questa azione e\' dell\'amministratore' });
   }
 
+  /* 1-bis. ...e puo' ancora entrare? Chi e' disattivato nel Planning ha un token
+     che si rinnova lo stesso (Supabase Auth il Planning non lo conosce), e fino
+     a cloud/12-debug-2026-09.sql ruolo_corrente() gli rispondeva 'admin'. La
+     domanda giusta e' la stessa che fa ogni funzione dell'app, autorizzato(),
+     sempre col SUO token: se non risponde `true` ci si ferma qui. */
+  try {
+    const r = await fetch(`${URL_SB}/rest/v1/rpc/autorizzato`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: ANON,
+                 Authorization: 'Bearer ' + token },
+      body: '{}',
+    });
+    if (r.status === 401) return risposta(401, { errore: 'sessione scaduta: rientra.' });
+    if (!r.ok || (await r.json()) !== true) {
+      return risposta(403, { errore: 'la tua casella non e\' abilitata (o e\' disattivata nel Planning).' });
+    }
+  } catch {
+    return risposta(502, { errore: 'database non raggiungibile.' });
+  }
+
   /* 2. Cosa mi hanno chiesto di creare. */
   let corpo;
   try { corpo = await req.json(); } catch { corpo = null; }
@@ -107,8 +127,12 @@ export default async (req) => {
     creato = await r.json().catch(() => ({}));
     if (!r.ok) {
       const motivo = creato?.msg || creato?.message || creato?.error_description || '';
-      // Il caso di gran lunga piu' probabile, detto in italiano.
-      if (r.status === 422 || /already|exist|registrat/i.test(motivo)) {
+      // Il caso di gran lunga piu' probabile, detto in italiano. Non ogni 422
+      // pero': Supabase risponde 422 anche a una password che non passa le sue
+      // regole (`weak_password`, troppo lunga...), e "ha gia' un accesso" li'
+      // mandava a cercare un utente che non c'e'. Quelli escono col motivo.
+      if (/^(email_exists|user_already_exists)$/.test(creato?.error_code || '') ||
+          /already|exist|registrat/i.test(motivo) || r.status === 409) {
         return risposta(409, { errore: `${email} ha gia' un accesso.` });
       }
       // Un 401/403 qui e' della SERVICE key (sbagliata, ruotata, o e' l'anon),

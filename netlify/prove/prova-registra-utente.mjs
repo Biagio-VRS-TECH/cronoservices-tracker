@@ -26,6 +26,7 @@ import fn from '../functions/registra-utente.mjs';
 const vero = process;                  // lo stub qui sotto copre `process`
 const chiamate = [];
 let creaStato = 200, creaCorpo = { id: 'nuovo-id' }, ruolo = 'admin', tokenUsato = null;
+let abilitato = true;                  // autorizzato(): false = disattivato nel Planning
 
 globalThis.fetch = async (url, o) => {
   const via = String(url).replace(/^https?:\/\/[^/]+/, '');
@@ -34,6 +35,9 @@ globalThis.fetch = async (url, o) => {
     tokenUsato = o.headers.Authorization;
     if (ruolo === '__401') return new Response('{}', { status: 401 });
     return new Response(JSON.stringify(ruolo), { status: 200 });
+  }
+  if (via.includes('/rpc/autorizzato')) {
+    return new Response(JSON.stringify(abilitato), { status: 200 });
   }
   return new Response(JSON.stringify(creaCorpo), { status: creaStato });
 };
@@ -80,6 +84,8 @@ ruolo = 'tecnico';     await prova('lo chiede un operatore', req(buono), 403);
 ruolo = 'approvatore'; await prova('lo chiede un approvatore', req(buono), 403);
 ruolo = '__401';       await prova('token scaduto', req(buono), 401);
 ruolo = 'admin';
+abilitato = false;     await prova('admin disattivato', req(buono), 403);
+abilitato = true;
 await prova('casella non aziendale', req({ ...buono, email: 'tizio@gmail.com' }), 400);
 // un dominio che FINISCE per qualcosa di simile non deve passare per sbaglio
 await prova('dominio somigliante', req({ ...buono, email: 'x@finto-vrs-tech.it' }), 400);

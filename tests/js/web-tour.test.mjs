@@ -66,3 +66,157 @@ test('il CSS del tutorial non anima left/top/width/height', () => {
     if (t) assert.doesNotMatch(t[1], /\b(left|top|width|height|all)\b/, r);
   }
 });
+
+/* ------------------------------------------------ i bersagli dei passi ---
+   I passi puntano a elementi delle pagine dei generatori con un selettore: se
+   un id cambia nell'HTML il passo resta, ma il fumetto finisce al centro
+   parlando di un comando che non indica piu'. Il tracker (web/index.html) non
+   ha una guida: i passi sono solo in js/schede.js e registro/app.js. */
+const leggi = p => readFileSync(new URL('../../web/' + p, import.meta.url), 'utf8');
+
+/** I selettori dei passi, come scritti nel sorgente (`sel:'#x'`, `sel:['#a','#b']`, `sel:null`). */
+function selettoriDeiPassi(sorgente) {
+  const out = [];
+  for (const [, uno, lista] of sorgente.matchAll(/\bsel:\s*(?:'([^']*)'|\[([^\]]*)\]|null)/g)) {
+    if (uno !== undefined) out.push(uno);
+    else if (lista !== undefined) out.push(...[...lista.matchAll(/'([^']*)'/g)].map(m => m[1]));
+  }
+  return out;
+}
+
+/** Il selettore c'e' nella pagina: un id o una classe nell'HTML (tutti e due
+ *  i generatori non creano da JS nessuno dei loro bersagli). */
+function esisteIn(html, sel) {
+  const m = /^#([\w-]+)$/.exec(sel) || /^\.([\w-]+)$/.exec(sel);
+  assert.ok(m, `selettore non semplice, da controllare a mano: ${sel}`);
+  if (sel[0] === '#') return new RegExp(`\\bid="${m[1]}"`).test(html);
+  return new RegExp(`\\bclass="[^"]*\\b${m[1]}\\b[^"]*"`).test(html);
+}
+
+for (const [nome, sorgente, pagina] of [
+  ['schede tecnici', 'js/schede.js', 'schede/index.html'],
+  ['registro componenti', 'registro/app.js', 'registro/index.html'],
+]) {
+  test(`guida (${nome}): ogni bersaglio esiste in ${pagina}`, () => {
+    const sel = selettoriDeiPassi(leggi(sorgente));
+    assert.ok(sel.length >= 10, 'passi non trovati nel sorgente');
+    const html = leggi(pagina);
+    const mancano = sel.filter(s => !esisteIn(html, s));
+    assert.deepEqual(mancano, []);
+    // i due bottoni che la riaprono
+    assert.ok(esisteIn(html, '#tourBtn') && esisteIn(html, '#startTutorial'));
+  });
+}
+
+test('il tracker non ha una guida da tenere allineata', () => {
+  assert.doesNotMatch(leggi('index.html'), /tour\.js/);
+  assert.doesNotMatch(leggi('js/app.js'), /Tour\.crea/);
+});
+
+/* -------------------------------------------- il giro, passo per passo ---
+   tour.js in un contesto vm con un DOM giocattolo: gli elementi nascono dagli
+   id scritti nell'innerHTML del markup, e si leggono per id. */
+function giocattolo() {
+  const perId = new Map(), tasti = [];
+  const memoria = new Map();
+  const nodo = (id = '') => {
+    const cl = new Set();
+    const n = {
+      id, hidden: false, disabled: false, textContent: '', children: [], _html: '', className: '',
+      offsetWidth: 300, offsetHeight: 160, onclick: null,
+      style: { setProperty() { }, removeProperty() { } },
+      classList: { add: c => cl.add(c), remove: c => cl.delete(c), contains: c => cl.has(c) },
+      attr: {}, setAttribute(k, v) { this.attr[k] = String(v); }, getAttribute(k) { return this.attr[k] ?? null; },
+      addEventListener() { }, focus() { doc.activeElement = n; }, get isConnected() { return true; },
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 }),
+      getClientRects: () => [], querySelectorAll: () => [],
+      get innerHTML() { return this._html; },
+      set innerHTML(v) {
+        this._html = String(v);            // come il browser: undefined diventa "undefined"
+        for (const [, k] of this._html.matchAll(/id="([^"]+)"/g)) perId.set(k, nodo(k));
+        this.children = [...this._html.matchAll(/<i><\/i>/g)].map(() => ({ className: '' }));
+      },
+    };
+    return n;
+  };
+  const doc = {
+    activeElement: null,
+    getElementById: k => perId.get(k) || null,
+    createElement: () => nodo(),
+    querySelector: () => null,
+    body: { appendChild: n => { if (n.id) perId.set(n.id, n); return n; } },
+    documentElement: { clientWidth: 1200, clientHeight: 800 },
+  };
+  const window = { innerWidth: 1200, innerHeight: 800, addEventListener: (t, fn) => { if (t === 'keydown') tasti.push(fn); } };
+  runInNewContext(readFileSync(new URL('../../web/js/tour.js', import.meta.url), 'utf8'), {
+    window, document: doc, requestAnimationFrame: () => 0, setTimeout: () => 0,
+    matchMedia: () => ({ matches: true }), getComputedStyle: () => ({}),
+    localStorage: { getItem: k => memoria.get(k) ?? null, setItem: (k, v) => memoria.set(k, String(v)) },
+  });
+  const premi = key => tasti.forEach(fn => fn({ key, preventDefault() { } }));
+  return { Tour: window.Tour, el: k => perId.get(k), memoria, premi };
+}
+
+const PASSI = [
+  { sel: null, title: 'Uno', tx: '<p>primo</p>' },
+  { sel: '#nonCe', title: 'Due', tx: '<p>secondo</p>', note: 'nota', off: 'compare col file' },
+  { sel: null, title: 'Tre', tx: '<p>terzo</p>' },
+];
+
+test('giro: numeri, titoli, Indietro spento al primo, «Ho capito» all’ultimo, e poi si ricorda', () => {
+  const { Tour, el, memoria } = giocattolo();
+  const t = Tour.crea({ passi: PASSI, chiave: 'prova.tour' });
+  assert.equal(t.vista(), false);
+  t.avvia();
+  assert.equal(t.attivo(), true);
+  assert.equal(el('tourWrap').hidden, false);
+  assert.equal(el('tourNum').textContent, '1 di 3');
+  assert.equal(el('tourTitle').textContent, 'Uno');
+  assert.equal(el('tourPrev').disabled, true);
+  assert.equal(el('tourDots').children.length, 3);
+  el('tourNext').onclick();
+  assert.equal(el('tourNum').textContent, '2 di 3');
+  // il bersaglio non c'e': vale la nota "off", non quella normale
+  assert.equal(el('tourNote').innerHTML, 'compare col file');
+  assert.equal(el('tourNote').hidden, false);
+  assert.equal(el('tourDots').children[0].className, 'done');
+  assert.equal(el('tourDots').children[1].className, 'on');
+  el('tourNext').onclick();
+  assert.equal(el('tourNext').textContent, 'Ho capito');
+  el('tourNext').onclick();
+  assert.equal(t.attivo(), false);
+  assert.equal(el('tourWrap').hidden, true);
+  assert.equal(memoria.get('prova.tour'), '1');
+  assert.equal(t.vista(), true);
+});
+
+test('giro: frecce e Esc; Indietro al primo passo resta al primo', () => {
+  const { Tour, el, premi } = giocattolo();
+  let chiuso = 0;
+  const t = Tour.crea({ passi: PASSI, dopo: () => { chiuso++; } });
+  t.avvia();
+  premi('ArrowLeft');
+  assert.equal(el('tourNum').textContent, '1 di 3');
+  premi('ArrowRight'); premi('PageDown');
+  assert.equal(el('tourNum').textContent, '3 di 3');
+  premi('Escape');
+  assert.equal(t.attivo(), false);
+  assert.equal(chiuso, 1);
+  premi('ArrowRight');                // a guida chiusa i tasti sono della pagina
+  assert.equal(t.attivo(), false);
+});
+
+test('una guida senza passi non si rompe all’avvio (e non resta aperta)', () => {
+  const { Tour, el } = giocattolo();
+  const t = Tour.crea({ passi: [] });
+  assert.doesNotThrow(() => t.avvia());
+  assert.equal(t.attivo(), false);
+  assert.equal(el('tourWrap').hidden, true);
+});
+
+test('un passo senza testo mostra il vuoto, non la parola «undefined»', () => {
+  const { Tour, el } = giocattolo();
+  Tour.crea({ passi: [{ sel: null, title: 'Solo titolo' }] }).avvia();
+  assert.equal(el('tourText').innerHTML, '');
+  assert.equal(el('tourNote').hidden, true);
+});

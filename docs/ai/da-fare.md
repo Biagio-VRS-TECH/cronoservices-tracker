@@ -3,6 +3,61 @@
 Aggiornare questo file a ogni sessione: e' il primo posto dove guardare per
 riprendere il filo.
 
+## Fatto il 2026-09-23 (35a sessione) - secondo debug completo, prove nel browser
+
+Ramo `debug-2026-09` (non ancora in `main`, non pubblicato in produzione). Test
+da 348 a 728: 324 Python, 368 JS, 36 nel browser (`tests/e2e`, Playwright su una
+copia di `data/prova.db`). Come lanciarli: [tests/LEGGIMI.md](../../tests/LEGGIMI.md).
+
+Circa 90 difetti corretti, ognuno con la sua prova. I principali:
+
+1. **Online** (applicati il 23/09 con l'MCP, verificati con query): `cloud/12`
+   (ruolo_corrente vale solo per chi e' autorizzato, cioe' un admin disattivato
+   nel Planning non crea piu' caselle; ripristina senza jolly; imposta_meta
+   01-12; CSV con l'apice contro le formule) e `cloud/13` (ultimo admin contato
+   fra i soli attivi, niente siti affidati a disattivati, limite di
+   app_attivita, mese/anno sbagliati = 400 in toggle/bulk, ripristina 200 con
+   n=0). `nuvola.js`: le proposte (2) viaggiano come 2, diretta che non resta
+   muta su un canale rifiutato. `registra-utente.mjs` chiede anche autorizzato()
+   (va in linea solo con il prossimo deploy di produzione).
+2. **Backend locale**: formula injection nel CSV (chiuso il punto aperto),
+   mese/anno/id fuori dominio salvati, 500 invece di 400/503 su input strani o
+   archivio occupato, righe vuote dopo un 409, `amministratori` scritto come
+   stringa in config (sottostringhe = admin), PDF troncati archiviati, nomi
+   oltre MAX_PATH in UTF-16, corpo HTTP senza tetto, backup che copiava
+   l'archivio sbagliato (con `--db`), risponditore UDP che moriva su pacchetti
+   grossi, URL `javascript:` dalla rete nella fascia rossa, il primo server che
+   non sapeva del secondo, push senza ritentativi.
+3. **Interfaccia**: doppio clic che faceva tornare il valore vecchio, 5xx che
+   buttavano la spunta dalla coda, risposte arrivate dopo un cambio d'anno,
+   nota persa chiudendo il popover, Annulla di un'azione a zero spunte che
+   disfaceva la precedente, date del giorno prima a ovest di Greenwich, service
+   worker che rispondeva index.html al posto di uno script (app bianca offline)
+   e che si attivava a meta' installazione, telefono (barra multipla fuori
+   schermo, bersagli da 24-35 px, testata di tre righe, popover fuori schermo,
+   pagina delle schede larga 840 px).
+
+Rimasti aperti (decisioni, non difetti certi):
+- `export_access.ps1`: una tabella con una riga sola esce come oggetto e le date
+  non sono in InvariantCulture. Python ora regge entrambi i casi; lo script non
+  si e' toccato perche' non si puo' provare senza Access.
+- Blocco del PIN unico per tutti (chi scrive il nome dell'admin puo' bloccarlo
+  un minuto; un PIN di 4 cifre cade in circa un giorno e mezzo di tentativi).
+- In locale "massa" e "bulk" sono solo etichette: un tecnico puo' azzerare con
+  `origine: bulk`. L'approvatore non puo' annullare il proprio "Approva tutte".
+- Online: `services` non e' su realtime (il cambio di responsabile non arriva
+  in diretta); la nota online toglie solo gli spazi in fondo; nota con mese
+  fuori dominio da' ancora l'errore di vincolo grezzo (imposta_nota non si
+  riscrive: la tocca il Planning).
+- Tetto dei 200 termini in `_scad_effettiva`/`scadEffettiva` (un contratto
+  mensile di oltre 16 anni resta "scaduto"): va cambiato nei due gemelli insieme.
+- Vista Mese su telefono: la selezione multipla c'e' solo con ctrl/shift+clic.
+- `vrs-icone.js`: `svgIcona('toString')` non lancia; si corregge insieme alla
+  copia del Planning. Service worker: moduli di due versioni ancora possibili
+  con la rete a singhiozzo (servirebbero indirizzi versionati).
+- Controllo di `Host` sulle GET locali (DNS rebinding) e indirizzo "per i
+  colleghi" mostrato anche con `host: 127.0.0.1`.
+
 ## Fatto il 2026-09-23 (34a sessione) - debug completo e i primi test
 
 Ramo `debug-2026-09-23`. Il progetto ha finalmente dei test: `tests/` (come
