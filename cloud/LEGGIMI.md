@@ -455,6 +455,27 @@ solo su `127.0.0.1` e rifiuta i POST da un'altra origine o non JSON (SEC-12).
 Per aprirlo ai colleghi in LAN: `"host": "0.0.0.0"` in `app/config.json`,
 sapendo che li' non c'e' login e il ruolo lo dichiara il client.
 
+## 6-ter. `11-responsabile.sql`: chi risponde di ogni sito (PRD-04)
+
+Si esegue dall'SQL Editor dopo il 10 (e dopo la 042 del Planning, che non e'
+obbligatoria ma collega gli operatori alle persone). Si puo' rilanciare e non
+scrive su righe esistenti.
+
+- `services.responsabile` (casella minuscola) e `services.responsabile_dal`:
+  `sync_applica` non li conosce, quindi il travaso da Access non li tocca mai;
+- `app_responsabili()`: chi risponde di cosa e fra chi si sceglie (gli
+  operatori con una casella, esclusi i disattivati nel Planning). Il client la
+  chiama accanto ad `app_bootstrap`, che resta com'era;
+- `imposta_responsabile(p_ids int[], p_email text)`: solo l'amministratore,
+  uno o molti siti insieme; email vuota = nessuno. Ogni sito cambiato lascia
+  una riga nel diario (`campo = 'responsabile'`, un blocco solo).
+
+Nell'app: la tendina **Responsabile** nella scheda del sito (l'amministratore
+la cambia li', gli altri la leggono), il filtro **Tutti i responsabili / Le
+mie / Senza responsabile / persona** accanto alla provincia, e in **Azioni**
+*Affida i siti filtrati…*. Senza il file 11 applicato filtro e scelta non
+compaiono; in locale non ci sono.
+
 ## Cosa cambia, usandola online
 
 | | locale | online |

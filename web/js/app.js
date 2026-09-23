@@ -17,6 +17,7 @@ import {
   proposte, ripristina, ripristinabile, bloccoDi, etichettaBlocco,
   descriviEvento, spunta, BREVE,
   giornoCambiato, oggiLocale, etaAnagrafica, aggiornaTitolo,
+  gruppiFiltrati, responsabiliAttivi, responsabileDi, nomeResponsabile, affida,
 } from './stato.js';
 import * as vAnno from './anno.js';
 import * as vMese from './mese.js';
@@ -139,6 +140,8 @@ async function avvia() {
     if (d?.remoto) avviso(`${d.remoto} ha aggiornato più mappature.`);
   });
   on('presenze', statoCollegamento);
+  // un sito affidato puo' far entrare o uscire un nome dal filtro (PRD-04)
+  on('responsabile', riempiFiltroResp);
   /* I PDF delle schede tecnici: arrivano dal flusso (o da un'altra scheda del
      browser) e toccano solo l'icona accanto al nome del sito. */
   on('documento-remoto', eventoDocumento);
@@ -355,6 +358,7 @@ function collegaTesta() {
     if (v) filtraStato(v.dataset.stato, true);
   };
   $('#f-prov').onchange = e => { st.filtri.prov = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
+  $('#f-resp').onchange = e => { st.filtri.resp = e.target.value; salvaFiltri(); ridisegnaFiltrato(); };
   for (const [id, chiave] of FILTRI) {
     $('#' + id).onclick = e => {
       st.filtri[chiave] = !st.filtri[chiave];
@@ -399,6 +403,35 @@ function riempiFiltri() {
   const opz = (v, et) => `<option value="${esc(v)}">${esc(et)}</option>`;
   $('#f-prov').innerHTML = opz('', 'Tutte le province') + elencoProv().map(p => opz(p, p)).join('');
   $('#f-prov').value = st.filtri.prov;
+  riempiFiltroResp();
+}
+
+/* Il filtro per responsabile (PRD-04, #ANCHOR: responsabile in stato.js): c'e'
+   solo quando il server manda i responsabili. "Le mie" e' la domanda di chi
+   apre l'app la mattina; "Senza responsabile" e' quella dell'amministratore. */
+function riempiFiltroResp() {
+  const sel = $('#f-resp');
+  if (!sel) return;
+  sel.hidden = !responsabiliAttivi();
+  if (sel.hidden) return;
+  const opz = (v, et) => `<option value="${esc(v)}">${esc(et)}</option>`;
+  const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+  /* un responsabile che non e' piu' fra le persone (uscito, disattivato) resta
+     sceglibile finche' ha dei siti: altrimenti quei siti non si ritrovano */
+  const orfani = [...new Set(st.responsabili.values())]
+    .filter(e => !persone.some(p => p.email === e)).sort();
+  sel.innerHTML = opz('', 'Tutti i responsabili') +
+    (st.io ? opz('mie', 'Le mie') : '') + opz('nessuno', 'Senza responsabile') +
+    (persone.length || orfani.length
+      ? '<optgroup label="Persone">' +
+        persone.map(p => opz(p.email, p.nome || nomeResponsabile(p.email))).join('') +
+        orfani.map(e => opz(e, nomeResponsabile(e))).join('') + '</optgroup>'
+      : '');
+  if (![...sel.options].some(o => o.value === st.filtri.resp)) {
+    st.filtri.resp = '';
+    salvaFiltri();
+  }
+  sel.value = st.filtri.resp;
 }
 
 /* ------------------------------------------------------------ anni ------- */
@@ -475,6 +508,10 @@ function apriAzioni(bottone) {
         nota: inAnno ? 'anno filtrato' : 'vista Anno',
         fn: () => inAnno ? massa('azzera') : soloAnno(),
       },
+      ...(responsabiliAttivi() ? [{
+        et: 'Affida i siti filtrati…', ico: ICO.gente,
+        nota: 'responsabile', fn: affidaFiltrati,
+      }] : []),
       null,
     ] : []),
     { et: 'Stampa il foglio del mese', ico: ICO.stampa, fn: stampa },
@@ -571,6 +608,10 @@ function descrizioneFiltri() {
   const f = st.filtri, p = [];
   if (f.q) p.push(`ricerca "${f.q}"`);
   if (f.prov) p.push('provincia ' + f.prov);
+  if (f.resp && responsabiliAttivi()) {
+    p.push(f.resp === 'mie' ? 'solo le mie' : f.resp === 'nessuno' ? 'senza responsabile'
+      : 'affidate a ' + nomeResponsabile(f.resp));
+  }
   if (f.stato) p.push(ET_FILTRO[f.stato]);
   return p.length ? p.join(', ') : 'nessun filtro attivo, quindi tutto l\'anno';
 }
@@ -659,6 +700,60 @@ function massa(modo) {
     ];
     ricalcola();
     return el;
+  });
+}
+
+/** Affida in blocco i siti APERTI che si vedono con i filtri di adesso (PRD-04,
+ *  #ANCHOR: responsabile). Non e' un'azione distruttiva: si rifa' o si toglie
+ *  quando si vuole, e ogni sito lascia una riga nel diario. */
+function affidaFiltrati() {
+  const ids = gruppiFiltrati().flatMap(g => g.srvs)
+    .filter(s => s.stato === 'APERTO').map(s => s.id);
+  modale(chiudi => {
+    const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+    const scelta = h('select.campo', { id: 'affida-chi', 'aria-describedby': 'affida-conto' },
+      h('option', { value: '', testo: 'Scegli una persona…' }),
+      ...persone.map(p => h('option', { value: p.email, testo: p.nome || nomeResponsabile(p.email) })),
+      h('option', { value: '-', testo: 'Nessuno: togli il responsabile' }));
+    const conto = h('p', { id: 'affida-conto', style: 'margin:12px 0 16px;font-size:var(--t-mini)' });
+    const bottone = h('button.bottone', { testo: '…' });
+    const ricalcola = () => {
+      const v = scelta.value;
+      const email = v === '-' ? '' : v;
+      const cambiano = v ? ids.filter(id => responsabileDi(id) !== email) : [];
+      const altri = v && email ? cambiano.filter(id => responsabileDi(id)).length : 0;
+      const siti = n => `${n} ${n === 1 ? 'sito' : 'siti'}`;
+      conto.innerHTML = !ids.length
+        ? 'Con questi filtri non si vede nessun sito aperto.'
+        : !v ? `<b>${siti(ids.length)}</b> aperti con questi filtri.`
+        : !cambiano.length ? 'Sono già tutti così: non cambia niente.'
+        : `Cambia il responsabile di <b>${siti(cambiano.length)}</b> su ${ids.length}` +
+          (altri ? `, e <b>${altri}</b> ${altri === 1 ? 'aveva' : 'avevano'} già un altro responsabile.` : '.');
+      bottone.textContent = !ids.length || !v || !cambiano.length ? 'Chiudi'
+        : email ? `Affida ${siti(cambiano.length)}` : `Togli da ${siti(cambiano.length)}`;
+      bottone.onclick = async () => {
+        if (!ids.length || !v || !cambiano.length) return chiudi();
+        bottone.disabled = true; scelta.disabled = true; bottone.textContent = 'Salvo…';
+        const n = await affida(cambiano, email);
+        if (n < 0) { bottone.disabled = false; scelta.disabled = false; ricalcola(); return; }
+        chiudi();
+        avviso(email ? `${siti(n)} ${n === 1 ? 'affidato' : 'affidati'} a ${nomeResponsabile(email)}.`
+          : `Responsabile tolto da ${siti(n)}.`, { tono: 'ok' });
+      };
+    };
+    scelta.onchange = ricalcola;
+    ricalcola();
+    return [
+      h('h2', { testo: 'Affida i siti filtrati' }),
+      h('p.sotto', { testo: `Vale sui siti aperti che vedi ora — ${descrizioneFiltri()}. ` +
+        'Per restringere, usa prima la ricerca e i filtri.' }),
+      h('label.acc-et', { for: 'affida-chi', testo: 'Responsabile' }),
+      scelta,
+      conto,
+      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+        h('button.bottone.piatto', { testo: 'Lascia stare', onclick: chiudi }),
+        bottone),
+    ];
   });
 }
 

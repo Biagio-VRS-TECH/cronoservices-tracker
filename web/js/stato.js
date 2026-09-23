@@ -125,7 +125,12 @@ export const st = {
   /* `stato`: '' | 'incomplete' | 'ritardo' | 'complete' (#ANCHOR: filtro-stato).
      Il filtro per tipo di gas e' stato tolto alla 15a sessione: nessuno lo
      usava e il tipo si cerca dalla barra di ricerca. */
-  filtri: { q: '', prov: '', mostraChiusi: false, stato: '' },
+  filtri: { q: '', prov: '', mostraChiusi: false, stato: '', resp: '' },
+  /* Chi risponde di ogni service (PRD-04, cloud/11-responsabile.sql): idServ ->
+     casella. null = non disponibile (in locale, o file 11 non ancora applicato):
+     allora il filtro e la scelta non si vedono. `persone` = fra chi si sceglie,
+     `io` = la mia casella, per "Le mie".  #ANCHOR: responsabile */
+  responsabili: null, persone: [], io: '',
 };
 
 /* --------------------------------------------------------- emettitore ---- */
@@ -147,6 +152,7 @@ export function caricaFiltri() {
   f.q = '';
   f.prov = typeof g.prov === 'string' ? g.prov : '';
   f.mostraChiusi = !!g.mostraChiusi;
+  f.resp = typeof g.resp === 'string' ? g.resp : '';
   f.stato = STATI.includes(g.stato) ? g.stato
     : g.soloRitardo ? 'ritardo' : g.soloIncomplete ? 'incomplete' : '';
 }
@@ -215,6 +221,7 @@ export function applica(d) {
   st.celle = new Map(Object.entries(d.celle));
   st.cellePrec = new Map(Object.entries(d.celle_prec || {}));
   st.documenti = mappaDocumenti(d.documenti);
+  applicaResponsabili(d);
   riapplicaCoda();
 
   /* Un sync o un cambio d'anno rifanno i mesi e le date: le memoizzazioni
@@ -614,9 +621,10 @@ function passa(s, cli, q, ignoraStato) {
   const f = st.filtri;
   if (s.stato !== 'APERTO' && !f.mostraChiusi) return false;
   if (f.prov && s.prov !== f.prov) return false;
+  if (!passaResp(s.id)) return false;
   if (q.length) {
     const fieno = (cli.rs + ' ' + s.dest + ' ' + s.loc + ' ' + s.prov + ' ' +
-      s.id + ' ' + s.nc + ' ' + s.tipo).toLowerCase();
+      s.id + ' ' + s.nc + ' ' + s.tipo + ' ' + nomeResponsabile(responsabileDi(s.id))).toLowerCase();
     if (!q.every(t => terminePassa(t, fieno))) return false;   // tollera le grafie (#ANCHOR: affinita)
   }
   if (f.stato && !ignoraStato && s.stato === 'APERTO' && !statoPassa(s, f.stato)) return false;
@@ -640,6 +648,71 @@ function statoPassa(s, quale) {
   if (quale === 'complete') return ma.completa;
   if (quale === 'ritardo') return ma.ritardo;
   return ma.prevista && !ma.completa;                     // 'incomplete' = da fare
+}
+
+/* ------------------------------------------------------- responsabile -- */
+/* #ANCHOR: responsabile (PRD-04). Chi risponde di un service e' una CASELLA,
+   come il ruolo: il nome e' solo come la si scrive. I dati arrivano accanto al
+   bootstrap (nuvola.js li aggiunge da `app_responsabili`); senza, il filtro non
+   filtra e la scelta non si mostra. */
+export function applicaResponsabili(d) {
+  if (d && d.responsabili && typeof d.responsabili === 'object') {
+    st.responsabili = new Map(Object.entries(d.responsabili)
+      .filter(([, v]) => typeof v === 'string' && v)
+      .map(([k, v]) => [Number(k), v]));
+    st.persone = Array.isArray(d.persone) ? d.persone.filter(p => p && p.email) : [];
+    st.io = String(d.io || '').toLowerCase();
+  } else {
+    st.responsabili = null; st.persone = []; st.io = '';
+  }
+}
+
+export const responsabiliAttivi = () => st.responsabili instanceof Map;
+export const responsabileDi = id => (responsabiliAttivi() && st.responsabili.get(id)) || '';
+
+/** Il nome di una casella: quello di `operatori` se c'e', altrimenti ricavato
+ *  dalla casella stessa (mario.rossi@ -> Mario Rossi). '' se la casella e' vuota. */
+export function nomeResponsabile(email) {
+  if (!email) return '';
+  const p = st.persone.find(x => x.email === email);
+  if (p?.nome) return p.nome;
+  return (email.split('@')[0] || '').split(/[._-]+/).filter(Boolean)
+    .map(x => x[0].toUpperCase() + x.slice(1).toLowerCase()).join(' ') || email;
+}
+
+/** Il filtro per responsabile: '' tutti, 'mie' le mie, 'nessuno' senza, o una
+ *  casella. Senza dati (in locale) lascia passare tutto. */
+export function passaResp(id) {
+  const f = st.filtri.resp;
+  if (!f || !responsabiliAttivi()) return true;
+  const r = responsabileDi(id);
+  if (f === 'mie') return !!st.io && r === st.io;
+  if (f === 'nessuno') return !r;
+  return r === f;
+}
+
+/** Affida uno o molti service a una casella ('' = a nessuno). Solo l'admin: il
+ *  server lo ricontrolla. Torna quanti sono cambiati, -1 se non e' andata. */
+export async function affida(ids, email) {
+  const lista = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
+  if (!lista.length) return 0;
+  let r;
+  try {
+    r = await chiama('/api/responsabile', { metodo: 'POST', body: { ids: lista, email: email || '' } });
+  } catch (e) {
+    avviso('Responsabile non salvato: ' + (e?.message || 'rete assente') + '.', { tono: 'allerta' });
+    return -1;
+  }
+  if (!r?.ok) {
+    avviso('Responsabile non salvato: ' + (r?.dati?.errore || 'errore ' + r?.stato) + '.', { tono: 'allerta' });
+    return -1;
+  }
+  if (!responsabiliAttivi()) st.responsabili = new Map();
+  for (const id of lista) st.responsabili.delete(id);
+  for (const [k, v] of Object.entries(r.dati?.responsabili || {})) if (v) st.responsabili.set(Number(k), v);
+  emetti('responsabile', { ids: lista });
+  emetti('rilegge');
+  return Number(r.dati?.cambiati) || 0;
 }
 
 /** Lo stato della mappatura dell'anno di un sito in una parola sola: e' quello
@@ -1075,6 +1148,10 @@ export function descriviEvento(e) {
   if (e.campo === 'diario') {
     return 'ha svuotato il diario' + (e.dettaglio ? ` (${esc(e.dettaglio)})` : '');
   }
+  // PRD-04 (cloud/11-responsabile.sql): il nome del responsabile e' in `dettaglio`
+  if (e.campo === 'responsabile') {
+    return e.dettaglio ? `ha affidato il sito a <i>${esc(e.dettaglio)}</i>` : 'ha tolto il responsabile';
+  }
   const da = Number(e.da), a = Number(e.a);
   // il risultato finisce in innerHTML (diario, storia, cassetto): il campo
   // arriva dal database, e passa di qui come testo
@@ -1096,7 +1173,7 @@ export function descriviEvento(e) {
  *  spunta singola e' un blocco da una. */
 export const bloccoDi = e => (e?.op_id || '').split(':')[0];
 export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' &&
-  e.campo !== 'documento' && e.campo !== 'diario' && e.da != null;
+  e.campo !== 'documento' && e.campo !== 'diario' && e.campo !== 'responsabile' && e.da != null;
 
 /** L'admin rimette com'erano PRIMA tutti i passi di un'operazione (#ANCHOR:
  *  ripristino): il tastino di reversibilita' del diario, che vale anche sulle
@@ -1130,6 +1207,10 @@ export function etichettaBlocco(righe) {
   if (o === 'approvazione') return `Approvazione di ${n} ${n === 1 ? 'proposta' : 'proposte'}`;
   if (o === 'annulla') return `Annulla · ${n} ${sp} riportate come prima`;
   if (o === 'ripristino') return `Ripristino · ${n} ${sp} rimesse com\u2019erano`;
+  if (o === 'responsabile') {
+    const chi = righe[0]?.dettaglio;
+    return `${chi ? 'Affidati a ' + chi : 'Tolto il responsabile'} · ${n} ${n === 1 ? 'sito' : 'siti'}`;
+  }
   return `Azione multipla · ${n} ${sp}`;
 }
 

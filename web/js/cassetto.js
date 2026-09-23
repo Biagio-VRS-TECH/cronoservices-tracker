@@ -18,6 +18,7 @@ import {
   st, cella, statoCella, spuntaMolte, CAMPI, SIGLA, ETICHETTA, BREVE, toccaPasso,
   mappaturaSito, scadEffettiva, on, doveFatto,
   fatto, proposto, notaProposta, descriviEvento, ripristina, ripristinabile,
+  sonoAdmin, responsabiliAttivi, responsabileDi, nomeResponsabile, affida,
 } from './stato.js';
 
 let nodo = null, idAperto = null, stacca = null, prima = null;
@@ -138,7 +139,8 @@ function disegna() {
         ['Località', [s.loc, s.prov].filter(Boolean).join(' ') || '—'],
         ['Avanzamento del sito', ma.scad || ma.n
           ? `${ma.n}/${CAMPI.length} passi` : '—'],
-      ].flatMap(([k, v]) => [h('dt', { testo: k }), h('dd', { testo: String(v) })])),
+      ].flatMap(([k, v]) => [h('dt', { testo: k }), h('dd', { testo: String(v) })]),
+      rigaResponsabile(s)),
 
       s.note ? h('p', {
         testo: s.note,
@@ -173,6 +175,37 @@ function disegna() {
       storia || h('p.js-attesa', { testo: 'Caricamento…', style: 'color:var(--tenue);font-size:var(--t-mini)' }),
     ),
   );
+}
+
+/** Chi risponde del sito (PRD-04, #ANCHOR: responsabile in stato.js): due
+ *  celle della scheda dati. L'amministratore lo cambia qui, in linea, dalla
+ *  tendina; gli altri lo leggono. Senza dati (in locale) la riga non c'e'. */
+function rigaResponsabile(s) {
+  if (!responsabiliAttivi()) return null;
+  const email = responsabileDi(s.id);
+  let valore;
+  if (sonoAdmin()) {
+    const persone = [...st.persone].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'));
+    const sel = h('select.pill', { 'aria-label': 'Responsabile del sito', title: 'Chi risponde della mappatura di questo sito' },
+      h('option', { value: '', testo: 'Nessuno' }),
+      persone.map(p => h('option', { value: p.email, testo: p.nome || nomeResponsabile(p.email) })),
+      email && !persone.some(p => p.email === email)
+        ? h('option', { value: email, testo: nomeResponsabile(email) }) : null);
+    sel.value = email;
+    sel.onchange = async () => {
+      const nuovo = sel.value;
+      sel.disabled = true;
+      const n = await affida([s.id], nuovo);
+      sel.disabled = false;
+      if (n < 0) { sel.value = responsabileDi(s.id); return; }
+      avviso(nuovo ? `Sito affidato a ${nomeResponsabile(nuovo)}.` : 'Responsabile tolto dal sito.', { tono: 'ok' });
+      caricaStoria(s.id);
+    };
+    valore = sel;
+  } else {
+    valore = email ? nomeResponsabile(email) + (email === st.io ? ' (tu)' : '') : 'nessuno';
+  }
+  return [h('dt', { testo: 'Responsabile' }), h('dd', {}, valore)];
 }
 
 /** I documenti del sito: i due generatori gia' puntati su questo impianto

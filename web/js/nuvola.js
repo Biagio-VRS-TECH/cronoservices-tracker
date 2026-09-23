@@ -255,8 +255,20 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
 
   switch (u.pathname) {
     case '/api/bootstrap': {
-      const r = await rpc('app_bootstrap', { p_anno: num(q.anno) }, ms);
+      /* I responsabili (PRD-04, cloud/11-responsabile.sql) viaggiano accanto,
+         in parallelo: app_bootstrap resta com'e'. Se la funzione non c'e' ancora
+         (file 11 non applicato) o risponde male, il bootstrap vale lo stesso e
+         filtro e scelta del responsabile semplicemente non compaiono. */
+      const [r, resp] = await Promise.all([
+        rpc('app_bootstrap', { p_anno: num(q.anno) }, ms),
+        rpc('app_responsabili', {}, ms).catch(() => null),
+      ]);
       if (r.ok && r.dati?.anno) ultimoAnno = r.dati.anno;
+      if (r.ok && r.dati && resp?.ok && resp.dati?.responsabili) {
+        r.dati.responsabili = resp.dati.responsabili;
+        r.dati.persone = resp.dati.persone || [];
+        r.dati.io = resp.dati.io || '';
+      }
       return r;
     }
     case '/api/storia':
@@ -291,6 +303,11 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       return rpc('imposta_operatore', { p_nome: b.nome }, ms);
     case '/api/ruolo':                     // (#ANCHOR: ruoli) solo un admin passa
       return rpc('imposta_ruolo', { p_nome: b.nome, p_ruolo: b.ruolo }, ms);
+    case '/api/responsabile':              // (#ANCHOR: responsabile) solo un admin passa
+      return rpc('imposta_responsabile', {
+        p_ids: (b.ids || []).map(Number).filter(Number.isFinite),
+        p_email: b.email || '',
+      }, Math.max(ms, 40000));
     case '/api/registra_utente':
       // L'unica rotta che NON e' una funzione Postgres (#ANCHOR: registra-utente):
       // creare una casella vuole la service key, che sta solo nella Function.
