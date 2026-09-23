@@ -100,6 +100,7 @@ async function avvia() {
   if (!rete.operatore) chiediNome(); else disegnaIo();
   bottoneEsci();
   disegna();
+  apriDaIndirizzo();
   statoCollegamento();
   avvisaAnagraficaVecchia();
 
@@ -172,6 +173,19 @@ function nuovoGiorno() {
   cambiaAnno(st.anno).then(() => { giornoProvato = oggi; riempiFiltri(); disegna(); })
     .catch(() => { /* senza rete: si riprova fra un minuto */ })
     .finally(() => { rileggoGiorno = false; });
+}
+
+/* PRD-13: la palette del Planning (Ctrl+K) trova gli impianti e porta qui con
+   `?service=<id>`: si apre la scheda di quel sito. Il parametro si toglie
+   subito dall'indirizzo, cosi' un ricaricamento non riapre la scheda chiusa. */
+function apriDaIndirizzo() {
+  const u = new URL(location.href);
+  const id = Number(u.searchParams.get('service')) || 0;
+  if (!u.searchParams.has('service')) return;
+  u.searchParams.delete('service');
+  history.replaceState(null, '', u);
+  if (id && st.perServ.has(id)) apriCassetto(id);
+  else avviso('Il service cercato non c’è fra quelli di quest’anno.', { tono: 'allerta' });
 }
 
 /* MOV-14: finche' i dati non arrivano, righe-scheletro della forma della
