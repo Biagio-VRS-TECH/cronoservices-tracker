@@ -14,6 +14,7 @@
 <link rel="preload" href="/assets/fonti/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/fonti.css">
 <link rel="stylesheet" href="/css/vrs-famiglia.css">
+<link rel="stylesheet" href="/css/vrs-app.css">
 <link rel="stylesheet" href="/css/theme.css">
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/griglia.css">
@@ -27,14 +28,23 @@
   <div class="banner" id="banner" hidden></div>
 
   <header class="testa">
-    <div class="marca">
-      <img src="/assets/logo.webp" alt="VRS Group" width="600" height="458"
+    <!-- VIS-05 / PRD-01: il marchio e' anche il selettore d'app (Planning ·
+         CronoService · Cantieri), lo stesso del Planning (#ANCHOR: famiglia in
+         js/famiglia.js). VIS-04: qui la tessera dell'app, come la «P» del
+         Planning; il logo VRS sta nella finestrella, grande abbastanza da
+         leggerlo. -->
+    <button type="button" class="marca vrs-app-btn" id="app-scelta"
+            aria-haspopup="dialog" aria-expanded="false"
+            aria-label="Crono Mappature, cambia app" title="Passa al Planning o ai Cantieri">
+      <img src="/assets/icona.svg" alt="" width="28" height="28"
            onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'segno-logo'}))">
       <span class="marca-testo">
         <b>Crono Mappature</b>
         <span>Checklist service</span>
       </span>
-    </div>
+      <svg class="vrs-app-giu" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
 
     <div class="anno-scelta">
       <button class="frecc" id="anno-giu" title="Anno precedente" aria-label="Anno precedente"></button>
@@ -61,7 +71,7 @@
 
     <button class="io" id="io" title="Cambia operatore"></button>
     <button class="frecc" id="esci" title="Esci dall'archivio online" aria-label="Esci" hidden></button>
-    <button class="frecc" id="tema" title="Tema chiaro / scuro" aria-label="Tema chiaro o scuro"></button>
+    <button class="frecc" id="tema" title="Tema" aria-label="Tema" aria-haspopup="dialog" aria-expanded="false"></button>
   </header>
 
   <nav class="strumenti" aria-label="Viste, filtri e azioni">
@@ -123,17 +133,12 @@
 </div>
 
 <style>
-/* Il logo e' trasparente e la parola GROUP e' grigio scuro: su fondo scuro
-   serve una piastrina chiara, altrimenti si perde. */
-.marca img { height: 30px; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema="chiaro"]) .marca img {
-    background: var(--inchiostro); padding: 3px 5px; border-radius: var(--r-1);
-  }
-}
-:root[data-tema="scuro"] .marca img {
-  background: var(--inchiostro); padding: 3px 5px; border-radius: var(--r-1);
-}
+/* La tessera dell'app (assets/icona.svg) ha il suo fondo: niente piastrina.
+   Il logo VRS, con la piastrina al buio, sta nella finestrella del selettore
+   (css/vrs-app.css). La freccina non prende l'altezza della tessera. */
+.marca img { height: 28px; width: 28px; border-radius: 7px; }
+.marca svg.vrs-app-giu { height: 14px; width: 14px; }
+.marca { color: inherit; }
 /* segnaposto se il file del logo manca */
 .segno-logo { width: 26px; height: 26px; border-radius: 7px; display: block;
   background: linear-gradient(90deg,

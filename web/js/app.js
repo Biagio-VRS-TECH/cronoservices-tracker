@@ -31,6 +31,7 @@ import {
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
+import { temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken } from './famiglia.js';
 
 const area = $('#area');
 
@@ -90,6 +91,8 @@ async function avvia() {
     return;
   }
   applica(r.dati);
+  // il token adesso e' fresco: dentro c'e' il tema scelto nel Planning (VIS-22)
+  allineaDalToken();
   if (r.daCache) {
     avviso('Server non raggiungibile: stai lavorando sui dati salvati su questo ' +
       'computer. Le spunte restano in coda e partono da sole al ritorno.',
@@ -343,7 +346,8 @@ function collegaTesta() {
   $('#anno-giu').onclick = () => vaiAnno(annoMirato() - 1);
   $('#anno-su').onclick = () => vaiAnno(annoMirato() + 1);
   $('#oggi').onclick = vaiOggi;
-  $('#tema').onclick = giraTema;
+  collegaTema($('#tema'));
+  collegaSelettoreApp($('#app-scelta'));
   $('#io').onclick = mostraChiSono;
   $('#aiuto').onclick = mostraAiuto;
   $('#documenti').onclick = e => apriGeneratori(e.currentTarget);
@@ -1586,28 +1590,10 @@ function mostraDoppioni() {
    generatori (web/schede/, web/registro/), che prima avevano una chiave loro
    e, appena si sceglieva qualcosa li', smettevano di seguire il tracker. Il
    passaggio fra schede aperte e' l'evento `storage`: si cambia in una pagina
-   e le altre si voltano da sole, senza ricaricare. */
-function temaIniziale() {
-  const t = localStorage.getItem('cs.tema');
-  if (t) document.documentElement.dataset.tema = t;
-  addEventListener('storage', e => {
-    if (e.key === 'cs.tema') inDissolvenza(() => { document.documentElement.dataset.tema = e.newValue || ''; });
-  });
-}
-/* il cambio di tema sfuma (View Transitions) invece di scattare; dove l'API
-   manca, o chi legge ha chiesto meno movimento, si applica e basta */
-function inDissolvenza(fn) {
-  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.startViewTransition(fn);
-  } else fn();
-}
-function giraTema() {
-  const ora = document.documentElement.dataset.tema;
-  const scuroSistema = matchMedia('(prefers-color-scheme: dark)').matches;
-  const next = !ora ? (scuroSistema ? 'chiaro' : 'scuro') : ora === 'scuro' ? 'chiaro' : 'scuro';
-  inDissolvenza(() => { document.documentElement.dataset.tema = next; });
-  localStorage.setItem('cs.tema', next);
-}
+   e le altre si voltano da sole, senza ricaricare.
+   VIS-22: il controllo ora ha tre posizioni (Auto · Chiaro · Scuro) come nel
+   Planning, e la scelta passa anche al Planning dal profilo dell'account:
+   temaIniziale, collegaTema e allineaDalToken stanno in js/famiglia.js. */
 
 /* -------------------------------------------------------------- tastiera - */
 function tastiera() {
