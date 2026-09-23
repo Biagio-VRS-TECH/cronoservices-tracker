@@ -38,12 +38,55 @@
     }
     return null;
   }
-  /* MOV-07: la posizione passa da transform (niente layout a ogni passo);
-     left/top restano a 0. La misura del riquadro resta width/height: scalarlo
-     deformerebbe il raggio e l'ombra. */
-  function sposta(n, x, y) {
-    n.style.left = '0'; n.style.top = '0';
-    n.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+  /* MOV-07: buco e fumetto stanno a 0,0 (css/banco.css) e si muovono solo con
+     transform: niente left/top/width/height animati, che rifanno il layout a ogni
+     fotogramma. `anima` falso (scorrimento, resize, prima comparsa) = va a posto
+     senza corsa, altrimenti il fumetto inseguirebbe la pagina che scorre. */
+  function ridotto() {
+    try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+  function senzaCorsa(n, fai) {
+    n.style.transition = 'none';
+    fai();
+    void n.offsetWidth;          // il browser prende nota del punto d'arrivo...
+    n.style.transition = '';     // ...e la transizione torna quella del CSS
+  }
+  function sposta(n, x, y, anima) {
+    var t = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+    if (anima) n.style.transform = t;
+    else senzaCorsa(n, function () { n.style.transform = t; });
+  }
+  /* La corsa del buco (tecnica FLIP), pura: `prima` e' il rettangolo che si vede
+     adesso (anche a meta' di una corsa), x/y/w/h il posto e la misura nuovi. Si
+     parte da `da` - il posto vecchio, con la scala che rende il buco nuovo grande
+     come il vecchio - e si arriva ad `a`, senza deformazioni: a riposo raggio e
+     filo sono quelli veri. Durante la scala l'ombra smisurata si rimpicciolisce
+     con lui: `spread` la allarga in proporzione. `da` null = niente corsa. */
+  function flip(prima, x, y, w, h) {
+    var a = 'translate(' + x + 'px,' + y + 'px) scale(1,1)';
+    if (!prima || !(prima.width > 0) || !(prima.height > 0) || !(w > 0) || !(h > 0)) {
+      return { da: null, a: a, spread: '9999px' };
+    }
+    var sx = prima.width / w, sy = prima.height / h;
+    var minimo = Math.max(Math.min(sx, sy, 1), 0.02);
+    return {
+      da: 'translate(' + Math.round(prima.left) + 'px,' + Math.round(prima.top) + 'px) scale(' +
+        (Math.round(sx * 1000) / 1000) + ',' + (Math.round(sy * 1000) / 1000) + ')',
+      a: a,
+      spread: Math.ceil(9999 / minimo) + 'px',
+    };
+  }
+  function muoviBuco(hole, x, y, w, h, anima) {
+    var firma = [x, y, w, h].join(',');
+    if (hole.getAttribute('data-box') === firma) return;   // scroll e rAF: stesso posto, niente da fare
+    hole.setAttribute('data-box', firma);
+    var f = flip(anima && !ridotto() ? hole.getBoundingClientRect() : null, x, y, w, h);
+    senzaCorsa(hole, function () {
+      hole.style.width = w + 'px'; hole.style.height = h + 'px';
+      hole.style.transform = f.da || f.a;
+      hole.style.setProperty('--tour-spread', f.spread);
+    });
+    if (f.da) hole.style.transform = f.a;
   }
   function portaInVista(el) {
     var sc = riquadroCheScorre(el);
@@ -89,9 +132,11 @@
       return null;
     }
     /* mette buco e fumetto sul bersaglio: chiamata anche da scorrimento e
-       resize, quindi tocca solo misure, mai il contenuto */
-    function piazza() {
+       resize, quindi tocca solo misure, mai il contenuto. `anima` solo al
+       cambio di passo: il resto delle volte si va a posto e basta */
+    function piazza(anima) {
       if (!ON) return;
+      anima = anima === true && !ridotto();
       var s = PASSI[I], el = bersaglio(s);
       var hole = $('tourHole'), pop = $('tourPop');
       var vw = window.innerWidth || document.documentElement.clientWidth;
@@ -102,17 +147,17 @@
            fuori campo - l'ombra si espande dai bordi del riquadro, e un riquadro
            a -9999px lascerebbe scoperto tutto lo schermo */
         hole.classList.add('blind');
-        sposta(hole, vw / 2, vh / 2);
-        hole.style.width = '0px'; hole.style.height = '0px';
-        sposta(pop, (vw - pw) / 2, (vh - ph) / 2);
+        muoviBuco(hole, Math.round(vw / 2), Math.round(vh / 2), 0, 0, false);
+        sposta(pop, (vw - pw) / 2, (vh - ph) / 2, anima);
         return;
       }
+      /* da un passo senza bersaglio (buco a zero) non c'e' niente da cui partire */
+      var daBuio = hole.classList.contains('blind');
       hole.classList.remove('blind');
       var pad = (s.pad === undefined) ? 8 : s.pad, r = el.getBoundingClientRect();
-      var x = Math.max(-4, r.left - pad), y = Math.max(-4, r.top - pad);
-      sposta(hole, x, y);
-      hole.style.width = Math.round(Math.min(r.right + pad, vw + 4) - x) + 'px';
-      hole.style.height = Math.round(Math.min(r.bottom + pad, vh + 4) - y) + 'px';
+      var x = Math.round(Math.max(-4, r.left - pad)), y = Math.round(Math.max(-4, r.top - pad));
+      muoviBuco(hole, x, y, Math.round(Math.min(r.right + pad, vw + 4) - x),
+        Math.round(Math.min(r.bottom + pad, vh + 4) - y), anima && !daBuio);
       var G = 14, px = null, py = null;
       var order = (s.place === 'left') ? ['left', 'right', 'below', 'above']
         : (s.place === 'below') ? ['below', 'above', 'right', 'left']
@@ -126,7 +171,7 @@
         else if (o === 'above' && r.top - G - ph - M >= 0) { py = r.top - G - ph; px = r.left + r.width / 2 - pw / 2; }
       }
       if (px === null) { px = (vw - pw) / 2; py = (vh - ph) / 2; }
-      sposta(pop, Math.max(M, Math.min(vw - pw - M, px)), Math.max(M, Math.min(vh - ph - M, py)));
+      sposta(pop, Math.max(M, Math.min(vw - pw - M, px)), Math.max(M, Math.min(vh - ph - M, py)), anima);
     }
     function vai(i) {
       I = Math.max(0, Math.min(PASSI.length - 1, i));
@@ -147,8 +192,8 @@
       $('tourPrev').disabled = (I === 0);
       $('tourNext').textContent = last ? 'Ho capito' : 'Avanti';
       if (el) scorri(el);
-      piazza();
-      requestAnimationFrame(piazza);   // dopo lo scorrimento e il rientro del layout
+      piazza(true);                    // unico punto in cui buco e fumetto scivolano
+      requestAnimationFrame(function () { piazza(false); });   // dopo lo scorrimento e il rientro del layout
       $('tourNext').focus();
     }
     function avvia() {
@@ -172,6 +217,10 @@
     function vista() { try { return !!localStorage.getItem(KEY); } catch (e) { return true; } }
     function avanti() { if (I >= PASSI.length - 1) chiudi(); else vai(I + 1); }
 
+    /* a fine corsa l'ombra del buco torna alla sua misura (durante la scala era allargata) */
+    $('tourHole').addEventListener('transitionend', function (e) {
+      if (e.propertyName === 'transform') this.style.setProperty('--tour-spread', '9999px');
+    });
     $('tourNext').onclick = avanti;
     $('tourPrev').onclick = function () { vai(I - 1); };
     $('tourSkip').onclick = chiudi;
@@ -210,5 +259,5 @@
     return { avvia: avvia, chiudi: chiudi, attivo: function () { return ON; }, vista: vista, piazza: piazza };
   }
 
-  window.Tour = { crea: crea, visibile: vis };
+  window.Tour = { crea: crea, visibile: vis, flip: flip };
 })();

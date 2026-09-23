@@ -3381,20 +3381,21 @@ var TOUR_KEY='vrsSchedeCampo.tourSeen';
    quando il bersaglio non c'e'. */
 var TOUR_STEPS=[
   {sel:null,title:"Benvenuto: cosa fa questa pagina",
+   /* TXT-14: i primi tre passi erano tre paragrafi piu' una nota lunga ciascuno;
+      qui restano due frasi e una nota breve (Avanti ed Esc si vedono da soli) */
    tx:"<p>Trasforma l'export del gestionale in <b>fogli A4 da stampare</b>, su cui il tecnico scrive a mano in cantiere.</p>"
-     +"<p>Tutto avviene sul tuo computer: <b>nessun dato esce dal browser</b> e l'app funziona anche senza rete.</p>"
-     +"<p>La guida dura un minuto: <b>Avanti</b> per proseguire, <b>Esc</b> per chiudere.</p>",
-   note:"Senza un file caricato la guida ne carica uno <b>d'esempio</b> \u2014 quindici componenti su due piani. Se i fascicoli sono spenti li accende al volo, anche su un tuo file gi\u00e0 caricato, per poter mostrare tutto sul serio. Alla fine si toglie da s\u00e9 e le impostazioni tornano come le hai lasciate."},
+     +"<p>Tutto resta sul tuo computer: <b>nessun dato esce dal browser</b>.</p>",
+   note:"Senza un tuo file la guida carica un <b>esempio</b> e accende i fascicoli per mostrarli; alla fine toglie tutto e le impostazioni tornano come le hai lasciate."},
 
   {sel:'#fileGrp',title:"1 \u00b7 Il file da leggere",place:'right',
-   tx:"<p>Trascina qui l'export (<b>.xls .xlsx .csv</b>), oppure clicca il riquadro per sceglierlo.</p>"
-     +"<p>Sotto compaiono i conteggi: <b>componenti</b>, <b>note operatore</b> e <b>righe ignorate</b>. Note e righe ignorate sono cliccabili: aprono l'elenco, e da li' si salta alla scheda.</p>",
-   note:"Righe scritte cos\u00ec: <b>codice - descrizione PIANO: \u2026 ; REPARTO: \u2026 ; STANZA: \u2026 ; POSIZIONE: \u2026 ;</b> Quelle senza <b>PIANO:</b> non sono dati e finiscono fra le righe ignorate. Qui sotto adesso c'\u00e8 l'esempio della guida, non un tuo file."},
+   tx:"<p>Trascina qui l'export (<b>.xls .xlsx .csv</b>) o clicca il riquadro per sceglierlo.</p>"
+     +"<p>Sotto compaiono <b>componenti</b>, <b>note operatore</b> e <b>righe ignorate</b>: un clic su note e righe ignorate apre l'elenco.</p>",
+   note:"Ogni riga valida porta <b>PIANO:</b>, <b>REPARTO:</b> e <b>STANZA:</b>; quelle senza PIANO finiscono fra le ignorate. Adesso qui c'\u00e8 l'esempio della guida."},
 
   {sel:'#headGrp',title:"2 \u00b7 Intestazione del documento",place:'right',
-   tx:"<p><b>Titolo</b> e <b>cantiere</b> finiscono sulla copertina e in testa a ogni pagina stampata.</p>"
-     +"<p>Il titolo si autocompila con la prima cella del foglio. Con la spunta <b>Prendi il titolo dal nome del file</b> viene invece dal nome del file caricato, e il campo si blocca.</p>",
-   note:"Titolo e cantiere appartengono al documento caricato: non vengono salvati fra le impostazioni predefinite."},
+   tx:"<p><b>Titolo</b> e <b>cantiere</b> vanno sulla copertina e in testa a ogni pagina.</p>"
+     +"<p>Il titolo viene dalla prima cella del foglio, oppure dal nome del file con la spunta <b>Prendi il titolo dal nome del file</b>.</p>",
+   note:"Valgono solo per questo documento: non finiscono fra le impostazioni predefinite."},
 
   {sel:'#optDens',title:"Quante schede in una pagina",place:'right',
    tx:"<p>Da <b>4</b> schede per foglio (massima leggibilit\u00e0) a <b>12</b>. Da 8 in su la scheda diventa compatta: al posto dei due riquadri delle note resta una casella <b>VERIFICA SERVICE</b>.</p>"
