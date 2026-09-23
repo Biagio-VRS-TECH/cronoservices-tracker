@@ -65,6 +65,10 @@
   </header>
 
   <nav class="strumenti" aria-label="Viste, filtri e azioni">
+    <!-- VIS-25: sul computer questo involucro non c'e' (display: contents); sul
+         telefono e' la striscia che scorre di lato, cosi' la barra resta una riga
+         e la linea di stato qui sotto non scorre con lei (css/base.css) -->
+    <div class="strumenti-striscia">
     <div class="gruppo" id="viste">
       <button data-vista="anno" aria-pressed="true">Anno</button>
       <button data-vista="mese" aria-pressed="false">Mese</button>
@@ -105,6 +109,7 @@
          di rapportino/ricambi proposte dagli operatori (#ANCHOR: approvazioni in js/app.js) -->
     <button class="pill attesa" id="approva" hidden></button>
     <button class="pill" id="aiuto" title="Come si legge (?)" aria-label="Guida: come si legge">?</button>
+    </div>
 
     <div class="riepilogo" id="riepilogo"></div>
 
@@ -115,7 +120,7 @@
   </nav>
 
   <main class="area" id="area" tabindex="-1">
-    <div class="vuoto"><b>Caricamento…</b>Lettura di clienti, service e spunte.</div>
+    <div class="vuoto"><b>Caricamento…</b>Lettura di clienti, siti e spunte.</div>
   </main>
 </div>
 

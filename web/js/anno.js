@@ -58,6 +58,14 @@ const chipFuoco = chi => chi.length
 const SEG = '<i class="seg s"></i><i class="seg c"></i><i class="seg k"></i>' +
   '<i class="seg r"></i>';
 const oggiCl = m => (m === st.meseOggi && st.anno === st.annoOggi) ? ' mese-oggi' : '';
+/* VIS-25 / MOB-15: sul telefono la riga del sito non e' una striscia di dodici
+   colonne ma l'elenco dei suoi soli mesi di manutenzione, ognuno col suo nome
+   accanto alla capsula (css/griglia.css, "telefono"). Sul computer il nome del
+   mese sta nell'intestazione e questa etichetta non si vede. */
+const etMese = m => `<span class="q-mese" aria-hidden="true">${st.mesi[m - 1]}</span>`;
+/* Sul telefono si tocca tutta la voce del mese (nome + capsula, alta un
+   pollice), non solo la capsula: sul computer il clic resta sulla capsula. */
+const TELEFONO = matchMedia('(max-width: 760px)');
 
 /* classe temporale -> classe CSS aggiuntiva della cella */
 const CSS_CLASSE = {
@@ -82,7 +90,7 @@ function htmlCella(s, m) {
   if (e.classe === 'non-previsto' || e.classe === 'prima-contratto') {
     // spunte su un mese non previsto: si mostrano comunque, marcate orfane
     if (e.mie > 0) {
-      return `<div class="q${oggiCl(m)}"><button class="cella orfana" data-cella="${s.id}-${m}"
+      return `<div class="q${oggiCl(m)}">${etMese(m)}<button class="cella orfana" data-cella="${s.id}-${m}"
         tabindex="-1" ${segAttr(e)}
         title="Mese non previsto, ma con spunte registrate">${SEG}</button></div>`;
     }
@@ -96,7 +104,7 @@ function htmlCella(s, m) {
   const cl = ['cella', CSS_CLASSE[e.classe], e.completa && 'completa',
     e.ritardo && 'ritardo', e.c.nota && 'con-nota', chi.length && 'altrui',
     e.attesa.length && 'attesa'].filter(Boolean).join(' ');
-  return `<div class="q${oggiCl(m)}"><button class="${cl}" data-cella="${s.id}-${m}"
+  return `<div class="q${oggiCl(m)}">${etMese(m)}<button class="${cl}" data-cella="${s.id}-${m}"
     tabindex="-1" aria-label="${st.mesi[m - 1]} ${st.anno}: ${e.n} di ${PASSI} passi. ${esc(tip)}${er ? ' ' + esc(er) + '.' : ''}"
     data-tip="${esc(tip)}" title="${esc(tip)}${er ? ' \u00b7 ' + esc(er) : ''}"${chi.length ? ` style="--tinta:${tinta(chi[0])}"` : ''}
     ${segAttr(e)}>${SEG}</button>${chipFuoco(chi)}</div>`;
@@ -231,7 +239,7 @@ export function disegna(area) {
   const testa = `<div class="riga crono-testa">
     <div class="col-nome">
       <button class="piega-tutti" data-piega="${chiuse ? 0 : 1}"
-              title="${chiuse ? 'Riapri gli impianti di tutti i clienti' : 'Richiudi le tendine di tutti i clienti'}">
+              title="${chiuse ? 'Riapri i siti di tutti i clienti' : 'Richiudi le tendine di tutti i clienti'}">
         ${chiuse ? ICO.espandi : ICO.comprimi}
         <span>${chiuse ? 'Apri tutti' : 'Chiudi tutti'}</span>
       </button>
@@ -244,7 +252,7 @@ export function disegna(area) {
   </div>`;
   area.innerHTML = `<div class="crono">${testa}${gruppi.length
     ? gruppi.map((g, i) => htmlGruppo(g, Math.min(i * 14, 240))).join('')
-    : `<div class="vuoto"><b>Nessun service con questi filtri</b>
+    : `<div class="vuoto"><b>Nessun sito con questi filtri</b>
          Togli un filtro o svuota la ricerca.</div>`}</div>`;
   contenitore = area;
   radice = area.querySelector('.crono');
@@ -306,7 +314,8 @@ function collega(r) {
 
   r.addEventListener('click', e => {
     colMemo = null;                     // il mouse ridefinisce la colonna
-    const cel = e.target?.closest?.('.cella');
+    const cel = e.target?.closest?.('.cella') ||
+      (TELEFONO.matches ? e.target?.closest?.('.riga-srv .q')?.querySelector('.cella') : null);
     if (cel) return apriPop(cel, ...cel.dataset.cella.split('-').map(Number));
     const pt = e.target?.closest?.('[data-piega]');
     if (pt) return piegaTutti(pt.dataset.piega === '1');

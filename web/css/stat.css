@@ -762,6 +762,14 @@
   .agenda-riga { grid-template-columns: 42px minmax(0, 1fr) 40px; }
   .agenda-passi { display: none; }
 }
+/* VIS-25: sul telefono le carte vanno quasi a filo dello schermo e i comandi
+   della testa ("Tutti i siti", "Espandi", "Tabella") vanno a capo sotto il
+   titolo invece di spingere la pagina di lato. */
+@media (max-width: 760px) {
+  .stat { padding: 12px 12px 60px; }
+  .carta-testa { flex-wrap: wrap; }
+  .carta-comandi { flex-wrap: wrap; }
+}
 
 @media print {
   .stat { padding: 0; max-width: none; }

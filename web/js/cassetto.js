@@ -38,7 +38,7 @@ export function apriCassetto(id) {
   chiudiCassetto();
   idAperto = id;
   prima = document.activeElement;
-  nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio service' });
+  nodo = h('div.cassetto', { role: 'dialog', 'aria-label': 'Dettaglio del sito' });
   document.body.append(nodo);
   document.addEventListener('keydown', esc0);
   /* Tutte le righe, non solo quella del mese toccato: una spunta messa o
@@ -120,7 +120,7 @@ function disegna() {
       })),
     h('div.corpo', {},
       h('dl.dettaglio', {}, [
-        ['Service', '#' + s.id], ['Stato', s.stato], ['Tipo', s.tipo],
+        ['Sito', '#' + s.id], ['Stato', s.stato], ['Tipo', s.tipo],
         ['Cadenza', `${s.cad || '—'}${s.qva ? ` · ${s.qva} visite/anno` : ''}`],
         ['Mesi di manutenzione',
           (s.mesi.split('').filter(x => x === '1').length || 0) +
