@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* albero.js - la STRUTTURA AD ALBERO piano > reparto > stanza con cui si
    decide cosa entra nel documento. Porting del blocco buildTree/syncTree/
    applyFilter del generatore di schede (web/schede/index.html, che tiene la
@@ -125,7 +126,7 @@ export function creaAlbero(el, cfg) {
       `<span class="nm" data-p="${pi}" title="Vai a questo piano nell'anteprima">PIANO: ${esc(p.nome)}</span>`;
     el.appendChild(d1);
     const sub1 = document.createElement('div'); sub1.className = 'sub'; el.appendChild(sub1);
-    d1.querySelector('.tw').onclick = () => setSub(d1.querySelector('.tw'), sub1, sub1.hidden);
+    /** @type {HTMLElement} */ (d1.querySelector('.tw')).onclick = () => setSub(d1.querySelector('.tw'), sub1, sub1.hidden);
     (p.kids || []).forEach((r, ri) => {
       const n = (r.kids || []).reduce((a, s) => a + (s.n || 0), 0);
       const d2 = document.createElement('div'); d2.className = 'lv2 nh';
@@ -134,7 +135,7 @@ export function creaAlbero(el, cfg) {
         `<span class="nm" data-p="${pi}" data-r="${ri}" title="Vai a questo reparto nell'anteprima">${esc(r.nome)} <span class="cnt">(${n})</span></span>`;
       sub1.appendChild(d2);
       const sub2 = document.createElement('div'); sub2.className = 'sub'; sub1.appendChild(sub2);
-      d2.querySelector('.tw').onclick = () => setSub(d2.querySelector('.tw'), sub2, sub2.hidden);
+      /** @type {HTMLElement} */ (d2.querySelector('.tw')).onclick = () => setSub(d2.querySelector('.tw'), sub2, sub2.hidden);
       (r.kids || []).forEach((s, si) => {
         const d3 = document.createElement('div'); d3.className = 'lv3 row';
         d3.innerHTML = `<label class="pick" title="Includi o escludi questa stanza"><input type="checkbox" data-p="${pi}" data-r="${ri}" data-s="${si}" checked aria-label="Includi la stanza ${esc(s.nome)}"></label>` +

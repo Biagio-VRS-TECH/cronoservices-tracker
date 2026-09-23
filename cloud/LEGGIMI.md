@@ -350,7 +350,7 @@ Il numero vive in **tre** posti e vanno tenuti allineati:
 | dove | valore | chi lo cambia |
 |---|---|---|
 | `file_size_limit` del bucket, in `06-documenti.sql` | `209715200` (200 MB) | riesegui il 06 |
-| `MAX_PDF` in `app/api.py` (#ANCHOR: documenti) | `200 * 1024 * 1024` | e' nel repo |
+| `MAX_PDF` in `app/api_documenti.py` (#ANCHOR: documenti) | `200 * 1024 * 1024` | e' nel repo |
 | **Global file size limit** del progetto | **250 MB** | **a mano**, dashboard → Storage → Settings |
 
 Il **globale ha la precedenza** sul bucket: se resta sotto, alzare il bucket

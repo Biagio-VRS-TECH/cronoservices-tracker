@@ -3,6 +3,7 @@ import base64, os
 from unittest import mock
 
 from ._aiuti_py import ConDB, PDF, api, db
+import api_documenti  # noqa: E402  (app/ e' nel sys.path grazie a _aiuti_py)
 
 
 def b64(dati=PDF):
@@ -63,7 +64,8 @@ class Documenti(ConDB):
         self.assertEqual(self.file_su_disco(), [])
 
     def test_troppo_grande(self):
-        with mock.patch.object(api, "MAX_PDF", 10):
+        # il tetto vive in api_documenti (COD-07): api.MAX_PDF e' solo la sua copia
+        with mock.patch.object(api_documenti, "MAX_PDF", 10):
             st, out, ev = self.salva()
         self.assertEqual(st, 413)
         self.assertIn("fascicoli", out["errore"])

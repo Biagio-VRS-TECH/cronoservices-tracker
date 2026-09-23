@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* mese.js - il foglio di lavoro del mese: una scheda per IMPIANTO da visitare in
    quel mese, le caselle dei quattro passi, selezione multipla, stampabile.
 
@@ -150,7 +151,7 @@ function htmlCorpo(righe) {
    probabile sono loro; altrimenti si propone il primo mese dopo questo che ha
    lavoro (il bottone ha `data-mese`: lo gestisce il clic di `collega`). */
 function htmlVuoto() {
-  const f = st.filtri || {};
+  const f = /** @type {any} */ (st.filtri || {});
   if (f.q || f.prov || f.stato) {
     return `<div class="vuoto"><b>Nessuna mappatura con questi filtri</b>
       In ${esc(st.mesiNome[st.mese - 1])} nessun sito corrisponde alla ricerca o ai
@@ -460,7 +461,7 @@ function barraMassa() {
     <button data-az="tutte">Completa i ${PASSI} passi</button>
     <button data-az="annulla">Deseleziona</button>`;
   barra.addEventListener('click', e => {
-    const az = e.target.closest('[data-az]')?.dataset.az;
+    const az = /** @type {any} */ (e.target).closest('[data-az]')?.dataset.az;
     if (!az) return;
     if (az === 'annulla') {
       st.selezione.clear();

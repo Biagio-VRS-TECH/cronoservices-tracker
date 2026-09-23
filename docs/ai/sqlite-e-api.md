@@ -62,6 +62,8 @@ e il contratto degli endpoint.
 ## Endpoint
 
 Tabella di dispatch: `api.ROUTE` in fondo a `app/api.py`.
+Gli handler stanno nei moduli `app/api_*.py` (COD-07, elenco nella testa di `api.py`),
+che `api.py` riesporta: `api.X` continua a valere per server.py e per le prove.
 Firma di ogni handler: `(ctx, q, body) -> (status, payload, evento)`.
 `evento` non nullo viene diffuso via SSE a tutti **tranne** il client che ha
 scritto (esclusione per `client_id` nel body).

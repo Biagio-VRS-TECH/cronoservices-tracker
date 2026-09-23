@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* anno.js - la cronostriscia: clienti x 12 mesi, celle a quattro segmenti.
    Disegno via stringhe HTML (fino a ~6600 celle) + delega degli eventi.
 
@@ -203,7 +204,8 @@ export function totaliMesi(gruppi) {
 /** Il totale del mese sotto il suo nome, nell'intestazione: chiuse/in scadenza
  *  e il filo che si riempie (`--p`). E' quello che si guarda per capire dove
  *  intervenire senza contare le celle a occhio. Lo span c'e' sempre, anche
- *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola. */
+ *  vuoto, cosi' `aggiornaRigaTotali` lo trova quando un mese si popola.
+ *  @param {number[]} coppia  [chiuse, dovute] di `totaliMesi` */
 function htmlTotaleMese([fatte, tot]) {
   return `<span class="tm${tot && fatte === tot ? ' pieno' : ''}"
     style="--p:${tot ? Math.round(fatte / tot * 100) : 0}%"

@@ -20,8 +20,9 @@
 #     <base> altrui, nessuna cornice esterna (frame-ancestors, come X-Frame-Options).
 #   - IN OSSERVAZIONE (Report-Only) la policy intera: il browser non blocca, scrive in console
 #     "[Report Only] Refused to ...". Dopo una settimana pulita si sposta nella chiave applicata.
-#     'unsafe-inline' negli script resta finche' schede/index.html ha lo script in linea e i
-#     gestori onclick= negli HTML (una trentina): toglierli e' il passo successivo.
+#     'unsafe-inline' negli script resta finche' ci sono i gestori onclick= negli HTML (una
+#     trentina): toglierli e' il passo successivo. Lo script in linea di schede/index.html e'
+#     gia' uscito in web/js/schede.js (COD-07).
 #     Il database e' su *.supabase.co (REST, auth, storage con indirizzi firmati; wss per il realtime).
 #     Le librerie PDF/Excel stanno in /lib, servite dal sito.
 [[headers]]

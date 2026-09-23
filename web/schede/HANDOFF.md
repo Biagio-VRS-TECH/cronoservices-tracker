@@ -39,6 +39,11 @@ medicali in **fogli A4 da stampare** su cui il tecnico scrive a mano.
 
 ## 2. Mappa del file (~3800 righe)
 
+> **Dal 2026-09-23 (COD-07) lo script non e' piu' in linea**: sta in
+> `web/js/schede.js` (script classico, caricato con `<script src>` nello stesso
+> punto), sotto `node --check` e `tests/js/web-schede.test.mjs`. Le sezioni JS
+> della tabella qui sotto (utility ... IMPOSTAZIONI) sono in quel file.
+
 Cercare i commenti `/* ====== NOME ====== */`, non fidarsi dei numeri di riga.
 
 | sezione | contenuto |

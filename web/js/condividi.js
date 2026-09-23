@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* condividi.js - il link di un sito, da mandare a un collega (MOB-16).
    #ANCHOR: condividi
 
@@ -42,6 +43,8 @@ export function serviceDaIndirizzo(search = globalThis.location?.search || '') {
  *   'copiato'      negli appunti (sul computer, o se il sistema ha rifiutato);
  *   'non-riuscito' ne' foglio ne' appunti.
  * `nativo` falso salta il foglio anche se c'e' (il computer).
+ * @param {{ titolo: string, testo?: string, url: string }} dati
+ * @param {{ nativo?: boolean, copia?: (t: string) => any, nav?: any }} [opzioni]
  */
 export async function condividiLink({ titolo, testo, url }, { nativo = true, copia, nav = globalThis.navigator } = {}) {
   if (nativo && nav && typeof nav.share === 'function') {

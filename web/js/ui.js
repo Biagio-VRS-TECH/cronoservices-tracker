@@ -7,6 +7,7 @@ import { svgIcona } from './vrs-icone.js';
 /* VIS-12: le icone sono quelle di famiglia (vrs-icone.js, copia identica del
    modulo del Planning): stesso disegno e stesso tratto 1.75 nelle due app. Qui
    restano i nomi di CronoService e il lato di ciascuna. */
+/** @type {Record<string, [string, number]>} */
 const ICO_NOMI = {
   esci: ['esci', 14], cerca: ['cerca', 14], cuneo: ['destra', 12],
   sx: ['sinistra', 15], dx: ['destra', 15], ok: ['spunta', 12], ics: ['chiudi', 15],

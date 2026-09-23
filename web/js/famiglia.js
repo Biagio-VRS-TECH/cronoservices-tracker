@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* famiglia.js - CronoService nella famiglia VRS.  #ANCHOR: famiglia
 
 Tre cose, le stesse del Planning (web/src/components/AppSwitcher.tsx e

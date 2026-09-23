@@ -1,3 +1,4 @@
+// @ts-check  (COD-04: controllo dei tipi senza build, jsconfig.json nella radice)
 /* tour.js - il TUTORIAL GUIDATO dei generatori (schede tecnici e registro dei
    componenti). Una guida che parla addosso ai comandi veri: a ogni passo si
    accende il bersaglio (#tourHole, la cui ombra smisurata fa la penombra) e il
@@ -189,7 +190,7 @@
       Array.prototype.forEach.call(dots.children, function (d, k) {
         d.className = (k === I) ? 'on' : (k < I ? 'done' : '');
       });
-      $('tourPrev').disabled = (I === 0);
+      /** @type {HTMLButtonElement} */ ($('tourPrev')).disabled = (I === 0);
       $('tourNext').textContent = last ? 'Ho capito' : 'Avanti';
       if (el) scorri(el);
       piazza(true);                    // unico punto in cui buco e fumetto scivolano
@@ -259,5 +260,5 @@
     return { avvia: avvia, chiudi: chiudi, attivo: function () { return ON; }, vista: vista, piazza: piazza };
   }
 
-  window.Tour = { crea: crea, visibile: vis, flip: flip };
+  window['Tour'] = { crea: crea, visibile: vis, flip: flip };
 })();

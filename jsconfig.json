@@ -4,7 +4,8 @@
   //   npx -y -p typescript@6.0.3 tsc -p jsconfig.json
   // (lo fa il CI, .github/workflows/ci.yml). `checkJs` resta spento qui e si
   // accende file per file con `// @ts-check` in testa: i moduli senza la riga
-  // (viste Anno e Mese, giro guidato, generatori, albero) non sono ancora
+  // (nuvola.js, ponte.js, il generatore schede.js; vrs-icone.js e' la copia
+  // identica del Planning, nuvola-config.js lo scrive il build) non sono ancora
   // puliti e non devono fermare il CI. Chi ne pulisce uno, gli aggiunge la riga.
   "compilerOptions": {
     "target": "ES2022",
