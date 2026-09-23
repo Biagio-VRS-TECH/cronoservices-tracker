@@ -68,7 +68,7 @@ export default async (req) => {
     });
     if (r.status === 401) return risposta(401, { errore: 'sessione scaduta: rientra.' });
     if (r.status === 404) return risposta(503, { errore:
-      'il database non conosce ruolo_corrente(): vanno rieseguiti cloud/02 e cloud/04.' });
+      'il database non conosce ruolo_corrente(): vedi cloud/LEGGIMI.md (sul database condiviso col Planning non si rilanciano 02 e 04).' });
     if (!r.ok) return risposta(403, { errore: 'il database non ha confermato il tuo ruolo.' });
     ruolo = (await r.json());
   } catch {

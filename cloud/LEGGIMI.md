@@ -66,6 +66,13 @@ Il controllo del dominio è doppio apposta: anche se le registrazioni venissero
 riaperte per sbaglio, `autorizzato()` in `02-funzioni.sql` non fa vedere niente
 a chi non ha un indirizzo `@vrs-tech.it`.
 
+Dal 23/09/2026 (`10-migliorie-2026-09.sql`, SEC-01) `autorizzato()` chiede anche
+che la persona **non sia disattivata nel Planning** (`pl_profiles.active =
+false`): chi viene disattivato lì non vede più niente nemmeno qui, dalla
+richiesta successiva, anche con la sessione ancora aperta. La regola è scritta
+come *non disattivato* e non come *attivo*: `administrator@` non ha un profilo
+nel Planning e continua a entrare.
+
 > Il nome che firma le spunte non si scrive a mano: è la casella con cui si
 > entra (`mario.rossi@vrs-tech.it` → *Mario Rossi*), e **dall'app non si
 > cambia**. Il campo dove lo si poteva riscrivere è stato tolto: scrivendo il
@@ -80,7 +87,11 @@ Tre ruoli, legati alla **casella del login** (mai al nome):
 |---|---|
 | **tecnico** | spunta tutto; "Rapportino" e "Ricambi" restano *proposte* (a righe) |
 | **approvatore** | approva o respinge quelle due proposte, dalla pillola "N da approvare". Nient'altro |
-| **amministratore** | approva, completa o azzera in blocco, rilegge Access, cambia le impostazioni, "Ripristina" nel diario, butta i PDF di un anno intero |
+| **amministratore** | approva, completa o azzera in blocco, rilegge Access, cambia le impostazioni, "Ripristina" nel diario, butta i PDF di un anno intero, svuota il cestino dei PDF e cancella per sempre qualunque PDF |
+
+Dal 23/09/2026 un PDF «eliminato» va nel **cestino** (chiunque, e chiunque lo
+rimette); **per sempre** lo cancella solo l'amministratore o chi l'aveva
+caricato. Vedi §6-bis.
 
 ### Registrare un collega
 
@@ -273,6 +284,13 @@ cancella con `where id > 0`.
 Le spunte, le note e i PDF non si toccano: sparisce la storia, non il lavoro.
 Spariscono pero' anche i **Ripristina**, che leggono proprio quelle righe.
 
+**Dal 23/09/2026 (`10-migliorie-2026-09.sql`, SEC-11) il diario non si butta
+piu': si archivia.** Le righe vanno in `crono_archivio.eventi` (schema che
+PostgREST non espone: lo si legge solo dall'SQL Editor) e nel diario resta una
+riga sola, «chi ha azzerato, quando, quante righe». Conservazione: 24 mesi, da
+potare a mano con
+`delete from crono_archivio.eventi where archiviato_il < now() - interval '24 months';`.
+
 ---
 
 ## 6. I PDF dei generatori (schede tecnici e registro componenti)
@@ -358,6 +376,9 @@ select o.name,
   from storage.objects o
   left join public.documenti d on d.percorso = o.name
  where o.bucket_id = 'documenti' and d.id is null
+   -- dal 10-migliorie-2026-09.sql: un file nel cestino NON e' un orfano
+   and (to_regclass('public.documenti_cestino') is null
+        or not exists (select 1 from public.documenti_cestino c where c.percorso = o.name))
  order by o.created_at;
 ```
 
@@ -376,6 +397,63 @@ aveva trovato mancanti. Finche' non si fa, online i passi si accumulano solo
 dentro l'anno e i PDF restano quelli dell'anno: il client tollera l'assenza
 di `celle_prec`. "Chi ha aperto cosa" (l'anello col colore del collega) viaggia
 in broadcast Realtime sul canale gia' aperto e non chiede SQL.
+
+---
+
+## 6-bis. Dopo il 23/09/2026: `10-migliorie-2026-09.sql`
+
+**Sul database condiviso col Planning non si rilanciano 01-08**: `02` e `03`
+riscriverebbero `_applica` e `imposta_nota` senza il controllo che vi ha
+aggiunto il Planning. Si esegue **solo il 10**, dall'SQL Editor, dopo il 09 (le
+migrazioni 038 e 039 del Planning vanno prima). Si puo' rilanciare.
+
+Cosa fa:
+
+| ID | cosa cambia |
+|---|---|
+| SEC-01 | `autorizzato()` = casella `@vrs-tech.it` **e** non disattivato nel Planning (§2) |
+| SEC-05 | *Elimina* manda il PDF nel **cestino** (`documenti_cestino`), con una riga nel diario. Nuove RPC: `ripristina_documento(p_id)`, `elimina_documento_definitivo(p_id)` (solo admin o chi ha caricato), `svuota_cestino_documenti(p_giorni default 30)` (solo admin), `app_cestino_documenti()`. `elimina_documento` e `elimina_documenti` tengono firma e risposta |
+| SEC-05 | lo Storage lascia cancellare un PDF solo all'admin o a chi l'ha caricato, e solo quando nessuna riga (archivio o cestino) lo usa piu' |
+| SEC-11 | `azzera_diario()` archivia in `crono_archivio.eventi` (§5-bis); il diario prende la colonna `dettaglio` (nome del PDF, righe archiviate) |
+| SEC-20 | `search_path` fisso sulle 14 funzioni che l'advisor segnalava |
+| BUG-08, SEC-10 | `04-sicurezza.sql` ora da' e toglie i permessi **per nome** e solo agli oggetti di CronoService: rilanciarlo non spegne piu' il Planning, e non toglie piu' l'EXECUTE a `registra_documento` |
+
+**Il client va pubblicato insieme.** Il tracker di prima cancellava il file dal
+bucket *prima* di chiamare `elimina_documento`: col 10 applicato lo Storage gli
+dice di no (il file ha ancora la sua riga) e il pulsante *Elimina* da' errore
+senza cancellare niente. Il client nuovo (`web/js/documenti.js`) chiama solo il
+server, e toglie l'oggetto dal bucket solo dopo `elimina_documento_definitivo`
+o `svuota_cestino_documenti`, coi `percorso` che ricevono.
+
+**SEC-04, la service_role via dal PC dell'ufficio.** Il 10 crea in
+`pl_secrets` la chiave `crono_sync_key`; la edge function `crono-sync`
+(`planning/supabase/functions/crono-sync/`) la controlla ed esegue
+`sync_applica` e nient'altro. Passi, in ordine:
+
+1. distribuire la funzione **senza verifica del JWT** (la chiama uno script):
+   `npx supabase functions deploy crono-sync --no-verify-jwt`;
+2. leggere la chiave: `select value from public.pl_secrets where key = 'crono_sync_key';`
+3. in `app/cloud.json` del PC dell'ufficio aggiungere `"sync_key": "<quella chiave>"`
+   e lanciare `cloud\sync-cloud.cmd` a mano: `data\push_cloud.log` deve dire `ok`;
+4. solo allora togliere `"service_key"` da `cloud.json`.
+
+Con `sync_key` presente `push_cloud.py` usa la funzione; senza, resta la
+vecchia strada (serve solo nella transizione). La chiave vecchia `service_role`
+e' una JWT legacy: dopo il passo 4 conviene passare alle chiavi nuove
+`sb_secret_…` e disattivare le legacy (lo decide l'utente: butta fuori tutti).
+
+Il cestino si svuota a mano, dall'amministratore: i PDF restano li' finche'
+non li butta (30 giorni e' il valore di partenza di `svuota_cestino_documenti`).
+
+Controlli dopo averlo eseguito (in fondo al file ci sono gia'): chi resterebbe
+fuori con la regola nuova, nessuna funzione senza `search_path`, `anon` senza
+EXECUTE, cestino e archivio illeggibili da fuori, ogni documento col suo
+`creato_uid`.
+
+Il server locale (`app/server.py`, modalita' senza Supabase) dal 23/09 ascolta
+solo su `127.0.0.1` e rifiuta i POST da un'altra origine o non JSON (SEC-12).
+Per aprirlo ai colleghi in LAN: `"host": "0.0.0.0"` in `app/config.json`,
+sapendo che li' non c'e' login e il ruolo lo dichiara il client.
 
 ## Cosa cambia, usandola online
 

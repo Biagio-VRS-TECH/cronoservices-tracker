@@ -13,7 +13,7 @@
 import { esc, ICO, quando, avviso, FRECCE, fuoco, frecceEntrano, tinta, iniziali } from './ui.js';
 import {
   st, lavoroDelMese, cella, statoCella, spunta, spuntaMolte, mappaturaSito, toccaPasso, emetti,
-  fatto, proposto, notaProposta,
+  fatto, proposto, notaProposta, aggiornaTitolo,
   filtraStato, statoMappatura, notaEredita, doveFatto, fuochiSu,
   CAMPI, SIGLA, PASSI, ETICHETTA, BREVE, CLASSE_ET, ET_STATO,
 } from './stato.js';
@@ -143,8 +143,28 @@ function htmlCorpo(righe) {
     }
     corpo += htmlScheda(v);
   }
-  return corpo || `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
-      Nessun service aperto ha ${st.mesiNome[st.mese - 1]} tra i mesi di manutenzione.</div>`;
+  return corpo || htmlVuoto();
+}
+
+/* TXT-16: il mese vuoto dice anche cosa fare. Coi filtri accesi il motivo
+   probabile sono loro; altrimenti si propone il primo mese dopo questo che ha
+   lavoro (il bottone ha `data-mese`: lo gestisce il clic di `collega`). */
+function htmlVuoto() {
+  const f = st.filtri || {};
+  if (f.q || f.prov || f.stato) {
+    return `<div class="vuoto"><b>Nessuna mappatura con questi filtri</b>
+      In ${esc(st.mesiNome[st.mese - 1])} nessun service corrisponde alla ricerca o ai
+      filtri in alto: toglili per vedere tutto il mese.</div>`;
+  }
+  let prossimo = 0;
+  for (let k = 1; k < 12 && !prossimo; k++) {
+    const m = ((st.mese - 1 + k) % 12) + 1;
+    if (lavoroDelMese(m).length) prossimo = m;
+  }
+  return `<div class="vuoto"><b>Nessuna mappatura in questo mese</b>
+      Nessun service aperto ha ${esc(st.mesiNome[st.mese - 1])} tra i mesi di manutenzione.
+      ${prossimo ? `<br><button type="button" class="bottone piatto" data-mese="${prossimo}"
+        style="margin-top:10px">Vai a ${esc(st.mesiNome[prossimo - 1].toLowerCase())}</button>` : ''}</div>`;
 }
 
 /* I numeri contano SEMPRE il mese intero, anche col filtro di stato acceso:
@@ -189,6 +209,7 @@ export function disegna(area) {
 function cambiaMese(m) {
   st.mese = m;
   st.selezione.clear();
+  aggiornaTitolo();
   if (!radice?.querySelector('.mese-nav')) return disegna(radice);
   const righe = lavoroDelMese(st.mese);
   const tutte = mesePieno(righe);

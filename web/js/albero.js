@@ -47,6 +47,10 @@ export function creaAlbero(el, cfg) {
     btn.classList.toggle('closed', !aperto);
     btn.setAttribute('aria-expanded', aperto ? 'true' : 'false');
     btn.title = aperto ? 'Chiudi' : 'Apri';
+    /* A11Y-19: il solo `title` non basta come nome, e «Chiudi» da solo non dice
+       cosa: il nome dice quale ramo */
+    const nome = btn.dataset.nome || '';
+    btn.setAttribute('aria-label', (aperto ? 'Chiudi ' : 'Apri ') + nome);
   }
   const riga = input => input.closest('.nh') || input.closest('.row');
   const binario = input => {
@@ -113,8 +117,8 @@ export function creaAlbero(el, cfg) {
   el.innerHTML = '';
   rami.forEach((p, pi) => {
     const d1 = document.createElement('div'); d1.className = 'lv1 nh';
-    d1.innerHTML = `<button type="button" class="tw" aria-expanded="true" title="Chiudi">${CHEV}</button>` +
-      `<label class="pick" title="Includi o escludi questo piano"><input type="checkbox" data-p="${pi}" checked></label>` +
+    d1.innerHTML = `<button type="button" class="tw" aria-expanded="true" title="Chiudi" data-nome="il piano ${esc(p.nome)}" aria-label="Chiudi il piano ${esc(p.nome)}">${CHEV}</button>` +
+      `<label class="pick" title="Includi o escludi questo piano"><input type="checkbox" data-p="${pi}" checked aria-label="Includi il piano ${esc(p.nome)}"></label>` +
       `<span class="nm" data-p="${pi}" title="Vai a questo piano nell'anteprima">PIANO: ${esc(p.nome)}</span>`;
     el.appendChild(d1);
     const sub1 = document.createElement('div'); sub1.className = 'sub'; el.appendChild(sub1);
@@ -122,15 +126,15 @@ export function creaAlbero(el, cfg) {
     (p.kids || []).forEach((r, ri) => {
       const n = (r.kids || []).reduce((a, s) => a + (s.n || 0), 0);
       const d2 = document.createElement('div'); d2.className = 'lv2 nh';
-      d2.innerHTML = `<button type="button" class="tw" aria-expanded="true" title="Chiudi">${CHEV}</button>` +
-        `<label class="pick" title="Includi o escludi questo reparto"><input type="checkbox" data-p="${pi}" data-r="${ri}" checked></label>` +
+      d2.innerHTML = `<button type="button" class="tw" aria-expanded="true" title="Chiudi" data-nome="il reparto ${esc(r.nome)}" aria-label="Chiudi il reparto ${esc(r.nome)}">${CHEV}</button>` +
+        `<label class="pick" title="Includi o escludi questo reparto"><input type="checkbox" data-p="${pi}" data-r="${ri}" checked aria-label="Includi il reparto ${esc(r.nome)}"></label>` +
         `<span class="nm" data-p="${pi}" data-r="${ri}" title="Vai a questo reparto nell'anteprima">${esc(r.nome)} <span class="cnt">(${n})</span></span>`;
       sub1.appendChild(d2);
       const sub2 = document.createElement('div'); sub2.className = 'sub'; sub1.appendChild(sub2);
       d2.querySelector('.tw').onclick = () => setSub(d2.querySelector('.tw'), sub2, sub2.hidden);
       (r.kids || []).forEach((s, si) => {
         const d3 = document.createElement('div'); d3.className = 'lv3 row';
-        d3.innerHTML = `<label class="pick" title="Includi o escludi questa stanza"><input type="checkbox" data-p="${pi}" data-r="${ri}" data-s="${si}" checked></label>` +
+        d3.innerHTML = `<label class="pick" title="Includi o escludi questa stanza"><input type="checkbox" data-p="${pi}" data-r="${ri}" data-s="${si}" checked aria-label="Includi la stanza ${esc(s.nome)}"></label>` +
           `<span class="nm" data-p="${pi}" data-r="${ri}" data-s="${si}" title="Vai a questa stanza nell'anteprima">${esc(s.nome)} <span class="cnt">(${s.n || 0})</span></span>`;
         sub2.appendChild(d3);
       });

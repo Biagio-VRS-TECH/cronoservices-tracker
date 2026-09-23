@@ -154,6 +154,48 @@ export function salvaFiltri() {
   try { localStorage.setItem(K_FILTRI, JSON.stringify(st.filtri)); } catch { }
 }
 
+/* ---------------------------------------------------- il giorno cambia -- */
+/* BUG-13: `st.oggi` arriva col bootstrap e restava quello del caricamento
+   della pagina. Un tracker lasciato aperto a cavallo del mese non segnava i
+   ritardi nuovi. Chi guida l'app (app.js) chiede `giornoCambiato()` al
+   ritorno sulla scheda e ogni minuto, e se si' rilegge il bootstrap. */
+export const oggiLocale = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const giornoCambiato = (adesso = new Date()) => !!st.oggi && oggiLocale(adesso) > st.oggi;
+
+/* PRD-17: quanto sono vecchi i dati di Access. `ultimo_sync` e' l'ora locale
+   dell'ultimo sync ("2026-09-23T08:15:00", senza fuso). Oltre 26 ore il PC
+   dell'ufficio non ha spinto l'anagrafica: `vecchia` accende l'avviso.
+   Ritorna null se un sync non c'e' mai stato. */
+export const ORE_ANAGRAFICA = 26;
+export function etaAnagrafica(ts = st.ultimoSync, adesso = new Date()) {
+  if (!ts) return null;
+  const d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d)) return null;
+  const ore = (adesso - d) / 36e5;
+  const hhmm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const g = Math.round((new Date(adesso.toDateString()) - new Date(d.toDateString())) / 864e5);
+  const quando = g <= 0 ? `oggi ${hhmm}` : g === 1 ? `ieri ${hhmm}`
+    : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }) + ' ' + hhmm;
+  return { testo: `Anagrafica di Access: ${quando}`, quando, ore, giorni: g,
+           vecchia: ore > ORE_ANAGRAFICA };
+}
+
+/* A11Y-05: il titolo della scheda del browser dice dove si e' («Mese di
+   ottobre 2026 · Crono Mappature»): con tre schede aperte si distinguono, e
+   il lettore di schermo lo annuncia. */
+export function titoloScheda() {
+  const mese = (st.mesiNome?.[st.mese - 1] || '').toLowerCase();
+  const dove = st.vista === 'mese' && mese ? `Mese di ${mese} ${st.anno}`
+    : st.vista === 'stat' ? `Statistiche ${st.anno}` : `Anno ${st.anno}`;
+  return (st.anno ? dove + ' · ' : '') + 'Crono Mappature';
+}
+export function aggiornaTitolo() {
+  if (typeof document === 'undefined') return;
+  const t = titoloScheda();
+  if (document.title !== t) document.title = t;
+}
+
 /* ------------------------------------------------------------- caricamento */
 export function applica(d) {
   st.anno = d.anno; st.anni = d.anni; st.oggi = d.oggi;
@@ -1022,6 +1064,17 @@ export function annullaUltima(quale) {
 /** Una riga di diario/storia in parole: "ha proposto", "ha approvato"... */
 export function descriviEvento(e) {
   if (e.campo === 'nota') return 'ha scritto una nota';
+  /* gli eventi dei PDF e del diario (cloud/10-migliorie-2026-09.sql): il nome
+     del documento viaggia in `dettaglio` */
+  if (e.campo === 'documento') {
+    const nome = e.dettaglio ? ` <i>${esc(e.dettaglio)}</i>` : ' un PDF';
+    return e.origine === 'ripristinato' ? `ha ripristinato dal cestino${nome}`
+      : e.origine === 'definitivo' ? `ha eliminato per sempre${nome}`
+      : `ha messo nel cestino${nome}`;
+  }
+  if (e.campo === 'diario') {
+    return 'ha svuotato il diario' + (e.dettaglio ? ` (${esc(e.dettaglio)})` : '');
+  }
   const da = Number(e.da), a = Number(e.a);
   // il risultato finisce in innerHTML (diario, storia, cassetto): il campo
   // arriva dal database, e passa di qui come testo
@@ -1042,7 +1095,8 @@ export function descriviEvento(e) {
 /** Il blocco di un evento del diario: l'op_id senza il `:n` della cella. Una
  *  spunta singola e' un blocco da una. */
 export const bloccoDi = e => (e?.op_id || '').split(':')[0];
-export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' && e.da != null;
+export const ripristinabile = e => sonoAdmin() && !!bloccoDi(e) && e.campo !== 'nota' &&
+  e.campo !== 'documento' && e.campo !== 'diario' && e.da != null;
 
 /** L'admin rimette com'erano PRIMA tutti i passi di un'operazione (#ANCHOR:
  *  ripristino): il tastino di reversibilita' del diario, che vale anche sulle

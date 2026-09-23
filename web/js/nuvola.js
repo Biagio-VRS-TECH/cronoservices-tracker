@@ -19,7 +19,7 @@ Tre cose che in locale erano del server e qui non ci sono piu':
     dell'ufficio una volta al giorno.
 */
 import { URL_SUPABASE, CHIAVE_ANON } from './nuvola-config.js';
-import { dimensione } from './ui.js';
+import { dimensione, impostaSegnalatore, umano } from './ui.js';
 
 export const attiva = () => !!(URL_SUPABASE && CHIAVE_ANON);
 
@@ -318,6 +318,15 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
       }, ms);
     case '/api/documento_elimina':
       return rpc('elimina_documento', { p_id: b.id }, ms);
+    /* il cestino dei PDF (SEC-05, cloud/10-migliorie-2026-09.sql): solo online */
+    case '/api/documento_ripristina':
+      return rpc('ripristina_documento', { p_id: b.id }, ms);
+    case '/api/documento_definitivo':
+      return rpc('elimina_documento_definitivo', { p_id: b.id }, ms);
+    case '/api/cestino':
+      return rpc('app_cestino_documenti', {}, ms);
+    case '/api/cestino_svuota':
+      return rpc('svuota_cestino_documenti', { p_giorni: num(b.giorni) ?? 30 }, Math.max(ms, 60000));
     case '/api/documenti_elimina':         // in blocco: un anno (solo admin) o un sito
       return rpc('elimina_documenti', { p_anno: num(b.anno) || null,
                                         p_id_service: num(b.id_service) || null },
@@ -341,6 +350,32 @@ export async function chiama(percorso, { metodo = 'GET', body = {}, ms = 20000 }
   }
   return { ok: false, stato: 404, dati: { errore: 'rotta sconosciuta: ' + u.pathname } };
 }
+
+/* ------------------------------------------------------ errori (COD-02) - */
+/* Gli errori del programma (vedi `segnala` in ui.js) finiscono nella stessa
+   tabella del Planning, `pl_client_errors`, con `where_` che comincia per
+   "crono:". Solo online e solo da entrati: senza sessione la tabella non
+   accetta niente. Mai lanciare: e' l'ultimo anello. */
+async function inviaErrore(e, dove) {
+  if (!attiva() || !ses) return;
+  try {
+    const t = await token();
+    if (!t) return;
+    await fetch(`${ORIGINE}/rest/v1/pl_client_errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: CHIAVE_ANON,
+                 Authorization: 'Bearer ' + t, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        message: String(e?.message || e).slice(0, 1000),
+        stack: String(e?.stack || '').slice(0, 4000),
+        where_: ('crono:' + (dove || '')).slice(0, 200),
+        url: String(globalThis.location?.href || '').slice(0, 500),
+        user_agent: String(globalThis.navigator?.userAgent || '').slice(0, 300),
+      }),
+    });
+  } catch { /* niente */ }
+}
+impostaSegnalatore(inviaErrore);
 
 /* --------------------------------------------------------------- storage - */
 /* Il bucket `documenti` e' privato: si carica, si cancella e si legge (con un
@@ -647,7 +682,7 @@ export function assicuraSessione() {
       <form class="foglio">
         <h2>Crono Mappature</h2>
         <p class="sotto">Entra con la tua casella aziendale. Il nome che firma le
-          spunte e' questo: si sa sempre chi ha fatto cosa.</p>
+          spunte è questo: si sa sempre chi ha fatto cosa.</p>
         <label class="acc-et" for="acc-mail">Casella</label>
         <input class="campo" id="acc-mail" type="email" autocomplete="username"
                placeholder="nome.cognome@vrs-tech.it" required>
@@ -679,7 +714,7 @@ export function assicuraSessione() {
         velo.remove();
         resolve(ses);
       } catch (ex) {
-        err.textContent = String(ex.message || ex);
+        err.textContent = umano(String(ex.message || ex)).testo;
         err.hidden = false;
         bot.disabled = false;
         bot.textContent = 'Entra';

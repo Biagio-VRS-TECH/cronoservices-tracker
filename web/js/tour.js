@@ -38,6 +38,13 @@
     }
     return null;
   }
+  /* MOV-07: la posizione passa da transform (niente layout a ogni passo);
+     left/top restano a 0. La misura del riquadro resta width/height: scalarlo
+     deformerebbe il raggio e l'ombra. */
+  function sposta(n, x, y) {
+    n.style.left = '0'; n.style.top = '0';
+    n.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+  }
   function portaInVista(el) {
     var sc = riquadroCheScorre(el);
     if (!sc) { try { el.scrollIntoView({ block: 'center' }); } catch (e) { } return; }
@@ -68,7 +75,7 @@
   function crea(cfg) {
     var PASSI = cfg.passi || [], KEY = cfg.chiave || 'cs.tour';
     var scorri = cfg.scorri || portaInVista;
-    var I = 0, ON = false, RAF = null;
+    var I = 0, ON = false, RAF = null, prima = null;
     var wrap = markup();
     var $ = function (id) { return document.getElementById(id); };
 
@@ -95,17 +102,15 @@
            fuori campo - l'ombra si espande dai bordi del riquadro, e un riquadro
            a -9999px lascerebbe scoperto tutto lo schermo */
         hole.classList.add('blind');
-        hole.style.left = Math.round(vw / 2) + 'px'; hole.style.top = Math.round(vh / 2) + 'px';
+        sposta(hole, vw / 2, vh / 2);
         hole.style.width = '0px'; hole.style.height = '0px';
-        pop.style.left = Math.round((vw - pw) / 2) + 'px';
-        pop.style.top = Math.round((vh - ph) / 2) + 'px';
+        sposta(pop, (vw - pw) / 2, (vh - ph) / 2);
         return;
       }
       hole.classList.remove('blind');
       var pad = (s.pad === undefined) ? 8 : s.pad, r = el.getBoundingClientRect();
       var x = Math.max(-4, r.left - pad), y = Math.max(-4, r.top - pad);
-      hole.style.left = Math.round(x) + 'px';
-      hole.style.top = Math.round(y) + 'px';
+      sposta(hole, x, y);
       hole.style.width = Math.round(Math.min(r.right + pad, vw + 4) - x) + 'px';
       hole.style.height = Math.round(Math.min(r.bottom + pad, vh + 4) - y) + 'px';
       var G = 14, px = null, py = null;
@@ -121,8 +126,7 @@
         else if (o === 'above' && r.top - G - ph - M >= 0) { py = r.top - G - ph; px = r.left + r.width / 2 - pw / 2; }
       }
       if (px === null) { px = (vw - pw) / 2; py = (vh - ph) / 2; }
-      pop.style.left = Math.round(Math.max(M, Math.min(vw - pw - M, px))) + 'px';
-      pop.style.top = Math.round(Math.max(M, Math.min(vh - ph - M, py))) + 'px';
+      sposta(pop, Math.max(M, Math.min(vw - pw - M, px)), Math.max(M, Math.min(vh - ph - M, py)));
     }
     function vai(i) {
       I = Math.max(0, Math.min(PASSI.length - 1, i));
@@ -150,6 +154,7 @@
     function avvia() {
       if (ON) return;
       if (cfg.primaDi) cfg.primaDi();
+      prima = document.activeElement;
       wrap.hidden = false;
       ON = true;
       vai(0);
@@ -159,6 +164,9 @@
       ON = false;
       wrap.hidden = true;
       if (cfg.dopo) cfg.dopo();
+      // il fuoco torna a chi aveva aperto la guida
+      if (prima && prima.isConnected && prima.focus) { try { prima.focus(); } catch (e) { } }
+      prima = null;
       try { localStorage.setItem(KEY, '1'); } catch (e) { }
     }
     function vista() { try { return !!localStorage.getItem(KEY); } catch (e) { return true; } }
@@ -173,6 +181,17 @@
     window.addEventListener('keydown', function (e) {
       if (!ON) return;
       if (e.key === 'Escape') { e.preventDefault(); chiudi(); }
+      /* aria-modal vuol dire che dietro non si naviga: il Tab gira fra i
+         pulsanti del fumetto (come la modale di ui.js) */
+      else if (e.key === 'Tab') {
+        var f = Array.prototype.filter.call(
+          $('tourPop').querySelectorAll('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'),
+          function (x) { return x.offsetParent !== null; });
+        if (!f.length) return;
+        var k = f.indexOf(document.activeElement);
+        if (e.shiftKey && k <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && (k === -1 || k === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+      }
       else if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); avanti(); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); vai(I - 1); }
     });

@@ -50,7 +50,8 @@ test('09: imposta_ruolo e\' quella di 03 piu\' il solo lucchetto sugli admin', (
 test('CronoService non dipende da funzioni del Planning', () => {
   for (const f of FILE_SQL) {
     const senzaCommenti = leggi('cloud/' + f).replace(/--[^\n]*/g, '');
-    assert.doesNotMatch(senzaCommenti, /\bpl_\w+\s*\(/, f);
+    // una tabella del Planning (insert into public.pl_secrets(...)) non e' una funzione
+    assert.doesNotMatch(senzaCommenti, /(?<!into\s+public\.)\bpl_\w+\s*\(/, f);
   }
 });
 

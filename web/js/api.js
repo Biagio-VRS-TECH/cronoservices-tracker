@@ -25,11 +25,18 @@ const K_CODA = 'cs.coda.v1';
 const K_CACHE = 'cs.bootstrap.v2';   // v2: il payload porta `ruolo`
 const K_OP = 'cs.operatore';
 
+function leggiCoda() {
+  try {
+    const v = JSON.parse(localStorage.getItem(K_CODA) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+
 export const rete = {
   clientId: sessionStorage.getItem('cs.client') ||
     (sessionStorage.setItem('cs.client', crypto.randomUUID()), sessionStorage.getItem('cs.client')),
   online: navigator.onLine,
-  coda: JSON.parse(localStorage.getItem(K_CODA) || '[]'),
+  coda: leggiCoda(),
   operatore: localStorage.getItem(K_OP) || '',
   inInvio: false,
   ultimoContatto: 0,
@@ -44,10 +51,37 @@ export function setOperatore(nome) {
   localStorage.setItem(K_OP, nome);
 }
 
-function salvaCoda() {
-  localStorage.setItem(K_CODA, JSON.stringify(rete.coda));
+/* LA CODA E' UNA SOLA PER TUTTE LE SCHEDE (BUG-02). Prima ogni scheda la
+   leggeva una volta all'avvio e riscriveva il blob intero dalla sua copia in
+   memoria: con due schede aperte offline, la spunta dell'una cancellava quella
+   dell'altra. Ora ogni modifica e' un "rileggi, cambia, riscrivi" sincrono (fra
+   i tre passi nessun'altra scheda puo' mettersi in mezzo), si toglie per
+   op_id e non con shift(), e le altre schede si riallineano sull'evento
+   `storage`. `rete.coda` resta lo STESSO array (lo guardano stato.js e
+   app.js): si riempie sul posto. Se il disco non accetta la scrittura (spazio
+   finito) si continua dalla copia in memoria. */
+let discoOk = true;
+const rimpiazza = lista => { rete.coda.splice(0, rete.coda.length, ...lista); };
+function cambiaCoda(fn) {
+  const lista = fn(discoOk ? leggiCoda() : rete.coda.slice());
+  try { localStorage.setItem(K_CODA, JSON.stringify(lista)); discoOk = true; } catch { discoOk = false; }
+  rimpiazza(lista);
   notifica();
 }
+const togli = opId => cambiaCoda(c => c.filter(x => x.op_id !== opId));
+
+/* Un'altra scheda ha cambiato la coda. Se ha spedito (e tolto) una MIA
+   operazione, il suo esito l'ha avuto lei: qui la si da' per confermata, cosi'
+   la cella non resta "in sospeso" per sempre; la cella vera arriva dal flusso. */
+addEventListener('storage', e => {
+  if (e.key !== K_CODA && e.key !== null) return;
+  if (!discoOk) return;
+  const ora = leggiCoda(), ci = new Set(ora.map(x => x.op_id));
+  const partite = rete.coda.filter(x => x.client === rete.clientId && !ci.has(x.op_id));
+  rimpiazza(ora);
+  notifica();
+  for (const op of partite) rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: {} } }));
+});
 
 /* --------------------------------------------------------------- fetch --- */
 /* Due trasporti, una firma sola. In locale si parla con server.py; online le
@@ -162,20 +196,36 @@ export async function bootstrap(anno) {
 /* --------------------------------------------------------------- coda ---- */
 /** Accoda una scrittura. Ritorna l'op_id per marcare la cella "in sospeso". */
 export function accoda(op) {
-  const v = { op_id: crypto.randomUUID(), creato: Date.now(), ...op };
-  rete.coda.push(v);
-  salvaCoda();
+  const v = { op_id: crypto.randomUUID(), creato: Date.now(), client: rete.clientId, ...op };
+  cambiaCoda(c => [...c, v]);
   svuota();
   return v.op_id;
 }
 
+/* Ogni scheda spedisce le SUE operazioni; quelle di un'altra solo se ferme da
+   piu' di 30 s (la scheda che le ha fatte e' stata chiusa, o e' senza rete):
+   cosi' l'esito arriva a chi aspetta, e nessuna resta orfana. */
+const ORFANA_MS = 30000;
+const tocca = op => !op.client || op.client === rete.clientId || Date.now() - (op.creato || 0) > ORFANA_MS;
+
 let timerRitento = null;
 export async function svuota() {
-  if (rete.inInvio || !rete.coda.length) return;
+  if (rete.inInvio) return;
+  if (discoOk) rimpiazza(leggiCoda());
+  if (!rete.coda.some(tocca)) {
+    clearTimeout(timerRitento);
+    if (rete.coda.length) timerRitento = setTimeout(svuota, 8000);
+    return;
+  }
   rete.inInvio = true; notifica();
-  try {
-    while (rete.coda.length) {
-      const op = rete.coda[0];
+  /* Due schede che spediscono insieme: una alla volta (navigator.locks, dove
+     c'e'). Il server applica ogni op_id una volta sola, quindi il lucchetto
+     evita solo esiti doppi, non danni. */
+  const giro = async () => {
+    for (;;) {
+      if (discoOk) rimpiazza(leggiCoda());
+      const op = rete.coda.find(tocca);
+      if (!op) break;
       let r;
       try {
         r = await chiama(op.rotta, { metodo: 'POST', body: { ...op.corpo, op_id: op.op_id, operatore: op.operatore || rete.operatore } });
@@ -183,19 +233,23 @@ export async function svuota() {
         break;                       // rete assente: si riprova piu' tardi
       }
       if (r.stato === 409) {
-        rete.coda.shift(); salvaCoda();
+        togli(op.op_id);
         rete.ascoltatori.forEach(f => f(rete, { conflitto: { op, server: r.dati } }));
         continue;
       }
       if (!r.ok) {                   // errore applicativo: non ha senso insistere
-        rete.coda.shift(); salvaCoda();
+        togli(op.op_id);
         rete.ascoltatori.forEach(f => f(rete, { fallita: { op, server: r.dati } }));
         avviso('Operazione rifiutata dal server: ' + (r.dati.errore || r.stato), { tono: 'allerta' });
         continue;
       }
-      rete.coda.shift(); salvaCoda();
+      togli(op.op_id);
       rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: r.dati } }));
     }
+  };
+  try {
+    if (globalThis.navigator?.locks?.request) await navigator.locks.request('cs.coda', giro);
+    else await giro();
   } finally {
     rete.inInvio = false; notifica();
     clearTimeout(timerRitento);

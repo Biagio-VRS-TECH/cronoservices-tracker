@@ -38,7 +38,11 @@ let radice = null, contenitore = null;
 const titoloPunto = (s, k) => ET_STATO[k] + (s.tipo ? ' · ' + s.tipo : '');
 const htmlPunto = s => {
   const k = statoMappatura(s);
-  return `<span class="punto-stato ${k}" title="${esc(titoloPunto(s, k))}"></span>`;
+  /* A11Y-17: il significato non sta solo nel colore e nel `title` (che la
+     tastiera e il lettore di schermo non vedono): nome accessibile, e la
+     classe `k` e' anche la chiave della forma nel CSS */
+  const t = esc(titoloPunto(s, k));
+  return `<span class="punto-stato ${k}" role="img" aria-label="${t}" title="${t}"></span>`;
 };
 /* data-x: 0 niente, 1 fatto QUI, 2 EREDITATO, cioe' fatto in un mese prima o
    l'anno prima e ancora valido (#ANCHOR: passi-cumulativi in stato.js). Il
@@ -113,7 +117,8 @@ function htmlRigaSrv(s, rit) {
     <div class="col-nome">
       ${htmlPunto(s)}
       <span class="srv-id">#${s.id}</span>
-      <span class="srv-dest" title="${esc(s.dest)}">${esc(s.dest || '(senza destinazione)')}</span>
+      <span class="srv-dest" role="button" tabindex="0" title="${esc(s.dest)}"
+            aria-label="Dettaglio di #${s.id} ${esc(s.dest || '')}">${esc(s.dest || '(senza destinazione)')}</span>
       ${htmlChipDocumento(s.id)}
       <span class="srv-loc">${esc(s.loc || '')}</span>
       ${chiuso ? '<span class="tag">chiuso</span>' : ''}
@@ -314,6 +319,13 @@ function collega(r) {
   r.addEventListener('keydown', e => {
     const cli = e.target?.closest?.('.riga-cli');
     if (cli && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return piega(cli); }
+    /* A11Y-10: il dettaglio del sito si apre anche da tastiera, come col clic
+       sul nome */
+    const nome = e.target?.closest?.('.riga-srv .srv-dest');
+    if (nome && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      return apriCassetto(Number(nome.closest('.riga-srv').dataset.srv));
+    }
     const cel = e.target?.closest?.('.cella');
     if (!cel) return;
     const [id, m] = cel.dataset.cella.split('-').map(Number);
@@ -501,6 +513,7 @@ function rinfrescaRiga(id) {
     const k = statoMappatura(s);
     punto.className = 'punto-stato ' + k;
     punto.title = titoloPunto(s, k);
+    punto.setAttribute('aria-label', punto.title);
   }
 }
 

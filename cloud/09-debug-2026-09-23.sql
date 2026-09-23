@@ -5,10 +5,12 @@
 -- insert, update o delete su righe esistenti).
 --
 -- ATTENZIONE, prima di rilanciare 01-08 su questo progetto: il database e'
--- CONDIVISO col Planning (tabelle e funzioni `pl_*`). `04-sicurezza.sql` fa
--- `revoke all on all tables in schema public` e `revoke execute on all
--- functions in schema public`: rieseguito oggi toglierebbe i permessi a tutto il
--- Planning. Per le correzioni si usa questo file, non si rilancia il 04.
+-- CONDIVISO col Planning (tabelle e funzioni `pl_*`). `04-sicurezza.sql` faceva
+-- un revoke `on all tables` e `on all functions` di tutto lo schema: rieseguito
+-- toglieva i permessi a tutto il Planning. Dal 10-migliorie-2026-09.sql (SEC-10)
+-- il 04 tocca solo gli oggetti di CronoService, per nome; resta vero pero' che
+-- 02/03 riscriverebbero `_applica` e `imposta_nota` senza il controllo che vi
+-- ha aggiunto il Planning. Per le correzioni si usano 09 e 10.
 --
 -- Cosa mette a posto, in ordine di gravita':
 --   1. i tecnici non potevano piu' spuntare niente (ne' scrivere una nota);

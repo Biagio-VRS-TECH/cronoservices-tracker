@@ -131,6 +131,16 @@ class H(BaseHTTPRequestHandler):
             self.close_connection = True
             return self._json(400, {"errore": "Content-Length non valido"})
         raw = self.rfile.read(n) if n else b""
+        # SEC-12: niente POST da pagine di altri siti. Un <form> o un fetch
+        # "semplice" da una pagina qualsiasi aperta su un PC dell'ufficio non
+        # puo' mandare application/json senza passare dal preflight CORS (che
+        # qui non risponde), e il browser dichiara sempre la sua Origin
+        # ("null" da un iframe sandbox: anche quella e' un'altra origine).
+        origine = self.headers.get("Origin")
+        if origine and urlparse(origine).netloc != (self.headers.get("Host") or ""):
+            return self._json(403, {"errore": "richiesta da un'altra origine"})
+        if raw and not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
+            return self._json(415, {"errore": "serve Content-Type: application/json"})
         try:
             body = json.loads(raw.decode("utf-8")) if raw else {}
         except ValueError:
@@ -334,11 +344,18 @@ def main():
             print("ATTENZIONE: sync Access non riuscito (%s). Si prosegue con la "
                   "cache locale." % e)
 
-    srv = Server((CFG.get("host", "0.0.0.0"), a.porta), H)
+    # SEC-12: di default solo questo PC. Il server locale non ha login e il
+    # ruolo lo dichiara il client: aprirlo alla rete ("host": "0.0.0.0" in
+    # config.json) e' una scelta esplicita, non l'impostazione di partenza.
+    host = CFG.get("host") or "127.0.0.1"
+    srv = Server((host, a.porta), H)
     print("")
     print("  CronoServices Mappature attivo")
     print("  su questo PC .... http://localhost:%d" % a.porta)
-    print("  per i colleghi .. http://%s:%d" % (ip_lan(), a.porta))
+    if host in ("127.0.0.1", "localhost", "::1"):
+        print("  solo da questo PC (per i colleghi: \"host\": \"0.0.0.0\" in config.json)")
+    else:
+        print("  per i colleghi .. http://%s:%d" % (ip_lan(), a.porta))
     print("  CTRL+C per fermare")
     print("")
     try:

@@ -24,6 +24,7 @@ globalThis.fetch = async (url, opz = {}) => {
 
 function carica(opz = {}) {
   rete.coda.length = 0;
+  localStorage.removeItem('cs.coda.v1');   // la coda vive sul disco (BUG-02)
   st.sospese.clear();
   st.ultimaAzione = null;
   st.vista = 'anno';

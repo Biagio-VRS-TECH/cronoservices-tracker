@@ -39,6 +39,7 @@ import * as nuvola from './nuvola.js';
 import { st, applica, mesePerStampa } from './stato.js';
 import { salvaDocumento } from './documenti.js';
 import { affinita, pesiParole } from './affinita.js';
+import { umano } from './ui.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -261,7 +262,7 @@ export function avviaPonte(cfg = {}) {
        giusto del file nuovo). Vale l'ultimo giro. */
     const mio = ++giro;
     let lista;
-    try { lista = await caricaSiti(); } catch (e) { return mio === giro ? esito('errore', e.message) : undefined; }
+    try { lista = await caricaSiti(); } catch (e) { return mio === giro ? esito('errore', umano(e.message).testo) : undefined; }
     if (mio !== giro) return;
 
     const g = giudicaFile(domande, lista, pesi,
@@ -396,7 +397,7 @@ export function avviaPonte(cfg = {}) {
     };
 
     const inp = $('#ponteQ');
-    inp.addEventListener('focus', () => caricaSiti().catch(e => esito('errore', e.message)));
+    inp.addEventListener('focus', () => caricaSiti().catch(e => esito('errore', umano(e.message).testo)));
     inp.addEventListener('change', async () => {
       const m = /#(\d+)\s*$/.exec(inp.value);
       const lista = await caricaSiti().catch(() => []);
@@ -732,7 +733,7 @@ export function avviaPonte(cfg = {}) {
           ? `Interrotto: consegnati ${consegnati} fascicoli su ${N}, gli altri no.`
           : (N ? 'Interrotto: PDF pronto ma non consegnato.' : 'Interrotto: nessun PDF prodotto.'));
       } else {
-        esito('errore', 'Non salvato: ' + (e?.message || e));
+        esito('errore', umano('Non salvato: ' + (e?.message || e)).testo);
       }
     } finally {
       inCorso = false; annulla = false;

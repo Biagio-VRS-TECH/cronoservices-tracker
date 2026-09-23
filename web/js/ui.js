@@ -81,10 +81,83 @@ export function h(sel, attrs, ...kids) {
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/* ------------------------------------------------ errori: segnala -------- */
+/* Un punto solo per gli errori del programma: la console e, online, una riga
+   nella tabella degli errori del client (la manda nuvola.js, che si registra
+   con `impostaSegnalatore`: ui.js non importa niente). Mai lanciare da qui: chi
+   segnala un errore non deve riceverne un altro. Al massimo 20 per pagina, e
+   lo stesso messaggio una volta sola.  #ANCHOR: segnala */
+let segnalatore = null, segnalati = 0;
+const giaSegnalati = new Set();
+export function impostaSegnalatore(fn) { segnalatore = fn; }
+export function segnala(err, dove = '') {
+  try {
+    console.error(dove ? `[${dove}]` : '[errore]', err);
+    const e = err instanceof Error ? err : new Error(String(err?.message || err));
+    const chiave = dove + '|' + e.message;
+    if (giaSegnalati.has(chiave) || segnalati >= 20) return;
+    giaSegnalati.add(chiave);
+    segnalati++;
+    segnalatore?.(e, dove);
+  } catch { /* niente */ }
+}
+
+/* ------------------------------------------- errori: in italiano -------- */
+/* I messaggi che arrivano dal browser, da Supabase o da Postgres sono in
+   inglese e tecnici («Failed to fetch», «JWT expired», «violates check
+   constraint…»). Qui si traducono in UN punto solo: `avviso()` passa da
+   `umano()` tutto quello che non e' un «fatto», cosi' i punti che fanno
+   `'Non salvato: ' + e.message` non vanno toccati uno a uno. Il testo tecnico
+   non si perde: va a `segnala()`.
+   Ritorna { testo, tecnico }: `tecnico` c'e' solo se qualcosa e' stato tradotto. */
+const TRADUZIONI = [
+  [/failed to fetch|networkerror|load failed|network ?error|fetch failed|net::err/i,
+    'server non raggiungibile: controlla la rete e riprova'],
+  [/\babort|timed? ?out\b|timeout|canceling statement/i,
+    'il server ha risposto troppo tardi: riprova fra poco'],
+  [/invalid login credentials|invalid (email|password)|email not confirmed/i,
+    'email o password non corrette'],
+  [/\bjwt\b|invalid token|token (is )?expired|refresh token|not authenticated/i,
+    'la sessione è scaduta: esci e rientra'],
+  [/permission denied|row-level security|not authori[sz]ed|insufficient.privilege|forbidden/i,
+    'non hai il permesso per farlo: se ti serve, chiedi all’amministratore'],
+  [/duplicate key|unique constraint|already exists/i,
+    'c’è già: ricarica la pagina per vederlo'],
+  [/violates .*constraint|check constraint|not-null constraint|foreign key/i,
+    'il database non accetta questi dati: controlla i valori e riprova'],
+  [/too many requests|rate limit/i,
+    'troppe richieste in poco tempo: aspetta un minuto e riprova'],
+  [/(errore?|status) 50[0-4]\b|internal server error|bad gateway|service unavailable/i,
+    'il server ha avuto un problema: riprova fra poco'],
+];
+const RIPIEGO = 'non è andato a buon fine. Riprova; se succede ancora, avvisa l’amministratore';
+/* inglese tecnico senza una traduzione precisa: parole che in un testo
+   italiano del programma non compaiono, e nessuna parola italiana */
+const INGLESE = /\b(the|is|was|of|for|not|failed|invalid|unexpected|cannot|could|must|does|exist|undefined|null|json|function|relation|column|syntax|object|property|reading)\b/i;
+const ITALIANO = /[àèéìòù]|\b(non|il|la|di|che|per|del|della|sono|questo|rifiutat[oa]|riuscit[oa])\b/i;
+const tecnico = s => TRADUZIONI.some(([re]) => re.test(s)) || (INGLESE.test(s) && !ITALIANO.test(s));
+const traduci = s => TRADUZIONI.find(([re]) => re.test(s))?.[1] || RIPIEGO;
+const maiuscola = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function umano(testo) {
+  const s = String(testo ?? '');
+  /* «Contesto: coda tecnica»: si traduce solo la coda, il contesto e' nostro */
+  const i = s.indexOf(': ');
+  if (i > 0 && i < 80 && !tecnico(s.slice(0, i)) && tecnico(s.slice(i + 2))) {
+    return { testo: s.slice(0, i + 2) + traduci(s.slice(i + 2)) + '.', tecnico: s };
+  }
+  if (tecnico(s)) return { testo: maiuscola(traduci(s)) + '.', tecnico: s };
+  return { testo: s, tecnico: '' };
+}
+
 /* ------------------------------------------------------------- avvisi ---- */
 let contAvvisi;
 export function avviso(testo, opz = {}) {
   contAvvisi ||= document.body.appendChild(h('div.avvisi', { 'aria-live': 'polite' }));
+  if (opz.tono !== 'ok') {
+    const u = umano(testo);
+    if (u.tecnico) { segnala(new Error(u.tecnico), 'avviso'); testo = u.testo; }
+  }
   const n = h('div.avviso' + (opz.tono ? '.' + opz.tono : ''), {}, h('span', { testo }));
   /* Due azioni al massimo: il conflitto sulla nota ne ha bisogno (unisci /
      tieni la mia), tutto il resto ne ha una sola o nessuna. Con piu' di due
@@ -132,6 +205,16 @@ export function campoOK(bottone, { parola = 'OK', etichetta } = {}) {
 
 /* ------------------------------------------------------------- modale ---- */
 const FOCALIZZABILI = 'input:not([disabled]),button:not([disabled]),select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
+/** Tab e Maiusc+Tab girano dentro `contenitore` (modale, cassetto, giro
+ *  guidato): dietro un `aria-modal` non si naviga. Da chiamare nel keydown. */
+export function trappolaTab(e, contenitore) {
+  if (e.key !== 'Tab' || !contenitore) return;
+  const f = [...contenitore.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent !== null);
+  if (!f.length) return e.preventDefault();
+  const i = f.indexOf(document.activeElement);
+  if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+}
 export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
   const velo = h('div.velo');
   const prima = document.activeElement;   // a chi torna il fuoco alla chiusura
@@ -148,12 +231,7 @@ export function modale(costruisci, { chiudibile = true, classe = '' } = {}) {
         velo !== [...document.querySelectorAll('.velo')].pop()) return;
     if (e.key === 'Escape' && chiudibile) return chiudi();
     /* Tab resta dentro il foglio: dietro il velo non si naviga. */
-    if (e.key !== 'Tab') return;
-    const f = [...foglio.querySelectorAll(FOCALIZZABILI)].filter(x => x.offsetParent !== null);
-    if (!f.length) return e.preventDefault();
-    const i = f.indexOf(document.activeElement);
-    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+    trappolaTab(e, foglio);
   };
   /* `classe` serve ai fogli che non stanno nei 520px della modale normale (per
      esempio l'elenco per sito delle Statistiche, aperto a tutta pagina). */

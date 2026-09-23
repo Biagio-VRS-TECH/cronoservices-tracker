@@ -18,10 +18,15 @@ il padrone delle spunte e' Supabase, e questo script non le tocca mai.
 Uso:  python push_cloud.py            (lo chiama cloud/sync-cloud.cmd)
       python push_cloud.py --prova    (legge Access e dice cosa manderebbe)
 
-Credenziali: app/cloud.json  oppure  le variabili d'ambiente
-CRONO_SUPABASE_URL / CRONO_SUPABASE_SERVICE_KEY. La chiave e' la `service_role`:
-salta l'RLS, quindi NON deve mai finire nel browser ne' su Netlify. Vive solo su
-questo PC.
+Credenziali: app/cloud.json  oppure  le variabili d'ambiente.
+  * DA PREFERIRE (SEC-04): `sync_key` / CRONO_SYNC_KEY, la chiave DEDICATA
+    (pl_secrets.crono_sync_key). Si manda alla edge function `crono-sync`, che
+    esegue sync_applica e nient'altro: chi copia cloud.json puo' al massimo
+    rimandare l'anagrafica, non leggere o cancellare il database.
+  * Vecchia strada, solo finche' la funzione non e' distribuita: `service_key` /
+    CRONO_SUPABASE_SERVICE_KEY, la `service_role`, che salta l'RLS su TUTTO il
+    progetto (Planning compreso). Quando `sync_key` funziona, va tolta da qui.
+  L'URL: `supabase_url` / CRONO_SUPABASE_URL.
 """
 import datetime, json, os, sys, urllib.error, urllib.request
 
@@ -33,18 +38,29 @@ TIMEOUT = 180
 
 
 def _cfg_cloud():
+    """(url, chiave). Per sapere anche DOVE mandarla: _cfg_cloud_via()."""
+    return _cfg_cloud_via()[:2]
+
+
+def _cfg_cloud_via():
+    """(url, chiave, via): via = "funzione" (sync_key -> crono-sync) oppure
+    "service_role" (la vecchia strada, rpc/sync_applica)."""
     p = os.path.join(BASE, "cloud.json")
     c = {}
     if os.path.exists(p):
         with open(p, encoding="utf-8") as f:
             c = json.load(f)
     url = (os.environ.get("CRONO_SUPABASE_URL") or c.get("supabase_url") or "").rstrip("/")
+    sync_key = os.environ.get("CRONO_SYNC_KEY") or c.get("sync_key") or ""
     key = os.environ.get("CRONO_SUPABASE_SERVICE_KEY") or c.get("service_key") or ""
+    if url and sync_key:
+        return url, sync_key, "funzione"
     if not url or not key:
         raise RuntimeError(
             "Credenziali Supabase mancanti. Crea app/cloud.json cosi':\n"
-            '{ "supabase_url": "https://xxxx.supabase.co", "service_key": "eyJ..." }')
-    return url, key
+            '{ "supabase_url": "https://xxxx.supabase.co", "sync_key": "..." }\n'
+            "(sync_key = pl_secrets.crono_sync_key, vedi cloud/LEGGIMI.md)")
+    return url, key, "service_role"
 
 
 def righe(payload):
@@ -58,15 +74,23 @@ def righe(payload):
     return sync.normalizza(payload)
 
 
-def manda(url, key, cli, servs):
+def manda(url, key, cli, servs, via="service_role"):
     corpo = json.dumps({"p_clienti": cli, "p_services": servs},
                        ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        url + "/rest/v1/rpc/sync_applica", data=corpo, method="POST",
-        headers={"Content-Type": "application/json",
-                 "apikey": key,
-                 "Authorization": "Bearer " + key,
-                 "Accept": "application/json"})
+    if via == "funzione":
+        # SEC-04: la chiave dedicata va solo alla edge function crono-sync
+        req = urllib.request.Request(
+            url + "/functions/v1/crono-sync", data=corpo, method="POST",
+            headers={"Content-Type": "application/json",
+                     "x-api-key": key,
+                     "Accept": "application/json"})
+    else:
+        req = urllib.request.Request(
+            url + "/rest/v1/rpc/sync_applica", data=corpo, method="POST",
+            headers={"Content-Type": "application/json",
+                     "apikey": key,
+                     "Authorization": "Bearer " + key,
+                     "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             return json.loads(r.read().decode("utf-8"))
@@ -104,8 +128,8 @@ def main():
                          ensure_ascii=False, indent=2))
         return 0
 
-    url, key = _cfg_cloud()
-    r = manda(url, key, cli, servs)
+    url, key, via = _cfg_cloud_via()
+    r = manda(url, key, cli, servs, via)
     riass = ("ok  %(services)s service, %(clienti)s clienti"
              ", %(nuovi)s nuovi, %(chiusi)s chiusi, %(riaperti)s riaperti"
              ", %(mesi_cambiati)s con mesi cambiati, %(archiviati)s archiviati"

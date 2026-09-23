@@ -4,10 +4,10 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v28';
+const CACHE = 'crono-guscio-v29';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
-  '/css/fonti.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
+  '/css/fonti.css', '/css/vrs-famiglia.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
   '/css/stampa.css', '/css/banco.css', '/css/ponte.css',
   '/assets/fonti/inter-latin-wght-normal.woff2', '/assets/fonti/newsreader-latin-wght-normal.woff2',
   '/assets/fonti/newsreader-latin-wght-italic.woff2', '/assets/fonti/jetbrains-mono-latin-wght-normal.woff2',
@@ -19,8 +19,11 @@ const GUSCIO = [
   '/schede/', '/schede/index.html', '/schede/ponte.js',
   '/registro/', '/registro/index.html', '/registro/registro.js', '/registro/impagina.js',
   '/registro/app.js', '/registro/registro.css',
-  '/lib/html2canvas.min.js', '/lib/jspdf.umd.min.js', '/lib/xlsx.min.js',
-  '/assets/icona.svg', '/assets/logo.webp',
+  /* PERF-09: le librerie PDF/Excel (/lib/*, 1,44 MB) non si precaricano piu':
+     le scarica il primo generatore aperto, e il fetch qui sotto le mette in
+     cache da solo (prima la rete, poi la copia). */
+  '/assets/icona.svg', '/assets/icona-192.png', '/assets/apple-touch-icon.png',
+  '/assets/logo.webp',
 ];
 
 self.addEventListener('install', e => {

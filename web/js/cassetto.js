@@ -8,10 +8,10 @@
    mesi a schermo era il difetto piu' fastidioso dell'applicazione.
    #ANCHOR: cassetto */
 import { h, ICO, esc, dataIt, quando, avviso } from './ui.js';
-import { chiama } from './api.js';
+import { chiama, inNuvola } from './api.js';
 import {
   documentiDi, gruppiDocumenti, titoloDocumento, apriDocumento, eliminaDocumento,
-  eliminaDocumenti,
+  eliminaDocumenti, ripristinaDocumento,
   urlGeneratore, dimensione, ICO_PDF, ICONA_TIPO, TIPI, tipoDi,
 } from './documenti.js';
 import {
@@ -235,18 +235,38 @@ function sezDocumenti() {
           h('div.doc-azioni', {},
             N > 1 ? null : h('button.pill.mini', { testo: 'Apri', onclick: () => apriDocumento(d) }),
             h('button.pill.mini.debole', {
-              testo: 'Elimina', title: N > 1 ? `Toglie tutti i ${N} fascicoli (la spunta resta)` : 'Toglie il PDF (la spunta resta)',
+              testo: 'Elimina', title: (N > 1 ? `Toglie tutti i ${N} fascicoli (la spunta resta)` : 'Toglie il PDF (la spunta resta)') +
+                (inNuvola() ? '. Va nel cestino: per 30 giorni si può rimettere.' : ''),
               onclick: async e => {
                 const b = e.currentTarget;
                 if (b.dataset.conferma !== '1') {
                   b.dataset.conferma = '1'; b.textContent = 'Sicuro?';
-                  setTimeout(() => { b.dataset.conferma = ''; b.textContent = 'Elimina'; }, 3000);
+                  setTimeout(() => {
+                    if (!b.disabled) { b.dataset.conferma = ''; b.textContent = 'Elimina'; }
+                  }, 3000);
                   return;
                 }
+                b.disabled = true; b.textContent = 'Elimino…';
                 try {
                   for (const f of g.docs) await eliminaDocumento(f);
-                  avviso(N > 1 ? `${N} fascicoli eliminati.` : 'PDF eliminato.');
+                  /* online il PDF e' nel cestino (SEC-05): l'avviso ha il suo «Annulla» */
+                  const testo = inNuvola()
+                    ? (N > 1 ? `${N} fascicoli nel cestino.` : 'PDF nel cestino.')
+                    : (N > 1 ? `${N} fascicoli eliminati.` : 'PDF eliminato.');
+                  avviso(testo, inNuvola() ? {
+                    durata: 10000,
+                    azione: { et: 'Annulla', fn: async () => {
+                      try {
+                        for (const f of g.docs) await ripristinaDocumento(f.id);
+                        avviso(N > 1 ? 'Fascicoli rimessi.' : 'PDF rimesso.', { tono: 'ok' });
+                      } catch (ex2) { avviso('Non rimesso: ' + (ex2.message || ex2), { tono: 'allerta' }); }
+                    } },
+                  } : {});
                 } catch (ex) { avviso('Non riesco a eliminarlo: ' + (ex.message || ex), { tono: 'allerta' }); }
+                finally {
+                  // riuscito, la sezione si ridisegna; fallito, il pulsante torna com'era
+                  if (b.isConnected) { b.disabled = false; b.dataset.conferma = ''; b.textContent = 'Elimina'; }
+                }
               },
             })));
       })));
@@ -264,7 +284,7 @@ function sezDocumenti() {
       h('button.pill.mini.debole', {
         testo: `Elimina tutti (${docs.length})`,
         title: 'Toglie tutti i PDF di questo sito, di ogni anno. Le spunte ' +
-          '"stampata" restano.',
+          '«stampata» restano.',
         onclick: async e => {
           const b = e.currentTarget;
           if (b.dataset.conferma !== '1') {
@@ -277,9 +297,18 @@ function sezDocumenti() {
           b.disabled = true; b.textContent = 'Elimino…';
           try {
             const { n, bytes } = await eliminaDocumenti({ id_service: idAperto });
-            avviso(`${n} PDF eliminati: ${dimensione(bytes)} liberati.`, { tono: 'ok' });
+            avviso(inNuvola()
+              ? `${n} PDF nel cestino: lo spazio si libera quando l’amministratore lo svuota.`
+              : `${n} PDF eliminati: ${dimensione(bytes)} liberati.`, { tono: 'ok' });
           } catch (ex) {
             avviso('Non riesco a eliminarli: ' + (ex.message || ex), { tono: 'allerta' });
+          } finally {
+            /* BUG-19: fallita la richiesta il pulsante restava su «Elimino…»,
+               spento, fino alla chiusura del pannello */
+            if (b.isConnected) {
+              b.disabled = false; b.dataset.conferma = '';
+              b.textContent = `Elimina tutti (${docs.length})`;
+            }
           }
         },
       })) : null);

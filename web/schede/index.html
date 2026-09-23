@@ -4,8 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Schede Tecnici · Crono Mappature VRS</title>
-<link rel="icon" href="/assets/icona.svg">
+<meta name="theme-color" content="#ebebe9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1215" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/assets/icona.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/fonti.css">
+<link rel="stylesheet" href="/css/vrs-famiglia.css">
 <link rel="stylesheet" href="/css/theme.css">
 <link rel="stylesheet" href="/css/banco.css">
 <link rel="stylesheet" href="/css/ponte.css">
@@ -829,7 +833,7 @@ table.xls.plain tbody tr:hover{background:transparent}
 
   <div class="grp" id="headGrp">
     <h2>2 · Intestazione</h2>
-    <input type="text" id="docTitle" placeholder="Titolo documento (es. PRO SERVICE)">
+    <input type="text" id="docTitle" name="docTitle" aria-label="Titolo del documento" autocomplete="off" placeholder="Titolo del documento, es. PRO SERVICE…">
     <label class="tick" id="titleFromSiteRow" hidden
            title="Il titolo diventa il nome del sito collegato nel tracker">
       <input type="checkbox" id="titleFromSite" checked><span>Prendi il titolo dal sito collegato</span>
@@ -837,7 +841,7 @@ table.xls.plain tbody tr:hover{background:transparent}
     <label class="tick" title="Il titolo diventa il nome del file caricato, senza estensione">
       <input type="checkbox" id="titleFromName"><span>Prendi il titolo dal nome del file</span>
     </label>
-    <input type="text" id="docSub" placeholder="Cantiere (opzionale)">
+    <input type="text" id="docSub" name="docSub" aria-label="Cantiere (facoltativo)" autocomplete="off" placeholder="Cantiere, facoltativo…">
   </div>
 
   <div class="grp" id="setGrp">

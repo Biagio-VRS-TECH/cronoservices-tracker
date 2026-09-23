@@ -39,6 +39,7 @@ export function applicaDocumenti(lista) {
    stampate nel 2026 (il chip lo dice). Il modello tiene tutto, senza filtro. */
 function aggiungi(d, notifica = true) {
   if (!d) return;
+  if (inVolo) { arrivatiInVolo.set(d.id, d); toltiInVolo.delete(d.id); }
   const l = st.documenti.get(d.id_service) || [];
   if (!l.some(x => x.id === d.id)) {
     l.push(d);
@@ -49,6 +50,7 @@ function aggiungi(d, notifica = true) {
 }
 
 function togli(id, id_service) {
+  if (inVolo) { toltiInVolo.add(id); arrivatiInVolo.delete(id); }
   const l = (st.documenti.get(id_service) || []).filter(x => x.id !== id);
   if (l.length) st.documenti.set(id_service, l); else st.documenti.delete(id_service);
   emetti('documenti', { id: id_service });
@@ -60,6 +62,7 @@ function togli(id, id_service) {
 function togliMolti(eliminati) {
   const per = new Map();
   for (const e of eliminati || []) {
+    if (inVolo) { toltiInVolo.add(e.id); arrivatiInVolo.delete(e.id); }
     if (!per.has(e.id_service)) per.set(e.id_service, new Set());
     per.get(e.id_service).add(e.id);
   }
@@ -133,11 +136,26 @@ export function eventoDocumento(ev) {
 
 /** Rilegge l'elenco completo dal server (al ritorno di visibilita'). Senza
  *  `anno`: tutti gli anni, e' lo storico. */
+/* BUG-20: la risposta arriva dopo un po', e nel frattempo il flusso puo' aver
+   portato un PDF appena salvato (o tolto uno): applicarla com'e' lo faceva
+   sparire (o tornare). Si conta il giro, come in `cambiaAnno` (vale solo
+   l'ultima rilettura chiesta), e si fonde per id quello che e' successo mentre
+   la domanda era in volo. */
+let giroDoc = 0, inVolo = 0;
+const arrivatiInVolo = new Map(), toltiInVolo = new Set();
 export async function ricaricaDocumenti() {
+  const mio = ++giroDoc;
+  inVolo++;
   try {
     const { ok, dati } = await chiama('/api/documenti');
-    if (ok && dati?.documenti) applicaDocumenti(dati.documenti);
-  } catch { }
+    if (mio !== giroDoc || !ok || !Array.isArray(dati?.documenti)) return;
+    const lista = dati.documenti.filter(d => !toltiInVolo.has(d.id));
+    const ci = new Set(lista.map(d => d.id));
+    for (const d of arrivatiInVolo.values()) if (!ci.has(d.id)) lista.push(d);
+    applicaDocumenti(lista);
+  } catch { /* senza rete: resta l'elenco che c'e' */ } finally {
+    if (--inVolo === 0) { arrivatiInVolo.clear(); toltiInVolo.clear(); }
+  }
 }
 
 /* Il generatore gira in un'altra scheda del browser: quando salva, lo dice
@@ -369,12 +387,25 @@ export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine
   return r.dati;
 }
 
+/* PRIMA LA RIGA, POI IL FILE (BUG-12). Prima si toglieva il file e poi si
+   chiedeva al server: un rifiuto (o la rete che cade in mezzo) lasciava una
+   riga che apre un PDF che non c'e' piu'. La versione in blocco era gia' cosi'.
+   Online `elimina_documento` sposta la riga nel CESTINO (SEC-05,
+   cloud/10-migliorie-2026-09.sql) e risponde `cestino: true`: il file resta
+   nello Storage, che non lascerebbe nemmeno cancellarlo finche' una riga lo
+   usa. Lo tolgono solo `elimina_documento_definitivo` e
+   `svuota_cestino_documenti`. Il file lo toglie il client solo se il server
+   risponde alla vecchia maniera (script SQL non ancora rieseguito). */
+export const eliminazioneMorbida = dati => !!(dati?.cestino || dati?.eliminato_il);
 export async function eliminaDocumento(d) {
   scordaFirma(percorsoDi(d));
-  if (nuvola.attiva()) await nuvola.eliminaOggetto('documenti', percorsoDi(d));
   const r = await chiama('/api/documento_elimina', {
     metodo: 'POST', body: { id: d.id, operatore: rete.operatore } });
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  if (nuvola.attiva() && !eliminazioneMorbida(r.dati)) {
+    // la riga e' gia' andata: uno strascico nel bucket lo trova la query degli orfani
+    try { await nuvola.eliminaOggetto('documenti', percorsoDi(d)); } catch { }
+  }
   togli(d.id, d.id_service);
   annunciaAltreSchede({ tipo: 'documento', anno: d.anno, id_service: d.id_service, eliminato: d.id });
 }
@@ -401,7 +432,8 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
   const eliminati = r.dati?.eliminati || [];
 
-  if (online) {
+  /* nel cestino (SEC-05): i file restano, lo Storage non li lascerebbe togliere */
+  if (online && !eliminazioneMorbida(r.dati)) {
     const percorsi = eliminati.map(e => e.percorso).filter(Boolean);
     percorsi.forEach(scordaFirma);
     // le righe sono gia' andate: uno strascico nel bucket non deve far
@@ -413,6 +445,31 @@ export async function eliminaDocumenti({ anno = null, id_service = null } = {}) 
   togliMolti(eliminati);
   annunciaAltreSchede({ tipo: 'documenti', eliminati, n: eliminati.length });
   return { n: eliminati.length, bytes: r.dati?.bytes || 0 };
+}
+
+/** Il «disfa» di un Elimina (solo online): il documento torna dal cestino.
+ *  Chiunque sia entrato. Ritorna il documento rimesso. */
+export async function ripristinaDocumento(id) {
+  const r = await chiama('/api/documento_ripristina', { metodo: 'POST', body: { id } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const d = r.dati?.documento;
+  if (d) {
+    aggiungi(d);
+    annunciaAltreSchede({ tipo: 'documento', anno: d.anno, id_service: d.id_service, documento: d });
+  }
+  return d;
+}
+
+/** L'amministratore svuota il cestino dei PDF: via per sempre le righe
+ *  eliminate da piu' di `giorni` giorni (0 = tutto), POI i file (lo Storage li
+ *  lascia togliere solo quando nessuna riga li usa piu'). Ritorna {n, bytes}. */
+export async function svuotaCestino(giorni = 30) {
+  const r = await chiama('/api/cestino_svuota', { metodo: 'POST', ms: 120000, body: { giorni } });
+  if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
+  const percorsi = (r.dati?.eliminati || []).map(e => e.percorso).filter(Boolean);
+  percorsi.forEach(scordaFirma);
+  if (percorsi.length) { try { await nuvola.eliminaOggetti('documenti', percorsi); } catch { } }
+  return { n: r.dati?.n || 0, bytes: r.dati?.bytes || 0 };
 }
 
 /** L'eco di una cancellazione in blocco fatta da un altro (flusso o altra
