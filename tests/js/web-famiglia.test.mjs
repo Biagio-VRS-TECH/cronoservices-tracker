@@ -12,9 +12,10 @@ import {
 } from '../../web/js/famiglia.js';
 
 test('il selettore ha le tre app, nell’ordine del Planning, e porta al Planning vero', () => {
-  assert.deepEqual(APP_FAMIGLIA.map(a => a.nome), ['Planning', 'CronoService', 'Cantieri']);
+  assert.deepEqual(APP_FAMIGLIA.map(a => a.nome), ['Planning', 'CronoService', 'Scheduler']);
   assert.equal(APP_FAMIGLIA[0].to, 'https://vrs-planning.netlify.app/');
-  assert.equal(APP_FAMIGLIA[2].to, 'https://vrs-planning.netlify.app/cantieri');
+  // lo Scheduler e' un sito suo, non la pagina /cantieri del Planning
+  assert.equal(APP_FAMIGLIA[2].to, 'https://vrs-scheduler.netlify.app/');
 });
 
 test('i temi hanno i nomi di famiglia, e la chiave del profilo e’ quella del Planning', () => {

@@ -5,7 +5,7 @@ Tre cose, le stesse del Planning (web/src/components/AppSwitcher.tsx e
 web/src/lib/temaCondiviso.ts nel repository del Planning):
 
  1. IL SELETTORE D'APP (VIS-05 / PRD-01). Il marchio in alto a sinistra e'
-    anche il pulsante che apre le app VRS: Planning, CronoService, Cantieri.
+    anche il pulsante che apre le app VRS: Planning, CronoService, Scheduler.
     Stesse voci, stessi nomi, stesso foglio di stile (css/vrs-app.css, IDENTICO
     nei due repository). Prima da qui non si tornava al Planning. I nomi sono
     quelli di oggi (D3 non e' decisa): si cambiano in APP_FAMIGLIA, qui e di la'.
@@ -29,14 +29,19 @@ import { h, trappolaTab } from './ui.js';
 import * as nuvola from './nuvola.js';
 
 /* ------------------------------------------------------------- le app --- */
+/* Gli indirizzi degli altri due siti. Con i sottodomini (planning.app.vrs-tech.it,
+   scheduler.app.vrs-tech.it: docs/accesso-unico.md del Planning) si cambiano qui,
+   come nel Planning si cambiano VITE_PLANNING_URL e VITE_SCHEDULER_URL.
+   Lo Scheduler e' il planning dei cantieri, sito a se' dal 24/09/2026. */
 const PLANNING = 'https://vrs-planning.netlify.app/';
+const SCHEDULER = 'https://vrs-scheduler.netlify.app/';
 
 export const APP_FAMIGLIA = [
   { id: 'planning', nome: 'Planning', nota: 'Attività, assenze e calendario', to: PLANNING,
     ico: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4M18.7 18.7l-1.4-1.4M6.7 6.7 5.3 5.3M10 12.2l1.5 1.5 2.7-2.9' },
   { id: 'cronoservice', nome: 'CronoService', nota: 'Mappature e checklist del service', to: '/',
     ico: 'M12 3.5a8.5 8.5 0 1 0 8.5 8.5M12 7.2V12l3.2 1.9M16.4 5.2l2 2 3.4-3.6' },
-  { id: 'cantieri', nome: 'Cantieri', nota: 'Anagrafica dei cantieri', to: PLANNING + 'cantieri',
+  { id: 'scheduler', nome: 'Scheduler', nota: 'Planning di cantieri e manutenzioni', to: SCHEDULER,
     ico: 'M4 20.5h6.5M7 20.5V6.5M4.2 9.6 7 6.5l2.8 3.1M7 6.5h13M20 6.5v3.4M20 9.9v2.8M18.4 12.7h3.2' },
 ];
 const QUI = 'cronoservice';
