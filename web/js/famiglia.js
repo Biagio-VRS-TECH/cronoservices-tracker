@@ -180,14 +180,20 @@ function attributi(v) {
     x.setAttribute('aria-pressed', String(x.dataset.theme === v)));
 }
 
-let invio = null;
+let invio = null, inAttesa = null;
 function inviaPresto(scelta) {
   if (!nuvola.attiva() || !nuvola.haSessione()) return;
   clearTimeout(invio);
-  // tre clic di fila fanno una richiesta sola
-  invio = setTimeout(() => {
-    nuvola.salvaMetadati({ [TEMA_META]: scelta }).catch(() => { /* resta su questo browser */ });
-  }, 800);
+  inAttesa = scelta;
+  // tre clic di fila fanno una richiesta sola; lasciando la finestra parte subito
+  invio = setTimeout(parti, 800);
+}
+function parti() {
+  clearTimeout(invio);
+  invio = null;
+  const s = inAttesa;
+  inAttesa = null;
+  if (s) nuvola.salvaMetadati({ [TEMA_META]: s }).catch(() => { /* resta su questo browser */ });
 }
 
 /* IL TEMA NEI LINK VERSO LE ALTRE APP (#ANCHOR: tema-avvio). Chi passa al
@@ -224,6 +230,8 @@ export function scegliTema(v, { sfuma = true } = {}) {
   scrivi(KT, String(t));
   (sfuma ? inDissolvenza : f => f())(() => attributi(v));
   scriviCookie({ v, t });
+  // subito alle altre app aperte, e nel profilo per quelle che si apriranno
+  canaleTema?.manda({ v, t });
   inviaPresto({ v, t });
 }
 
@@ -243,22 +251,47 @@ export function allineaTema(meta) {
   if (daInviare(remoto, istanteScelta())) inviaPresto({ v: temaScelto(), t: istanteScelta() });
 }
 
-let ultimaLettura = 0;
-/** All'avvio: gli attributi prima di tutto il resto, poi l'ascolto delle altre schede. */
+let ultimaLettura = 0, canaleTema = null;
+/* Il profilo fresco: il piu' recente vince. Subito e ancora poco dopo (la
+   scelta appena fatta nell'altra app puo' essere in viaggio), al massimo ogni
+   5 secondi. Prima era una volta al minuto e solo cambiando scheda: con due
+   app aperte fianco a fianco il tema non passava fino al ricarico (24/09/2026). */
+function rileggiTema({ forza = false } = {}) {
+  if (!nuvola.attiva() || !nuvola.haSessione()) return;
+  const ora = Date.now();
+  if (!forza && ora - ultimaLettura < 5000) return;
+  ultimaLettura = ora;
+  const leggi = () => nuvola.metadatiFreschi().then(m => { if (m) allineaTema(m); }).catch(() => { });
+  leggi();
+  setTimeout(leggi, 1500);
+}
+
+/** All'avvio: gli attributi prima di tutto il resto, poi l'ascolto delle altre schede e app. */
 export function temaIniziale() {
   attributi(temaScelto());
   // un'altra scheda dello stesso sito (tracker o generatori) ha cambiato tema
   addEventListener('storage', e => {
     if (e.key === K) inDissolvenza(() => attributi(temaScelto()));
   });
-  // tornando sulla scheda (magari dal Planning, dove si e' cambiato tema)
+  // tornando sulla scheda o sulla finestra (il clic sull'altro schermo non
+  // cambia la visibilita' della scheda, il fuoco si')
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible' || !nuvola.attiva() || !nuvola.haSessione()) return;
-    const ora = Date.now();
-    if (ora - ultimaLettura < 60000) return;
-    ultimaLettura = ora;
-    nuvola.metadatiFreschi().then(m => { if (m) allineaTema(m); }).catch(() => { });
+    if (document.visibilityState === 'visible') rileggiTema();
+    else parti();
   });
+  addEventListener('focus', () => rileggiTema());
+  addEventListener('blur', parti);
+  addEventListener('pagehide', parti);
+}
+
+/* Le altre app aperte annunciano la loro scelta sul canale della persona: si
+   apre dopo l'accesso (allineaDalToken), una volta sola. */
+function ascoltaCanaleTema() {
+  if (canaleTema || !nuvola.attiva() || !nuvola.haSessione()) return;
+  canaleTema = nuvola.apriCanaleTema(x => {
+    const s = x && typeof x === 'object' && TEMI.includes(x.v) && typeof x.t === 'number' && x.t > 0 ? { v: x.v, t: x.t } : null;
+    if (daApplicare(s, istanteScelta())) daFuori(s);
+  }, () => rileggiTema({ forza: true }));
 }
 
 /** Dopo il primo caricamento: prima il token (nessuna chiamata), poi l'utente
@@ -268,6 +301,7 @@ export function temaIniziale() {
  *  giusto dall'indirizzo (tema-avvio.js); questa lettura copre il segnalibro. */
 export function allineaDalToken() {
   if (!nuvola.attiva() || !nuvola.haSessione()) return;
+  ascoltaCanaleTema();
   // dal token si APPLICA soltanto (se piu' recente): mandare la scelta di qui
   // perche' il token ne ha una piu' vecchia sovrascriveva nel profilo quella
   // fatta un minuto prima in un'altra app. Il confronto per l'invio lo fa la

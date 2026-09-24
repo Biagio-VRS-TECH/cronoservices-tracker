@@ -177,6 +177,94 @@ export function metadatiSessione() {
   } catch { return null; }
 }
 
+/** L'id della persona collegata (il `sub` del token); '' senza sessione. */
+export function idSessione() {
+  try {
+    const p = ses?.access_token?.split('.')[1];
+    if (!p) return '';
+    return JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/'))).sub || '';
+  } catch { return ''; }
+}
+
+/* IL TEMA IN TEMPO REALE (VIS-22, migrazione 052 del Planning). Il canale
+   realtime privato `vrs-tema:<id persona>`: solo la persona lo legge e ci
+   scrive. Chi sceglie il tema lo annuncia li', e le altre app aperte della
+   stessa persona (Planning, Scheduler, Suite, Pannello Admin, un'altra scheda
+   di CronoService) cambiano subito, senza ricaricare. Un WebSocket suo, piccolo,
+   indipendente dalla diretta delle celle (che c'e' solo nel tracker).
+   `onScelta({v,t})` riceve le scelte degli altri; `onRiaggancio()` quando il
+   canale torna dopo un buco (quello che e' passato nel frattempo lo dice il
+   profilo). Ritorna { manda(scelta), chiudi() }. */
+export function apriCanaleTema(onScelta, onRiaggancio = () => { }) {
+  let ws = null, chiuso = false, tentativi = 0, batti = null, iscritto = false, giaIscritto = false;
+  let rif = 1, topic = '';
+  const spedisci = (event, payload, t = topic) => {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ topic: t, event, payload, ref: String(++rif), join_ref: '1' }));
+  };
+  const apri = async () => {
+    if (chiuso) return;
+    let t;
+    try { t = await token(); } catch { t = null; }
+    const id = idSessione();
+    if (!t || !id) { if (!chiuso) setTimeout(apri, 20000); return; }
+    if (chiuso) return;
+    topic = 'realtime:vrs-tema:' + id;
+    const questo = ws = new WebSocket(`${ORIGINE.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${CHIAVE_ANON}&vsn=1.0.0`);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        topic, event: 'phx_join', ref: '1', join_ref: '1',
+        payload: { access_token: t, config: { private: true, broadcast: { self: false }, presence: { key: '' } } },
+      }));
+      batti = setInterval(async () => {
+        spedisci('heartbeat', {}, 'phoenix');
+        let nuovo = null;
+        try { nuovo = await token(); } catch { }
+        if (nuovo && nuovo !== t) { t = nuovo; spedisci('access_token', { access_token: nuovo }); }
+      }, 25000);
+    };
+    ws.onmessage = e => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m?.topic !== topic) return;
+      const st = m.payload?.status;
+      if (m.event === 'phx_error' || m.event === 'phx_close' || (m.event === 'system' && st === 'error') ||
+          (m.event === 'phx_reply' && m.ref === '1' && st && st !== 'ok')) { questo.close(); return; }
+      if (m.event === 'phx_reply' && m.ref === '1') {
+        tentativi = 0; iscritto = true;
+        if (giaIscritto) onRiaggancio();
+        giaIscritto = true;
+        return;
+      }
+      if (m.event === 'broadcast' && m.payload?.event === 'tema') onScelta(m.payload.payload);
+    };
+    ws.onclose = () => {
+      clearInterval(batti);
+      iscritto = false;
+      if (chiuso) return;
+      // la 052 non applicata o la rete che non regge il WebSocket: si riprova
+      // piano, intanto resta la rilettura del profilo tornando sulla finestra
+      setTimeout(apri, Math.min(2000 * 2 ** ++tentativi, 120000));
+    };
+    ws.onerror = () => ws.close();
+  };
+  apri();
+  return {
+    async manda(scelta) {
+      if (iscritto) { spedisci('broadcast', { type: 'broadcast', event: 'tema', payload: scelta }); return; }
+      // canale non ancora pronto: lo stesso annuncio via REST
+      const t = await token().catch(() => null);
+      const id = idSessione();
+      if (!t || !id) return;
+      fetch(ORIGINE + '/realtime/v1/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t },
+        body: JSON.stringify({ messages: [{ topic: 'vrs-tema:' + id, event: 'tema', payload: scelta, private: true }] }),
+      }).catch(() => { });
+    },
+    chiudi() { chiuso = true; clearInterval(batti); ws?.close(); },
+  };
+}
+
 /** I metadati freschi dal server: il token puo' averli di prima del rinnovo. */
 export async function metadatiFreschi() {
   const t = await token();
