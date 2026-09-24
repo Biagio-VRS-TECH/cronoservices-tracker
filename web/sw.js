@@ -4,7 +4,7 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v35';
+const CACHE = 'crono-guscio-v36';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
   '/css/fonti.css', '/css/vrs-famiglia.css', '/css/vrs-app.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
@@ -15,7 +15,7 @@ const GUSCIO = [
   '/js/stato.js', '/js/ui.js', '/js/vrs-icone.js', '/js/vrs-novita.js', '/novita.json',
   '/js/anno.js', '/js/mese.js', '/js/stat.js',
   '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js', '/js/ponte.js',
-  '/js/gruppi.js', '/js/tour.js', '/js/albero.js', '/js/famiglia.js', '/js/condividi.js',
+  '/js/gruppi.js', '/js/tour.js', '/js/albero.js', '/js/famiglia.js', '/js/condividi.js', '/js/tema-avvio.js',
   '/schede/', '/schede/index.html', '/schede/ponte.js', '/js/schede.js',
   '/registro/', '/registro/index.html', '/registro/registro.js', '/registro/impagina.js',
   '/registro/app.js', '/registro/registro.css',

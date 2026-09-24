@@ -2,6 +2,41 @@
   "app": "cronoservice",
   "rilasci": [
     {
+      "id": "2026-09-24-2",
+      "data": "2026-09-24",
+      "titolo": "Il tema ti segue, e le mappature arrivano nel Planning",
+      "evidenza": [
+        {
+          "icona": "luna",
+          "titolo": "Il tema ti segue",
+          "testo": "Chiaro, scuro o automatico scelto qui vale anche nel Planning e nello Scheduler, e viceversa, senza lampi all'apertura."
+        },
+        {
+          "icona": "planning",
+          "titolo": "Le mappature in scadenza nel Planning",
+          "testo": "Chi è responsabile di un impianto trova nel suo planning la mappatura da fare, nel mese della scadenza."
+        },
+        {
+          "icona": "spunta",
+          "titolo": "Si chiude da sola",
+          "testo": "Messi i quattro passi, l'attività nel Planning si chiude; togliendone uno, si riapre."
+        }
+      ],
+      "novita": [
+        "Quando un impianto affidato a qualcuno arriva al mese di scadenza della mappatura, nel suo Planning compare l'attività «Mappatura in scadenza», con scadenza a fine mese: una sola per impianto e per anno.",
+        "Messi i quattro passi, l'attività nel Planning si chiude da sola; togliendone uno si riapre.",
+        "Cambiando il responsabile nel cassetto, l'attività passa alla persona nuova, che riceve la notifica; togliendolo, o chiudendo il contratto, l'attività si annulla."
+      ],
+      "miglioramenti": [
+        "Il tema scelto qui passa al Planning e allo Scheduler, e quello scelto là arriva qui, già giusto al primo disegno quando passi da «Le app VRS».",
+        "Aprendo CronoService dal segnalibro il tema arriva dal tuo profilo pochi istanti dopo l'apertura."
+      ],
+      "correzioni": [
+        "Il tema scelto nel Planning o nello Scheduler non arrivava a CronoService, o ci arrivava dopo un'ora: ora passa subito.",
+        "All'apertura si poteva vedere per un attimo il tema chiaro prima di quello scuro: ora il tema giusto c'è dal primo disegno."
+      ]
+    },
+    {
       "id": "2026-09-24",
       "data": "2026-09-24",
       "titolo": "Più solido, e con le Novità",

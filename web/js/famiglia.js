@@ -119,7 +119,7 @@ function finestraApp() {
     h('ul.vrs-app-lista', {}, APP_FAMIGLIA.map(a => {
       const qui = a.id === QUI;
       return h('li', {},
-        h('a.vrs-app-voce', { href: a.to, ...(qui ? { 'aria-current': 'page' } : {}) },
+        h('a.vrs-app-voce', { href: qui ? a.to : conTema(a.to), ...(qui ? { 'aria-current': 'page' } : {}) },
           h('span.vrs-app-ico', { 'aria-hidden': 'true', html: svg(a.ico) }),
           h('span.vrs-app-testi', {},
             h('span.vrs-app-nome', { testo: a.nome }),
@@ -190,6 +190,32 @@ function inviaPresto(scelta) {
   }, 800);
 }
 
+/* IL TEMA NEI LINK VERSO LE ALTRE APP (#ANCHOR: tema-avvio). Chi passa al
+   Planning o allo Scheduler porta la scelta nell'indirizzo, `?vrs_tema=dark.<ms>`:
+   lo script d'avvio di la' la applica prima di disegnare, se e' piu' recente
+   della sua. Senza una scelta fatta qui l'indirizzo resta com'e'. */
+export function conTema(url) {
+  const t = istanteScelta();
+  if (!t) return url;
+  try {
+    const u = new URL(url, location.href);
+    u.searchParams.set('vrs_tema', temaScelto() + '.' + t);
+    return u.toString();
+  } catch { return url; }
+}
+
+/* Con i sottodomini (docs/accesso-unico.md del Planning) la scelta va anche nel
+   cookie `vrs_tema` del dominio padre, che gli script d'avvio leggono: niente
+   lampo neanche aprendo un'app dal segnalibro. Su *.netlify.app il browser non
+   accetta cookie comuni: li' restano indirizzo e profilo. */
+const DOMINIO_FAMIGLIA = 'app.vrs-tech.it';
+function scriviCookie(scelta) {
+  if (location.hostname !== DOMINIO_FAMIGLIA && !location.hostname.endsWith('.' + DOMINIO_FAMIGLIA)) return;
+  try {
+    document.cookie = `vrs_tema=${scelta.v}.${scelta.t}; Domain=.${DOMINIO_FAMIGLIA}; Path=/; Max-Age=31536000; Secure; SameSite=Lax`;
+  } catch { /* cookie bloccati */ }
+}
+
 /** Scelta fatta qui, adesso: si applica, si ricorda con l'istante e va nel profilo. */
 export function scegliTema(v, { sfuma = true } = {}) {
   if (!TEMI.includes(v)) return;
@@ -197,6 +223,7 @@ export function scegliTema(v, { sfuma = true } = {}) {
   scrivi(K, A_CS[v]);
   scrivi(KT, String(t));
   (sfuma ? inDissolvenza : f => f())(() => attributi(v));
+  scriviCookie({ v, t });
   inviaPresto({ v, t });
 }
 
@@ -205,6 +232,7 @@ function daFuori(scelta) {
   const prima = temaScelto();
   scrivi(K, A_CS[scelta.v]);
   scrivi(KT, String(scelta.t));
+  scriviCookie(scelta);
   if (scelta.v !== prima) inDissolvenza(() => attributi(scelta.v));
 }
 
@@ -233,11 +261,21 @@ export function temaIniziale() {
   });
 }
 
-/** Dopo il primo caricamento il token e' fresco: dentro c'e' il tema del profilo. */
+/** Dopo il primo caricamento: prima il token (nessuna chiamata), poi l'utente
+ *  FRESCO. Il token salvato qui puo' avere un'ora, e con lui il tema di un'ora
+ *  fa: scelto lo scuro nel Planning e aperto CronoService pochi minuti dopo, qui
+ *  restava il chiaro (24/09/2026). Chi arriva dal selettore ha gia' il tema
+ *  giusto dall'indirizzo (tema-avvio.js); questa lettura copre il segnalibro. */
 export function allineaDalToken() {
   if (!nuvola.attiva() || !nuvola.haSessione()) return;
-  const m = nuvola.metadatiSessione();
-  if (m) allineaTema(m);
+  // dal token si APPLICA soltanto (se piu' recente): mandare la scelta di qui
+  // perche' il token ne ha una piu' vecchia sovrascriveva nel profilo quella
+  // fatta un minuto prima in un'altra app. Il confronto per l'invio lo fa la
+  // rilettura fresca, subito dopo.
+  const remoto = temaDalProfilo(nuvola.metadatiSessione());
+  if (daApplicare(remoto, istanteScelta())) daFuori(remoto);
+  ultimaLettura = Date.now();
+  nuvola.metadatiFreschi().then(f => { if (f) allineaTema(f); }).catch(() => { });
 }
 
 /** Il bottone del tema apre il controllo a tre posizioni. */
