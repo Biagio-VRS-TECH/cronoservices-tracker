@@ -739,6 +739,10 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
      riga non c'e' posto, e li' resta sotto il pollice */
   .testa .vrs-nov-btn { order: 6; }
   .testa .cerca { flex: 1 1 calc(100% - 52px); min-width: 0; }
+  /* anche la campanella delle Comunicazioni (vrs-comunicazioni.js, solo online):
+     prima della stellina, e la ricerca le lascia il posto */
+  .testa .vrs-com-btn { order: 6; }
+  .testa:has(.vrs-com-btn:not([hidden])) .cerca { flex-basis: calc(100% - 100px); }
 
   .strumenti { padding: 2px 0; gap: 0; flex-wrap: nowrap; }
   .strumenti-striscia {

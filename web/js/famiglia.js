@@ -28,6 +28,7 @@ web/src/lib/temaCondiviso.ts nel repository del Planning):
 import { h, trappolaTab } from './ui.js';
 import * as nuvola from './nuvola.js';
 import { montaNovita, chiaveMetadati } from './vrs-novita.js';
+import { montaComunicazioni } from './vrs-comunicazioni.js';
 
 /* ------------------------------------------------------------- le app --- */
 /* Gli indirizzi degli altri due siti. Con i sottodomini (planning.app.vrs-tech.it,
@@ -285,5 +286,30 @@ export function collegaNovita(posto = document.getElementById('novita-posto')) {
     if (document.visibilityState !== 'visible' || !remoto || !nuvola.haSessione() || Date.now() - letto < 60000) return;
     letto = Date.now();
     nuvola.metadatiFreschi().then(m => { if (m) { meta = m; novita?.aggiorna(); } }).catch(() => { });
+  });
+}
+
+/* ------------------------------------------------------ le comunicazioni -- */
+/* «Comunicazioni» dell'amministrazione, pubblicate nel Planning (migrazione 051
+   del Planning, erano gli «Avvisi»).  #ANCHOR: comunicazioni
+   Il tasto con la campanella accanto a «Novita'», la casella con l'elenco e
+   «Ho letto», il popup per quelle da confermare: tutto in vrs-comunicazioni.js.
+   Solo online e con una sessione: in locale (avvia.bat) non c'e' nessun account
+   a cui indirizzarle e il tasto non compare. Se le funzioni non sono ancora sul
+   database (404) il tasto resta nascosto e non si segnala niente.
+   Tempo reale: a ogni pubblicazione, modifica o archiviazione che mi riguarda
+   cambia una mia riga di `pl_notifications` (la RLS fa vedere solo le proprie):
+   la si ascolta su un canale a se' e si rilegge l'elenco. */
+let comunicazioni = null;
+export function collegaComunicazioni(posto = document.getElementById('comunicazioni-posto')) {
+  if (!posto || comunicazioni || !nuvola.attiva() || !nuvola.haSessione()) return;
+  const io = nuvola.idUtente();
+  comunicazioni = montaComunicazioni(posto, {
+    carica: () => nuvola.rpcLibera('pl_comunicazioni_mie', { p_limite: 30 }),
+    conferma: id => nuvola.rpcLibera('pl_comunicazione_letta', { p_id: id }),
+    ascolta: io ? avvisa => nuvola.ascoltaRighe(
+      { tabella: 'pl_notifications', filtro: 'user_id=eq.' + io, canale: 'crono-comunicazioni' }, avvisa) : null,
+    // le finestrelle di CronoService che non sono modali (popover delle spunte, selettore d'app, tema)
+    occupato: () => !!document.querySelector('.pop, .vrs-app-pop'),
   });
 }
