@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   APP_FAMIGLIA, TEMI, TEMA_META, temaDalProfilo, daApplicare, daInviare,
-  temaScelto, istanteScelta,
+  temaScelto, istanteScelta, stessoAmbiente,
 } from '../../web/js/famiglia.js';
 
 test('il selettore ha le tre app, nell’ordine del Planning, e porta al Planning vero', () => {
@@ -16,6 +16,16 @@ test('il selettore ha le tre app, nell’ordine del Planning, e porta al Plannin
   assert.equal(APP_FAMIGLIA[0].to, 'https://vrs-planning.netlify.app/');
   // lo Scheduler e' un sito suo, non la pagina /cantieri del Planning
   assert.equal(APP_FAMIGLIA[2].to, 'https://vrs-scheduler.netlify.app/');
+});
+
+test('dall’anteprima si resta in anteprima, in produzione niente cambia', () => {
+  const a = 'anteprima--cronoservices-tracker.netlify.app';
+  assert.equal(stessoAmbiente('https://vrs-planning.netlify.app/', a), 'https://anteprima--vrs-planning.netlify.app/');
+  assert.equal(stessoAmbiente('https://vrs-scheduler.netlify.app/?vrs_tema=dark.1', a), 'https://anteprima--vrs-scheduler.netlify.app/?vrs_tema=dark.1');
+  for (const h of ['cronoservices-tracker.netlify.app', 'localhost', 'deploy-preview-6--cronoservices-tracker.netlify.app', undefined]) {
+    assert.equal(stessoAmbiente('https://vrs-planning.netlify.app/', h), 'https://vrs-planning.netlify.app/');
+  }
+  assert.equal(stessoAmbiente('https://planning.app.vrs-tech.it/', a), 'https://planning.app.vrs-tech.it/');
 });
 
 test('i temi hanno i nomi di famiglia, e la chiave del profilo e’ quella del Planning', () => {

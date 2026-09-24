@@ -35,8 +35,21 @@ import { montaComunicazioni } from './vrs-comunicazioni.js';
    scheduler.app.vrs-tech.it: docs/accesso-unico.md del Planning) si cambiano qui,
    come nel Planning si cambiano VITE_PLANNING_URL e VITE_SCHEDULER_URL.
    Lo Scheduler e' il planning dei cantieri, sito a se' dal 24/09/2026. */
-const PLANNING = 'https://vrs-planning.netlify.app/';
-const SCHEDULER = 'https://vrs-scheduler.netlify.app/';
+/* Dall'anteprima si resta in anteprima: aperta anteprima--cronoservices-tracker,
+   il Planning e' anteprima--vrs-planning (la stessa regola di stessoAmbiente()
+   in lib/links.ts del Planning). Solo gli indirizzi *.netlify.app. */
+export function stessoAmbiente(url, host = globalThis.location?.hostname) {
+  const h = String(host || '').toLowerCase();
+  if (!h.startsWith('anteprima--') || !h.endsWith('.netlify.app')) return url;
+  try {
+    const u = new URL(url);
+    if (!/^[a-z0-9-]+\.netlify\.app$/i.test(u.hostname) || u.hostname.includes('--')) return url;
+    u.hostname = 'anteprima--' + u.hostname;
+    return u.href;
+  } catch { return url; }
+}
+const PLANNING = stessoAmbiente('https://vrs-planning.netlify.app/');
+const SCHEDULER = stessoAmbiente('https://vrs-scheduler.netlify.app/');
 
 export const APP_FAMIGLIA = [
   { id: 'planning', nome: 'Planning', nota: 'Attività, assenze e calendario', to: PLANNING,
