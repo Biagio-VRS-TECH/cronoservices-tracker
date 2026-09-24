@@ -27,6 +27,7 @@ web/src/lib/temaCondiviso.ts nel repository del Planning):
     Solo online: in locale (avvia.bat) il tema resta di questo browser. */
 import { h, trappolaTab } from './ui.js';
 import * as nuvola from './nuvola.js';
+import { montaNovita, chiaveMetadati } from './vrs-novita.js';
 
 /* ------------------------------------------------------------- le app --- */
 /* Gli indirizzi degli altri due siti. Con i sottodomini (planning.app.vrs-tech.it,
@@ -257,4 +258,32 @@ function finestraTema() {
           onclick: () => scegliTema(t),
           html: svg(ICO_TEMA[t], 16) + '<span>' + ETICHETTA_TEMA[t] + '</span>',
         })))));
+}
+
+/* ------------------------------------------------------------ le novita -- */
+/* «Novita'»: il tasto con la stellina nella testata, il riassunto dopo ogni
+   pubblicazione e il dettaglio con lo storico. Il modulo e' vrs-novita.js,
+   IDENTICO a quello del Planning (e allo Scheduler); i contenuti sono in
+   /novita.json, scritto a ogni pubblicazione (docs/novita.md del Planning).
+   L'ultimo visto: in questo browser e, online, nei metadati dell'account
+   (`vrs_novita_cronoservice`), come il tema: chi l'ha visto sul telefono non
+   lo rivede sul computer. In locale (avvia.bat) resta di questo browser. */
+let novita = null;
+export function collegaNovita(posto = document.getElementById('novita-posto')) {
+  if (!posto || novita) return;
+  const chiave = chiaveMetadati('cronoservice');
+  let meta = nuvola.attiva() && nuvola.haSessione() ? nuvola.metadatiSessione() : null;
+  const remoto = nuvola.attiva() ? {
+    leggi: () => (meta && typeof meta[chiave] === 'string' ? meta[chiave] : null),
+    scrivi: id => (nuvola.haSessione() ? nuvola.salvaMetadati({ [chiave]: id }) : Promise.resolve(false))
+      .then(ok => { if (ok) meta = { ...(meta || {}), [chiave]: id }; }),
+  } : null;
+  novita = montaNovita(posto, { app: 'cronoservice', nomeApp: 'CronoService', url: '/novita.json', remoto });
+  // tornando sulla scheda: magari l'ha visto altrove (al massimo una lettura al minuto)
+  let letto = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !remoto || !nuvola.haSessione() || Date.now() - letto < 60000) return;
+    letto = Date.now();
+    nuvola.metadatiFreschi().then(m => { if (m) { meta = m; novita?.aggiorna(); } }).catch(() => { });
+  });
 }

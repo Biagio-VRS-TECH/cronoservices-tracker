@@ -1,0 +1,93 @@
+{
+  "app": "cronoservice",
+  "rilasci": [
+    {
+      "id": "2026-09-24",
+      "data": "2026-09-24",
+      "titolo": "Più solido, e con le Novità",
+      "evidenza": [
+        { "icona": "scintilla", "titolo": "Sai sempre cosa è cambiato", "testo": "Dopo ogni aggiornamento te lo raccontiamo qui. Il tasto con la stellina, in alto, lo riapre quando vuoi." },
+        { "icona": "spunta", "titolo": "Le spunte non tornano indietro", "testo": "Doppio clic o rete lenta non riportano più una spunta allo stato di prima." },
+        { "icona": "cantieri", "titolo": "Lo Scheduler fra le app VRS", "testo": "«Le app VRS» porta anche allo Scheduler, il nuovo sito dei cantieri." },
+        { "icona": "ok", "titolo": "Una novantina di correzioni", "testo": "Un controllo completo ha sistemato difetti piccoli e grandi, anche sul telefono." }
+      ],
+      "novita": [
+        "Tasto «Novità» nella testata, con il pallino quando c'è un aggiornamento da vedere.",
+        "Lo Scheduler compare in «Le app VRS» al posto di «Cantieri»."
+      ],
+      "miglioramenti": [
+        "Sul telefono la barra, la testata e i riquadri stanno nello schermo e si toccano meglio.",
+        "Senza rete l'app si apre comunque, invece di restare bianca."
+      ],
+      "correzioni": [
+        "Le modifiche non si perdono più quando il server risponde con un errore momentaneo.",
+        "La nota non si perde chiudendo il riquadro.",
+        "«Annulla» dopo un'azione vuota non disfa più quella precedente.",
+        "Un amministratore disattivato nel Planning non ha più i poteri da amministratore qui."
+      ]
+    },
+    {
+      "id": "2026-09-23",
+      "data": "2026-09-23",
+      "titolo": "CronoService nella famiglia VRS",
+      "evidenza": [
+        { "icona": "griglia", "titolo": "Le app VRS in un tocco", "testo": "Il marchio in alto a sinistra apre il Planning e torna qui, senza cercare indirizzi." },
+        { "icona": "auto", "titolo": "Chiaro, scuro o automatico", "testo": "Il tema si sceglie una volta e ti segue anche nel Planning." },
+        { "icona": "persona", "titolo": "Ogni sito ha il suo responsabile", "testo": "Con il filtro «Le mie» vedi solo i siti affidati a te, e li affidi anche a gruppi." },
+        { "icona": "menu", "titolo": "Fatto per il telefono", "testo": "La vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato." }
+      ],
+      "novita": [
+        "Condivisione del collegamento a un sito, dal cassetto.",
+        "Un indirizzo con il numero del sito apre direttamente il suo pannello.",
+        "La pagina d'accesso è la stessa del Planning: «Email» e «Accedi»."
+      ],
+      "miglioramenti": [
+        "Stati delle mappature riconoscibili anche dalla forma, non solo dal colore.",
+        "Il giro guidato è più leggero e le scorciatoie a un tasto si possono spegnere.",
+        "Il cestino si apre in una finestra sua.",
+        "Icone uguali a quelle del Planning."
+      ],
+      "correzioni": [
+        "Il file CSV aperto in Excel non porta più formule."
+      ]
+    },
+    {
+      "id": "2026-09-14",
+      "data": "2026-09-14",
+      "titolo": "Spunte più affidabili",
+      "evidenza": [
+        { "icona": "spunta", "titolo": "Le spunte restano dove le metti", "testo": "Le modifiche dei colleghi in tempo reale non riportano più indietro le tue." },
+        { "icona": "file", "titolo": "Il file giusto al sito giusto", "testo": "Un file caricato non resta più attaccato al sito aperto prima." },
+        { "icona": "occhio", "titolo": "Tendine più leggibili", "testo": "La tendina aperta non è più grigio su bianco." }
+      ],
+      "novita": [],
+      "miglioramenti": [],
+      "correzioni": [
+        "Le spunte non tornano indietro con l'aggiornamento in tempo reale.",
+        "Un file nuovo non resta collegato al sito precedente.",
+        "Il testo delle tendine aperte si legge bene."
+      ]
+    },
+    {
+      "id": "2026-09-11",
+      "data": "2026-09-11",
+      "titolo": "Un aspetto tutto nuovo",
+      "evidenza": [
+        { "icona": "documento", "titolo": "Il registro dei componenti nell'app", "testo": "Il registro per il cliente si genera da qui, con lo stesso aspetto del resto." },
+        { "icona": "sole", "titolo": "Un aspetto nuovo", "testo": "Colori, materiali e movimenti rifatti: più ordine e più leggibilità." },
+        { "icona": "file-pdf", "titolo": "Il PDF sfoglia mentre arriva", "testo": "Mentre il documento viaggia verso l'app, nell'anteprima si sfoglia come un libretto." }
+      ],
+      "novita": [
+        "Il registro dei componenti è parte di CronoService."
+      ],
+      "miglioramenti": [
+        "La barra degli strumenti sta su una riga e «Esporta» è in fondo.",
+        "Il lavoro sul PDF si può interrompere."
+      ],
+      "correzioni": [
+        "«Azzera tutte» non lascia più niente indietro.",
+        "Il quadro d'insieme non si accavalla più."
+      ]
+    }
+  ]
+}

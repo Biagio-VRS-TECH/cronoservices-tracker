@@ -24,6 +24,17 @@ invece vivono solo online. La procedura per attivarla è in
 
 Finché non la attivate, tutto quello che segue vale esattamente come prima.
 
+### Novità
+
+Il tasto con la stellina, in alto accanto al tema, racconta cosa è cambiato con
+l'ultimo aggiornamento; dopo ogni pubblicazione il riassunto si apre da solo una
+volta. I testi stanno in `web/novita.json` e si scrivono **a ogni pubblicazione**,
+in parole da utente: la bozza con `node cloud/novita.mjs bozza`, il controllo con
+`node cloud/novita.mjs controlla` (va lanciato prima del push su `main`, che
+pubblica in produzione). L'anteprima si pubblica con
+`node cloud/pubblica-anteprima.mjs` (<https://anteprima--cronoservices-tracker.netlify.app>).
+Il procedimento intero, uguale per le tre app, è in `docs/novita.md` del Planning.
+
 ---
 
 ## Se lavorate in più persone, leggete prima questo

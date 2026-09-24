@@ -735,6 +735,10 @@ button.dop-voce { cursor: pointer; } button.dop-voce:hover span:last-child { col
     box-shadow: 0 0 0 1.5px var(--fondo);
   }
   .cerca input, .cerca input:focus { width: 100%; }
+  /* il tasto Novita' (vrs-novita.js) scende accanto alla ricerca: sulla prima
+     riga non c'e' posto, e li' resta sotto il pollice */
+  .testa .vrs-nov-btn { order: 6; }
+  .testa .cerca { flex: 1 1 calc(100% - 52px); min-width: 0; }
 
   .strumenti { padding: 2px 0; gap: 0; flex-wrap: nowrap; }
   .strumenti-striscia {

@@ -31,6 +31,8 @@ RADICE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 APP = os.path.join(RADICE, 'app')
 PROVA_DB = os.path.join(RADICE, 'data', 'prova.db')
 VIETATE = {8770, 8771, 8775}
+with open(os.path.join(RADICE, 'web', 'novita.json'), encoding='utf-8') as _f:
+    ULTIMA_NOVITA = json.load(_f)['rilasci'][0]['id']
 FOTO = os.environ.get('CRONO_E2E_FOTO') or os.path.join(tempfile.gettempdir(), 'crono_e2e_foto')
 
 DESKTOP = {'viewport': {'width': 1440, 'height': 900}}
@@ -229,10 +231,16 @@ class CasoE2E(unittest.TestCase):
             self.fail('errori non previsti nel browser:\n  ' + '\n  '.join(brutti[:20]))
 
     # ------------------------------------------------------------ pagine ---
-    def contesto(self, operatore='Collaudo', forma=DESKTOP, avviso_anagrafica=False):
+    def contesto(self, operatore='Collaudo', forma=DESKTOP, avviso_anagrafica=False, novita_viste=True):
         """Un profilo di browser nuovo. `operatore` None = primo accesso."""
         c = self.browser.new_context(service_workers='block', locale='it-IT',
                                      timezone_id='Europe/Rome', **forma)
+        if novita_viste:
+            # il riassunto delle Novita' si apre da solo alla prima visita
+            # (js/vrs-novita.js): nelle prove coprirebbe la pagina. Le Novita' si
+            # provano a parte (test_e2e_novita.py)
+            c.add_init_script("try{localStorage.setItem('vrs.novita.cronoservice',%s)}catch(e){}"
+                              % json.dumps(ULTIMA_NOVITA))
         if not avviso_anagrafica:
             # l'avviso "l'anagrafica di Access e' vecchia" esce all'admin una
             # volta al giorno (15 s): nelle prove coprirebbe mezza pagina

@@ -33,7 +33,7 @@ import {
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
-import { temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken } from './famiglia.js';
+import { temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken, collegaNovita } from './famiglia.js';
 import { serviceDaIndirizzo } from './condividi.js';
 
 const area = $('#area');
@@ -110,6 +110,8 @@ async function avvia() {
   applica(r.dati);
   // il token adesso e' fresco: dentro c'e' il tema scelto nel Planning (VIS-22)
   allineaDalToken();
+  // e anche l'ultimo aggiornamento visto: il tasto Novita' parte da qui
+  collegaNovita();
   if (r.daCache) {
     avviso('Server non raggiungibile: stai lavorando sui dati salvati su questo ' +
       'computer. Le spunte restano in coda e partono da sole al ritorno.',
