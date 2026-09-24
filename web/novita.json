@@ -25,7 +25,9 @@
       "novita": [
         "Quando un impianto affidato a qualcuno arriva al mese di scadenza della mappatura, nel suo Planning compare l'attività «Mappatura in scadenza», con scadenza a fine mese: una sola per impianto e per anno.",
         "Messi i quattro passi, l'attività nel Planning si chiude da sola; togliendone uno si riapre.",
-        "Cambiando il responsabile nel cassetto, l'attività passa alla persona nuova, che riceve la notifica; togliendolo, o chiudendo il contratto, l'attività si annulla."
+        "Cambiando il responsabile nel cassetto, l'attività passa alla persona nuova, che riceve la notifica; togliendolo, o chiudendo il contratto, l'attività si annulla.",
+        "Chi il coordinatore ha messo su «Nessun accesso» nel Pannello Admin non entra più in CronoService; prima gli si toglieva solo il collegamento. Il coordinatore entra sempre.",
+        "Il ruolo in CronoService (tecnico, approvatore o amministratore) il coordinatore lo sceglie anche dal Pannello Admin, insieme all'accesso."
       ],
       "miglioramenti": [
         "Il tema scelto qui passa al Planning e allo Scheduler, e quello scelto là arriva qui, già giusto al primo disegno quando passi da «Le app VRS».",
