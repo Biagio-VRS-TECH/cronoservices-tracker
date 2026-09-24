@@ -50,7 +50,10 @@ export const SEZIONI = /** @type {const} */ ([
 export const MAX_EVIDENZA = 5;
 
 /**
- * @typedef {{ icona: string, titolo: string, testo: string }} Voce
+ * @typedef {{ icona: string, titolo: string, testo: string, sezione?: Chiave }} Voce
+ *   `sezione`: la voce riassume una sezione del dettaglio («96 correzioni» → correzioni); nel
+ *   riassunto diventa un collegamento che apre il dettaglio proprio lì, con la sezione aperta
+ * @typedef {'novita'|'miglioramenti'|'correzioni'} Chiave
  * @typedef {{ gruppo: string, voci: string[] }} Gruppo
  * @typedef {{ id: string, data: string, titolo: string, evidenza: Voce[],
  *   novita: Gruppo[], miglioramenti: Gruppo[], correzioni: Gruppo[] }} Rilascio
@@ -114,7 +117,12 @@ export function normalizza(dati) {
     const id = testo(r.id), data = testo(r.data), titolo = testo(r.titolo);
     if (!id || !DATA.test(data) || !titolo || fuori.some((x) => x.id === id)) continue;
     const evidenza = (Array.isArray(r.evidenza) ? r.evidenza : [])
-      .map((/** @type {any} */ v) => ({ icona: testo(v?.icona), titolo: testo(v?.titolo), testo: testo(v?.testo) }))
+      .map((/** @type {any} */ v) => {
+        /** @type {Voce} */
+        const voce = { icona: testo(v?.icona), titolo: testo(v?.titolo), testo: testo(v?.testo) };
+        if (SEZIONI.some((x) => x.chiave === v?.sezione)) voce.sezione = v.sezione;
+        return voce;
+      })
       .filter((/** @type {Voce} */ v) => v.titolo);
     fuori.push({
       id, data, titolo, evidenza,
@@ -152,9 +160,20 @@ export function daVedere(rilasci, visto) {
   return i > 0 ? rilasci.slice(0, i) : rilasci.slice(0, 1);
 }
 
-/** Le novità del riassunto: quelle degli aggiornamenti non visti, le più recenti prima. */
-export function inEvidenza(/** @type {Rilascio[]} */ elenco) {
-  return elenco.flatMap((r) => r.evidenza).slice(0, MAX_EVIDENZA);
+/**
+ * Le novità del riassunto: quelle degli aggiornamenti non visti, le più recenti prima, ognuna con
+ * l'id del suo rilascio (serve al collegamento verso la sua sezione del dettaglio).
+ * @param {Rilascio[]} elenco @returns {(Voce & { rilascio: string })[]}
+ */
+export function inEvidenza(elenco) {
+  return elenco.flatMap((r) => r.evidenza.map((v) => ({ ...v, rilascio: r.id }))).slice(0, MAX_EVIDENZA);
+}
+
+/** Il testo del collegamento dal riassunto alla sezione: «Vedi le 96 correzioni…» */
+export function vediSezione(/** @type {Chiave} */ chiave, /** @type {number} */ n) {
+  const uno = { novita: 'Vedi la novità…', miglioramenti: 'Vedi il miglioramento…', correzioni: 'Vedi la correzione…' };
+  const piu = { novita: `Vedi le ${n} novità…`, miglioramenti: `Vedi i ${n} miglioramenti…`, correzioni: `Vedi le ${n} correzioni…` };
+  return n === 1 ? uno[chiave] : piu[chiave];
 }
 
 const FORMATO = { lunga: { day: 'numeric', month: 'long', year: 'numeric' }, corta: { day: 'numeric', month: 'short' } };
@@ -332,13 +351,21 @@ export function montaNovita(posto, opz) {
     else bottone.focus();
   }
 
-  /** @param {'riassunto'|'dettaglio'} vista @param {number} indice */
-  function mostra(vista, indice) {
+  /** @param {'riassunto'|'dettaglio'} vista @param {number} indice @param {Chiave} [sezione] */
+  function mostra(vista, indice, sezione) {
     if (!aperta) return;
     const { box } = aperta;
     box.dataset.vista = vista;
-    box.replaceChildren(vista === 'riassunto' ? riassunto() : dettaglio(indice));
+    box.replaceChildren(vista === 'riassunto' ? riassunto() : dettaglio(indice, sezione));
     box.scrollTop = 0;
+    // arrivando da «Vedi le 96 correzioni…» si parte da quella sezione, aperta e col fuoco
+    const meta = sezione ? /** @type {HTMLElement | null} */ (box.querySelector(`details[data-sez="${sezione}"]`)) : null;
+    if (meta) {
+      const corpo = /** @type {HTMLElement | null} */ (box.querySelector('.vrs-nov-corpo'));
+      if (corpo) corpo.scrollTop = Math.max(0, meta.offsetTop - corpo.offsetTop - 8);
+      /** @type {HTMLElement | null} */ (meta.querySelector('summary'))?.focus({ preventScroll: true });
+      return;
+    }
     const primo = /** @type {HTMLElement | null} */ (box.querySelector('[data-fuoco]'));
     (primo || box).focus({ preventScroll: true });
   }
@@ -372,7 +399,8 @@ export function montaNovita(posto, opz) {
           el('span.vrs-nov-voce-ico', { 'aria-hidden': 'true', html: svg(icona(v.icona), 20) }),
           el('span.vrs-nov-voce-testi', {},
             el('b.vrs-nov-voce-tit', { testo: v.titolo }),
-            v.testo ? el('span.vrs-nov-voce-riga', { testo: v.testo }) : null))))
+            v.testo ? el('span.vrs-nov-voce-riga', { testo: v.testo }) : null,
+            vaiA(v)))))
       : el('p.vrs-nov-vuoto', { testo: 'Piccoli ritocchi dietro le quinte: nel dettaglio trovi tutto.' });
     const piede = el('footer.vrs-nov-piede', {},
       el('button.vrs-nov-link', { type: 'button', testo: 'Vedi tutte le modifiche…', onclick: () => mostra('dettaglio', 0) }),
@@ -380,8 +408,17 @@ export function montaNovita(posto, opz) {
     return el('div.vrs-nov-pag', {}, scena, el('div.vrs-nov-corpo', {}, lista), piede);
   }
 
-  /** @param {number} indice */
-  function dettaglio(indice) {
+  /** Il collegamento di una voce che riassume una sezione («96 correzioni» → le 96 righe) */
+  function vaiA(/** @type {Voce & { rilascio: string }} */ v) {
+    const k = rilasci.findIndex((r) => r.id === v.rilascio);
+    const n = v.sezione && k >= 0 ? conta(rilasci[k][v.sezione]) : 0;
+    if (!v.sezione || !n) return null;
+    const sezione = v.sezione;
+    return el('button.vrs-nov-vai', { type: 'button', testo: vediSezione(sezione, n), onclick: () => mostra('dettaglio', k, sezione) });
+  }
+
+  /** @param {number} indice @param {Chiave} [sezione] quella da aprire (e sul telefono l'unica aperta) */
+  function dettaglio(indice, sezione) {
     const i = Math.max(0, Math.min(indice, rilasci.length - 1));
     const r = rilasci[i];
     const piccolo = stretto();
@@ -411,7 +448,7 @@ export function montaNovita(posto, opz) {
     const piene = SEZIONI.filter((s) => conta(r[s.chiave]));
     const sezioni = piene.length
       ? piene.map((s, k) =>
-        el('details.vrs-nov-sez', { 'data-sez': s.chiave, open: !piccolo || k === 0 },
+        el('details.vrs-nov-sez', { 'data-sez': s.chiave, open: sezione ? !piccolo || s.chiave === sezione : !piccolo || k === 0 },
           el('summary', {},
             el('span.vrs-nov-sez-ico', { 'aria-hidden': 'true', html: svg(s.ico, 16) }),
             el('span.vrs-nov-sez-nome', { testo: s.nome }),

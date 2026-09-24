@@ -6,15 +6,37 @@
       "data": "2026-09-24",
       "titolo": "Più solido, e con le Novità",
       "evidenza": [
-        { "icona": "scintilla", "titolo": "Sai sempre cosa è cambiato", "testo": "Dopo ogni aggiornamento te lo raccontiamo qui. Il tasto con la stellina, in alto, lo riapre quando vuoi." },
-        { "icona": "spunta", "titolo": "Le spunte non tornano indietro", "testo": "Doppio clic o rete lenta non riportano più una spunta allo stato di prima." },
-        { "icona": "cantieri", "titolo": "Lo Scheduler fra le app VRS", "testo": "«Le app VRS» porta anche allo Scheduler, il nuovo sito dei cantieri." },
-        { "icona": "pollice", "titolo": "Più comodo sul telefono", "testo": "La pagina non scorre più di lato, i comandi sono da pollice e scrivendo lo schermo non si ingrandisce." },
-        { "icona": "ok", "titolo": "96 correzioni", "testo": "Un controllo completo ha sistemato difetti piccoli e grandi: nelle spunte, sul telefono, online e sul PC dell'ufficio." }
+        {
+          "icona": "scintilla",
+          "titolo": "Sai sempre cosa è cambiato",
+          "testo": "Dopo ogni aggiornamento te lo raccontiamo qui. Il tasto con la stellina, in alto, lo riapre quando vuoi."
+        },
+        {
+          "icona": "ok",
+          "titolo": "96 correzioni",
+          "testo": "Un controllo completo ha sistemato difetti piccoli e grandi: nelle spunte, sul telefono, online e sul PC dell'ufficio.",
+          "sezione": "correzioni"
+        },
+        {
+          "icona": "spunta",
+          "titolo": "Le spunte non tornano indietro",
+          "testo": "Doppio clic o rete lenta non riportano più una spunta allo stato di prima."
+        },
+        {
+          "icona": "cantieri",
+          "titolo": "Lo Scheduler fra le app VRS",
+          "testo": "«Le app VRS» porta anche allo Scheduler, il nuovo sito dei cantieri."
+        },
+        {
+          "icona": "pollice",
+          "titolo": "Più comodo sul telefono",
+          "testo": "La pagina non scorre più di lato, i comandi sono da pollice e scrivendo lo schermo non si ingrandisce."
+        }
       ],
       "novita": [
         "Tasto «Novità» nella testata, con il pallino quando c'è un aggiornamento da vedere.",
-        "Lo Scheduler compare in «Le app VRS» al posto di «Cantieri»."
+        "Lo Scheduler compare in «Le app VRS» al posto di «Cantieri».",
+        "Nel riassunto, una voce che ne raccoglie tante porta dritta al suo elenco: per esempio «Vedi le 96 correzioni…» apre il dettaglio proprio lì."
       ],
       "miglioramenti": [
         "Più prove automatiche: ogni difetto corretto ha una prova che lo ripete, anche nel browser e sul telefono, così non torna."
@@ -163,11 +185,31 @@
       "data": "2026-09-23",
       "titolo": "CronoService nella famiglia VRS",
       "evidenza": [
-        { "icona": "griglia", "titolo": "Le app VRS in un tocco", "testo": "Il marchio in alto a sinistra apre il Planning e torna qui, senza cercare indirizzi." },
-        { "icona": "auto", "titolo": "Chiaro, scuro o automatico", "testo": "Il tema si sceglie una volta e ti segue anche nel Planning." },
-        { "icona": "persona", "titolo": "Ogni sito ha il suo responsabile", "testo": "Con il filtro «Le mie» vedi solo i siti affidati a te, e li affidi anche a gruppi." },
-        { "icona": "menu", "titolo": "Fatto per il telefono", "testo": "La vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato." },
-        { "icona": "cestino", "titolo": "I PDF eliminati vanno nel cestino", "testo": "Online un PDF eliminato si rimette con «Annulla» o dal cestino, per 30 giorni." }
+        {
+          "icona": "griglia",
+          "titolo": "Le app VRS in un tocco",
+          "testo": "Il marchio in alto a sinistra apre il Planning e torna qui, senza cercare indirizzi."
+        },
+        {
+          "icona": "auto",
+          "titolo": "Chiaro, scuro o automatico",
+          "testo": "Il tema si sceglie una volta e ti segue anche nel Planning."
+        },
+        {
+          "icona": "persona",
+          "titolo": "Ogni sito ha il suo responsabile",
+          "testo": "Con il filtro «Le mie» vedi solo i siti affidati a te, e li affidi anche a gruppi."
+        },
+        {
+          "icona": "menu",
+          "titolo": "Fatto per il telefono",
+          "testo": "La vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato."
+        },
+        {
+          "icona": "cestino",
+          "titolo": "I PDF eliminati vanno nel cestino",
+          "testo": "Online un PDF eliminato si rimette con «Annulla» o dal cestino, per 30 giorni."
+        }
       ],
       "novita": [
         "Il selettore «Le app VRS»: il marchio in alto a sinistra porta al Planning e riporta qui.",
@@ -259,9 +301,21 @@
       "data": "2026-09-14",
       "titolo": "Spunte più affidabili",
       "evidenza": [
-        { "icona": "spunta", "titolo": "Le spunte restano dove le metti", "testo": "Le modifiche dei colleghi in tempo reale non riportano più indietro le tue." },
-        { "icona": "file", "titolo": "Il file giusto al sito giusto", "testo": "Un file caricato non resta più attaccato al sito aperto prima." },
-        { "icona": "occhio", "titolo": "Tendine più leggibili", "testo": "La tendina aperta non è più grigio su bianco." }
+        {
+          "icona": "spunta",
+          "titolo": "Le spunte restano dove le metti",
+          "testo": "Le modifiche dei colleghi in tempo reale non riportano più indietro le tue."
+        },
+        {
+          "icona": "file",
+          "titolo": "Il file giusto al sito giusto",
+          "testo": "Un file caricato non resta più attaccato al sito aperto prima."
+        },
+        {
+          "icona": "occhio",
+          "titolo": "Tendine più leggibili",
+          "testo": "La tendina aperta non è più grigio su bianco."
+        }
       ],
       "novita": [],
       "miglioramenti": [
@@ -282,9 +336,21 @@
       "data": "2026-09-11",
       "titolo": "Un aspetto tutto nuovo",
       "evidenza": [
-        { "icona": "documento", "titolo": "Il registro dei componenti nell'app", "testo": "Il registro per il cliente si genera da qui, con lo stesso aspetto del resto." },
-        { "icona": "sole", "titolo": "Un aspetto nuovo", "testo": "Colori, materiali e movimenti rifatti: più ordine e più leggibilità." },
-        { "icona": "file-pdf", "titolo": "Il PDF sfoglia mentre arriva", "testo": "Mentre il documento viaggia verso l'app, nell'anteprima si sfoglia come un libretto." }
+        {
+          "icona": "documento",
+          "titolo": "Il registro dei componenti nell'app",
+          "testo": "Il registro per il cliente si genera da qui, con lo stesso aspetto del resto."
+        },
+        {
+          "icona": "sole",
+          "titolo": "Un aspetto nuovo",
+          "testo": "Colori, materiali e movimenti rifatti: più ordine e più leggibilità."
+        },
+        {
+          "icona": "file-pdf",
+          "titolo": "Il PDF sfoglia mentre arriva",
+          "testo": "Mentre il documento viaggia verso l'app, nell'anteprima si sfoglia come un libretto."
+        }
       ],
       "novita": [
         "Il registro dei componenti è parte di CronoService: si genera nel browser, si collega al sito e si archivia fra i PDF, senza mettere spunte.",
@@ -325,11 +391,31 @@
       "data": "2026-09-10",
       "titolo": "Ruoli più sicuri e PDF più grandi",
       "evidenza": [
-        { "icona": "admin", "titolo": "Il ruolo sta sull'account", "testo": "Cambiare nome non cambia più i permessi, e nessuno può prendersi il ruolo di un collega." },
-        { "icona": "spunta", "titolo": "Arriva l'approvatore", "testo": "Un terzo ruolo che approva e respinge Rapportino e Ricambi, e basta." },
-        { "icona": "persona", "titolo": "Registra un collega dall'app", "testo": "L'amministratore crea l'accesso di un collega dalle Impostazioni, senza passare da altri pannelli." },
-        { "icona": "avviso", "titolo": "Prima si scrive OK", "testo": "Le azioni in blocco dell'amministratore partono solo dopo aver scritto OK nella finestra." },
-        { "icona": "file-pdf", "titolo": "PDF fino a 200 MB", "testo": "Il tetto per file passa da 40 a 200 MB, e un PDF già aperto si riapre senza riscaricarlo." }
+        {
+          "icona": "admin",
+          "titolo": "Il ruolo sta sull'account",
+          "testo": "Cambiare nome non cambia più i permessi, e nessuno può prendersi il ruolo di un collega."
+        },
+        {
+          "icona": "spunta",
+          "titolo": "Arriva l'approvatore",
+          "testo": "Un terzo ruolo che approva e respinge Rapportino e Ricambi, e basta."
+        },
+        {
+          "icona": "persona",
+          "titolo": "Registra un collega dall'app",
+          "testo": "L'amministratore crea l'accesso di un collega dalle Impostazioni, senza passare da altri pannelli."
+        },
+        {
+          "icona": "avviso",
+          "titolo": "Prima si scrive OK",
+          "testo": "Le azioni in blocco dell'amministratore partono solo dopo aver scritto OK nella finestra."
+        },
+        {
+          "icona": "file-pdf",
+          "titolo": "PDF fino a 200 MB",
+          "testo": "Il tetto per file passa da 40 a 200 MB, e un PDF già aperto si riapre senza riscaricarlo."
+        }
       ],
       "novita": [
         "Il ruolo di approvatore: approva e respinge Rapportino e Ricambi; niente azioni di massa, impostazioni o ripristini.",
@@ -374,11 +460,31 @@
       "data": "2026-09-09",
       "titolo": "Ruoli, generatore e archivio dei PDF",
       "evidenza": [
-        { "icona": "documento", "titolo": "Il generatore delle schede nell'app", "testo": "Dal pannello del sito si genera il PDF delle schede tecnici: si archivia sul sito e mette la spunta «Stampata»." },
-        { "icona": "admin", "titolo": "L'amministratore approva", "testo": "Rapportino e Ricambi degli operatori restano proposte finché chi approva non le conferma." },
-        { "icona": "ripeti", "titolo": "I passi si accumulano", "testo": "Un passo fatto in un mese vale per tutti i mesi del sito, e per l'anno dopo se la mappatura era rimasta aperta." },
-        { "icona": "occhio", "titolo": "Vedi dove lavora un collega", "testo": "La cella aperta da un collega ha un anello del suo colore e le sue iniziali." },
-        { "icona": "cestino", "titolo": "Fare spazio fra i PDF", "testo": "Si cancellano in blocco i PDF di un anno o di un sito, e le spunte restano." }
+        {
+          "icona": "documento",
+          "titolo": "Il generatore delle schede nell'app",
+          "testo": "Dal pannello del sito si genera il PDF delle schede tecnici: si archivia sul sito e mette la spunta «Stampata»."
+        },
+        {
+          "icona": "admin",
+          "titolo": "L'amministratore approva",
+          "testo": "Rapportino e Ricambi degli operatori restano proposte finché chi approva non le conferma."
+        },
+        {
+          "icona": "ripeti",
+          "titolo": "I passi si accumulano",
+          "testo": "Un passo fatto in un mese vale per tutti i mesi del sito, e per l'anno dopo se la mappatura era rimasta aperta."
+        },
+        {
+          "icona": "occhio",
+          "titolo": "Vedi dove lavora un collega",
+          "testo": "La cella aperta da un collega ha un anello del suo colore e le sue iniziali."
+        },
+        {
+          "icona": "cestino",
+          "titolo": "Fare spazio fra i PDF",
+          "testo": "Si cancellano in blocco i PDF di un anno o di un sito, e le spunte restano."
+        }
       ],
       "novita": [
         "Il generatore delle schede tecnici è dentro CronoService: dal pannello del sito arriva già collegato al sito giusto.",
@@ -420,9 +526,21 @@
       "data": "2026-09-08",
       "titolo": "CronoService è online",
       "evidenza": [
-        { "icona": "cronoservice", "titolo": "CronoService da ovunque", "testo": "Si entra con la casella aziendale da computer e telefono; l'anagrafica di Access arriva da sola ogni giorno." },
-        { "icona": "riepilogo", "titolo": "Statistiche rifatte", "testo": "Un pannello di comando con il ritmo per chiudere l'anno e le mappature da fare adesso." },
-        { "icona": "filtro", "titolo": "Un filtro di stato solo", "testo": "Tutte, Da fare, In ritardo, Complete: ognuna col suo numero, che è anche il bottone." }
+        {
+          "icona": "cronoservice",
+          "titolo": "CronoService da ovunque",
+          "testo": "Si entra con la casella aziendale da computer e telefono; l'anagrafica di Access arriva da sola ogni giorno."
+        },
+        {
+          "icona": "riepilogo",
+          "titolo": "Statistiche rifatte",
+          "testo": "Un pannello di comando con il ritmo per chiudere l'anno e le mappature da fare adesso."
+        },
+        {
+          "icona": "filtro",
+          "titolo": "Un filtro di stato solo",
+          "testo": "Tutte, Da fare, In ritardo, Complete: ognuna col suo numero, che è anche il bottone."
+        }
       ],
       "novita": [
         "CronoService è online: si entra con la casella @vrs-tech.it da qualunque computer o telefono, e l'anagrafica di Access arriva da sola una volta al giorno.",

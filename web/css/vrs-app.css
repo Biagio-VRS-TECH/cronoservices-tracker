@@ -312,6 +312,16 @@ html.vrs-nov-aperta { overflow: hidden; }
 .vrs-nov-voce-testi { min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 1px; }
 .vrs-nov-voce-tit { font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .vrs-nov-voce-riga { font-size: 14px; line-height: 1.45; color: var(--vrs-text-2); overflow-wrap: anywhere; }
+/* «Vedi le 96 correzioni…»: dalla voce del riassunto alla sua sezione del dettaglio */
+.vrs-nov-vai {
+  align-self: flex-start; display: inline-flex; align-items: center; min-height: 32px; margin: 2px 0 0 -8px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--vrs-accent);
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-nov-vai:hover { background: var(--vrs-accent-soft); }
+.vrs-nov-vai:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 0; }
 .vrs-nov-vuoto { margin: 8px 0; color: var(--vrs-muted); font-size: 14px; line-height: 1.5; }
 
 /* ---- i comandi in fondo ---- */
@@ -449,11 +459,12 @@ details[open] > summary .vrs-nov-sez-giu { transform: rotate(180deg); }
   .vrs-nov-indietro, .vrs-nov-ok, .vrs-nov-link { min-height: 48px; }
   .vrs-nov-sez > summary, .vrs-nov-storico > summary { min-height: 52px; }
   .vrs-nov-storia { min-height: 48px; }
+  .vrs-nov-vai { min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vrs-nov-velo, .vrs-nov, .vrs-nov-bolla, .vrs-nov-luce, .vrs-nov-stemma, .vrs-nov-sopra,
   .vrs-nov-tit, .vrs-nov-quando, .vrs-nov-voce, .vrs-nov-btn[data-nuove='si'] .vrs-nov-pallino::after { animation: none; }
   .vrs-nov-btn, .vrs-nov-pallino, .vrs-nov-x, .vrs-nov-ok, .vrs-nov-link, .vrs-nov-indietro,
-  .vrs-nov-freccia, .vrs-nov-sez > summary, .vrs-nov-storico > summary, .vrs-nov-sez-giu, .vrs-nov-storia { transition: none; }
+  .vrs-nov-freccia, .vrs-nov-sez > summary, .vrs-nov-storico > summary, .vrs-nov-sez-giu, .vrs-nov-storia, .vrs-nov-vai { transition: none; }
 }
