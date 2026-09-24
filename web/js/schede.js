@@ -1926,12 +1926,21 @@ function loadRows(rows,name,label){
   buildTree(); applyFilter();
   return true;
 }
+/* vale l'ULTIMO file scelto: due file lasciati cadere di fila si leggono
+   insieme, e vinceva quello che finiva per ultimo (il piu' grande). Il giro
+   lo fa avanzare anche unloadFile: un file tolto a meta' lettura non torna.
+   (tests/js/web-schede.test.mjs) */
+var LETTURA=0;
 function readFile(f){
+  if(!f) return;
+  if(!f.size){ alert('Il file «'+f.name+'» è vuoto: niente da leggere.'); return; }
   /* un file vero prende il posto dell'esempio della guida: da qui in poi la
      fine del tutorial non deve piu' portarsi via niente */
   TOUR_DEMO=false;
+  var mio=++LETTURA;
   var fr=new FileReader();
   fr.onload=function(){
+    if(mio!==LETTURA) return;
     var rows=[];
     try{
       var wb=XLSX.read(new Uint8Array(fr.result),{type:'array'});
@@ -1949,6 +1958,7 @@ function readFile(f){
    file successivo eredita pezzi di quello di prima. Lo usa anche la guida
    quando si porta via il suo esempio. */
 function unloadFile(){
+  LETTURA++;
   FULL=null; DATA=null;
   document.getElementById('fileinfo').innerHTML='';
   document.getElementById('dropFile').hidden=true;
@@ -2473,7 +2483,8 @@ var TOUR_STEPS=[
 
   {sel:'#sidegrip',title:"Le colonne si allargano",place:'right',pad:4,
    tx:"<p>Trascina questa maniglia per allargare o stringere il pannello; il <b>doppio clic</b> torna alla misura di fabbrica. La colonna di destra ha la sua, identica.</p>"
-     +"<p>La larghezza scelta resta ricordata per la prossima volta.</p>"},
+     +"<p>La larghezza scelta resta ricordata per la prossima volta.</p>",
+   off:"Su uno schermo stretto i pannelli stanno uno sopra l'altro e le maniglie non servono: compaiono a finestra larga."},
 
   {sel:'#filterGrp',title:"4 \u00b7 Cosa stampare",place:'left',
    tx:"<p>L'albero <b>piano \u203a reparto \u203a stanza</b>. Due comandi per riga, due gesti distinti: il <b>cerchio</b> include o esclude il ramo, il <b>nome</b> salta alla sua pagina nell'anteprima.</p>"

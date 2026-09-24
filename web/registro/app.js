@@ -16,7 +16,7 @@ niente. */
 import { avviaPonte } from '../js/ponte.js';
 import { chiama, rete } from '../js/api.js';
 import { leggiExport, costruisciRegistro, testoAnomalie, registroInDict, ErroreLettura,
-         interpretaRiga, pianoNumerico, cmpNaturale } from './registro.js';
+         interpretaRiga, pianoNumerico, cmpNaturale, valutaCampoDizionario } from './registro.js';
 import { impagina, htmlDigitale } from './impagina.js';
 import { creaAlbero } from '../js/albero.js';
 
@@ -199,21 +199,37 @@ async function rigenera() {
 }
 
 /* ----------------------------------------------------------- il file Excel */
+/* Vale l'ULTIMO file scelto: due file lasciati cadere uno dopo l'altro si
+   leggono insieme, e il primo (piu' grande, piu' lento) arrivava dopo il
+   secondo e lo sostituiva, col nome del secondo in testa. Il giro si conta
+   come in ponte.riconosci; anche togliFile lo fa avanzare. */
+let giroFile = 0;
 async function leggiFile(f) {
   if (!f) return;
-  esempioGuida = false;   // un file vero prende il posto dell'esempio della guida
-  nomeFileCaricato = f.name;
+  const mio = ++giroFile;
   $('#fileinfo').innerHTML = '<b>Leggo il file…</b>';
+  let ex;
   try {
     await dizPronto;
     const buf = await f.arrayBuffer();
-    exportCorrente = leggiExport(buf, f.name);
+    ex = leggiExport(buf, f.name);
   } catch (e) {
-    exportCorrente = null; reg = null;
-    $('#fileinfo').innerHTML = `<div class="errore"><b>${esc(e instanceof ErroreLettura ? e.message : 'Errore di lettura: ' + (e?.message || e))}</b></div>`;
+    if (mio !== giroFile) return;
+    /* Un file illeggibile non butta quello di prima: prima si azzeravano
+       modello e registro ma le pagine restavano a schermo, con «Esporta»
+       acceso su un documento che il pannello non conosceva piu'. */
+    $('#fileinfo').innerHTML = `<div class="errore"><b>${esc(e instanceof ErroreLettura ? e.message : 'Errore di lettura: ' + (e?.message || e))}</b></div>` +
+      (exportCorrente && !esempioGuida ? `<div>Resta caricato <b>${esc(nomeFileCaricato)}</b>.</div>` : '');
     $('#dropFile').hidden = false;
     return;
   }
+  if (mio !== giroFile) return;          // nel frattempo e' arrivato un altro file, o e' stato tolto
+  esempioGuida = false;   // un file vero prende il posto dell'esempio della guida
+  nomeFileCaricato = f.name;
+  exportCorrente = ex;
+  /* l'intestatario (A1) si vede subito: prima aspettava il riconoscimento del
+     sito, e senza rete restava quello del file di prima */
+  aggiornaTitolo();
   $('#empty-state').hidden = true;
   $('#viste').hidden = false;
   $('#dropFile').hidden = false;
@@ -224,6 +240,7 @@ async function leggiFile(f) {
 }
 
 function togliFile() {
+  giroFile++;                             // una lettura ancora in corso non rimette il file tolto
   exportCorrente = null; reg = null; nomeFileCaricato = ''; esempioGuida = false; pagineDaRifare = false;
   nascondiAlbero();
   $('#pages').replaceChildren();
@@ -358,29 +375,32 @@ function disegnaNomi() {
 
 async function salvaCampo(inp) {
   const campo = inp.dataset.campo;
-  const valore = inp.value.trim();
-  const precedente = (inp.dataset.iniziale || '').trim();
   const stato = $('#nomiStato');
+  /* la regola sta in registro.js (valutaCampoDizionario, provata in
+     tests/js/web-dizionario.test.mjs): qui si applica al DOM */
+  const d = valutaCampoDizionario({
+    campo, valore: inp.value, precedente: inp.dataset.iniziale || '',
+    trascritta: inp.dataset.trascritta === '1', descrizione: inp.dataset.descrizione || '',
+  });
 
   // descrizione trascritta col clic e lasciata intatta: non si salva niente
-  if (campo === 'nome' && inp.dataset.trascritta === '1' && valore === (inp.dataset.descrizione || '').trim()) {
+  if (d.azione === 'ripristina') {
     inp.value = inp.dataset.iniziale; inp.dataset.trascritta = '';
     inp.classList.remove('trascritta');
     inp.classList.toggle('originale', !inp.value.trim());
     return;
   }
   inp.dataset.trascritta = ''; inp.classList.remove('trascritta');
-  if (valore === precedente) return;
-
-  if (campo === 'priorita' && valore !== '') {
-    const n = Number(valore);
-    if (!Number.isInteger(n) || n < 1 || n > 10) {
-      stato.className = 'errore-testo';
-      stato.textContent = 'L’ordine nel quadro deve essere un numero intero da 1 a 10, oppure vuoto.';
-      inp.value = inp.dataset.iniziale; inp.classList.toggle('vuoto', !inp.value.trim());
-      return;
-    }
+  if (d.azione === 'niente') return;
+  if (d.azione === 'errore') {
+    stato.className = 'errore-testo';
+    stato.textContent = d.testo;
+    inp.value = inp.dataset.iniziale; inp.classList.toggle('vuoto', !inp.value.trim());
+    return;
   }
+  // «3.0» o «1e1» nella casella numerica: parte e si vede il numero pulito
+  const valore = d.valore;
+  if (campo === 'priorita') inp.value = valore;
 
   const corpo = campo === 'priorita'
     ? { codice: inp.dataset.codice, priorita: valore, operatore: rete.operatore }

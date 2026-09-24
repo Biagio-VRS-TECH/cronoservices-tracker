@@ -9,15 +9,16 @@ Percorsi:
   /api/stream        -> Server-Sent Events (aggiornamenti in tempo reale)
 Avvio: python server.py [--porta 8770] [--no-sync]
 """
-import argparse, json, mimetypes, os, queue, socket, sqlite3, sys, threading, time
+import argparse, errno, json, mimetypes, os, queue, socket, sqlite3, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import db, api, sync, rete_locale
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-CFG = json.load(open(os.path.join(BASE, "config.json"), encoding="utf-8"))
+with open(os.path.join(BASE, "config.json"), encoding="utf-8") as _f:
+    CFG = json.load(_f)
 WEB = os.path.abspath(os.path.join(BASE, CFG["web_dir"]))
 CTX = {"cfg": CFG, "base": BASE}
 
@@ -80,12 +81,29 @@ class Hub:
 HUB = Hub()
 # Secondi fra due ": ping" di uno stream fermo (le prove lo accorciano)
 PING_SSE = 20
+# Il corpo piu' grande che si accetta: il PDF piu' grande (api.MAX_PDF) in
+# base64 (4/3) piu' il resto del JSON (anteprima fino a 80 KB). Oltre, 413
+# senza leggere: prima un Content-Length enorme teneva il thread su rfile.read
+# ad aspettare byte che non arrivano.
+MAX_CORPO = api.MAX_PDF * 4 // 3 + 4 * 1024 * 1024
+# Secondi di silenzio su un socket prima di chiuderlo: senza, un client che
+# apre e non finisce la richiesta, o un PC che sparisce dalla rete a meta'
+# stream, teneva un thread e un socket per sempre. Lo stream SSE non ne soffre:
+# non legge dal socket, e un ping che non parte per 60 s e' davvero un morto.
+TEMPO_SOCKET = 60
+
+
+def _non_json(nome):
+    """NaN, Infinity e -Infinity non sono JSON, ma json.loads li accetta:
+    arrivavano agli handler come float (int(nan), SQLite, il diario)."""
+    raise ValueError("%s non e' un valore JSON" % nome)
 
 
 # ---------------------------------------------------------------- handler ----
 class H(BaseHTTPRequestHandler):
     server_version = "CronoServices/1.0"
     protocol_version = "HTTP/1.1"
+    timeout = TEMPO_SOCKET        # StreamRequestHandler lo mette sul socket
 
     def log_message(self, fmt, *a):
         if "--verbose" in sys.argv:
@@ -117,10 +135,15 @@ class H(BaseHTTPRequestHandler):
             return self._stream(u)
         if u.path.startswith("/api/"):
             return self._api("GET", u, {})
-        return self._statico(u.path)
+        return self._statico(u.path, u.query)
 
     def do_POST(self):
         u = urlparse(self.path)
+        if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+            # il corpo a pezzi restava nel flusso e diventava la "richiesta"
+            # successiva: il browser manda sempre Content-Length
+            self.close_connection = True
+            return self._json(411, {"errore": "serve Content-Length"})
         try:
             n = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -130,6 +153,10 @@ class H(BaseHTTPRequestHandler):
             # risponde e si chiude, invece di far cadere la connessione
             self.close_connection = True
             return self._json(400, {"errore": "Content-Length non valido"})
+        if n > MAX_CORPO:
+            self.close_connection = True          # il corpo non letto non va riletto
+            return self._json(413, {"errore": "richiesta troppo grande (%d MB, il tetto e' "
+                                              "%d MB)" % (n // 1048576, MAX_CORPO // 1048576)})
         raw = self.rfile.read(n) if n else b""
         # SEC-12: niente POST da pagine di altri siti. Un <form> o un fetch
         # "semplice" da una pagina qualsiasi aperta su un PC dell'ufficio non
@@ -142,7 +169,9 @@ class H(BaseHTTPRequestHandler):
         if raw and not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
             return self._json(415, {"errore": "serve Content-Type: application/json"})
         try:
-            body = json.loads(raw.decode("utf-8")) if raw else {}
+            # utf-8-sig: un BOM in testa (PowerShell 5.1, qualche editor) non e'
+            # un JSON rotto
+            body = json.loads(raw.decode("utf-8-sig"), parse_constant=_non_json) if raw else {}
         except ValueError:
             return self._json(400, {"errore": "JSON non valido"})
         # ogni handler fa body.get(...): un JSON valido ma non oggetto ([1], "x")
@@ -158,9 +187,12 @@ class H(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         try:
             st, out, ev = fn(CTX, q, body)
-        except (KeyError, ValueError, TypeError) as e:
-            # campo obbligatorio mancante o non numerico (id_service="abc"):
-            # e' la richiesta a essere sbagliata, non il server
+        except (KeyError, ValueError, TypeError, OverflowError,
+                sqlite3.ProgrammingError, sqlite3.InterfaceError) as e:
+            # campo obbligatorio mancante o non numerico (id_service="abc"),
+            # un intero oltre i 64 bit di SQLite (OverflowError), una lista
+            # dove serve un valore (errore di binding): e' la richiesta a essere
+            # sbagliata, non il server
             return self._json(400, {"errore": "richiesta non valida (%s: %s)"
                                               % (type(e).__name__, e)})
         except sqlite3.OperationalError as e:
@@ -224,11 +256,20 @@ class H(BaseHTTPRequestHandler):
             # non si accorgerebbe mai di doversi riconnettere
             self.close_connection = True
 
-    def _statico(self, path):
+    def _statico(self, path, query=""):
         rel = "index.html" if path in ("/", "") else path.lstrip("/")
         f = os.path.abspath(os.path.join(WEB, rel))
-        if os.path.isdir(f):                     # /schede/ -> schede/index.html
-            f = os.path.join(f, "index.html")
+        if os.path.isdir(f) and (f == WEB or f.startswith(WEB + os.sep)):
+            if not path.endswith("/"):
+                # /schede -> /schede/: servita senza la barra, la pagina
+                # cercava i suoi file relativi (ponte.js, registro.css) nella
+                # radice. Location dal percorso su disco, non da quello chiesto:
+                # "//schede" non diventa un indirizzo verso l'host "schede".
+                dove = "/" if f == WEB else \
+                    "/" + quote(os.path.relpath(f, WEB).replace(os.sep, "/")) + "/"
+                return self._invia(301, "", "text/plain; charset=utf-8",
+                                   {"Location": dove + ("?" + query if query else "")})
+            f = os.path.join(f, "index.html")    # /schede/ -> schede/index.html
         # WEB + os.sep: col solo prefisso passava anche una cartella accanto che
         # comincia per "web" (../web-vecchio/, ../webbak/)
         if not f.startswith(WEB + os.sep) or not os.path.isfile(f):
@@ -238,8 +279,13 @@ class H(BaseHTTPRequestHandler):
                                                   "application/json",
                                                   "image/svg+xml"):
             ctype += "; charset=utf-8"
-        with open(f, "rb") as fh:
-            dati = fh.read()
+        try:
+            with open(f, "rb") as fh:
+                dati = fh.read()
+        except OSError:
+            # tolto o bloccato (un editor, l'antivirus) fra isfile e open: prima
+            # l'eccezione faceva cadere la connessione senza risposta
+            return self._invia(404, "Non trovato: %s" % rel, "text/plain; charset=utf-8")
         # su `f`, non su `rel`: /schede/ serve schede/index.html e va no-store
         # come ogni pagina
         cache = "no-store" if f.endswith((".html", "sw.js")) else "no-cache"
@@ -270,6 +316,29 @@ class Server(ThreadingHTTPServer):
                           BrokenPipeError, TimeoutError)):
             return
         super().handle_error(request, client_address)
+
+
+class Server6(Server):
+    """"host": "::" o "::1" in config.json: ThreadingHTTPServer e' solo IPv4 e
+    l'avvio falliva. Su "::" si accetta anche IPv4 (doppio stack), cosi'
+    http://localhost e l'indirizzo IPv4 della LAN continuano a funzionare."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except (AttributeError, OSError):
+            pass
+        super().server_bind()
+
+
+def crea_server(host, porta):
+    return (Server6 if ":" in host else Server)((host, porta), H)
+
+
+def _porta_in_uso(e):
+    return e.errno == errno.EADDRINUSE or getattr(e, "winerror", None) == 10048
 
 
 def porta_occupata(porta):
@@ -310,60 +379,76 @@ def main():
     a, _ = ap.parse_known_args()
 
     if porta_occupata(a.porta):
-        print("")
-        print("  Crono Mappature e' GIA' in esecuzione su questo PC.")
-        print("  Apri http://localhost:%d nel browser." % a.porta)
-        print("  (Se credi che sia un errore, chiudi l'altra finestra del server")
-        print("   e riprova, oppure usa un'altra porta: python server.py --porta 8771)")
-        print("")
-        return
-
-    CTX["lan"] = "http://%s:%d" % (ip_lan(), a.porta)
-
-    # Scoperta di altri server Crono in rete: vedi #ANCHOR: scoperta.
-    rete_locale.avvia_risponditore(CTX["lan"])
-    altri = rete_locale.cerca_altri()
-    CTX["altri_server"] = altri
-    if altri:
-        print("")
-        print("  !! ATTENZIONE: c'e' gia' un altro Crono Mappature in rete:")
-        for x in altri:
-            print("     %s  ->  %s" % (x["host"], x["url"]))
-        print("")
-        print("  Se ne usate due, le spunte finiscono in DUE archivi separati.")
-        print("  Chiudi questa finestra e apri l'indirizzo qui sopra nel browser.")
-        print("")
-    db.init(os.path.abspath(a.db) if a.db else os.path.join(BASE, CFG["sqlite_path"]))
-    if CFG.get("sync_all_avvio") and not a.no_sync:
-        try:
-            r = sync.esegui(CFG, BASE)
-            print("Sync Access: %d clienti, %d service (nuovi %d, chiusi %d, "
-                  "mesi cambiati %d)" % (r["clienti"], r["services"], r["nuovi"],
-                                         r["chiusi"], r["mesi_cambiati"]))
-        except Exception as e:
-            print("ATTENZIONE: sync Access non riuscito (%s). Si prosegue con la "
-                  "cache locale." % e)
+        return _gia_in_esecuzione(a.porta)
 
     # SEC-12: di default solo questo PC. Il server locale non ha login e il
     # ruolo lo dichiara il client: aprirlo alla rete ("host": "0.0.0.0" in
     # config.json) e' una scelta esplicita, non l'impostazione di partenza.
+    # Il bind si fa SUBITO, prima di annunciarsi in rete, del db e del sync:
+    # porta_occupata guarda solo 127.0.0.1 e c'e' un attimo fra il controllo e
+    # il bind (due avvii quasi insieme, o "host" su un IP della LAN). Prima il
+    # secondo faceva il suo sync e poi moriva con un traceback.
     host = CFG.get("host") or "127.0.0.1"
-    srv = Server((host, a.porta), H)
-    print("")
-    print("  CronoServices Mappature attivo")
-    print("  su questo PC .... http://localhost:%d" % a.porta)
-    if host in ("127.0.0.1", "localhost", "::1"):
-        print("  solo da questo PC (per i colleghi: \"host\": \"0.0.0.0\" in config.json)")
-    else:
-        print("  per i colleghi .. http://%s:%d" % (ip_lan(), a.porta))
-    print("  CTRL+C per fermare")
-    print("")
     try:
+        srv = crea_server(host, a.porta)
+    except OSError as e:
+        if _porta_in_uso(e):
+            return _gia_in_esecuzione(a.porta)
+        print("")
+        print("  Non riesco ad aprire %s porta %d: %s" % (host, a.porta, e))
+        print("  Controlla \"host\" in config.json oppure usa --porta.")
+        print("")
+        return
+    try:
+        CTX["lan"] = "http://%s:%d" % (ip_lan(), a.porta)
+
+        # Scoperta di altri server Crono in rete: vedi #ANCHOR: scoperta.
+        rete_locale.avvia_risponditore(CTX["lan"])
+        altri = rete_locale.cerca_altri(mio_url=CTX["lan"])
+        CTX["altri_server"] = altri
+        if altri:
+            print("")
+            print("  !! ATTENZIONE: c'e' gia' un altro Crono Mappature in rete:")
+            for x in altri:
+                print("     %s  ->  %s" % (x["host"], x["url"]))
+            print("")
+            print("  Se ne usate due, le spunte finiscono in DUE archivi separati.")
+            print("  Chiudi questa finestra e apri l'indirizzo qui sopra nel browser.")
+            print("")
+        db.init(os.path.abspath(a.db) if a.db else os.path.join(BASE, CFG["sqlite_path"]))
+        if CFG.get("sync_all_avvio") and not a.no_sync:
+            try:
+                r = sync.esegui(CFG, BASE)
+                print("Sync Access: %d clienti, %d service (nuovi %d, chiusi %d, "
+                      "mesi cambiati %d)" % (r["clienti"], r["services"], r["nuovi"],
+                                             r["chiusi"], r["mesi_cambiati"]))
+            except Exception as e:
+                print("ATTENZIONE: sync Access non riuscito (%s). Si prosegue con la "
+                      "cache locale." % e)
+
+        print("")
+        print("  CronoServices Mappature attivo")
+        print("  su questo PC .... http://localhost:%d" % a.porta)
+        if host in ("127.0.0.1", "localhost", "::1"):
+            print("  solo da questo PC (per i colleghi: \"host\": \"0.0.0.0\" in config.json)")
+        else:
+            print("  per i colleghi .. http://%s:%d" % (ip_lan(), a.porta))
+        print("  CTRL+C per fermare")
+        print("")
         srv.serve_forever()
     except KeyboardInterrupt:
         print("Arresto.")
     finally:
         srv.server_close()
+
+
+def _gia_in_esecuzione(porta):
+    print("")
+    print("  Crono Mappature e' GIA' in esecuzione su questo PC.")
+    print("  Apri http://localhost:%d nel browser." % porta)
+    print("  (Se credi che sia un errore, chiudi l'altra finestra del server")
+    print("   e riprova, oppure usa un'altra porta: python server.py --porta 8771)")
+    print("")
 
 
 if __name__ == "__main__":

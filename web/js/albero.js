@@ -32,6 +32,16 @@ export const ICO_CHIUDI_RAMI = svgIcona('chiudi-rami', 16);
 export const ICO_APRI_RAMI = svgIcona('apri-rami', 16);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+/** Il cerchio di un contenitore dai suoi figli ({checked, indeterminate}):
+ *  tutti dentro = pieno, nessuno = vuoto, qualcuno o un figlio "in parte" =
+ *  trattino. Senza figli null (resta com'e'). Pura: tests/js/web-albero.test.mjs. */
+export function riassumi(kids) {
+  let on = 0, part = false;
+  for (const x of kids) { if (x.checked) on++; if (x.indeterminate) part = true; }
+  if (!kids.length) return null;
+  return { checked: on > 0, indeterminate: on > 0 && (on < kids.length || part) };
+}
+
 export function creaAlbero(el, cfg) {
   const rami = cfg.rami || [];
   const tutto = cfg.tutto || null, comprimi = cfg.comprimi || null;
@@ -62,12 +72,8 @@ export function creaAlbero(el, cfg) {
     return sub && sub.classList.contains('sub') ? sub : null;
   };
   function rollUp(input, kids) {
-    let on = 0, part = false;
-    for (const x of kids) { if (x.checked) on++; if (x.indeterminate) part = true; }
-    if (kids.length) {
-      input.checked = on > 0;
-      input.indeterminate = on > 0 && (on < kids.length || part);
-    }
+    const r = riassumi(kids);
+    if (r) { input.checked = r.checked; input.indeterminate = r.indeterminate; }
     return input.checked;
   }
   function dipingi(input) {

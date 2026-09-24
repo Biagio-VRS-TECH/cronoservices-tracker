@@ -178,8 +178,8 @@
       I = Math.max(0, Math.min(PASSI.length - 1, i));
       var s = PASSI[I], last = (I === PASSI.length - 1), el = bersaglio(s);
       $('tourNum').textContent = (I + 1) + ' di ' + PASSI.length;
-      $('tourTitle').textContent = s.title;
-      $('tourText').innerHTML = s.tx;
+      $('tourTitle').textContent = s.title || '';
+      $('tourText').innerHTML = s.tx || '';          // senza testo: vuoto, non "undefined"
       var nt = el ? (s.note || '') : (s.sel ? (s.off || s.note || '') : (s.note || ''));
       var n = $('tourNote');
       n.innerHTML = nt; n.hidden = !nt;
@@ -198,7 +198,7 @@
       $('tourNext').focus();
     }
     function avvia() {
-      if (ON) return;
+      if (ON || !PASSI.length) return;   // senza passi vai(0) leggeva PASSI[0].sel e si rompeva
       if (cfg.primaDi) cfg.primaDi();
       prima = document.activeElement;
       wrap.hidden = false;

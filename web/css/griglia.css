@@ -500,6 +500,25 @@
   min-height: 24px; border-radius: var(--r-1); }
 .pop-piede button:hover { background: var(--fondo); color: var(--inchiostro); }
 .pop-piede .primario { color: var(--marchio-scuro); font-weight: 600; }
+/* al tocco i passi e i due comandi in fondo si prendono col pollice: erano
+   35 e 24 px (tests/e2e/test_e2e_telefono.py) */
+@media (pointer: coarse) {
+  .pop .passo, .pop-piede button { min-height: 44px; }
+  .pop-piede button { min-width: 44px; }
+}
+/* Sul telefono il popover e' un foglio dal basso, largo quanto lo schermo:
+   ancorato alla cella (left/top inline di spunte.js, che lo misura prima di
+   riempire i passi) finiva per meta' sotto il bordo, e da fixed non ci si
+   arrivava scorrendo. Qui resta sempre intero e sotto il pollice. */
+@media (max-width: 760px) {
+  .pop {
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)); width: auto;
+    top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+}
 
 /* ==========================================================  VISTA MESE == */
 .mese-testa { padding: 22px 18px 14px; display: flex; align-items: center; gap: 22px;
@@ -661,6 +680,25 @@
 .barra-massa button { color: inherit; padding: 5px 10px; border-radius: var(--r-tonda);
   background: color-mix(in srgb, currentColor 16%, transparent); font-weight: 600; }
 .barra-massa button:hover { background: color-mix(in srgb, currentColor 28%, transparent); }
+/* Gli avvisi (base.css) stanno nello stesso punto della barra, e sopra: con
+   la barra aperta salgono sopra di lei, altrimenti un avviso da 15 s ne
+   copriva i bottoni (tests/e2e/test_e2e_giro.py, vista Mese). */
+body:has(> .barra-massa) .avvisi { bottom: calc(18px + 60px + env(safe-area-inset-bottom, 0px)); }
+/* Sul telefono la barra (640 px in fila) usciva dai due lati: va a capo,
+   larga quanto lo schermo meno i margini. Alta com'e' allora, gli avvisi
+   salgono in cima finche' e' aperta. */
+@media (max-width: 760px) {
+  .barra-massa {
+    left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    transform: none; flex-wrap: wrap; justify-content: center; gap: 6px 8px;
+    border-radius: var(--r-3); animation-name: sali-fermo;
+  }
+  body:has(> .barra-massa) .avvisi { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); }
+}
+@keyframes sali-fermo { from { opacity: 0; translate: 0 10px; } }
+@media (pointer: coarse) {
+  .barra-massa button { min-height: 44px; }
+}
 
 /* Con poca larghezza il nome del cliente vince sui dettagli accessori:
    senza questo si riduceva a una lettera piu' i puntini. */

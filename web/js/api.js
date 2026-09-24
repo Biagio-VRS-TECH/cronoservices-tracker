@@ -19,7 +19,7 @@ api._applica in locale, public._applica in Postgres online)
  6. Conflitto vero (stesso campo, stessa cella, valori diversi) -> avviso con
     scelta esplicita; tutto il resto viene unito in silenzio.
 */
-import { avviso, modale, h } from './ui.js';
+import { avviso, modale, h, segnala } from './ui.js';
 import * as nuvola from './nuvola.js';
 
 const K_CODA = 'cs.coda.v1';
@@ -45,7 +45,13 @@ export const rete = {
 };
 
 export const onCambio = fn => { rete.ascoltatori.add(fn); return () => rete.ascoltatori.delete(fn); };
-const notifica = () => rete.ascoltatori.forEach(f => f(rete));
+/* Un ascoltatore che lancia (una vista che si rompe ridisegnando la cella) non
+   deve fermare gli altri ne' il giro della coda: prima l'eccezione usciva da
+   `svuota` a meta' e le operazioni dietro aspettavano il ritento. */
+const avvisa = ev => rete.ascoltatori.forEach(f => {
+  try { f(rete, ev); } catch (e) { segnala(e, 'coda'); }
+});
+const notifica = () => avvisa(undefined);
 
 export function setOperatore(nome) {
   rete.operatore = nome;
@@ -81,7 +87,7 @@ addEventListener('storage', e => {
   const partite = rete.coda.filter(x => x.client === rete.clientId && !ci.has(x.op_id));
   rimpiazza(ora);
   notifica();
-  for (const op of partite) rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: {} } }));
+  for (const op of partite) avvisa({ confermata: { op, risposta: {} } });
 });
 
 /* ------------------------------------------------- PIN dell'admin --- */
@@ -151,7 +157,18 @@ async function locale(path, { metodo, body, ms }) {
       signal: ctrl.signal,
     });
     const testo = await r.text();
-    const dati = testo ? JSON.parse(testo) : {};
+    /* Un errore che non e' JSON (la pagina HTML di un proxy, un 404 del server
+       statico) resta un errore col suo stato: prima il JSON.parse lanciava, la
+       coda lo prendeva per "rete assente" e riprovava per sempre la stessa
+       operazione, con tutte le altre ferme dietro. Una risposta BUONA che non
+       e' JSON invece lancia ancora: non e' la risposta che si aspettava. */
+    let dati = {};
+    if (testo) {
+      try { dati = JSON.parse(testo); } catch (e) {
+        if (r.ok) throw e;
+        dati = { errore: 'errore ' + r.status };
+      }
+    }
     return { ok: r.ok, stato: r.status, dati };
   } finally {
     clearTimeout(t);
@@ -248,11 +265,16 @@ export async function bootstrap(anno) {
     if (rete.operatore) q.set('operatore', rete.operatore);
     const r = await chiama('/api/bootstrap' + (q.toString() ? '?' + q : ''));
     if (!r.ok) throw new Error(r.dati?.errore || ('errore ' + r.stato));
-    localStorage.setItem(K_CACHE, JSON.stringify({ salvato: Date.now(), dati: r.dati }));
+    /* La copia per l'offline e' un di piu': se il disco e' pieno (quota del
+       browser) i dati appena arrivati valgono lo stesso. Prima l'eccezione
+       finiva nel catch qui sotto, che li buttava per la copia VECCHIA - o, se
+       copia non c'era, faceva fallire l'avvio. */
+    try { localStorage.setItem(K_CACHE, JSON.stringify({ salvato: Date.now(), dati: r.dati })); } catch { }
     return { dati: r.dati, daCache: false };
   } catch (e) {
-    const c = JSON.parse(localStorage.getItem(K_CACHE) || 'null');
-    if (!c) throw e;
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem(K_CACHE) || 'null'); } catch { }   // copia rovinata: vale l'errore vero
+    if (!c?.dati) throw e;
     return { dati: c.dati, daCache: true, salvato: c.salvato };
   }
 }
@@ -271,6 +293,17 @@ export function accoda(op) {
    cosi' l'esito arriva a chi aspetta, e nessuna resta orfana. */
 const ORFANA_MS = 30000;
 const tocca = op => !op.client || op.client === rete.clientId || Date.now() - (op.creato || 0) > ORFANA_MS;
+
+/* UN GUASTO DI PASSAGGIO NON E' UN RIFIUTO. Un 5xx (il database che ha
+   risposto "locked", il gateway di Supabase in timeout, un proxy che riavvia),
+   un 408 o un 429 non dicono che l'operazione e' sbagliata: dicono "non adesso".
+   Prima la coda li trattava come un errore applicativo e buttava la spunta -
+   persa, e a schermo restava messa. Ora l'operazione resta in coda e si
+   riprova al giro dopo; solo dopo MAX_TENTATIVI si rinuncia, perche' una
+   richiesta che rompe il server a ogni invio non fermi per sempre quelle
+   dietro di lei. */
+export const MAX_TENTATIVI = 5;
+const transitorio = stato => stato >= 500 || stato === 408 || stato === 429;
 
 let timerRitento = null;
 export async function svuota() {
@@ -298,17 +331,21 @@ export async function svuota() {
       }
       if (r.stato === 409) {
         togli(op.op_id);
-        rete.ascoltatori.forEach(f => f(rete, { conflitto: { op, server: r.dati } }));
+        avvisa({ conflitto: { op, server: r.dati } });
         continue;
+      }
+      if (!r.ok && transitorio(r.stato) && (op.tentativi || 0) + 1 < MAX_TENTATIVI) {
+        cambiaCoda(c => c.map(x => x.op_id === op.op_id ? { ...x, tentativi: (x.tentativi || 0) + 1 } : x));
+        break;                       // si riprova piu' tardi, come senza rete
       }
       if (!r.ok) {                   // errore applicativo: non ha senso insistere
         togli(op.op_id);
-        rete.ascoltatori.forEach(f => f(rete, { fallita: { op, server: r.dati } }));
-        avviso('Operazione rifiutata dal server: ' + (r.dati.errore || r.stato), { tono: 'allerta' });
+        avvisa({ fallita: { op, server: r.dati } });
+        avviso('Operazione rifiutata dal server: ' + (r.dati?.errore || r.stato), { tono: 'allerta' });
         continue;
       }
       togli(op.op_id);
-      rete.ascoltatori.forEach(f => f(rete, { confermata: { op, risposta: r.dati } }));
+      avvisa({ confermata: { op, risposta: r.dati } });
     }
   };
   try {

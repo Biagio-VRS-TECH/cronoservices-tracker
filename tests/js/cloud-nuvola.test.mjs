@@ -222,6 +222,35 @@ test('toggle: il valore viaggia 0/1 e la base null resta null', async () => {
   assert.equal(corpo.p_origine, 'live');
 });
 
+/* Sui passi da approvare un passo vale 0, 1 o 2 (= proposta, #ANCHOR: ruoli).
+   `b.valore ? 1 : 0` schiacciava il 2 su 1: l'Annulla dell'admin che rimette
+   in attesa scriveva 1 (l'approvazione restava), e una base 2 diventava 1, cosi'
+   il server vedeva "il campo e' cambiato" e rispondeva 409 al posto del merge
+   a chi approvava o ritirava una proposta dopo la spunta di un collega. */
+test('toggle: il 2 (proposta) viaggia com\'e\', nel valore e nella base', async () => {
+  const { m, chiamate } = await prepara(buona(), () => json(200, { http: 200 }));
+  await m.chiama('/api/toggle', { metodo: 'POST',
+    body: { id_service: 7, anno: 2026, mese: 3, campo: 'corretta', valore: 2, base_rev: 4, base_valore: 1 } });
+  await m.chiama('/api/toggle', { metodo: 'POST',
+    body: { id_service: 7, anno: 2026, mese: 3, campo: 'corretta', valore: 1, base_rev: 4, base_valore: 2 } });
+  await m.chiama('/api/toggle', { metodo: 'POST',
+    body: { id_service: 7, anno: 2026, mese: 3, campo: 'corretta', valore: 0, base_rev: 4, base_valore: 0 } });
+  const [a, b, c] = chiamate.map(x => JSON.parse(x.o.body));
+  assert.deepEqual([a.p_valore, a.p_base_valore], [2, 1]);
+  assert.deepEqual([b.p_valore, b.p_base_valore], [1, 2]);
+  assert.deepEqual([c.p_valore, c.p_base_valore], [0, 0]);
+});
+
+test('toggle: valori strani diventano 0/1 come prima (true, "si", 7, null)', async () => {
+  const { m, chiamate } = await prepara(buona(), () => json(200, { http: 200 }));
+  for (const valore of [true, false, 'si', 7, null, '2'])
+    await m.chiama('/api/toggle', { metodo: 'POST',
+      body: { id_service: 1, anno: 2026, mese: 1, campo: 'stampata', valore, base_valore: valore } });
+  const v = chiamate.map(x => JSON.parse(x.o.body));
+  assert.deepEqual(v.map(x => x.p_valore), [1, 0, 1, 1, 0, 2]);
+  assert.deepEqual(v.map(x => x.p_base_valore), [1, 0, 1, 1, null, 2]);
+});
+
 test('rotta sconosciuta: 404 senza chiamare la rete', async () => {
   const { m, chiamate } = await prepara(buona(), () => json(200, {}));
   const r = await m.chiama('/api/nonesiste');

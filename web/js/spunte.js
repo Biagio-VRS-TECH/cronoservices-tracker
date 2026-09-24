@@ -13,7 +13,28 @@ let aperto = null;
  *  popover segue la cella col fuoco invece di restare appeso a quella vecchia. */
 export const popAperto = () => !!aperto;
 
+/** La nota da salvare dalla casella, o null se non e' cambiata rispetto a
+ *  quella che si vedeva (gli spazi in fondo non contano). Svuotare la casella
+ *  e' una modifica: la nota si toglie. */
+export function notaDaSalvare(valore, notaVista) {
+  const v = String(valore ?? '').trim();
+  return v === (notaVista || '') ? null : v;
+}
+
 export function chiudiPop() {
+  /* La nota scritta e non ancora uscita dal campo: chiudendo il popover (Esc,
+     clic fuori, freccia su un'altra cella) la casella veniva tolta dalla
+     pagina col fuoco dentro, il `change` non arrivava mai e il testo si
+     perdeva senza un avviso. Si salva qui, con la base che si vedeva. */
+  if (aperto) {
+    const ta = aperto.nodo.querySelector?.('textarea');
+    const v = ta ? notaDaSalvare(ta.value, aperto.notaVista) : null;
+    if (v !== null) {
+      const base = { rev: aperto.notaRev, nota: aperto.notaVista };
+      aperto.notaVista = v;                // prima: salvaNota ripassa da rinfrescaPop
+      salvaNota(aperto.id, aperto.mese, v, base);
+    }
+  }
   aperto?.nodo.remove();
   if (aperto) segnalaFuoco('');       // i colleghi vedono che ho lasciato la cella
   aperto = null;
@@ -96,7 +117,8 @@ export function rinfrescaPop(id, mese) {
   disegnaPassi();
   const ta = aperto.nodo.querySelector('textarea');
   const c = cella(id, mese), nuova = c.nota || '';
-  const mioTesto = ta.value !== aperto.notaVista;
+  // gli spazi in fondo non fanno "mio" un testo che non e' cambiato
+  const mioTesto = notaDaSalvare(ta.value, aperto.notaVista) !== null;
   if (!mioTesto) { ta.value = nuova; aperto.notaVista = nuova; aperto.notaRev = c.rev; }
   const eco = aperto.nodo.querySelector('.js-eco-nota');
   const dillo = mioTesto && nuova !== aperto.notaVista;
@@ -122,9 +144,14 @@ export function apriPop(bersaglio, id, mese) {
            se intanto e' arrivata la nota di un altro, il server se ne accorge e
            chiede quale tenere invece di sovrascriverla in silenzio */
         onchange: e => {
-          const v = e.target.value.trim();
-          salvaNota(id, mese, v, { rev: aperto?.notaRev, nota: aperto?.notaVista });
-          if (aperto) aperto.notaVista = v;
+          const v = notaDaSalvare(e.target.value, aperto?.notaVista);
+          if (v === null || !aperto) return;   // niente di nuovo, o gia' salvata chiudendo
+          /* `notaVista` si aggiorna PRIMA di salvare: salvaNota emette 'cella',
+             che passa da rinfrescaPop, e con la vista vecchia la nostra nota
+             veniva annunciata come "X intanto ha scritto: …" */
+          const base = { rev: aperto.notaRev, nota: aperto.notaVista };
+          aperto.notaVista = v;
+          salvaNota(id, mese, v, base);
         },
       })),
     h('div.pop-piede', {},
@@ -148,6 +175,11 @@ export function apriPop(bersaglio, id, mese) {
   nodo.querySelector('textarea').value = c.nota || '';
   document.body.append(nodo);
 
+  aperto = { nodo, id, mese, bersaglio, notaVista: c.nota || '', notaRev: c.rev };
+  // i passi si disegnano PRIMA di misurare: misurato vuoto, il popover vicino
+  // al fondo della finestra usciva di sotto (e' fisso: non ci si arriva scorrendo)
+  disegnaPassi();
+
   // posizionamento: sotto la cella, rientrato nella finestra
   const r = bersaglio.getBoundingClientRect();
   const w = nodo.offsetWidth, hh = nodo.offsetHeight;
@@ -157,9 +189,7 @@ export function apriPop(bersaglio, id, mese) {
   nodo.style.left = x + 'px';
   nodo.style.top = y + 'px';
 
-  aperto = { nodo, id, mese, bersaglio, notaVista: c.nota || '', notaRev: c.rev };
   segnalaFuoco(`${id}-${mese}`);      // i colleghi vedono che sono qui (#ANCHOR: fuoco)
-  disegnaPassi();
   // la tastiera si collega subito (un Esc immediato andava perso); il
   // pointerdown al giro dopo, per non farsi chiudere dal clic che ha aperto
   document.addEventListener('keydown', tasti, true);

@@ -37,13 +37,16 @@ Copiato su un altro computer, o aperto da un altro utente, il file non dice
 niente. Il cloud.json in chiaro di prima si legge ancora (ripiego), e le
 variabili d'ambiente valgono sempre, anche se il cifrato non si apre.
 """
-import base64, datetime, json, os, sys, urllib.error, urllib.request
+import base64, datetime, json, os, sys, time, urllib.error, urllib.request
 
 import sync                      # estrai() + i normalizzatori, gia' collaudati
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.join(BASE, "..", "data", "push_cloud.log")
 TIMEOUT = 180
+# Secondi di attesa prima di ogni ritentativo di manda(): 3 tentativi in
+# tutto. Le prove li azzerano.
+ATTESE = (15, 60)
 
 
 def _cfg_cloud():
@@ -197,12 +200,52 @@ def manda(url, key, cli, servs, via="service_role"):
                      "apikey": key,
                      "Authorization": "Bearer " + key,
                      "Accept": "application/json"})
+    # Tutta l'anagrafica in UN corpo: sync_applica e' una transazione, a lotti
+    # un errore a meta' lascerebbe online mezzo aggiornamento.
+    # Ritentativi solo sui guasti passeggeri (rete, timeout, 5xx), e pochi:
+    # l'operazione pianificata gira una volta al giorno e prima un attimo di
+    # rete giu' alle 08:15 faceva saltare il giorno. sync_applica rifatto con
+    # gli stessi dati non cambia niente, quindi ripetere e' sicuro. Un 4xx e'
+    # un rifiuto (chiave, formato): ripetere non serve.
+    for tentativo in range(len(ATTESE) + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                grezzo = r.read().decode("utf-8", "replace")
+            break
+        except urllib.error.HTTPError as e:
+            try:
+                corpo = e.read().decode("utf-8", "replace")[:800]
+            finally:
+                e.close()             # la connessione non resta aperta fino al GC
+            errore = RuntimeError("Supabase ha risposto %d: %s" % (e.code, corpo))
+            if e.code < 500:
+                raise _senza_chiave(errore, key)
+        except (urllib.error.URLError, OSError) as e:      # rete, DNS, timeout
+            errore = RuntimeError("Supabase non raggiungibile: %s" % e)
+        if tentativo < len(ATTESE):
+            time.sleep(ATTESE[tentativo])
+    else:
+        raise _senza_chiave(RuntimeError("%s (dopo %d tentativi)"
+                                         % (errore, len(ATTESE) + 1)), key)
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise RuntimeError("Supabase ha risposto %d: %s"
-                           % (e.code, e.read().decode("utf-8", "replace")[:800]))
+        out = json.loads(grezzo)
+    except ValueError:
+        out = None
+    if not isinstance(out, dict):
+        # un proxy o un portale che risponde 200 con una pagina: prima il log
+        # diceva solo "Expecting value: line 1 column 1"
+        raise _senza_chiave(RuntimeError("la risposta di Supabase non e' JSON atteso: %s"
+                                         % grezzo[:200].replace("\n", " ")), key)
+    return out
+
+
+def _senza_chiave(e, key):
+    """Il messaggio finisce in data/push_cloud.log: la chiave non ci va mai,
+    nemmeno se un server la ripete nella sua risposta d'errore."""
+    testo = str(e)
+    if key and key in testo:
+        return RuntimeError(testo.replace(key, "***"))
+    return e
 
 
 def annota(testo):

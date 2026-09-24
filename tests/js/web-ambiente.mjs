@@ -118,3 +118,20 @@ export function bootstrapDi({ anno = 2026, oggi = '2026-09-23', services = [], c
       'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
   };
 }
+
+/* --- aggiunte in coda: non cambiano niente di quello che c'era sopra --------
+   `replaceChildren` (lo usa stat.disegna) non c'era affatto nel nodo finto;
+   `testoAlbero` rilegge tutto quello che un disegno ha scritto in un albero
+   finto: testi, innerHTML e attributi, per cercarci un "NaN" o un nome. */
+Nodo.prototype.replaceChildren ??= function (...k) {
+  for (const f of this.figli) f.padre = null;
+  this.figli = [];
+  this.append(...k);
+};
+
+/** Tutto il testo di un albero finto, innerHTML e attributi compresi. */
+export function testoAlbero(n) {
+  if (!n) return '';
+  return [n.testo || '', n.innerHTML || '', ...Object.values(n.attributi || {}),
+    ...(n.figli || []).map(testoAlbero)].join(' ');
+}

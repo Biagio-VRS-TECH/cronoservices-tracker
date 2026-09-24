@@ -64,5 +64,7 @@ export async function condividiLink({ titolo, testo, url }, { nativo = true, cop
   const copiaFn = copia || (async t => {
     try { await nav.clipboard.writeText(t); return true; } catch { return false; }
   });
-  return (await copiaFn(url)) ? 'copiato' : 'non-riuscito';
+  /* una copia che lancia (appunti negati, pagina senza fuoco) e' un esito, non
+     un'eccezione: il bottone del cassetto non la raccoglierebbe */
+  try { return (await copiaFn(url)) ? 'copiato' : 'non-riuscito'; } catch { return 'non-riuscito'; }
 }

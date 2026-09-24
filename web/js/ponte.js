@@ -138,6 +138,52 @@ export function giudicaFile(domande, lista, pesi = null, collegato = null) {
       : 'Somiglia a questi siti: scegli quello giusto.' };
 }
 
+/** Il contesto dall'indirizzo del generatore (?service=..&anno=..&mese=..
+ *  &sito=..&cliente=..&localita=..&come=..), ripulito: e' un indirizzo che si
+ *  copia e si scrive a mano. Un mese fuori da 1..12 arrivava alla testata
+ *  (MESI[mese - 1] indefinito) e la rompeva; un sito che non e' un intero
+ *  positivo non e' un sito, quindi nemmeno "dal tracker". */
+const ORIGINI = ['tracker', 'auto', 'lista', 'mano'];
+export function contestoDaIndirizzo(search, annoOggi = new Date().getFullYear()) {
+  const q = new URLSearchParams(search || '');
+  const intero = (k, min, max) => {
+    const n = Number(q.get(k));
+    return Number.isInteger(n) && n >= min && n <= max ? n : 0;
+  };
+  const id = intero('service', 1, Number.MAX_SAFE_INTEGER);
+  const come = q.get('come') || '';
+  return {
+    anno: intero('anno', 2000, 2100) || annoOggi,
+    id,
+    mese: intero('mese', 1, 12),
+    sito: q.get('sito') || '',
+    cliente: q.get('cliente') || '',
+    localita: q.get('localita') || '',
+    // `come` se lo scrive collega(): senza, un ricaricamento della pagina
+    // promuoveva a "dal tracker" un sito che aveva indovinato il file, e da li'
+    // in poi nessun altro file poteva piu' cambiarlo.
+    origine: id ? (ORIGINI.includes(come) ? come : 'tracker') : '',
+  };
+}
+
+/** Il nome del PDF consegnato: "<cliente> - <titolo> - <anno>[ - fascicolo k
+ *  di N].pdf", col cliente davanti solo se il titolo non lo contiene gia'. Il
+ *  titolo viene dalla prima cella dell'Excel o da chi lo scrive: via i
+ *  caratteri che Windows rifiuta, gli a capo e i controlli, i punti in coda, e
+ *  il taglio a 120 non spezza un carattere doppio (un'emoji) a meta'. */
+export function nomePdf({ titolo = '', cliente = '', sito = '', anno = '', ripiego = '',
+                          fascicolo = 0, fascicoli = 0 } = {}) {
+  const pulisci = x => String(x ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim();
+  const t = pulisci(titolo), chi = pulisci(cliente) || pulisci(sito);
+  const ripete = chi && t && soloLettere(t).includes(soloLettere(chi));
+  const base = [ripete ? '' : (chi || 'sito'), t || pulisci(ripiego), pulisci(anno)]
+    .filter(Boolean).join(' - ');
+  const taglio = [...base].slice(0, 120).join('').replace(/[.\s]+$/, '');
+  const coda = fascicoli > 1 ? ` - fascicolo ${fascicolo} di ${fascicoli}` : '';
+  return taglio + coda + '.pdf';
+}
+
 /**
  * Avvia il ponte. `cfg`:
  *   tipo        'schede' | 'registro'
@@ -159,19 +205,8 @@ export function avviaPonte(cfg = {}) {
   const suSito = cfg.suSito || (() => { });
 
   /* ---------------------------------------------------------- il contesto -- */
-  const q = new URLSearchParams(location.search);
-  const ctx = {
-    anno: Number(q.get('anno')) || new Date().getFullYear(),
-    id: Number(q.get('service')) || 0,
-    mese: Number(q.get('mese')) || 0,
-    sito: q.get('sito') || '',
-    cliente: q.get('cliente') || '',
-    localita: q.get('localita') || '',
-    // `come` se lo scrive collega(): senza, un ricaricamento della pagina
-    // promuoveva a "dal tracker" un sito che aveva indovinato il file, e da li'
-    // in poi nessun altro file poteva piu' cambiarlo.
-    origine: q.get('service') ? (q.get('come') || 'tracker') : '',   // 'tracker' | 'auto' | 'lista' | 'mano'
-  };
+  const ctx = contestoDaIndirizzo(location.search);   // origine: 'tracker' | 'auto' | 'lista' | 'mano' | ''
+
   let siti = null;            // {id, dest, cliente, loc, cli, mese, nome} aperti dell'anno
   let pesi = null;            // rarita' delle parole fra i nomi dei siti (affinita.js)
   let inCorso = false;
@@ -627,13 +662,8 @@ export function avviaPonte(cfg = {}) {
    *  contiene gia'. */
   function nomeFile(f) {
     if (cfg.nomeFile) return cfg.nomeFile(f, { ...ctx });
-    const titolo = titoloDoc();
-    const chi = ctx.cliente || ctx.sito || '';
-    const ripete = chi && titolo && soloLettere(titolo).includes(soloLettere(chi));
-    const base = [ripete ? '' : (chi || 'sito'), titolo || P.ripiego, ctx.anno]
-      .filter(Boolean).join(' - ');
-    const coda = f && f.fascicoli > 1 ? ` - fascicolo ${f.fascicolo} di ${f.fascicoli}` : '';
-    return base.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) + coda + '.pdf';
+    return nomePdf({ titolo: titoloDoc(), cliente: ctx.cliente, sito: ctx.sito, anno: ctx.anno,
+                     ripiego: P.ripiego, fascicolo: f?.fascicolo, fascicoli: f?.fascicoli });
   }
 
   /* ---------------------------------------------------------- interrompi --

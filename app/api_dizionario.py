@@ -33,7 +33,10 @@ def dizionario_imposta(ctx, q, body):
     codice = str(body.get("codice") or "").strip()
     if not codice:
         return 400, {"errore": "codice mancante"}, None
-    operatore = body.get("operatore") or "?"
+    # la firma sempre testo, al massimo 40 come in /api/operatore: un oggetto
+    # arrivava all'INSERT e sqlite3 alzava ProgrammingError (500)
+    op = body.get("operatore")
+    operatore = (op.strip()[:40] if isinstance(op, str) else "") or "?"
     with db.WRITE_LOCK, db.sess() as c:
         r = c.execute("SELECT * FROM dizionario_componenti WHERE codice=?", (codice,)).fetchone()
         nome = (r["nome"] if r else None) or None

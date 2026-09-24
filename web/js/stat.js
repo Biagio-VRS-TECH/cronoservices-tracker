@@ -57,7 +57,7 @@
 import { h, esc, modale } from './ui.js';
 import { apriCassetto } from './cassetto.js';
 import {
-  st, cella, gruppiFiltrati, mappaturaSito,
+  st, cella, gruppiFiltrati, mappaturaSito, responsabiliAttivi,
   CAMPI, SIGLA, PASSI, ETICHETTA, fatto,
 } from './stato.js';
 
@@ -100,7 +100,7 @@ const statoDi = ma => ma.ritardo ? 'ritardo'
  *  `voci`, UNA riga per SITO, cosi' i totali non possono raccontare due storie
  *  diverse. Nelle voci ci sono anche i siti fuori conto (`prevista` falso):
  *  l'elenco li mostra, i totali li saltano. */
-function raccogli() {
+export function raccogli() {
   const passo = Object.fromEntries(CAMPI.map(c => [c, 0]));
   const voci = [];
   /* `op` = chi ha messo le spunte, `cli` = come stanno i clienti nel loro
@@ -152,8 +152,11 @@ function raccogli() {
       if (ma.completa) { r.complete++; chiuse++; conta(cella(s.id, ma.mese).by, 'chiuse'); }
       else if (ma.ritardo) { r.ritardo++; arretrate++; }
       if (ma.n > 0) iniziate++;
-      const c0 = cella(s.id, ma.mese);
-      for (const c of CAMPI) if (fatto(c0, c)) passo[c]++;
+      /* I passi si accumulano fra i mesi (#ANCHOR: passi-cumulativi): la
+         mappatura li ha tutti in `ma.passi`, dovunque siano stati messi.
+         Prima si guardava la sola cella di `ma.mese`, e una mappatura chiusa
+         (stampata a marzo, il resto a settembre) risultava senza stampata. */
+      for (const c of CAMPI) if (ma.passi[c]) passo[c]++;
     }
     r.aperti += aperti;
     if (aperti) r.clienti++;
@@ -680,7 +683,7 @@ function quadranteAnno(mesi, d) {
    misuratore con l'obiettivo segnato, e sotto la proiezione: dove si arriva a
    fine anno tenendo questo passo. Il tracciamento puo' partire a meta' anno
    (`inizio_tracciamento`), quindi i mesi trascorsi si contano da li'. */
-function ritmo(d) {
+export function ritmo(d) {
   const rimaste = d.mappature - d.complete;
   const [aT, mT] = st.inizioTracciamento.split('-').map(Number);
   const inizioM = aT < st.anno ? 1 : aT === st.anno ? mT : 13;
@@ -692,7 +695,10 @@ function ritmo(d) {
   } else {
     fase = 'corso';
     trascorsi = Math.max(0, st.meseOggi - inizioM + 1);
-    restanti = 13 - st.meseOggi;
+    /* se il tracciamento parte piu' avanti nell'anno, i mesi a disposizione
+       partono da li': con l'inizio a novembre visto a settembre sono due, non
+       quattro, e il ritmo necessario era la meta' del vero */
+    restanti = 13 - Math.max(st.meseOggi, inizioM);
   }
   const servono = restanti ? rimaste / restanti : 0;
   const finora = trascorsi ? d.complete / trascorsi : 0;
@@ -1010,7 +1016,8 @@ export function disegna(area, animato = true) {
     nota ? h('span.t-nota', { testo: nota }) : null);
 
   const f = st.filtri;
-  const filtrato = !!(f.q || f.prov || f.stato);
+  // anche il solo responsabile ("Le mie") restringe i siti contati
+  const filtrato = !!(f.q || f.prov || f.stato || (f.resp && responsabiliAttivi()));
   const eroe = h('section.carta.eroe.c12', {},
     h('div.eroe-quadro', { html: quadranteAnno(mesiTutti, d) }),
     h('div.eroe-testo', {},

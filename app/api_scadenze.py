@@ -1,9 +1,21 @@
 """Scadenze ed esportazione (COD-07, da app/api.py): termine contrattuale in
 corso (#ANCHOR: rinnovo), mese della mappatura e CSV del foglio di lavoro.
 """
-import calendar, csv, datetime, io
+import calendar, csv, datetime, io, re
 import db
 from api_comune import _anno
+
+
+_ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+
+
+def _data_iso(v):
+    """(anno, mese, giorno) di una data AAAA-MM-GG, None se non lo e'."""
+    x = _ISO.fullmatch(v) if isinstance(v, str) else None
+    if not x:
+        return None
+    a, m, g = (int(p) for p in x.groups())
+    return (a, m, g) if a >= 1 and 1 <= m <= 12 and 1 <= g <= 31 else None
 
 
 def _scad_effettiva(s, oggi=None):
@@ -18,10 +30,16 @@ def _scad_effettiva(s, oggi=None):
     scad = s["data_scadenza"]
     if not scad or not s["rinnovo_auto"] or s["stato"] != "APERTO":
         return scad
-    a2, m2, g2 = (int(x) for x in scad.split("-"))
+    # Una data non AAAA-MM-GG (un campo testo in Access, un export diverso) si
+    # lascia com'e': prima un ValueError qui faceva cadere il CSV di tutti.
+    d2 = _data_iso(scad)
+    if d2 is None:
+        return scad
+    a2, m2, g2 = d2
     passo = 12
-    if s["data_inizio"]:
-        a1, m1, g1 = (int(x) for x in s["data_inizio"].split("-"))
+    d1 = _data_iso(s["data_inizio"])
+    if d1:
+        a1, m1, g1 = d1
         n = (a2 - a1) * 12 + (m2 - m1) + (1 if g2 >= g1 else 0)
         passo = n if n >= 1 else 12
     a, m = a2, m2
@@ -61,18 +79,32 @@ def _mese_scadenza(s, anno, oggi=None):
     return 0
 
 
+_NUMERO = re.compile(r"[+-]?\d+([.,]\d+)?")
+
+
 def _testo_csv(v):
-    """Un testo che comincia con = + - @ Excel lo legge come formula (anche una chiamata
-    verso l'esterno): davanti si mette una tabulazione, invisibile, come fa il Planning."""
+    """Formula injection (OWASP "CSV Injection"): un testo che comincia con
+    = + - @ TAB o CR, Excel e LibreOffice lo leggono come formula (anche una
+    chiamata verso l'esterno, =HYPERLINK o =cmd|...). Davanti si mette un
+    apice, che lo fa restare testo. La tabulazione usata prima non bastava: una
+    cella che cominciava GIA' con TAB o CR passava intatta, e una TAB davanti
+    e' proprio uno dei caratteri da neutralizzare. Un numero semplice (-5,
+    -3,5) non e' una formula e resta com'e'. Il gemello online `_csv` in
+    cloud/09-debug-2026-09-23.sql usa ancora la tabulazione."""
     v = "" if v is None else str(v)
-    return "\t" + v if v[:1] in ("=", "+", "-", "@") else v
+    if v[:1] in ("=", "+", "-", "@", "\t", "\r") and not _NUMERO.fullmatch(v):
+        return "'" + v
+    return v
 
 
 def esporta_csv(ctx, q, body):
     """Checklist stampabile/foglio di lavoro. Se manca `mese` esporta l'anno intero."""
     with db.sess() as c:
         anno = _anno(q, c)
-        mese = int(q["mese"]) if str(q.get("mese", "")).isdigit() else None
+        # un mese fuori da 1..12 ("13", o "²" che per isdigit e' una cifra e per
+        # int() no: un 400) vale come "tutto l'anno", come un mese non numerico
+        m = str(q.get("mese", ""))
+        mese = int(m) if m.isascii() and m.isdecimal() and 1 <= int(m) <= 12 else None
         out = io.StringIO()
         w = csv.writer(out, delimiter=";", lineterminator="\r\n")
         w.writerow(["Anno", "Mese", "Ruolo", "IDService", "Cliente", "Destinazione",

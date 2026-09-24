@@ -4,7 +4,7 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v32';
+const CACHE = 'crono-guscio-v33';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
   '/css/fonti.css', '/css/vrs-famiglia.css', '/css/vrs-app.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
@@ -26,9 +26,15 @@ const GUSCIO = [
   '/assets/logo.webp',
 ];
 
+/* Tutto o niente (addAll): con allSettled un file che non si scaricava non
+   fermava niente, il nuovo si attivava, buttava la cache vecchia e offline
+   quel file mancava - moduli nuovi senza un pezzo. Cosi' un'installazione
+   fallita lascia il service worker di prima con la sua copia intera, e il
+   browser riprova alla visita dopo. L'elenco contro i file veri lo controlla
+   tests/js/web-sw.test.mjs. */
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE)
-    .then(c => Promise.allSettled(GUSCIO.map(u => c.add(u))))
+    .then(c => c.addAll(GUSCIO))
     .then(() => self.skipWaiting()));
 });
 
@@ -52,8 +58,12 @@ self.addEventListener('fetch', e => {
       if (r.ok) (await caches.open(CACHE)).put(u.search ? u.origin + u.pathname : e.request, r.clone());
       return r;
     } catch {
+      /* Il tracker come ripiego solo per le PAGINE: a uno script o a un foglio
+         mancante l'HTML di index.html arrivava come modulo, il browser lo
+         rifiutava per il tipo MIME e l'app restava bianca invece di dire
+         offline (tests/js/web-sw.test.mjs). */
       return (await caches.match(e.request, { ignoreSearch: true })) ||
-        (await caches.match('/index.html')) ||
+        (e.request.mode === 'navigate' && await caches.match('/index.html')) ||
         new Response('Offline', { status: 503 });
     }
   })());

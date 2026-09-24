@@ -469,7 +469,9 @@ body.scrubbing{cursor:grabbing;user-select:none}
 @media (max-width:980px){
   #app{flex-direction:column;height:auto;overflow:visible}
   #main{display:block}
-  #banco{overflow:visible}
+  /* il foglio (810 px) scorre dentro il banco: con overflow visibile allargava
+     la pagina a 840 px su un telefono da 375 e la guida si centrava fuori schermo */
+  #banco{overflow-x:auto;overflow-y:hidden}
   /* qui scorre di nuovo la finestra, quindi la testata puo' tornare sticky */
   #ponte{position:sticky;top:0}
   #side,#treecol{width:auto!important;flex:0 0 auto!important;position:static;height:auto;max-height:none;

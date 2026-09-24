@@ -105,6 +105,26 @@ function rigaMese(id, m, previsto) {
   );
 }
 
+/** La CONFERMA IN DUE TEMPI dei bottoni che buttano i PDF: il primo clic
+ *  arma («Sicuro?»), il secondo conferma (ritorna true), senza secondo clic
+ *  entro `ms` il bottone torna com'era. Il secondo clic vale solo dopo
+ *  `pausa` ms: quello di un DOPPIO CLIC arriva prima e confermava da solo, e
+ *  il PDF (o tutti i PDF del sito) se ne andava senza che nessuno avesse letto
+ *  la domanda. Il timer non tocca un bottone spento (cancellazione in corso)
+ *  ne' una richiesta armata dopo la sua. Esportata per i test
+ *  (tests/js/web-cassetto.test.mjs). */
+export function confermaInDueTempi(b, { base, domanda, ms = 3000, pausa = 350, ora = Date.now }) {
+  const t = ora();
+  if (b.dataset.conferma === '1') return t - Number(b.dataset.armato || 0) >= pausa;
+  const giro = String(t);
+  b.dataset.conferma = '1'; b.dataset.armato = giro; b.textContent = domanda;
+  setTimeout(() => {
+    if (b.disabled || b.dataset.conferma !== '1' || b.dataset.armato !== giro) return;
+    b.dataset.conferma = ''; b.textContent = base;
+  }, ms);
+  return false;
+}
+
 /* MOB-16 · Il link di questo sito, da mandare a un collega: sul telefono con
    il foglio di condivisione del sistema, sul computer (o in ufficio, in http)
    negli appunti. Chi lo apre si trova questo cassetto (#ANCHOR: condividi). */
@@ -312,13 +332,7 @@ function sezDocumenti() {
                 (inNuvola() ? '. Va nel cestino: per 30 giorni si può rimettere.' : ''),
               onclick: async e => {
                 const b = e.currentTarget;
-                if (b.dataset.conferma !== '1') {
-                  b.dataset.conferma = '1'; b.textContent = 'Sicuro?';
-                  setTimeout(() => {
-                    if (!b.disabled) { b.dataset.conferma = ''; b.textContent = 'Elimina'; }
-                  }, 3000);
-                  return;
-                }
+                if (!confermaInDueTempi(b, { base: 'Elimina', domanda: 'Sicuro?', ms: 3000 })) return;
                 b.disabled = true; b.textContent = 'Elimino…';
                 try {
                   for (const f of g.docs) await eliminaDocumento(f);
@@ -360,13 +374,8 @@ function sezDocumenti() {
           '«stampata» restano.',
         onclick: async e => {
           const b = e.currentTarget;
-          if (b.dataset.conferma !== '1') {
-            b.dataset.conferma = '1'; b.textContent = `Sicuro? ${docs.length} PDF`;
-            setTimeout(() => {
-              b.dataset.conferma = ''; b.textContent = `Elimina tutti (${docs.length})`;
-            }, 4000);
-            return;
-          }
+          if (!confermaInDueTempi(b, { base: `Elimina tutti (${docs.length})`,
+            domanda: `Sicuro? ${docs.length} PDF`, ms: 4000 })) return;
           b.disabled = true; b.textContent = 'Elimino…';
           try {
             const { n, bytes } = await eliminaDocumenti({ id_service: idAperto });

@@ -109,8 +109,10 @@ export function gruppiDocumenti(id) {
     docs.sort((a, b) => (a.fascicolo || 1) - (b.fascicolo || 1));
     return {
       capo: docs[0], docs,
-      pagine: docs.reduce((n, d) => n + (d.pagine || 0), 0),
-      bytes: docs.reduce((n, d) => n + (d.bytes || 0), 0),
+      /* numeri anche quando la riga porta una stringa: finiscono in un
+         attributo HTML scritto a mano (htmlChipDocumento) */
+      pagine: docs.reduce((n, d) => n + (Number(d.pagine) || 0), 0),
+      bytes: docs.reduce((n, d) => n + (Number(d.bytes) || 0), 0),
       fascicoli: docs[0].fascicoli && docs.length > 1 ? docs.length : 1,
       creato_il: docs.reduce((t, d) => (d.creato_il > t ? d.creato_il : t), ''),
       tipo: tipoDi(docs[0]),
@@ -173,7 +175,9 @@ export function ascoltaAltreSchede() {
   };
 }
 export function annunciaAltreSchede(ev) {
-  try { new BroadcastChannel(CANALE).postMessage(ev); } catch { }
+  /* il messaggio parte alla postMessage: il canale si chiude subito, se no ne
+     restava uno aperto per ogni PDF salvato o tolto */
+  try { const bc = new BroadcastChannel(CANALE); bc.postMessage(ev); bc.close(); } catch { }
 }
 
 /** L'indirizzo di un generatore (`tipo`: 'schede' | 'registro'). Con un sito,
@@ -219,9 +223,9 @@ export function htmlChipDocumento(id) {
     const anni = [...new Set(g.map(x => x.capo.anno))].sort();
     const titolo = `${TIPI[tipo].et} · ${esc(titoloDocumento(d))}` +
       (g[0].fascicoli > 1 ? ` · ${g[0].fascicoli} fascicoli` : '') + (pag ? ' · ' + pag : '') +
-      (altroAnno ? ` · del ${d.anno}` : '') +
+      (altroAnno ? ` · del ${esc(d.anno)}` : '') +
       ` · ${esc(d.creato_da)} ${quando(d.creato_il)}` +
-      (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + anni.join(', ') + ')' : ''}` : '');
+      (g.length > 1 ? ` · ${g.length} documenti${anni.length > 1 ? ' (' + esc(anni.join(', ')) + ')' : ''}` : '');
     chip.push(`<button type="button" class="doc-chip t-${tipo}${altroAnno ? ' altro-anno' : ''}" data-doc="${esc(d.id)}"
         title="${titolo}" aria-label="Apri il PDF: ${TIPI[tipo].et}">
         ${ICONA_TIPO[tipo]}${g.length > 1 ? `<i>${g.length}</i>` : ''}
@@ -339,12 +343,31 @@ const scordaFirma = p => firmati.delete(p);
    farlo viaggiare in ogni bootstrap si ricostruisce: e' deterministico. */
 const percorsoDi = d => d.percorso || `${d.anno}/${d.id_service}/${d.id}.pdf`;
 
+/** Il tetto del server (app/api_documenti.py MAX_PDF, bucket `documenti` in
+ *  cloud/06-documenti.sql): oltre, il server rifiuta - ma solo DOPO aver
+ *  ricevuto tutto, e in locale dopo che il browser ha fatto il base64 dell'intero
+ *  file in memoria. Meglio dirlo prima. */
+export const MAX_PDF = 200 * 1024 * 1024;
+
+/** Il PDF da consegnare e' un file vero, non vuoto, entro il tetto? Lancia
+ *  con un testo da mostrare, se no. */
+export function controllaPdf(pdf) {
+  const n = pdf && typeof pdf.size === 'number' ? pdf.size : -1;
+  if (n < 0) throw new Error('nessun PDF da consegnare');
+  if (n === 0) throw new Error('il PDF è vuoto: rifai l’esportazione');
+  if (n > MAX_PDF) {
+    throw new Error(`il PDF pesa ${Math.round(n / 1048576)} MB, oltre i ${MAX_PDF / 1048576} MB ` +
+      'che il tracker accetta: meno pagine, o la stampa divisa in fascicoli');
+  }
+  return n;
+}
+
 /** Carica un PDF prodotto dal generatore e lo registra. `pdf` e' un Blob.
  *  Ritorna la risposta del server: {documento, mese, cella}. */
 export async function salvaDocumento({ id_service, anno, mese, nome, pdf, pagine, anteprima,
                                         gruppo = null, fascicolo = null, fascicoli = null,
                                         tipo = 'schede' }) {
-  const bytes = pdf.size;
+  const bytes = controllaPdf(pdf);
   // un documento in fascicoli: N PDF, un gruppo. `tipo` decide se si mette la spunta (lo sa il server)
   const parti = { gruppo, fascicolo, fascicoli, tipo: tipo === 'registro' ? 'registro' : 'schede' };
   if (!nuvola.attiva()) {
