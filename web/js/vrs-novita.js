@@ -51,8 +51,9 @@ export const MAX_EVIDENZA = 5;
 
 /**
  * @typedef {{ icona: string, titolo: string, testo: string }} Voce
+ * @typedef {{ gruppo: string, voci: string[] }} Gruppo
  * @typedef {{ id: string, data: string, titolo: string, evidenza: Voce[],
- *   novita: string[], miglioramenti: string[], correzioni: string[] }} Rilascio
+ *   novita: Gruppo[], miglioramenti: Gruppo[], correzioni: Gruppo[] }} Rilascio
  * @typedef {{ leggi: () => (string | null | undefined), scrivi: (id: string) => unknown }} Remoto
  * @typedef {{
  *   app: string,
@@ -68,7 +69,33 @@ export const MAX_EVIDENZA = 5;
 /* ------------------------------------------------------------- i dati --- */
 
 const testo = (/** @type {unknown} */ x) => (typeof x === 'string' ? x.trim() : '');
-const righe = (/** @type {unknown} */ x) => (Array.isArray(x) ? x.map(testo).filter(Boolean) : []);
+/**
+ * Una sezione del dettaglio (novita, miglioramenti, correzioni) come gruppi: nel file ogni voce è una
+ * riga oppure un gruppo `{ "gruppo": "Sul telefono", "voci": [...] }`; le righe sciolte di seguito
+ * fanno un gruppo senza nome. Gli elenchi lunghi (le «90 correzioni») restano leggibili per area.
+ * @param {unknown} x @returns {Gruppo[]}
+ */
+function gruppi(x) {
+  /** @type {Gruppo[]} */
+  const fuori = [];
+  for (const v of Array.isArray(x) ? x : []) {
+    if (v && typeof v === 'object') {
+      const voci = (Array.isArray(/** @type {any} */ (v).voci) ? /** @type {any} */ (v).voci : []).map(testo).filter(Boolean);
+      if (voci.length) fuori.push({ gruppo: testo(/** @type {any} */ (v).gruppo), voci });
+      continue;
+    }
+    const t = testo(v);
+    if (!t) continue;
+    const ultimo = fuori[fuori.length - 1];
+    if (ultimo && !ultimo.gruppo) ultimo.voci.push(t);
+    else fuori.push({ gruppo: '', voci: [t] });
+  }
+  return fuori;
+}
+/** Quante righe ha una sezione, gruppi compresi */
+export const conta = (/** @type {Gruppo[]} */ g) => g.reduce((n, x) => n + x.voci.length, 0);
+/** Tutte le righe di una sezione, senza gruppi */
+export const righeDi = (/** @type {Gruppo[]} */ g) => g.flatMap((x) => x.voci);
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -91,7 +118,7 @@ export function normalizza(dati) {
       .filter((/** @type {Voce} */ v) => v.titolo);
     fuori.push({
       id, data, titolo, evidenza,
-      novita: righe(r.novita), miglioramenti: righe(r.miglioramenti), correzioni: righe(r.correzioni),
+      novita: gruppi(r.novita), miglioramenti: gruppi(r.miglioramenti), correzioni: gruppi(r.correzioni),
     });
   }
   return fuori;
@@ -381,16 +408,19 @@ export function montaNovita(posto, opz) {
         disabled: i === 0, onclick: () => mostra('dettaglio', i - 1), html: svg(PERCORSI.destra, 18),
       }));
 
-    const piene = SEZIONI.filter((s) => r[s.chiave].length);
+    const piene = SEZIONI.filter((s) => conta(r[s.chiave]));
     const sezioni = piene.length
       ? piene.map((s, k) =>
         el('details.vrs-nov-sez', { 'data-sez': s.chiave, open: !piccolo || k === 0 },
           el('summary', {},
             el('span.vrs-nov-sez-ico', { 'aria-hidden': 'true', html: svg(s.ico, 16) }),
             el('span.vrs-nov-sez-nome', { testo: s.nome }),
-            el('span.vrs-nov-sez-n', { testo: String(r[s.chiave].length), 'aria-label': `${r[s.chiave].length} voci` }),
+            el('span.vrs-nov-sez-n', { testo: String(conta(r[s.chiave])), 'aria-label': `${conta(r[s.chiave])} voci` }),
             el('span.vrs-nov-sez-giu', { 'aria-hidden': 'true', html: svg(PERCORSI.giu, 16) })),
-          el('ul', {}, ...r[s.chiave].map((t) => el('li', { testo: t })))))
+          el('div.vrs-nov-sez-corpo', {}, ...r[s.chiave].flatMap((g) => [
+            g.gruppo ? el('h3.vrs-nov-gruppo', { testo: g.gruppo }) : null,
+            el('ul', {}, ...g.voci.map((t) => el('li', { testo: t }))),
+          ].filter((x) => x !== null)))))
       : [el('p.vrs-nov-vuoto', { testo: 'Per questo aggiornamento non ci sono altre modifiche da raccontare.' })];
 
     const storico = el('details.vrs-nov-storico', { open: !piccolo && rilasci.length <= 6 },

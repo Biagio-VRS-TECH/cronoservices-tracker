@@ -9,12 +9,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PERCORSI } from '../../web/js/vrs-icone.js';
-import { normalizza, daVedere, dataItaliana, MAX_EVIDENZA } from '../../web/js/vrs-novita.js';
+import { normalizza, daVedere, dataItaliana, righeDi, MAX_EVIDENZA } from '../../web/js/vrs-novita.js';
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 const grezzo = JSON.parse(readFileSync(join(WEB, 'novita.json'), 'utf8'));
 const rilasci = normalizza(grezzo);
-const GERGO = /\b(migrazion[ei]|RLS|edge function|commit|deploy|SQL|RPC|API|CSS|JSON|Supabase|Netlify|token|cache|service worker|realtime|endpoint|refactor|DPAPI|CSP|query|WAL|UDP|SSE|frontend|backend|null)\b/i;
+const GERGO = /\b(migrazion[ei]|RLS|edge function|commit|deploy|SQL|RPC|API|CSS|JSON|Supabase|Netlify|token|cache|service worker|realtime|endpoint|refactor|DPAPI|CSP|query|WAL|UDP|SSE|frontend|backend|null|undefined|React|bucket|chunk|merge|branch)\b/i;
 
 test('il modulo legge tutti i rilasci, e il file e\' di CronoService', () => {
   assert.equal(grezzo.app, 'cronoservice');
@@ -42,10 +42,18 @@ test('in evidenza da 3 a 5 per quello in linea, icone che esistono, testi brevi'
 
 test('niente gergo tecnico', () => {
   for (const r of rilasci) {
-    for (const t of [r.titolo, ...r.evidenza.flatMap(v => [v.titolo, v.testo]), ...r.novita, ...r.miglioramenti, ...r.correzioni]) {
+    const gruppi = [...r.novita, ...r.miglioramenti, ...r.correzioni].map(g => g.gruppo).filter(Boolean);
+    for (const t of [r.titolo, ...r.evidenza.flatMap(v => [v.titolo, v.testo]), ...gruppi, ...righeDi(r.novita), ...righeDi(r.miglioramenti), ...righeDi(r.correzioni)]) {
       assert.doesNotMatch(t, GERGO, t);
       assert.ok(!t.includes('...'), t);
     }
+  }
+});
+
+test("il dettaglio e' completo: ogni riga una volta sola", () => {
+  for (const r of rilasci) {
+    const tutte = [...righeDi(r.novita), ...righeDi(r.miglioramenti), ...righeDi(r.correzioni)];
+    assert.equal(new Set(tutte).size, tutte.length, 'righe doppie in ' + r.id);
   }
 });
 

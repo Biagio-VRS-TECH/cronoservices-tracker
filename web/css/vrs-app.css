@@ -394,7 +394,14 @@ html.vrs-nov-aperta { overflow: hidden; }
 }
 .vrs-nov-sez-giu { display: grid; place-items: center; color: var(--vrs-muted); transition: transform var(--vrs-t) var(--vrs-ease); }
 details[open] > summary .vrs-nov-sez-giu { transform: rotate(180deg); }
-.vrs-nov-sez ul { margin: 0; padding: 2px 16px 14px 52px; display: grid; gap: 8px; }
+.vrs-nov-sez-corpo { padding: 2px 16px 14px 34px; }
+.vrs-nov-sez ul { margin: 0; padding: 0 0 0 18px; display: grid; gap: 8px; }
+.vrs-nov-sez ul + .vrs-nov-gruppo { margin-top: 16px; }
+/* i gruppi di un elenco lungo (Sul telefono, Documenti…): un'etichetta sopra le sue righe */
+.vrs-nov-gruppo {
+  margin: 4px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--vrs-muted); line-height: 1.3;
+}
 .vrs-nov-sez li { font-size: 14px; line-height: 1.5; color: var(--vrs-text-2); overflow-wrap: anywhere; }
 .vrs-nov-sez li::marker { color: var(--vrs-muted); }
 .vrs-nov-storico ol { list-style: none; margin: 0; padding: 0 6px 8px; display: grid; gap: 2px; }
@@ -431,7 +438,7 @@ details[open] > summary .vrs-nov-sez-giu { transform: rotate(180deg); }
   .vrs-nov-ok, .vrs-nov-link { min-height: 48px; width: 100%; margin: 0; }
   .vrs-nov-x, .vrs-nov-freccia { width: 44px; height: 44px; }
   .vrs-nov-indietro { min-height: 44px; }
-  .vrs-nov-sez ul { padding-left: 44px; }
+  .vrs-nov-sez-corpo { padding-left: 28px; }
 }
 
 /* Sul tocco: bersagli da 44 px */

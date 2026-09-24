@@ -9,21 +9,153 @@
         { "icona": "scintilla", "titolo": "Sai sempre cosa è cambiato", "testo": "Dopo ogni aggiornamento te lo raccontiamo qui. Il tasto con la stellina, in alto, lo riapre quando vuoi." },
         { "icona": "spunta", "titolo": "Le spunte non tornano indietro", "testo": "Doppio clic o rete lenta non riportano più una spunta allo stato di prima." },
         { "icona": "cantieri", "titolo": "Lo Scheduler fra le app VRS", "testo": "«Le app VRS» porta anche allo Scheduler, il nuovo sito dei cantieri." },
-        { "icona": "ok", "titolo": "Una novantina di correzioni", "testo": "Un controllo completo ha sistemato difetti piccoli e grandi, anche sul telefono." }
+        { "icona": "pollice", "titolo": "Più comodo sul telefono", "testo": "La pagina non scorre più di lato, i comandi sono da pollice e scrivendo lo schermo non si ingrandisce." },
+        { "icona": "ok", "titolo": "96 correzioni", "testo": "Un controllo completo ha sistemato difetti piccoli e grandi: nelle spunte, sul telefono, online e sul PC dell'ufficio." }
       ],
       "novita": [
         "Tasto «Novità» nella testata, con il pallino quando c'è un aggiornamento da vedere.",
         "Lo Scheduler compare in «Le app VRS» al posto di «Cantieri»."
       ],
       "miglioramenti": [
-        "Sul telefono la barra, la testata e i riquadri stanno nello schermo e si toccano meglio.",
-        "Senza rete l'app si apre comunque, invece di restare bianca."
+        "Più prove automatiche: ogni difetto corretto ha una prova che lo ripete, anche nel browser e sul telefono, così non torna."
       ],
       "correzioni": [
-        "Le modifiche non si perdono più quando il server risponde con un errore momentaneo.",
-        "La nota non si perde chiudendo il riquadro.",
-        "«Annulla» dopo un'azione vuota non disfa più quella precedente.",
-        "Un amministratore disattivato nel Planning non ha più i poteri da amministratore qui."
+        {
+          "gruppo": "Spunte e note",
+          "voci": [
+            "Un doppio clic sullo stesso passo non fa più ricomparire a schermo il valore di prima.",
+            "Un errore momentaneo del server non butta più via le spunte da inviare: restano in coda e ripartono da sole.",
+            "Se il server risponde con una pagina d'errore al posto dei dati, la coda degli invii non resta più bloccata per sempre.",
+            "Un errore in una parte della pagina non ferma più l'invio delle altre spunte in coda.",
+            "Un'azione confermata da un'altra scheda del browser non lascia più i passi «in attesa» per sempre.",
+            "Ricaricando la pagina con spunte ancora da inviare, restano segnate «in attesa» e la nota non ancora spedita resta a schermo.",
+            "La modifica di un collega non cancella più dallo schermo una tua spunta o una tua nota ancora da inviare.",
+            "Se il server rifiuta una spunta o una nota, lo schermo torna com'era invece di restare sbagliato.",
+            "Se il server rifiuta la prima di due modifiche allo stesso passo, resta valida la seconda.",
+            "Una risposta arrivata dopo un cambio d'anno non scrive più nelle celle dell'anno che stai guardando.",
+            "Un conflitto sulla nota di un anno che non stai più guardando viene detto, senza toccare l'anno a schermo.",
+            "La nota non si perde più chiudendo il riquadro con Esc, con un clic fuori o passando a un'altra cella.",
+            "Dopo aver salvato la tua nota non compare più l'avviso che un collega «intanto ha scritto».",
+            "«Completa» e «Azzera i passi di questo mese» non chiudono più il riquadro della cella.",
+            "Online, Rapportino e Ricambi proposti da un operatore restano proposte anche nell'invio: l'«Annulla» di chi approva le rimette davvero in attesa, senza conflitti finti."
+          ]
+        },
+        {
+          "gruppo": "Azioni di massa e filtri",
+          "voci": [
+            "Un'azione di massa che non cambia niente, perché un collega aveva già fatto tutto, non offre più «Annulla», che disfaceva l'azione di prima.",
+            "«Completa tutte» non aggiunge più passi a un sito la cui mappatura è già chiusa in un altro mese.",
+            "Nella vista Mese, con la selezione multipla, le proposte già in attesa non si rimandano e il numero annunciato è quello inviato.",
+            "Con «Mostra chiusi» acceso, il filtro di stato mostra esattamente le righe che il suo numero conta.",
+            "Se il filtro «Le mie» svuota il mese, la vista Mese lo dice, invece di scrivere che nessun sito ha lavoro in quel mese."
+          ]
+        },
+        {
+          "gruppo": "Sul telefono",
+          "voci": [
+            "La pagina non scorre più di lato.",
+            "Bottoni, caselle e voci dei menu hanno bersagli da almeno 44 px, comodi per il pollice.",
+            "I campi di testo sono a 16 px: il telefono non ingrandisce più la pagina quando ci scrivi.",
+            "La testata sta su una riga sola e non si mangia lo schermo.",
+            "La barra delle azioni multiple resta dentro lo schermo.",
+            "Il riquadro delle spunte si apre come un foglio dal basso e non esce più dallo schermo.",
+            "La pagina del generatore delle schede non è più larga il doppio dello schermo.",
+            "Nella guida dei generatori ogni fumetto resta dentro lo schermo."
+          ]
+        },
+        {
+          "gruppo": "Schermo, Statistiche e date",
+          "voci": [
+            "Il riquadro della cella aperto vicino al fondo della finestra non esce più di sotto.",
+            "Un avviso non copre più i bottoni della barra delle azioni multiple.",
+            "Nelle Statistiche, «I 4 passi» conta anche i passi fatti in un altro mese dello stesso sito o ereditati dall'anno prima.",
+            "Se il tracciamento parte più avanti nell'anno, il ritmo per chiudere l'anno conta i mesi da quel momento.",
+            "Statistiche senza siti o senza mappature dovute: percentuali a zero invece di scritte senza senso.",
+            "Con il filtro «Le mie» acceso, le Statistiche dicono che stanno guardando i siti filtrati.",
+            "«Oggi» e «ieri» restano giusti col cambio dell'ora e con un orologio avanti di qualche minuto: niente più «-1 giorni fa» o date non valide.",
+            "Le date non slittano più al giorno prima su un computer impostato su un fuso lontano dall'Italia.",
+            "Nomi di clienti, siti, file e componenti con caratteri come < o & si vedono come testo ovunque, senza rompere la pagina."
+          ]
+        },
+        {
+          "gruppo": "Documenti e PDF",
+          "voci": [
+            "Un doppio clic su «Elimina» non salta più la domanda «Sicuro?»: il PDF non se ne va per sbaglio.",
+            "Mentre «Elimina tutti» sta cancellando, il bottone non torna più alla scritta di partenza.",
+            "Un PDF vuoto, o più grande di 200 MB, viene fermato subito, prima di caricarlo.",
+            "Il nome del file PDF non porta più caratteri che Windows rifiuta, a capo, punti in fondo o simboli spezzati a metà.",
+            "Un indirizzo del generatore con un mese sbagliato non rompe più la testata.",
+            "Scegliendo due file Excel di fila vale l'ultimo scelto, non quello che finisce di leggersi dopo.",
+            "Un file tolto mentre si sta leggendo non ricompare a lettura finita.",
+            "Registro: un file illeggibile caricato dopo uno buono lo dice e lascia intero il documento di prima.",
+            "Schede: un file vuoto viene segnalato subito, in italiano.",
+            "Dizionario del registro: un ordine scritto «3.0» o «1e1» si salva come numero pulito, invece di essere rifiutato dopo.",
+            "Dizionario del registro: la descrizione ricopiata col clic e lasciata com'è non si salva come nome.",
+            "Guida dei generatori: ogni passo indica un comando che c'è, e un passo senza testo resta vuoto invece di mostrare una parola senza senso.",
+            "Condividere il collegamento a un sito: se il browser nega l'accesso agli appunti, l'app lo dice invece di fermarsi."
+          ]
+        },
+        {
+          "gruppo": "Online e accessi",
+          "voci": [
+            "Un amministratore disattivato nel Planning non ha più i poteri da amministratore qui, e non può più registrare colleghi.",
+            "«Ripristina il blocco» prende solo le spunte di quel blocco: un nome con certi simboli poteva ripristinare tutto il diario.",
+            "La data d'inizio del tracciamento non accetta più mesi inesistenti come «2026-13», che spegnevano i ritardi per un anno.",
+            "L'ultimo amministratore attivo non si può declassare, anche se in elenco ce ne sono di disattivati.",
+            "Un sito non si può più affidare a una persona disattivata nel Planning.",
+            "Spunte con mese o anno sbagliati, e richieste del diario fuori misura, ricevono un errore chiaro.",
+            "Ripristinare un blocco che non ha più niente da cambiare non dà più errore.",
+            "Nel file CSV i numeri negativi restano numeri, e anche i testi che iniziano con una tabulazione o un a capo non diventano formule.",
+            "«Registra un collega»: una password troppo debole dice il motivo, invece di rispondere «casella già registrata».",
+            "Chiudendo o cambiando anno mentre l'accesso si rinnova, non si apre più un secondo collegamento che faceva arrivare le celle due volte.",
+            "Se il collegamento in tempo reale viene rifiutato perché l'accesso è scaduto, l'app si riaggancia da sola invece di restare muta fino al ricarico.",
+            "La pagina d'accesso funziona anche con i dati del sito bloccati, come in Safari o nella navigazione privata."
+          ]
+        },
+        {
+          "gruppo": "Senza rete",
+          "voci": [
+            "Senza rete l'app si apre comunque, invece di restare bianca.",
+            "Un aggiornamento scaricato a metà non si attiva più: resta intera la versione di prima.",
+            "Senza rete si aprono anche i generatori raggiunti da un collegamento con il sito.",
+            "Un errore del server non rovina più la copia dell'app tenuta per quando manca la rete.",
+            "Con la memoria del browser piena, i dati appena arrivati si vedono lo stesso."
+          ]
+        },
+        {
+          "gruppo": "Archivio sul PC dell'ufficio",
+          "voci": [
+            "Spunte e note con mese, anno o sito fuori misura non finiscono più nell'archivio: niente più celle del «mese 13».",
+            "Valori strani nelle richieste, come numeri enormi o nomi che non sono testo, ricevono un errore chiaro invece di un errore del server.",
+            "Con l'archivio occupato da un altro programma il server risponde «riprova» e non lascia PDF a metà.",
+            "Un conflitto su una cella mai scritta non lascia più righe vuote nell'archivio.",
+            "Un elenco di amministratori scritto male nella configurazione non rende più amministratore chi ha un nome simile.",
+            "Il PIN dell'amministratore impostato a 0 non viene più ignorato.",
+            "Le Impostazioni non dicono più di aver salvato quando il PIN è stato rifiutato.",
+            "Un PDF arrivato troncato non viene più archiviato e non mette la spunta «Stampata».",
+            "Un PDF con un nome pieno di simboli speciali si salva lo stesso.",
+            "Con il disco pieno durante il salvataggio non resta mezzo PDF nella cartella.",
+            "Un PDF salvato mentre un collega elimina i PDF in blocco non va più perso.",
+            "Un'anteprima PDF con dentro del codice non viene più salvata.",
+            "Nomi lunghissimi non finiscono più interi nel diario, e il segnale di presenza non manda più dati enormi a tutti i colleghi.",
+            "Una richiesta troppo grande o lasciata a metà non tiene più occupato il server.",
+            "Il generatore aperto da un indirizzo senza la barra finale non si apre più rotto.",
+            "La copia di sicurezza copia l'archivio in uso, anche quello scelto all'avvio, comprese le ultime modifiche.",
+            "Con zero copie di sicurezza da tenere resta solo l'ultima, invece di accumularle tutte.",
+            "Se la lettura di Access va oltre il tempo, il file temporaneo con l'anagrafica non resta nel PC.",
+            "Un errore di Access con lettere accentate arriva intero, invece di un messaggio vuoto.",
+            "Un'anagrafica di Access con una sola riga, o con le date scritte all'italiana, viene letta bene.",
+            "Una data scritta male in Access non fa più fallire il CSV di tutto l'ufficio.",
+            "Il diario non riscrive più, a ogni lettura di Access, tutti i siti archiviati da mesi.",
+            "L'invio online delle 08:15 riprova da solo se la rete cade un attimo, invece di saltare il giorno.",
+            "L'invio online non scrive più la chiave nel registro degli errori, e una risposta non valida viene spiegata.",
+            "Un pacchetto troppo grande in rete non ferma più il PC che risponde agli altri, né la ricerca dei colleghi.",
+            "La fascia rossa del doppio server fa collegamenti solo a indirizzi web veri, con il nome del PC ripulito.",
+            "Il primo server acceso viene a sapere del secondo: la fascia rossa la vede anche chi usa il primo.",
+            "Due avvii quasi insieme del server danno il messaggio «già in esecuzione» invece di un errore.",
+            "Il server parte anche quando è impostato su un indirizzo di rete IPv6."
+          ]
+        }
       ]
     },
     {
@@ -34,21 +166,92 @@
         { "icona": "griglia", "titolo": "Le app VRS in un tocco", "testo": "Il marchio in alto a sinistra apre il Planning e torna qui, senza cercare indirizzi." },
         { "icona": "auto", "titolo": "Chiaro, scuro o automatico", "testo": "Il tema si sceglie una volta e ti segue anche nel Planning." },
         { "icona": "persona", "titolo": "Ogni sito ha il suo responsabile", "testo": "Con il filtro «Le mie» vedi solo i siti affidati a te, e li affidi anche a gruppi." },
-        { "icona": "menu", "titolo": "Fatto per il telefono", "testo": "La vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato." }
+        { "icona": "menu", "titolo": "Fatto per il telefono", "testo": "La vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato." },
+        { "icona": "cestino", "titolo": "I PDF eliminati vanno nel cestino", "testo": "Online un PDF eliminato si rimette con «Annulla» o dal cestino, per 30 giorni." }
       ],
       "novita": [
-        "Condivisione del collegamento a un sito, dal cassetto.",
+        "Il selettore «Le app VRS»: il marchio in alto a sinistra porta al Planning e riporta qui.",
+        "Tema Automatico, Chiaro o Scuro, lo stesso del Planning: scelto in un'app vale anche nell'altra.",
+        "Ogni sito ha un responsabile: il filtro «Le mie» mostra i tuoi, e «Affida i siti filtrati…» li assegna in blocco.",
+        "Condivisione del collegamento a un sito, dal pannello del sito.",
         "Un indirizzo con il numero del sito apre direttamente il suo pannello.",
-        "La pagina d'accesso è la stessa del Planning: «Email» e «Accedi»."
+        "La pagina d'accesso è la stessa del Planning: «Email» e «Accedi».",
+        "Cestino dei PDF, online: per 30 giorni un PDF eliminato si rimette con «Annulla» o dalla finestra del cestino; l'amministratore lo svuota quando serve spazio.",
+        "Quando esce una versione nuova l'app lo dice: «Aggiornato: ricarica per vedere le novità».",
+        "La testata dice quanto è recente l'anagrafica di Access; se è ferma da più di un giorno l'amministratore riceve un avviso.",
+        "Sul telefono la vista Anno diventa un elenco per sito e la barra degli strumenti scorre di lato.",
+        "Le scorciatoie a un tasto si possono spegnere, dalla finestra «Come si legge».",
+        "«Salta al contenuto» per chi usa la tastiera.",
+        "Sul PC dell'ufficio le azioni da amministratore possono chiedere un PIN."
       ],
       "miglioramenti": [
+        "Aspetto di famiglia col Planning: stessi colori, stesso carattere nei titoli, superfici piatte e icone uguali.",
+        "Sul telefono campi a 16 px, bersagli da 44 px e rispetto dei bordi dei telefoni con la tacca.",
         "Stati delle mappature riconoscibili anche dalla forma, non solo dal colore.",
-        "Il giro guidato è più leggero e le scorciatoie a un tasto si possono spegnere.",
-        "Il cestino si apre in una finestra sua.",
-        "Icone uguali a quelle del Planning."
+        "Il giro guidato è più leggero e i primi passi delle schede sono più corti.",
+        "Mentre i dati arrivano, al posto di «Caricamento…» si vede la forma della pagina.",
+        "Messaggi d'errore in italiano, non più tecnici; gli errori vengono segnalati da soli a chi cura l'app.",
+        "Una parola sola per ogni cosa: «sito» al posto di impianto e service, «Elimina» al posto di Cancella e Azzera.",
+        "Il titolo della scheda del browser dice la vista, il mese e l'anno.",
+        "Il pannello del sito si apre anche da tastiera e ci tiene dentro il Tab.",
+        "Un mese senza lavoro propone il primo mese dopo che ne ha.",
+        "L'app si apre più in fretta: le librerie per PDF ed Excel si scaricano solo quando servono.",
+        "L'app si prepara a funzionare senza rete fin dalla prima apertura, anche prima dell'accesso.",
+        "«Elimina il diario attività» mette la storia in archivio invece di cancellarla per sempre.",
+        "L'invio notturno dal PC dell'ufficio usa una chiave sua, custodita protetta sul PC, al posto di quella che apriva tutto.",
+        "Protezioni in più del sito contro pagine e programmi esterni."
       ],
       "correzioni": [
-        "Il file CSV aperto in Excel non porta più formule."
+        {
+          "gruppo": "Online e accessi",
+          "voci": [
+            "Online gli operatori tornano a spuntare: le spunte non rispondono più «Sola lettura».",
+            "Chi è disattivato nel Planning non entra più in CronoService.",
+            "Due amministratori che si tolgono il ruolo a vicenda nello stesso momento non lasciano più l'ufficio senza amministratore.",
+            "Chi non ha fatto l'accesso non può più registrare documenti né toccare il dizionario dei componenti.",
+            "Se la rete manca un attimo la sessione non si perde più e non si torna alla pagina d'accesso.",
+            "Dopo un'interruzione il tempo reale recupera le modifiche fatte nel frattempo dai colleghi.",
+            "Il file CSV aperto in Excel non porta più formule."
+          ]
+        },
+        {
+          "gruppo": "Spunte e schermo",
+          "voci": [
+            "Il ruolo non si perde più cambiando anno.",
+            "I tasti da 1 a 4 non spuntano più due volte.",
+            "Una risposta vecchia non riporta più indietro il passo appena messo da un collega.",
+            "Un doppio clic non fa più partire due volte la stessa azione.",
+            "L'«Annulla» di un avviso vecchio non disfa più un'azione arrivata dopo.",
+            "Cambiando anno due volte di fila vale l'ultimo anno scelto.",
+            "Con due schede aperte, una spunta fatta senza rete non si perde più.",
+            "Lasciando l'app aperta oltre la mezzanotte, la data di oggi e i ritardi si aggiornano da soli.",
+            "Al buio il velo dietro le finestre non è più grigio chiaro.",
+            "Accenti e virgolette giuste: «è» al posto di «e'»."
+          ]
+        },
+        {
+          "gruppo": "Documenti e PDF",
+          "voci": [
+            "Un'anteprima PDF con dentro del codice non può più eseguirlo.",
+            "Eliminare un PDF non lascia più una riga senza file se qualcosa va storto.",
+            "«Elimina tutti» non resta più bloccato su «Elimino…» se la richiesta fallisce.",
+            "Un PDF appena arrivato non sparisce più mentre l'elenco dei documenti si rilegge."
+          ]
+        },
+        {
+          "gruppo": "Archivio sul PC dell'ufficio",
+          "voci": [
+            "Una lettura di Access vuota non archivia più tutti i siti in un colpo.",
+            "La lettura di Access e l'invio online non usano più gli stessi file temporanei.",
+            "«Ripristina» non prende più altri blocchi quando il nome del blocco contiene certi simboli.",
+            "«Chi sta lavorando» non va più in errore con molti colleghi collegati insieme.",
+            "Il collegamento in tempo reale col PC dell'ufficio non resta più muto dopo un momento di traffico.",
+            "La ricerca degli altri PC in rete non si ferma più quando un collega chiude prima della risposta.",
+            "Un PDF dal nome lunghissimo si salva lo stesso.",
+            "Un indirizzo costruito ad arte non può più leggere file fuori dall'archivio dei PDF.",
+            "Richieste con dati mancanti o rotti ricevono un errore chiaro invece di un errore del server."
+          ]
+        }
       ]
     },
     {
@@ -61,11 +264,17 @@
         { "icona": "occhio", "titolo": "Tendine più leggibili", "testo": "La tendina aperta non è più grigio su bianco." }
       ],
       "novita": [],
-      "miglioramenti": [],
+      "miglioramenti": [
+        "«Completa tutte» e «Azzera tutte» fanno un'animazione sola: il fronte di luce che attraversa la griglia."
+      ],
       "correzioni": [
-        "Le spunte non tornano indietro con l'aggiornamento in tempo reale.",
-        "Un file nuovo non resta collegato al sito precedente.",
-        "Il testo delle tendine aperte si legge bene."
+        "Dopo «Azzera tutte» alcune spunte sembravano restare a schermo: il tempo reale non riporta più indietro quelle appena tolte o messe.",
+        "Con «Completa tutte» la griglia non si aggiorna più centinaia di volte di fila.",
+        "Aprendo il generatore dal tracker, se il file somiglia più a un altro sito lo dice con le due percentuali e mostra la lista, invece di tenere il sito di prima.",
+        "Se il file non somiglia al sito collegato l'avviso compare anche quando non c'è nessun altro sito da proporre.",
+        "Ricaricando la pagina del generatore, un sito indovinato dal file non diventa più «scelto dal tracker».",
+        "Togliendo il file se ne va anche il suo avviso.",
+        "Il testo delle tendine aperte si legge bene, anche col tema scuro."
       ]
     },
     {
@@ -78,15 +287,165 @@
         { "icona": "file-pdf", "titolo": "Il PDF sfoglia mentre arriva", "testo": "Mentre il documento viaggia verso l'app, nell'anteprima si sfoglia come un libretto." }
       ],
       "novita": [
-        "Il registro dei componenti è parte di CronoService."
+        "Il registro dei componenti è parte di CronoService: si genera nel browser, si collega al sito e si archivia fra i PDF, senza mettere spunte.",
+        "Il bottone «Genera PDF» chiede quale documento: le schede tecnici o il registro dei componenti.",
+        "Nel pannello del sito, «Documenti PDF» con i due generatori già puntati su quel sito; accanto al nome del sito c'è un'icona per ogni tipo di documento.",
+        "Registro: l'albero piano, reparto e stanza per escludere stanze; un clic sul nome porta alla sua pagina.",
+        "Registro: la scheda «Nomi dei componenti», un dizionario comune a tutti con il nome breve e l'ordine nel quadro d'insieme.",
+        "Registro: una guida in dodici passi, con un esempio che si carica da solo.",
+        "Mentre il PDF viaggia verso l'archivio, l'anteprima mostra un libretto che si sfoglia.",
+        "Il lavoro sul PDF si può interrompere: dal libretto, dal bottone in testata o con Esc.",
+        "L'ultima spunta che chiude la mappatura di un cliente accende la sua carta con una piccola festa."
       ],
       "miglioramenti": [
-        "La barra degli strumenti sta su una riga e «Esporta» è in fondo.",
-        "Il lavoro sul PDF si può interrompere."
+        "Aspetto nuovo: fondo porcellana, inchiostro grafite e un blu più profondo, tre caratteri e lo stesso logo ovunque.",
+        "Un tema solo per tracker e generatori: scelto in una pagina vale per tutte, anche per quelle già aperte.",
+        "Movimenti sobri: il tema cambia in dissolvenza, le carte delle Statistiche salgono appena, la ricerca si allarga quando ci scrivi; tutto si spegne con «riduci il movimento».",
+        "Nei generatori la barra in cima sta su due righe, con «Tracker» per tornare indietro, la guida, apri e chiudi tutti i gruppi e il tema.",
+        "Il collegamento col tracker è il primo gruppo del pannello, e i gruppi si aprono e chiudono dal loro titolo.",
+        "«Esporta» resta in fondo al pannello anche con i gruppi chiusi; «Salva nel tracker» non c'è più, fa tutto «Esporta e salva».",
+        "Nel pannello del sito i PDF stanno in due gruppi, uno per tipo.",
+        "Registro: salvando un nome dalla scheda «Nomi» le pagine non si rifanno più ogni volta; si impaginano tornando all'anteprima.",
+        "Il libretto dell'attesa parte chiuso sulla copertina e sfoglia sempre in avanti, senza scatti."
       ],
       "correzioni": [
-        "«Azzera tutte» non lascia più niente indietro.",
-        "Il quadro d'insieme non si accavalla più."
+        "«Azzera tutte» non lascia più niente indietro, nemmeno le spunte su mesi non più previsti o su siti chiusi mostrati a schermo.",
+        "Dopo «Completa tutte» o «Azzera tutte» la griglia si ridisegna una volta sola, e non salta più in cima.",
+        "Il bottone di conferma non scrive più «Azzera 1 spunte».",
+        "Il quadro d'insieme del registro non si accavalla più: ogni colonna è larga quanto la sua intestazione.",
+        "Il libretto del registro mostra le pagine vere, non più testo piccolo e nudo.",
+        "Il PDF si genera anche con il tema chiaro.",
+        "«Mostra chiusi» si illumina quando è acceso.",
+        "A pannello stretto e scorrendo, nei generatori le scritte non si accavallano più.",
+        "Nelle schede non compaiono più due barre di scorrimento insieme."
+      ]
+    },
+    {
+      "id": "2026-09-10",
+      "data": "2026-09-10",
+      "titolo": "Ruoli più sicuri e PDF più grandi",
+      "evidenza": [
+        { "icona": "admin", "titolo": "Il ruolo sta sull'account", "testo": "Cambiare nome non cambia più i permessi, e nessuno può prendersi il ruolo di un collega." },
+        { "icona": "spunta", "titolo": "Arriva l'approvatore", "testo": "Un terzo ruolo che approva e respinge Rapportino e Ricambi, e basta." },
+        { "icona": "persona", "titolo": "Registra un collega dall'app", "testo": "L'amministratore crea l'accesso di un collega dalle Impostazioni, senza passare da altri pannelli." },
+        { "icona": "avviso", "titolo": "Prima si scrive OK", "testo": "Le azioni in blocco dell'amministratore partono solo dopo aver scritto OK nella finestra." },
+        { "icona": "file-pdf", "titolo": "PDF fino a 200 MB", "testo": "Il tetto per file passa da 40 a 200 MB, e un PDF già aperto si riapre senza riscaricarlo." }
+      ],
+      "novita": [
+        "Il ruolo di approvatore: approva e respinge Rapportino e Ricambi; niente azioni di massa, impostazioni o ripristini.",
+        "Nelle Impostazioni la pillola di ogni collega gira fra operatore, approvatore e amministratore.",
+        "«Registra un collega» nelle Impostazioni: casella aziendale e password iniziale, con il bottone «Genera»; il collega entra subito.",
+        "«Azzera il diario attività» per l'amministratore: toglie la storia, mentre spunte, note e PDF restano.",
+        "Completa tutte, Azzera tutte, Azzera il diario e Cancella i PDF di un anno partono solo dopo aver scritto OK.",
+        "Un passo ereditato da un altro mese si toglie da dove sei, e l'app dice da quale mese l'ha tolto.",
+        "Il PDF mette la spunta «Stampata» sulla prima visita in arrivo, mai su un mese già passato.",
+        "A schermo «tecnico» diventa «operatore».",
+        "La finestra «Come si legge» rifatta, con i passi ereditati, le proposte e la regola della spunta del PDF."
+      ],
+      "miglioramenti": [
+        "Un PDF può arrivare a 200 MB, circa 800 pagine, senza perdere qualità.",
+        "Un PDF già aperto si riapre per otto ore senza riscaricarlo, anche dal telefono.",
+        "Il PDF troppo grande dice cosa fare: dividerlo in fascicoli con la tendina del generatore.",
+        "La cella della vista Anno si legge al primo sguardo: ogni segmento o è del colore del suo passo o è vuoto, e il primo passo è oro.",
+        "La riga del cliente è più pulita: il totale resta nella colonna Anno.",
+        "Il bottone «Sincronizza da Access» non c'è più: l'anagrafica arriva da sola ogni mattina.",
+        "La scheda con il tuo nome è in sola lettura: dice chi sei, la casella, il ruolo e cosa puoi fare.",
+        "Tastiera e lettori di schermo: il fuoco torna dove era, il Tab resta nella finestra aperta, le frecce scorrono il menu Azioni e i campi hanno le etichette.",
+        "Contrasti più alti e bersagli da almeno 24 px.",
+        "Una finestra può aprirne un'altra sopra; Esc chiude solo quella davanti."
+      ],
+      "correzioni": [
+        "Rinominarsi come un collega non porta più via la sua riga né il suo ruolo, e cambiare nome non fa più sparire i permessi.",
+        "Chi entra per la prima volta compare subito nell'elenco dei ruoli, senza dover aprire la sua scheda.",
+        "Sul PC dell'ufficio il proprio ruolo si aggiorna subito quando un amministratore lo cambia.",
+        "Sul PC dell'ufficio un PDF salvato o un ruolo cambiato da un collega si vede subito, senza ricaricare.",
+        "Un amministratore che apre l'app senza rete non viene più mostrato come operatore, e il suo nome non si perde.",
+        "La cancellazione dei PDF in blocco toglie i file solo dopo il sì del server: un rifiuto non lascia più righe senza file.",
+        "Un PDF che non si riesce a registrare non lascia più un file invisibile nell'archivio.",
+        "Con la rete lenta, un PDF già registrato non perde più il suo file.",
+        "Un errore di configurazione nella registrazione di un collega non butta più fuori l'amministratore.",
+        "Online «Azzera il diario attività» non risponde più con un errore.",
+        "La finestra «Azzera tutte le spunte» non mostra più una parola senza senso in mezzo al testo.",
+        "Nella vista Anno i quattro colori della cella si vedono: prima i segmenti erano larghi zero."
+      ]
+    },
+    {
+      "id": "2026-09-09",
+      "data": "2026-09-09",
+      "titolo": "Ruoli, generatore e archivio dei PDF",
+      "evidenza": [
+        { "icona": "documento", "titolo": "Il generatore delle schede nell'app", "testo": "Dal pannello del sito si genera il PDF delle schede tecnici: si archivia sul sito e mette la spunta «Stampata»." },
+        { "icona": "admin", "titolo": "L'amministratore approva", "testo": "Rapportino e Ricambi degli operatori restano proposte finché chi approva non le conferma." },
+        { "icona": "ripeti", "titolo": "I passi si accumulano", "testo": "Un passo fatto in un mese vale per tutti i mesi del sito, e per l'anno dopo se la mappatura era rimasta aperta." },
+        { "icona": "occhio", "titolo": "Vedi dove lavora un collega", "testo": "La cella aperta da un collega ha un anello del suo colore e le sue iniziali." },
+        { "icona": "cestino", "titolo": "Fare spazio fra i PDF", "testo": "Si cancellano in blocco i PDF di un anno o di un sito, e le spunte restano." }
+      ],
+      "novita": [
+        "Il generatore delle schede tecnici è dentro CronoService: dal pannello del sito arriva già collegato al sito giusto.",
+        "Il PDF generato si archivia sul sito e mette la spunta «Stampata»; accanto al nome del sito c'è l'icona del documento, con la miniatura al passaggio del mouse.",
+        "Nel pannello del sito l'elenco dei PDF, con pagine, peso, chi e quando, e i comandi Apri ed Elimina.",
+        "Il generatore riconosce il sito dal nome del file Excel: se combacia lo collega da solo, se ha dubbi propone una lista, se non somiglia a niente avvisa.",
+        "Il titolo del documento si può prendere dal sito collegato.",
+        "Un solo bottone «Esporta e salva»: scarica il PDF e lo archiva, senza passare dalla finestra di stampa.",
+        "PDF in fascicoli: un PDF per fascicolo, mostrato nel tracker come un documento solo.",
+        "La ricerca tollera gli errori di battitura: «umberto primo» trova UMBERTO I e «clinik» trova KLINIK.",
+        "Azioni, «Possibili doppioni»: siti e clienti con nomi quasi uguali, da correggere in Access.",
+        "I passi si accumulano fra i mesi dello stesso sito, e passano all'anno dopo se la mappatura era rimasta aperta.",
+        "I PDF degli anni passati restano visibili anche negli anni dopo.",
+        "Chi ha aperto una cella si vede: anello del suo colore e iniziali, nella vista Anno e nella vista Mese.",
+        "Un tasto per uscire accanto al segnale «collegato».",
+        "Due ruoli: l'amministratore approva Rapportino e Ricambi, con la pillola «da approvare», Approva, Respingi e Approva tutte.",
+        "Solo l'amministratore completa o azzera tutto, cambia le impostazioni e ha «Ripristina» su ogni riga del diario.",
+        "Ripristino a blocchi: un'azione su molte spunte è una riga sola nel diario, e si ripristina tutta insieme.",
+        "Se due persone scrivono la stessa nota, l'avviso mostra le due frasi e offre «Unisci le due» o «Tieni la mia».",
+        "Si cancellano in blocco i PDF di un anno, dall'amministratore in Impostazioni, «Spazio dei PDF», o tutti quelli di un sito dal suo pannello."
+      ],
+      "miglioramenti": [
+        "Il PDF si prepara in un terzo del tempo, ed esce a qualità più alta.",
+        "La testata del generatore resta sempre in vista senza coprire le pagine, manda a capo gli indirizzi lunghi e scorrendo si riduce a una pillola.",
+        "Online il tracker non parla più di «un solo computer che fa da server».",
+        "Nella vista Mese il riepilogo è più corto: via «impianti» e «da stampare».",
+        "L'anagrafica si legge da Access in rete senza mai toccare il file originale, e l'invio online parte ogni mattina alle 08:15."
+      ],
+      "correzioni": [
+        "Dopo essere passati dal generatore l'accesso non chiede più la password all'infinito, e l'errore dice il motivo vero.",
+        "Un file Excel nuovo non si porta più dietro il sito del file precedente.",
+        "Nel modo libro le pagine di pareggio all'inizio sono bianche, non schede vuote da compilare.",
+        "Col tema scuro il nome del collega sulla cella si legge, invece di una pillola bianca.",
+        "La barra del generatore non si accartoccia più durante il salvataggio."
+      ]
+    },
+    {
+      "id": "2026-09-08",
+      "data": "2026-09-08",
+      "titolo": "CronoService è online",
+      "evidenza": [
+        { "icona": "cronoservice", "titolo": "CronoService da ovunque", "testo": "Si entra con la casella aziendale da computer e telefono; l'anagrafica di Access arriva da sola ogni giorno." },
+        { "icona": "riepilogo", "titolo": "Statistiche rifatte", "testo": "Un pannello di comando con il ritmo per chiudere l'anno e le mappature da fare adesso." },
+        { "icona": "filtro", "titolo": "Un filtro di stato solo", "testo": "Tutte, Da fare, In ritardo, Complete: ognuna col suo numero, che è anche il bottone." }
+      ],
+      "novita": [
+        "CronoService è online: si entra con la casella @vrs-tech.it da qualunque computer o telefono, e l'anagrafica di Access arriva da sola una volta al giorno.",
+        "Statistiche rifatte: quadrante dell'anno, «Ritmo per chiudere l'anno», «Da fare adesso» e le mappature per sito, che con «Espandi» si aprono a tutto schermo.",
+        "Un filtro di stato a quattro posizioni, Tutte, Da fare, In ritardo e Complete, ognuna col suo numero.",
+        "I numeri in testa sono cliccabili: un clic filtra, un secondo clic toglie il filtro.",
+        "Il pallino davanti al sito dice lo stato della mappatura: completa, in ritardo, iniziata o da fare.",
+        "Nella vista Mese il pallino della scheda mette i quattro passi in un clic, anche col tasto 0; la selezione multipla è con Ctrl e clic."
+      ],
+      "miglioramenti": [
+        "Viste Anno e Mese più leggere: i clienti sono carte, un sito a posto ha la spina verde e i mesi scorrono su una pista.",
+        "Via il filtro per tipo di gas: il tipo si cerca dalla barra di ricerca.",
+        "Via la barra blu che girava a vuoto in cima alle Statistiche."
+      ],
+      "correzioni": [
+        "Online l'app non resta più ferma su «Caricamento…»: se qualcosa non va, lo dice.",
+        "«Da fare adesso»: una mappatura chiusa in un mese fuori contratto conta come chiusa e sparisce dalla lista.",
+        "«Da fare adesso»: spuntando, la riga non salta più in fondo e l'elenco non torna più in cima.",
+        "«Da fare adesso»: il riquadro è grande quanto il suo contenuto e contiene anche le arretrate che conta.",
+        "Nella vista Mese, con un filtro acceso, «complete» non va più a zero alla prima spunta.",
+        "I totali per mese della vista Anno non cambiano più con il filtro di stato.",
+        "Cliccando in fretta i quattro passi le spunte non lampeggiano più.",
+        "Una spunta rifiutata dal server non resta più «in attesa» per sempre."
       ]
     }
   ]
