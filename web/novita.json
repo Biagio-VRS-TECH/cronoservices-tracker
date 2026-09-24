@@ -2,6 +2,40 @@
   "app": "cronoservice",
   "rilasci": [
     {
+      "id": "2026-09-24-4",
+      "data": "2026-09-24",
+      "titolo": "La Suite a un clic, con le notizie dell'azienda",
+      "evidenza": [
+        {
+          "icona": "griglia",
+          "titolo": "La Suite a un clic da ogni app",
+          "testo": "Nel menu «Le app VRS», in alto, c'è «Suite»: la pagina di casa con le tue app, il meteo, il calendario e le notizie."
+        },
+        {
+          "icona": "documento",
+          "titolo": "Le notizie dell'azienda nella Suite",
+          "testo": "L'amministrazione può scrivere articoli per tutti: li trovi nelle Notizie della Suite, con quelli importanti in evidenza."
+        },
+        {
+          "icona": "spunta",
+          "titolo": "Solo le novità che servono",
+          "testo": "Nella Suite restano le novità più utili dell'ultimo mese, una volta sola anche se arrivano in più app."
+        }
+      ],
+      "novita": [
+        {
+          "gruppo": "Le app VRS",
+          "voci": [
+            "«Suite» nel menu «Le app VRS» porta alla pagina di casa delle app VRS, col tuo tema."
+          ]
+        }
+      ],
+      "miglioramenti": [],
+      "correzioni": [
+        "Dall'anteprima, i collegamenti al Planning e allo Scheduler portavano alla versione vera invece di quella in prova."
+      ]
+    },
+    {
       "id": "2026-09-24-3",
       "data": "2026-09-24",
       "titolo": "Il tema ti segue, e le mappature arrivano nel Planning",

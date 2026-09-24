@@ -71,3 +71,10 @@ test('il foglio del selettore e’ identico a quello del Planning (se la copia c
   } catch { return; }      // repository del Planning non accanto: niente confronto
   assert.equal(qui, la);
 });
+
+test('«Le app VRS» porta anche alla Suite, la pagina di casa, restando in anteprima dall’anteprima', async () => {
+  const { SUITE } = await import('../../web/js/famiglia.js');
+  assert.equal(SUITE, 'https://vrs-suite.netlify.app/');
+  const css = readFileSync(new URL('../../web/css/vrs-app.css', import.meta.url), 'utf8');
+  assert.match(css, /\.vrs-app-casa/);
+});

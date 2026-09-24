@@ -50,6 +50,10 @@ export function stessoAmbiente(url, host = globalThis.location?.hostname) {
 }
 const PLANNING = stessoAmbiente('https://vrs-planning.netlify.app/');
 const SCHEDULER = stessoAmbiente('https://vrs-scheduler.netlify.app/');
+/* La Suite VRS, la pagina di casa di tutte le app (meteo, calendario, notizie). */
+const SUITE = stessoAmbiente('https://vrs-suite.netlify.app/');
+
+export { SUITE };
 
 export const APP_FAMIGLIA = [
   { id: 'planning', nome: 'Planning', nota: 'Attività, assenze e calendario', to: PLANNING,
@@ -129,7 +133,9 @@ function finestraApp() {
   return h('div.vrs-app-pop', { role: 'dialog', 'aria-label': 'Le app VRS', id: 'app-pop' },
     h('div.vrs-app-testa', {},
       h('img.vrs-app-logo', { src: '/assets/logo.webp', alt: 'VRS Group', width: '47', height: '36' }),
-      h('span.vrs-app-titolo', { 'aria-hidden': 'true', testo: 'Le app VRS' })),
+      h('span.vrs-app-titolo', { 'aria-hidden': 'true', testo: 'Le app VRS' }),
+      h('a.vrs-app-casa', { href: conTema(SUITE), title: 'La Suite VRS: le app, il calendario e le notizie',
+        html: svg('M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-5v6h-4A1.5 1.5 0 0 1 4 19z', 16) + 'Suite' })),
     h('ul.vrs-app-lista', {}, APP_FAMIGLIA.map(a => {
       const qui = a.id === QUI;
       return h('li', {},

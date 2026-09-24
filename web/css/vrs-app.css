@@ -10,8 +10,8 @@
    al pixel da una parte e dall'altra.
 
    · .vrs-app-btn  il marchio in alto, che è anche il pulsante del selettore;
-   · .vrs-app-pop  la finestrella: logo VRS, poi Planning · CronoService ·
-                   Scheduler, con «Sei qui» sull'app in cui si è;
+   · .vrs-app-pop  la finestrella: logo VRS e «Suite» (la pagina di casa), poi
+                   Planning · CronoService · Scheduler, con «Sei qui» sull'app in cui si è;
    · .vrs-seg      il controllo del tema a tre posizioni (Auto · Chiaro ·
                    Scuro), lo stesso disegno del Planning;
    · .vrs-nov-*    il tasto «Novità» e la sua finestra (vrs-novita.js), in fondo.
@@ -95,6 +95,18 @@
   flex: none; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--vrs-accent);
 }
+
+/* La Suite, la pagina di casa: in testata, a destra, sempre raggiungibile */
+.vrs-app-casa {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+  min-height: 32px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--vrs-border); color: var(--vrs-text-2);
+  font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease), color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-app-casa:hover { background: var(--vrs-surface-3); color: var(--vrs-text); text-decoration: none; }
+.vrs-app-casa:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 2px; }
+@media (pointer: coarse) { .vrs-app-casa { min-height: 44px; padding: 0 14px; } }
 
 /* ---- Tema a tre posizioni (VIS-22) ---------------------------------------- */
 .vrs-tema { padding: 4px 4px 2px; }
