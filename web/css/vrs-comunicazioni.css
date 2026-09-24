@@ -1,0 +1,320 @@
+/* ============================================================================
+   vrs-comunicazioni.css — il tasto «Comunicazioni», la casella e il popup
+   (js: vrs-comunicazioni.js)
+   ----------------------------------------------------------------------------
+   Stesso disegno delle Novità (vrs-app.css): solo le primitive di
+   vrs-famiglia.css (--vrs-*) e misure in px, così il modulo può passare anche
+   al Planning senza ritocchi.
+
+   · .vrs-com-btn   il tasto nella testata, col numero delle comunicazioni da
+                    spuntare (data-nuove="si": un numero, non solo un colore);
+   · .vrs-com       la casella: sul computer una tendina sotto il tasto, sul
+                    telefono un foglio dal basso con «Chiudi» sotto il pollice;
+   · .vrs-com-pop   il popup, una comunicazione alla volta, con «Ho letto».
+   La priorità si legge sempre come testo; il colore (rosso, blu, grigio) e
+   l'icona la accompagnano. Movimento solo su transform e opacity, una volta
+   sola; con «riduci il movimento» non si muove niente.
+   ========================================================================== */
+
+.vrs-com-posto { display: contents; }
+
+/* ---- il tasto ---- */
+.vrs-com-btn {
+  position: relative; flex: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 40px; min-height: 40px; padding: 0 10px;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--vrs-text-2);
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease), color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-com-btn[hidden] { display: none; }
+.vrs-com-btn:hover,
+.vrs-com-btn[aria-expanded='true'] { background: var(--vrs-surface-3); color: var(--vrs-text); }
+.vrs-com-btn:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 2px; }
+.vrs-com-btn-ico { display: grid; place-items: center; }
+.vrs-com-btn[data-nuove='si'] .vrs-com-btn-ico { color: var(--vrs-accent); }
+/* l'etichetta solo dove c'è molto posto; sotto resta la campanella, col nome accessibile */
+.vrs-com-et { display: none; }
+@media (min-width: 1400px) { .vrs-com-et { display: inline; } }
+.vrs-com-n {
+  position: absolute; top: 3px; left: 21px;
+  min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: #d92d20; color: #fff; box-shadow: 0 0 0 2px var(--vrs-surface);
+  font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  opacity: 0; transform: scale(0.4);
+  transition: opacity var(--vrs-t) var(--vrs-ease), transform var(--vrs-t) var(--vrs-ease);
+}
+.vrs-com-btn[data-nuove='si'] .vrs-com-n { opacity: 1; transform: none; }
+/* con l'etichetta scritta il numero le sta accanto, non sopra */
+@media (min-width: 1400px) {
+  .vrs-com-n { position: static; box-shadow: none; }
+  .vrs-com-btn[data-nuove='no'] .vrs-com-n { display: none; }
+}
+
+/* il messaggio per i lettori di schermo: c'è, ma non si vede */
+.vrs-com-annuncio {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---- i veli ---- */
+html.vrs-com-popup { overflow: hidden; }
+.vrs-com-velo {
+  position: fixed; inset: 0; z-index: 1000;
+  overscroll-behavior: contain;
+}
+.vrs-com-velo.forte {
+  z-index: 1001;
+  display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--vrs-overlay);
+  animation: vrs-com-velo var(--vrs-t-slow) var(--vrs-ease) both;
+}
+@keyframes vrs-com-velo { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- la casella: una tendina sotto il tasto ---- */
+.vrs-com {
+  position: fixed; top: var(--vrs-com-alto, 64px); right: var(--vrs-com-destra, 12px);
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100dvh - var(--vrs-com-alto, 64px) - 16px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--vrs-surface); color: var(--vrs-text);
+  border: 1px solid var(--vrs-border); border-radius: 16px;
+  box-shadow: var(--vrs-shadow-pop);
+  font-feature-settings: var(--vrs-font-feat);
+  text-align: left;
+  transform-origin: top right;
+  animation: vrs-com-scende 200ms var(--vrs-ease) both;
+}
+.vrs-com:focus { outline: none; }
+@keyframes vrs-com-scende { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+.vrs-com-testa {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 10px 8px 10px 14px; border-bottom: 1px solid var(--vrs-border);
+}
+.vrs-com-testa-ico {
+  flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+  background: var(--vrs-accent-soft); color: var(--vrs-accent);
+}
+.vrs-com-testa-testi { flex: 1; min-width: 0; }
+.vrs-com-tit { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.25; color: inherit; }
+.vrs-com-sotto { margin: 1px 0 0; font-size: 13px; color: var(--vrs-muted); font-variant-numeric: tabular-nums; }
+.vrs-com-x {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 10px; background: transparent; color: var(--vrs-text-2);
+  cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease), color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-com-x:hover { background: var(--vrs-surface-3); color: var(--vrs-text); }
+.vrs-com-x:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 0; }
+
+.vrs-com-corpo {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px 14px 10px;
+}
+.vrs-com-lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.vrs-com-lista > li + li { border-top: 1px solid var(--vrs-border); }
+.vrs-com-voce { position: relative; display: grid; gap: 6px; padding: 14px 0 12px 12px; min-width: 0; }
+/* da leggere: una riga d'accento a sinistra (e la casella non spuntata) */
+.vrs-com-voce::before {
+  content: ''; position: absolute; left: 0; top: 16px; bottom: 14px; width: 3px; border-radius: 2px;
+  background: var(--vrs-border);
+}
+.vrs-com-voce[data-letta='no']::before { background: var(--vrs-accent); }
+.vrs-com-voce[data-letta='no'][data-priorita='alta']::before { background: #d92d20; }
+.vrs-com-voce-su { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.vrs-com-voce-tit { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; }
+.vrs-com-voce[data-letta='si'] .vrs-com-voce-tit { color: var(--vrs-text-2); }
+.vrs-com-tipo {
+  font-size: 12px; font-weight: 600; color: var(--vrs-muted);
+  padding: 2px 7px; border-radius: 6px; border: 1px solid var(--vrs-border);
+}
+.vrs-com-meta {
+  margin: 0; display: flex; flex-wrap: wrap; gap: 2px 0; font-size: 12.5px; line-height: 1.4; color: var(--vrs-muted);
+  font-variant-numeric: tabular-nums;
+}
+.vrs-com-meta > * + *::before { content: '·'; margin: 0 6px; }
+.vrs-com-testo {
+  font-size: 14px; line-height: 1.5; color: var(--vrs-text-2);
+  white-space: pre-line; overflow-wrap: anywhere;
+}
+.vrs-com-testo[data-chiuso] {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden;
+}
+.vrs-com-espandi {
+  justify-self: start; min-height: 32px; margin-left: -8px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--vrs-accent);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-com-espandi:hover { background: var(--vrs-accent-soft); }
+.vrs-com-espandi:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 0; }
+.vrs-com-voce-giu { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 2px; }
+
+/* ---- la priorità: testo, icona e colore insieme ---- */
+.vrs-com-pri {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px 2px 6px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; line-height: 1.4;
+  background: var(--vrs-accent-soft); color: var(--vrs-accent);
+}
+.vrs-com-pri-ico { display: grid; place-items: center; }
+.vrs-com-pri[data-priorita='alta'] { background: rgb(217 45 32 / 0.1); color: #b42318; }
+.vrs-com-pri[data-priorita='bassa'] { background: var(--vrs-surface-3); color: var(--vrs-text-2); }
+:root[data-theme='dark'] .vrs-com-pri[data-priorita='alta'] { background: rgb(240 68 56 / 0.18); color: #ff9c94; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .vrs-com-pri[data-priorita='alta'] { background: rgb(240 68 56 / 0.18); color: #ff9c94; }
+}
+
+/* ---- «Ho letto»: etichetta e casella sono un bersaglio solo ---- */
+.vrs-com-letto {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 0 14px 0 10px;
+  border: 1px solid var(--vrs-border-strong); border-radius: 10px;
+  background: var(--vrs-surface); color: var(--vrs-text);
+  font-size: 14px; font-weight: 600; cursor: pointer; user-select: none;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease), border-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-com-letto:hover { border-color: var(--vrs-accent); background: var(--vrs-accent-soft); }
+.vrs-com-letto input {
+  flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--vrs-accent); cursor: inherit;
+}
+.vrs-com-letto input:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 2px; }
+.vrs-com-letto:has(input:focus-visible) { border-color: var(--vrs-accent); }
+.vrs-com-letto[data-stato='fatta'] {
+  cursor: default; border-color: var(--vrs-border); background: var(--vrs-surface-2); color: var(--vrs-text-2);
+}
+.vrs-com-letto[data-stato='invio'] { cursor: progress; }
+.vrs-com-letto-quando { font-size: 12.5px; font-weight: 500; color: var(--vrs-muted); font-variant-numeric: tabular-nums; }
+.vrs-com-rotella {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--vrs-border-strong); border-top-color: var(--vrs-accent);
+  animation: vrs-com-gira 0.8s linear infinite;
+}
+@keyframes vrs-com-gira { to { transform: rotate(360deg); } }
+.vrs-com-letto.grande {
+  width: 100%; justify-content: center; min-height: 52px; font-size: 15px;
+  border-color: var(--vrs-accent); background: var(--vrs-accent-soft);
+}
+.vrs-com-letto.grande input { width: 22px; height: 22px; }
+.vrs-com-err { margin: 0; font-size: 13px; line-height: 1.4; color: #b42318; }
+:root[data-theme='dark'] .vrs-com-err { color: #ff9c94; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .vrs-com-err { color: #ff9c94; } }
+
+/* ---- stato vuoto, nota d'errore, piede ---- */
+.vrs-com-vuoto { display: grid; justify-items: center; gap: 6px; padding: 28px 12px 24px; text-align: center; }
+.vrs-com-vuoto-ico {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; margin-bottom: 4px;
+  background: var(--vrs-surface-3); color: var(--vrs-muted);
+}
+.vrs-com-vuoto b { font-size: 15px; }
+.vrs-com-vuoto p { margin: 0; max-width: 30ch; font-size: 13.5px; line-height: 1.5; color: var(--vrs-muted); text-wrap: balance; }
+.vrs-com-nota {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 8px 0 4px; padding: 8px 8px 8px 12px; border-radius: 10px;
+  background: var(--vrs-surface-3); font-size: 13px; line-height: 1.4; color: var(--vrs-text-2);
+}
+.vrs-com-riprova, .vrs-com-chiudi {
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--vrs-t-fast) var(--vrs-ease);
+}
+.vrs-com-riprova { flex: none; background: var(--vrs-surface); color: var(--vrs-accent); }
+.vrs-com-riprova:hover { background: var(--vrs-accent-soft); }
+.vrs-com-riprova:focus-visible, .vrs-com-chiudi:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: 2px; }
+.vrs-com-piede { display: none; }
+
+/* ---- il popup ---- */
+.vrs-com-pop {
+  position: relative;
+  width: min(520px, 100%); max-height: min(720px, calc(100dvh - 32px));
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--vrs-surface); color: var(--vrs-text);
+  border: 1px solid var(--vrs-border); border-radius: 20px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.08), 0 24px 64px rgb(4 20 34 / 0.32);
+  font-feature-settings: var(--vrs-font-feat);
+  text-align: left;
+  animation: vrs-com-entra 360ms var(--vrs-ease) both;
+}
+.vrs-com-pop:focus { outline: none; }
+@keyframes vrs-com-entra { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+.vrs-com-pop-testa {
+  flex: none; display: grid; justify-items: start; gap: 8px;
+  padding: 20px 22px 14px; border-bottom: 1px solid var(--vrs-border);
+  border-top: 4px solid var(--vrs-accent);
+}
+.vrs-com-pop-testa[data-priorita='alta'] { border-top-color: #d92d20; }
+.vrs-com-pop-testa[data-priorita='bassa'] { border-top-color: var(--vrs-border-strong); }
+.vrs-com-pop-sopra {
+  margin: 0; display: flex; gap: 10px; align-items: baseline;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--vrs-muted);
+}
+.vrs-com-pop-conta { letter-spacing: 0.02em; text-transform: none; font-variant-numeric: tabular-nums; color: var(--vrs-accent); }
+.vrs-com-pop-tit { margin: 0; font-size: 21px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; text-wrap: balance; }
+.vrs-com-pop-tit:focus { outline: none; }
+.vrs-com-pop-corpo {
+  flex: 1; min-height: 64px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 16px 22px;
+}
+.vrs-com-pop-corpo:focus-visible { outline: 2px solid var(--vrs-accent); outline-offset: -4px; border-radius: 6px; }
+.vrs-com-pop-corpo .vrs-com-testo { font-size: 15px; color: var(--vrs-text); }
+.vrs-com-pop-piede {
+  flex: none; display: grid; gap: 8px;
+  padding: 12px 22px 18px; border-top: 1px solid var(--vrs-border); background: var(--vrs-surface);
+}
+.vrs-com-pop-nota { margin: 0; font-size: 13px; line-height: 1.4; color: var(--vrs-muted); text-align: center; }
+.vrs-com-pop-nota.scossa { color: var(--vrs-text); animation: vrs-com-scossa 360ms var(--vrs-ease); }
+@keyframes vrs-com-scossa {
+  20% { transform: translateX(-6px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); } 80% { transform: translateX(2px); }
+}
+
+/* ---- sul telefono: fogli dal basso, i comandi sotto il pollice ---- */
+@keyframes vrs-com-foglio { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: none; } }
+@media (max-width: 639px) {
+  html.vrs-com-casella { overflow: hidden; }
+  .vrs-com-velo {
+    display: grid; place-items: end stretch;
+    padding: max(12px, env(safe-area-inset-top)) 0 0;
+    background: var(--vrs-overlay);
+    animation: vrs-com-velo var(--vrs-t-slow) var(--vrs-ease) both;
+  }
+  .vrs-com-velo.forte { place-items: end stretch; padding: max(12px, env(safe-area-inset-top)) 0 0; }
+  .vrs-com, .vrs-com-pop {
+    position: relative; top: auto; right: auto;
+    width: 100%; max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+    border-radius: 22px 22px 0 0; border-bottom: 0;
+    animation: vrs-com-foglio 320ms var(--vrs-ease) both;
+  }
+  .vrs-com-testa .vrs-com-x { width: 44px; height: 44px; }
+  .vrs-com-piede {
+    display: block; flex: none;
+    padding: 10px 16px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--vrs-border);
+  }
+  .vrs-com-chiudi { width: 100%; min-height: 48px; background: var(--vrs-surface-3); color: var(--vrs-text); }
+  .vrs-com-letto { min-height: 44px; }
+  .vrs-com-espandi { min-height: 44px; }
+  .vrs-com-pop-testa { padding: 18px 18px 12px; }
+  .vrs-com-pop-tit { font-size: 19px; }
+  .vrs-com-pop-corpo { padding: 14px 18px; }
+  .vrs-com-pop-piede { padding: 10px 16px max(14px, env(safe-area-inset-bottom)); }
+}
+
+/* Sul tocco: bersagli da 44 px */
+@media (pointer: coarse) {
+  .vrs-com-btn { min-width: 44px; min-height: 44px; }
+  .vrs-com-n { top: 5px; left: 23px; }
+  .vrs-com-x { width: 44px; height: 44px; }
+  .vrs-com-letto, .vrs-com-espandi, .vrs-com-riprova { min-height: 44px; }
+  .vrs-com-letto.grande { min-height: 52px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vrs-com-velo, .vrs-com-velo.forte, .vrs-com, .vrs-com-pop, .vrs-com-pop-nota.scossa, .vrs-com-rotella { animation: none; }
+  .vrs-com-btn, .vrs-com-n, .vrs-com-x, .vrs-com-letto, .vrs-com-espandi, .vrs-com-riprova, .vrs-com-chiudi { transition: none; }
+}

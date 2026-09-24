@@ -166,24 +166,27 @@ export function nomeDaEmail(mail = emailSessione()) {
    token: leggerli da li' non costa nessuna chiamata. Non servono a nessun
    controllo d'accesso, sono solo preferenze che la persona scrive per se'. */
 
-/** I metadati dentro il token di adesso (null senza sessione o token illeggibile). */
-export function metadatiSessione() {
+/** Il contenuto del token di adesso (null senza sessione o token illeggibile). */
+function datiToken() {
   try {
     const p = ses?.access_token?.split('.')[1];
     if (!p) return null;
     const b = atob(p.replace(/-/g, '+').replace(/_/g, '/'));
     const json = new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0)));
-    return JSON.parse(json).user_metadata || null;
+    return JSON.parse(json) || null;
   } catch { return null; }
 }
 
-/** L'id della persona collegata (il `sub` del token); '' senza sessione. */
-export function idSessione() {
-  try {
-    const p = ses?.access_token?.split('.')[1];
-    if (!p) return '';
-    return JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/'))).sub || '';
-  } catch { return ''; }
+/** I metadati dentro il token di adesso (null senza sessione o token illeggibile). */
+export function metadatiSessione() {
+  return datiToken()?.user_metadata || null;
+}
+
+/** L'id dell'account (il `sub` del token, lo stesso `user_id` del Planning); '' senza sessione.
+ *  Serve al filtro del tempo reale delle comunicazioni (#ANCHOR: comunicazioni in js/famiglia.js). */
+export function idUtente() {
+  const s = datiToken()?.sub;
+  return typeof s === 'string' ? s : '';
 }
 
 /* IL TEMA IN TEMPO REALE (VIS-22, migrazione 052 del Planning). Il canale
@@ -205,7 +208,7 @@ export function apriCanaleTema(onScelta, onRiaggancio = () => { }) {
     if (chiuso) return;
     let t;
     try { t = await token(); } catch { t = null; }
-    const id = idSessione();
+    const id = idUtente();
     if (!t || !id) { if (!chiuso) setTimeout(apri, 20000); return; }
     if (chiuso) return;
     topic = 'realtime:vrs-tema:' + id;
@@ -253,7 +256,7 @@ export function apriCanaleTema(onScelta, onRiaggancio = () => { }) {
       if (iscritto) { spedisci('broadcast', { type: 'broadcast', event: 'tema', payload: scelta }); return; }
       // canale non ancora pronto: lo stesso annuncio via REST
       const t = await token().catch(() => null);
-      const id = idSessione();
+      const id = idUtente();
       if (!t || !id) return;
       fetch(ORIGINE + '/realtime/v1/api/broadcast', {
         method: 'POST',
@@ -337,6 +340,14 @@ async function rpc(nome, args, ms = 20000) {
   } finally {
     clearTimeout(orologio);
   }
+}
+
+/** Una funzione Postgres fuori dalle vecchie rotte /api/..., con la stessa forma di risposta
+ *  `{ok, stato, dati}`: la usano le comunicazioni del Planning (pl_comunicazioni_mie,
+ *  pl_comunicazione_letta; #ANCHOR: comunicazioni in js/famiglia.js). Lancia come un fetch se la
+ *  rete e' giu'. Una funzione che non c'e' ancora risponde `stato: 404`. */
+export function rpcLibera(nome, args = {}, ms = 20000) {
+  return rpc(nome, args, ms);
 }
 
 /** La sola chiamata che non va a Postgres ma alla Netlify Function
@@ -844,6 +855,79 @@ export function apriStream(onEvento, mio = () => '') {
   apri();
   return () => { chiuso = true; clearInterval(batti); fermaSonda(); ws?.close(); };
 }
+
+/** Le righe di UNA tabella, filtrate, su un canale a se' (#ANCHOR: comunicazioni in
+ *  js/famiglia.js: `pl_notifications` con `user_id=eq.<io>`). Separato da apriStream apposta:
+ *  se la tabella non si puo' ascoltare, a cadere e' solo questo canale e non la diretta delle
+ *  celle. `onCambio` non riceve le righe da applicare, solo il segnale: chi ascolta rilegge.
+ *  Dopo un buco del WebSocket, al riaggancio si chiama `onCambio` una volta (quello che e'
+ *  cambiato nel frattempo Realtime non lo rimanda). Ritorna la funzione per chiudere. */
+export function ascoltaRighe({ tabella, filtro = '', canale = '' }, onCambio) {
+  if (typeof WebSocket === 'undefined') return () => { };
+  const TOPIC = 'realtime:' + (canale || 'righe-' + tabella);
+  let ws = null, chiuso = false, batti = null, tentativi = 0, rif = 1, giaAgganciato = false;
+  const riprova = (tra = Math.min(2000 * 2 ** tentativi++, 60000)) => { if (!chiuso) setTimeout(apri, tra); };
+  const avvisa = () => { try { onCambio(); } catch (e) { segnalaQui(e); } };
+
+  const apri = async () => {
+    if (chiuso) return;
+    let t;
+    try { t = await token(); } catch { riprova(); return; }   // rete giu'
+    if (!t) { riprova(30000); return; }                       // senza sessione: piu' tardi
+    if (chiuso) return;
+    const questo = ws = new WebSocket(
+      `${ORIGINE.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${CHIAVE_ANON}&vsn=1.0.0`);
+    const spedisci = (event, payload, topic = TOPIC) => {
+      if (questo.readyState === 1) questo.send(JSON.stringify({ topic, event, payload, ref: String(++rif), join_ref: '1' }));
+    };
+    questo.onopen = () => {
+      questo.send(JSON.stringify({
+        topic: TOPIC, event: 'phx_join', ref: '1', join_ref: '1',
+        payload: {
+          access_token: t,
+          config: {
+            broadcast: { self: false }, presence: { key: '' },
+            postgres_changes: [{ event: '*', schema: 'public', table: tabella, ...(filtro ? { filter: filtro } : {}) }],
+          },
+        },
+      }));
+      batti = setInterval(async () => {
+        spedisci('heartbeat', {}, 'phoenix');
+        let nuovo = null;
+        try { nuovo = await token(); } catch { }
+        if (nuovo && nuovo !== t) { t = nuovo; spedisci('access_token', { access_token: nuovo }); }
+      }, 25000);
+    };
+    questo.onmessage = e => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m?.topic !== TOPIC) return;
+      const st = m.payload?.status;
+      if (m.event === 'phx_error' || m.event === 'phx_close' ||
+          (m.event === 'system' && st === 'error') ||
+          (m.event === 'phx_reply' && m.ref === '1' && st && st !== 'ok')) {
+        questo.close();
+        return;
+      }
+      if (m.event === 'phx_reply' && m.ref === '1') {
+        tentativi = 0;
+        if (giaAgganciato) avvisa();                 // riaggancio: si rilegge una volta
+        giaAgganciato = true;
+        return;
+      }
+      if (m.event === 'postgres_changes') avvisa();
+    };
+    questo.onclose = () => {
+      clearInterval(batti);
+      if (!chiuso && ws === questo) riprova();
+    };
+    questo.onerror = () => questo.close();
+  };
+
+  apri();
+  return () => { chiuso = true; clearInterval(batti); ws?.close(); };
+}
+const segnalaQui = e => { try { inviaErrore(e, 'ascoltaRighe'); } catch { } };
 
 /* -------------------------------------------------------------- accesso -- */
 /** Mostra la pagina d'accesso finche' non si entra. Si risolve a sessione

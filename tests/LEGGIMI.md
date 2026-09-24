@@ -125,6 +125,7 @@ Come sono fatte:
 | `web-documenti-registro.test.mjs`, `web-dizionario.test.mjs` | registro vero in un DOM finto: due file di fila, file tolto a metà lettura, file rotto dopo uno buono; campi del dizionario |
 | `web-sw.test.mjs` | elenco del guscio contro i file su disco, installazione tutto-o-niente, niente `index.html` al posto di uno script |
 | `web-tour.test.mjs`, `web-ponte.test.mjs`, `web-schede.test.mjs`, `web-condividi.test.mjs`, `web-precarico.test.mjs`, `web-icone.test.mjs`, `web-famiglia.test.mjs`, `web-coda.test.mjs`, `web-responsabile.test.mjs` | guida (selettori contro gli HTML, guida vuota), contesto dall'indirizzo e nome del PDF, lettura del file, copia che lancia, precarico, icone, famiglia, coda, responsabile |
+| `web-comunicazioni.test.mjs` | Comunicazioni del Planning (`vrs-comunicazioni.js`) con risposte finte: righe rotte, ordine dei popup (alte prima, poi dalla più vecchia), funzioni assenti = tasto nascosto senza errori, rete giù, numero e nome del tasto, tempo reale che rilegge una volta per raffica, popup uno alla volta («1 di 2») che Esc e clic fuori non chiudono, spunta non registrata, spuntata altrove, casella con «Ho letto» bloccata e stato vuoto |
 
 Una prova nuova: `tests/js/web-<cosa>.test.mjs`, con
 `import { ... } from './web-ambiente.mjs'` come PRIMA riga di import.
@@ -165,6 +166,7 @@ Come sono fatte:
 | `cloud-registra-utente.test.mjs` | la service key parte solo dopo "admin" detto dal database col token di chi preme; ruoli strani, token scaduto, database giu', caselle non aziendali o somiglianti, password corta, JSON rotto, 409, chiave service sbagliata, variabile mancante, URL con la barra finale |
 | `cloud-registro.test.mjs` | ordine naturale, piani numerici, slug, refusi, `interpretaRiga`, registro (quadratura, piani, tecnici per primi, legenda, quadro per priorita'), id univoci anche fra piani che lo slug schiaccia |
 | `cloud-accesso.test.mjs` | pagina d'accesso con `localStorage` bloccato o pieno |
+| `cloud-comunicazioni.test.mjs` | `idUtente` dal token, `rpcLibera` (404 di una funzione che manca, scalare com'è), `ascoltaRighe`: canale a sé col filtro, avviso a ogni cambio, riaggancio che avvisa una volta, iscrizione rifiutata che riprova |
 | `cloud-sql.test.mjs` | `12`/`13`: search_path, niente scritture sui dati, niente `pl_*`, `_applica`/`imposta_nota` intatte, `ripristina_blocco` senza LIKE, `imposta_meta` 01-12, `_csv` con l'apice, `ruolo_corrente` con `autorizzato()`, lucchetto sugli admin attivi; `09` fedele a `02`/`03`, niente `pl_*`, `search_path`, `autorizzato()` in testa alle funzioni esposte, `09` senza scritture, grant tolti ad `anon`, policy con `(select autorizzato())`; `netlify.toml`, `netlify-build.sh`, `nuvola-config.js` vuoto, `netlify/functions` solo con handler |
 
 Una prova nuova: `tests/js/cloud-<cosa>.test.mjs`.

@@ -7,12 +7,13 @@
 const CACHE = 'crono-guscio-v37';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
-  '/css/fonti.css', '/css/vrs-famiglia.css', '/css/vrs-app.css', '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
+  '/css/fonti.css', '/css/vrs-famiglia.css', '/css/vrs-app.css', '/css/vrs-comunicazioni.css',
+  '/css/theme.css', '/css/base.css', '/css/griglia.css', '/css/stat.css',
   '/css/stampa.css', '/css/banco.css', '/css/ponte.css',
   '/assets/fonti/inter-latin-wght-normal.woff2', '/assets/fonti/newsreader-latin-wght-normal.woff2',
   '/assets/fonti/newsreader-latin-wght-italic.woff2', '/assets/fonti/jetbrains-mono-latin-wght-normal.woff2',
   '/js/app.js', '/js/api.js', '/js/nuvola.js', '/js/nuvola-config.js',
-  '/js/stato.js', '/js/ui.js', '/js/vrs-icone.js', '/js/vrs-novita.js', '/novita.json',
+  '/js/stato.js', '/js/ui.js', '/js/vrs-icone.js', '/js/vrs-novita.js', '/js/vrs-comunicazioni.js', '/novita.json',
   '/js/anno.js', '/js/mese.js', '/js/stat.js',
   '/js/spunte.js', '/js/cassetto.js', '/js/documenti.js', '/js/affinita.js', '/js/ponte.js',
   '/js/gruppi.js', '/js/tour.js', '/js/albero.js', '/js/famiglia.js', '/js/condividi.js', '/js/tema-avvio.js',

@@ -2,14 +2,14 @@
   "app": "cronoservice",
   "rilasci": [
     {
-      "id": "2026-09-24-2",
+      "id": "2026-09-24-3",
       "data": "2026-09-24",
       "titolo": "Il tema ti segue, e le mappature arrivano nel Planning",
       "evidenza": [
         {
           "icona": "luna",
           "titolo": "Il tema ti segue",
-          "testo": "Chiaro, scuro o automatico scelto qui vale anche nel Planning e nello Scheduler, e viceversa, senza lampi all'apertura."
+          "testo": "Chiaro, scuro o automatico scelto qui vale anche nel Planning, nello Scheduler e nella Suite, e viceversa: le app già aperte cambiano subito, senza ricaricare."
         },
         {
           "icona": "planning",
@@ -29,12 +29,49 @@
       ],
       "miglioramenti": [
         "Il tema scelto qui passa al Planning e allo Scheduler, e quello scelto là arriva qui, già giusto al primo disegno quando passi da «Le app VRS».",
-        "Aprendo CronoService dal segnalibro il tema arriva dal tuo profilo pochi istanti dopo l'apertura."
+        "Aprendo CronoService dal segnalibro il tema arriva dal tuo profilo pochi istanti dopo l'apertura.",
+        "Con più app aperte, anche su schermi diversi, il tema cambia in tutte insieme nel momento in cui lo scegli; senza connessione in tempo reale si allinea appena torni sulla finestra."
       ],
       "correzioni": [
         "Il tema scelto nel Planning o nello Scheduler non arrivava a CronoService, o ci arrivava dopo un'ora: ora passa subito.",
         "All'apertura si poteva vedere per un attimo il tema chiaro prima di quello scuro: ora il tema giusto c'è dal primo disegno."
       ]
+    },
+    {
+      "id": "2026-09-24-2",
+      "data": "2026-09-24",
+      "titolo": "Le comunicazioni dell'amministrazione",
+      "evidenza": [
+        {
+          "icona": "campanella",
+          "titolo": "Le comunicazioni arrivano anche qui",
+          "testo": "Accanto alla stellina c'è la campanella: le comunicazioni dell'amministrazione per te, con il numero di quelle ancora da leggere."
+        },
+        {
+          "icona": "spunta",
+          "titolo": "«Ho letto», una spunta",
+          "testo": "Le comunicazioni importanti si aprono in una finestra che si chiude spuntando «Ho letto». L'amministrazione vede chi l'ha fatto."
+        },
+        {
+          "icona": "griglia",
+          "titolo": "La Suite VRS",
+          "testo": "Nasce la pagina d'ingresso di tutte le app VRS: le apri da lì, con le novità e le comunicazioni per te."
+        }
+      ],
+      "novita": [
+        "Campanella «Comunicazioni» nella testata, accanto alla stellina delle Novità, con il numero di quelle ancora da spuntare (oltre 9 scrive «9+»). Sugli schermi larghi c'è anche la parola.",
+        "Toccandola si apre la casella delle comunicazioni: titolo, priorità scritta a parole, data, chi l'ha mandata e testo, con «Mostra tutto» per quelli lunghi. Ognuna ha la casella «Ho letto»; quelle già spuntate restano spuntate.",
+        "Le comunicazioni importanti si aprono da sole in una finestra, una alla volta («1 di 2»), la più urgente per prima. Si chiude solo spuntando «Ho letto»: Esc e il clic fuori non la chiudono.",
+        "La finestra aspetta che tu sia libero: non compare sopra un'altra finestra aperta o mentre scrivi.",
+        "Una comunicazione pubblicata mentre CronoService è aperto arriva da sola, senza ricaricare la pagina.",
+        "Sul telefono la casella si apre dal basso, con «Chiudi» sotto il pollice; la campanella sta accanto alla ricerca.",
+        "Nasce la Suite VRS, la pagina d'ingresso di tutte le app, con le novità di ogni aggiornamento e le comunicazioni per te."
+      ],
+      "miglioramenti": [
+        "Senza rete o nella versione dell'ufficio la campanella non compare, e non dà errori.",
+        "La lista si rilegge quando torni sulla scheda e ogni volta che apri la casella."
+      ],
+      "correzioni": []
     },
     {
       "id": "2026-09-24",

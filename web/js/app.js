@@ -33,7 +33,9 @@ import {
 } from './documenti.js';
 import { doppioni } from './affinita.js';
 import { apriCassetto } from './cassetto.js';
-import { temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken, collegaNovita } from './famiglia.js';
+import {
+  temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken, collegaNovita, collegaComunicazioni,
+} from './famiglia.js';
 import { serviceDaIndirizzo } from './condividi.js';
 
 const area = $('#area');
@@ -112,6 +114,8 @@ async function avvia() {
   allineaDalToken();
   // e anche l'ultimo aggiornamento visto: il tasto Novita' parte da qui
   collegaNovita();
+  // le comunicazioni dell'amministrazione (solo online, #ANCHOR: comunicazioni in js/famiglia.js)
+  collegaComunicazioni();
   if (r.daCache) {
     avviso('Server non raggiungibile: stai lavorando sui dati salvati su questo ' +
       'computer. Le spunte restano in coda e partono da sole al ritorno.',
