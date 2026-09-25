@@ -5,7 +5,8 @@ Tre cose, le stesse del Planning (web/src/components/AppSwitcher.tsx e
 web/src/lib/temaCondiviso.ts nel repository del Planning):
 
  1. IL SELETTORE D'APP (VIS-05 / PRD-01). Il marchio in alto a sinistra e'
-    anche il pulsante che apre le app VRS: Planning, CronoService, Scheduler.
+    anche il pulsante che apre le app VRS: Planning, CronoService, Scheduler
+    e, solo per il coordinatore, il Pannello Admin.
     Stesse voci, stessi nomi, stesso foglio di stile (css/vrs-app.css, IDENTICO
     nei due repository). Prima da qui non si tornava al Planning. I nomi sono
     quelli di oggi (D3 non e' decisa): si cambiano in APP_FAMIGLIA, qui e di la'.
@@ -52,6 +53,9 @@ const PLANNING = stessoAmbiente('https://vrs-planning.netlify.app/');
 const SCHEDULER = stessoAmbiente('https://vrs-scheduler.netlify.app/');
 /* La Suite VRS, la pagina di casa di tutte le app (meteo, calendario, notizie). */
 const SUITE = stessoAmbiente('https://vrs-suite.netlify.app/');
+/* Il Pannello Admin (sito vrs-admin, riservato al coordinatore): dall'anteprima
+   quello d'anteprima, come adminPredefinito() in lib/links.ts del Planning. */
+const ADMIN = stessoAmbiente('https://vrs-admin.netlify.app/');
 
 export { SUITE };
 
@@ -62,6 +66,8 @@ export const APP_FAMIGLIA = [
     ico: 'M12 3.5a8.5 8.5 0 1 0 8.5 8.5M12 7.2V12l3.2 1.9M16.4 5.2l2 2 3.4-3.6' },
   { id: 'scheduler', nome: 'Scheduler', nota: 'Planning di cantieri e manutenzioni', to: SCHEDULER,
     ico: 'M4 20.5h6.5M7 20.5V6.5M4.2 9.6 7 6.5l2.8 3.1M7 6.5h13M20 6.5v3.4M20 9.9v2.8M18.4 12.7h3.2' },
+  { id: 'admin', nome: 'Pannello Admin', nota: 'Persone, uffici, accessi e comunicazioni', to: ADMIN, soloCoordinatore: true,
+    ico: 'M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8M12 2.6V6M12 18v3.4M21.4 12H18M6 12H2.6M18.6 5.4 16.2 7.8M7.8 16.2l-2.4 2.4M18.6 18.6l-2.4-2.4M7.8 7.8 5.4 5.4' },
 ];
 const QUI = 'cronoservice';
 
@@ -123,10 +129,50 @@ function apri(bottone, n, lato) {
   (n.querySelector('[aria-pressed="true"]') || n.querySelector('a,button'))?.focus();
 }
 
+/* Il Pannello Admin compare solo al coordinatore del Planning. Lo dice il
+   database (pl_is_coordinator(), la stessa del cancello del pannello), una
+   volta per account: chi esce ed entra con un altro account viene richiesto. */
+let coordinatore = { id: '', si: false, chiesta: /** @type {Promise<boolean>|null} */ (null) };
+function eCoordinatore() {
+  const id = nuvola.idUtente() || '';
+  if (!id || !nuvola.attiva()) return Promise.resolve(false);
+  if (coordinatore.id === id && coordinatore.chiesta) return coordinatore.chiesta;
+  const voce = { id, si: false, chiesta: /** @type {Promise<boolean>|null} */ (null) };
+  voce.chiesta = nuvola.rpcLibera('pl_is_coordinator', {}, 8000)
+    .then(r => (voce.si = r.ok && r.dati === true))
+    .catch(() => { voce.chiesta = null; return false; });   // rete giu': si riprova al prossimo clic
+  coordinatore = voce;
+  return voce.chiesta;
+}
+const sonoCoordinatore = () => coordinatore.id === (nuvola.idUtente() || '') && coordinatore.si;
+
 /** Il selettore d'app: si aggancia al marchio della testata (#app-scelta). */
 export function collegaSelettoreApp(bottone = document.getElementById('app-scelta')) {
   if (!bottone) return;
-  bottone.onclick = () => apri(bottone, finestraApp(), 'sinistra');
+  bottone.onclick = () => {
+    apri(bottone, finestraApp(), 'sinistra');
+    // la prima volta la risposta arriva a finestra aperta: la voce si aggiunge in fondo
+    if (!sonoCoordinatore()) eCoordinatore().then(si => {
+      const lista = aperta?.bottone === bottone ? aperta.n.querySelector('.vrs-app-lista') : null;
+      if (si && lista && !lista.querySelector('[data-app="admin"]')) {
+        APP_FAMIGLIA.filter(a => a.soloCoordinatore).forEach(a => lista.append(voceApp(a)));
+        piazza();
+      }
+    });
+  };
+  // si chiede appena c'e' la sessione, cosi' al primo clic la voce c'e' gia'
+  setTimeout(() => { if (nuvola.haSessione()) eCoordinatore(); }, 1500);
+}
+
+function voceApp(a) {
+  const qui = a.id === QUI;
+  return h('li', { 'data-app': a.id },
+    h('a.vrs-app-voce', { href: qui ? a.to : conTema(a.to), ...(qui ? { 'aria-current': 'page' } : {}) },
+      h('span.vrs-app-ico', { 'aria-hidden': 'true', html: svg(a.ico) }),
+      h('span.vrs-app-testi', {},
+        h('span.vrs-app-nome', { testo: a.nome }),
+        h('span.vrs-app-nota', { testo: a.nota })),
+      qui ? h('span.vrs-app-qui', { testo: 'Sei qui' }) : null));
 }
 
 function finestraApp() {
@@ -136,16 +182,7 @@ function finestraApp() {
       h('span.vrs-app-titolo', { 'aria-hidden': 'true', testo: 'Le app VRS' }),
       h('a.vrs-app-casa', { href: conTema(SUITE), title: 'La Suite VRS: le app, il calendario e le notizie',
         html: svg('M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-5v6h-4A1.5 1.5 0 0 1 4 19z', 16) + 'Suite' })),
-    h('ul.vrs-app-lista', {}, APP_FAMIGLIA.map(a => {
-      const qui = a.id === QUI;
-      return h('li', {},
-        h('a.vrs-app-voce', { href: qui ? a.to : conTema(a.to), ...(qui ? { 'aria-current': 'page' } : {}) },
-          h('span.vrs-app-ico', { 'aria-hidden': 'true', html: svg(a.ico) }),
-          h('span.vrs-app-testi', {},
-            h('span.vrs-app-nome', { testo: a.nome }),
-            h('span.vrs-app-nota', { testo: a.nota })),
-          qui ? h('span.vrs-app-qui', { testo: 'Sei qui' }) : null));
-    })));
+    h('ul.vrs-app-lista', {}, APP_FAMIGLIA.filter(a => !a.soloCoordinatore || sonoCoordinatore()).map(voceApp)));
 }
 
 /* ------------------------------------------------------------- il tema -- */

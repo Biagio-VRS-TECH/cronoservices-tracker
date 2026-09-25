@@ -11,11 +11,14 @@ import {
   temaScelto, istanteScelta, stessoAmbiente,
 } from '../../web/js/famiglia.js';
 
-test('il selettore ha le tre app, nell’ordine del Planning, e porta al Planning vero', () => {
-  assert.deepEqual(APP_FAMIGLIA.map(a => a.nome), ['Planning', 'CronoService', 'Scheduler']);
+test('il selettore ha le app, nell’ordine del Planning, e porta al Planning vero', () => {
+  assert.deepEqual(APP_FAMIGLIA.map(a => a.nome), ['Planning', 'CronoService', 'Scheduler', 'Pannello Admin']);
   assert.equal(APP_FAMIGLIA[0].to, 'https://vrs-planning.netlify.app/');
   // lo Scheduler e' un sito suo, non la pagina /cantieri del Planning
   assert.equal(APP_FAMIGLIA[2].to, 'https://vrs-scheduler.netlify.app/');
+  // il Pannello Admin c'e' come nel Planning, ma solo per il coordinatore (pl_is_coordinator)
+  assert.equal(APP_FAMIGLIA[3].to, 'https://vrs-admin.netlify.app/');
+  assert.deepEqual(APP_FAMIGLIA.filter(a => a.soloCoordinatore).map(a => a.id), ['admin']);
 });
 
 test('dall’anteprima si resta in anteprima, in produzione niente cambia', () => {
