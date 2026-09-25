@@ -2,6 +2,40 @@
   "app": "cronoservice",
   "rilasci": [
     {
+      "id": "2026-09-25",
+      "data": "2026-09-25",
+      "titolo": "Un accesso solo, nella Suite",
+      "evidenza": [
+        {
+          "icona": "persona",
+          "titolo": "Un accesso solo, nella Suite",
+          "testo": "Si entra una volta nella Suite VRS: senza accesso CronoService porta lì e poi torna qui già dentro."
+        },
+        {
+          "icona": "link",
+          "titolo": "Da un'app all'altra con il tuo account",
+          "testo": "Arrivando dal Planning o dalla Suite entri già con il tuo account, e da qui le altre app si aprono con lo stesso."
+        },
+        {
+          "icona": "esci",
+          "titolo": "«Esci» esce anche dalla Suite",
+          "testo": "Uscendo da CronoService esci anche dalla Suite, così nessuno rientra al posto tuo dallo stesso computer."
+        }
+      ],
+      "novita": [
+        "Senza accesso CronoService porta alla Suite VRS per entrare, e poi torna qui già dentro, con il sito che stavi aprendo.",
+        "Arrivando da un'altra app VRS entri con lo stesso account, anche se qui era rimasto quello di un collega.",
+        "Da «Le app VRS» il Planning, lo Scheduler, la Suite e il Pannello Admin si aprono con l'account con cui sei entrato qui."
+      ],
+      "miglioramenti": [
+        "«Esci» esce anche dalla Suite VRS.",
+        "Sul computer dell'ufficio, senza rete, resta la pagina d'accesso di sempre."
+      ],
+      "correzioni": [
+        "Passando a CronoService dalle altre app bisognava rifare l'accesso: ora si resta dentro."
+      ]
+    },
+    {
       "id": "2026-09-24-4",
       "data": "2026-09-24",
       "titolo": "La Suite a un clic",

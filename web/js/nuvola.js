@@ -47,6 +47,108 @@ let ultimoAnno = new Date().getFullYear();
 let ultimoErrore = '';           // motivo dell'ultimo rifiuto, mostrato al login
 let rinnovo = null;              // il rinnovo in corso: uno solo alla volta
 
+/* ---------------------------------------- accesso unico nella Suite VRS -- */
+/* CronoService e' un'app della Suite VRS come le altre (25/09/2026). Come nel
+   Planning (web/src/lib/ponteAccesso.ts e lib/accessoUnico.ts di quel repo):
+    - si entra una volta sola, nella Suite. Senza sessione, online, non si
+      mostra la pagina d'accesso di qui: si va alla Suite con `?accedi=<qui>`
+      e si torna gia' dentro;
+    - arrivando da un'altra app VRS l'indirizzo porta `#vrs_ponte=<hash>`: lo
+      si toglie subito e lo si scambia con la sessione (POST /auth/v1/verify),
+      al posto di quella che c'era (anche di un altro account);
+    - un clic verso un'altra app VRS chiede alla funzione pl-accesso-ponte un
+      hash monouso per chi e' entrato qui, e lo porta con se';
+    - «Esci» esce anche dalla Suite (`?esci=1`), se no si rientrerebbe subito.
+   La pagina d'accesso di qui resta in locale (avvia.bat), con `?accesso=locale`
+   e dopo tre giri falliti in due minuti (niente rimbalzi senza fine). */
+const SITI_VRS = /^(?:[a-z0-9-]+--)?(?:vrs-planning|vrs-admin|vrs-scheduler|vrs-suite|cronoservices-tracker)\.netlify\.app$/i;
+const SOTTODOMINI_VRS = /^[a-z0-9-]+\.app\.vrs-tech\.it$/i;
+export const eSitoVrs = (h) => SITI_VRS.test(h) || SOTTODOMINI_VRS.test(h);
+/** @param {URL} u */
+export const eAltraAppVrs = (u) => u.origin !== location.origin && u.protocol === 'https:' && eSitoVrs(u.hostname);
+/** La Suite: dall'anteprima quella d'anteprima (come stessoAmbiente in famiglia.js) */
+const urlSuite = () => (/^anteprima--/i.test(location.hostname) ? 'https://anteprima--vrs-suite.netlify.app/' : 'https://vrs-suite.netlify.app/');
+const accessoInRete = () => attiva() && location.protocol === 'https:' && eSitoVrs(location.hostname);
+const K_TENTATIVI = 'vrs.accesso-unico.tentativi';
+const tentativi = () => {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(K_TENTATIVI) || 'null');
+    if (v && Date.now() - v.t < 120000) return v;
+  } catch { }
+  return { n: 0, t: Date.now() };
+};
+const accessoRiuscito = () => { try { sessionStorage.removeItem(K_TENTATIVI); } catch { } };
+
+/** L'hash d'accesso arrivato con l'indirizzo (e lo toglie subito dall'indirizzo) */
+export function prendiPonte() {
+  const m = /(?:^#|&)vrs_ponte=([^&]+)/.exec(location.hash);
+  if (!m) return null;
+  const resto = location.hash.replace(/(^#|&)vrs_ponte=[^&]+/, '$1').replace(/^#&/, '#').replace(/&$/, '');
+  try { history.replaceState(history.state, '', location.pathname + location.search + (resto === '#' ? '' : resto)); } catch { }
+  try { return decodeURIComponent(m[1]); } catch { return null; }
+}
+
+/** Scambia l'hash con la sessione: vero se si e' entrati */
+async function entraConPonte(hash) {
+  for (const type of ['email', 'magiclink']) {
+    try {
+      salvaSessione(await auth('verify', { type, token_hash: hash }));
+      ultimoErrore = '';
+      return true;
+    } catch { }
+  }
+  return false;
+}
+
+/** L'indirizzo con il passaggio d'accesso, se c'e' una sessione e il server lo concede */
+export async function conPonte(href) {
+  try {
+    const u = new URL(href, location.href);
+    if (!eAltraAppVrs(u) || !attiva()) return href;
+    const t = await token();
+    if (!t) return href;
+    const r = await fetch(ORIGINE + '/functions/v1/pl-accesso-ponte', {
+      method: 'POST',
+      headers: { apikey: CHIAVE_ANON, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!r.ok) return href;
+    const d = await r.json().catch(() => ({}));
+    if (!d?.tokenHash) return href;
+    u.hash = 'vrs_ponte=' + encodeURIComponent(d.tokenHash);
+    return u.toString();
+  } catch { return href; }
+}
+
+/** I clic sui collegamenti verso le altre app VRS portano l'accesso (un ascoltatore per la pagina) */
+export function intercettaLinkFraApp() {
+  if (!attiva()) return;
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = /** @type {HTMLAnchorElement|null} */ (/** @type {Element} */ (e.target)?.closest?.('a[href]'));
+    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+    let u;
+    try { u = new URL(a.href); } catch { return; }
+    if (!eAltraAppVrs(u)) return;
+    e.preventDefault();
+    a.setAttribute('aria-busy', 'true');
+    conPonte(a.href).then((dove) => location.assign(dove), () => location.assign(a.href));
+  });
+}
+
+/** Senza sessione, online: si va alla Suite per entrare (vero) o si resta con la pagina di qui (falso) */
+function vaiAllaSuiteSeServe() {
+  if (!accessoInRete()) return false;
+  if (new URLSearchParams(location.search).get('accesso') === 'locale') return false;
+  const t = tentativi();
+  if (t.n >= 3) return false;
+  try { sessionStorage.setItem(K_TENTATIVI, JSON.stringify({ n: t.n + 1, t: t.n ? t.t : Date.now() })); } catch { }
+  const u = new URL(urlSuite());
+  u.searchParams.set('accedi', location.href);
+  location.replace(u.toString());
+  return true;
+}
+
 /* ------------------------------------------------------------- sessione -- */
 function salvaSessione(s) {
   ses = s && {
@@ -147,6 +249,13 @@ export function esci() {
     } catch { }
   }
   salvaSessione(null);
+  // accesso unico: si esce anche dalla Suite, se no al primo giro si verrebbe riportati dentro
+  if (accessoInRete()) {
+    const u = new URL(urlSuite());
+    u.searchParams.set('esci', '1');
+    location.replace(u.toString());
+    return;
+  }
   location.reload();
 }
 
@@ -934,14 +1043,20 @@ const segnalaQui = e => { try { inviaErrore(e, 'ascoltaRighe'); } catch { } };
  *  buona: chi chiama puo' fare finta che il login non esista. */
 export function assicuraSessione() {
   return new Promise(async resolve => {
+    // arrivando da un'altra app VRS con il passaggio d'accesso: si entra con quell'account
+    const ponte = attiva() ? prendiPonte() : null;
+    if (ponte && await entraConPonte(ponte)) { accessoRiuscito(); return resolve(ses); }
     try {
-      if (await token()) return resolve(ses);
+      if (await token()) { accessoRiuscito(); return resolve(ses); }
     } catch {
       // Rete giu' con una sessione da rinnovare: la sessione c'e', si lavora
       // dalla copia e dalla coda offline, e si rinnova quando torna la rete.
       // Prima qui la promessa restava appesa e l'app non partiva.
       return resolve(ses);
     }
+
+    // accesso unico: online si entra dalla Suite, e si torna qui gia' dentro
+    if (vaiAllaSuiteSeServe()) return;
 
     /* VIS-06 / PRD-11 / TXT-09: una PAGINA d'accesso, non una modale sopra
        l'app (che lasciava gia' vedere «collegato»). Stessa struttura, stesse

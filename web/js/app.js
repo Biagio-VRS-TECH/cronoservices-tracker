@@ -32,6 +32,7 @@ import {
   cestinoDocumenti, ripristinaDocumento, eliminaDefinitivo, titoloDocumento, tipoDi,
 } from './documenti.js';
 import { doppioni } from './affinita.js';
+import { intercettaLinkFraApp } from './nuvola.js';
 import { apriCassetto } from './cassetto.js';
 import {
   temaIniziale, collegaTema, collegaSelettoreApp, allineaDalToken, collegaNovita, collegaComunicazioni,
@@ -377,6 +378,8 @@ function collegaTesta() {
   $('#oggi').onclick = vaiOggi;
   collegaTema($('#tema'));
   collegaSelettoreApp($('#app-scelta'));
+  // i collegamenti verso le altre app VRS portano l'accesso (nuvola.js, accesso unico nella Suite)
+  intercettaLinkFraApp();
   $('#io').onclick = mostraChiSono;
   $('#aiuto').onclick = mostraAiuto;
   $('#documenti').onclick = e => apriGeneratori(e.currentTarget);

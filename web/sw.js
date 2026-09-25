@@ -4,7 +4,7 @@
    spesso), quando non c'e' si apre l'ultima copia scaricata.
    Le API non passano da qui: i dati stanno in localStorage e la coda di
    scrittura e' gestita da js/api.js.  #ANCHOR: sw */
-const CACHE = 'crono-guscio-v40';
+const CACHE = 'crono-guscio-v41';
 const GUSCIO = [
   '/', '/index.html', '/manifest.webmanifest',
   '/css/fonti.css', '/css/vrs-famiglia.css', '/css/vrs-app.css', '/css/vrs-comunicazioni.css',
