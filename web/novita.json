@@ -10,6 +10,16 @@
           "icona": "griglia",
           "titolo": "La Suite a un clic da ogni app",
           "testo": "Nel menu «Le app VRS», in alto, c'è «Suite»: la pagina di casa con le tue app, il meteo, il calendario e le notizie."
+        },
+        {
+          "icona": "link",
+          "titolo": "Dall'anteprima resti in anteprima",
+          "testo": "Chi prova le novità sull'anteprima passa al Planning e allo Scheduler restando sulle loro anteprime."
+        },
+        {
+          "icona": "admin",
+          "titolo": "Il Pannello Admin a un clic",
+          "testo": "Per il coordinatore «Le app VRS» porta anche al Pannello Admin: persone, uffici, accessi e comunicazioni."
         }
       ],
       "novita": [
@@ -18,7 +28,8 @@
           "voci": [
             "«Suite» nel menu «Le app VRS» porta alla pagina di casa delle app VRS, col tuo tema."
           ]
-        }
+        },
+        "Per il coordinatore «Le app VRS» mostra anche il Pannello Admin."
       ],
       "miglioramenti": [],
       "correzioni": [
