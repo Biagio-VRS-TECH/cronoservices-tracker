@@ -4,22 +4,12 @@
     {
       "id": "2026-09-24-4",
       "data": "2026-09-24",
-      "titolo": "La Suite a un clic, con le notizie dell'azienda",
+      "titolo": "La Suite a un clic",
       "evidenza": [
         {
           "icona": "griglia",
           "titolo": "La Suite a un clic da ogni app",
           "testo": "Nel menu «Le app VRS», in alto, c'è «Suite»: la pagina di casa con le tue app, il meteo, il calendario e le notizie."
-        },
-        {
-          "icona": "documento",
-          "titolo": "Le notizie dell'azienda nella Suite",
-          "testo": "L'amministrazione può scrivere articoli per tutti: li trovi nelle Notizie della Suite, con quelli importanti in evidenza."
-        },
-        {
-          "icona": "spunta",
-          "titolo": "Solo le novità che servono",
-          "testo": "Nella Suite restano le novità più utili dell'ultimo mese, una volta sola anche se arrivano in più app."
         }
       ],
       "novita": [
@@ -87,11 +77,6 @@
           "icona": "spunta",
           "titolo": "«Ho letto», una spunta",
           "testo": "Le comunicazioni importanti si aprono in una finestra che si chiude spuntando «Ho letto». L'amministrazione vede chi l'ha fatto."
-        },
-        {
-          "icona": "griglia",
-          "titolo": "La Suite VRS",
-          "testo": "Nasce la pagina d'ingresso di tutte le app VRS: le apri da lì, con le novità e le comunicazioni per te."
         }
       ],
       "novita": [
@@ -100,8 +85,7 @@
         "Le comunicazioni importanti si aprono da sole in una finestra, una alla volta («1 di 2»), la più urgente per prima. Si chiude solo spuntando «Ho letto»: Esc e il clic fuori non la chiudono.",
         "La finestra aspetta che tu sia libero: non compare sopra un'altra finestra aperta o mentre scrivi.",
         "Una comunicazione pubblicata mentre CronoService è aperto arriva da sola, senza ricaricare la pagina.",
-        "Sul telefono la casella si apre dal basso, con «Chiudi» sotto il pollice; la campanella sta accanto alla ricerca.",
-        "Nasce la Suite VRS, la pagina d'ingresso di tutte le app, con le novità di ogni aggiornamento e le comunicazioni per te."
+        "Sul telefono la casella si apre dal basso, con «Chiudi» sotto il pollice; la campanella sta accanto alla ricerca."
       ],
       "miglioramenti": [
         "Senza rete o nella versione dell'ufficio la campanella non compare, e non dà errori.",
