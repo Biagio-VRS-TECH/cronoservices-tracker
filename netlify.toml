@@ -25,10 +25,14 @@
 #     gia' uscito in web/js/schede.js (COD-07).
 #     Il database e' su *.supabase.co (REST, auth, storage con indirizzi firmati; wss per il realtime).
 #     Le librerie PDF/Excel stanno in /lib, servite dal sito.
+# X-Robots-Tag: l'app e' interna, nessun motore di ricerca deve indicizzarla (pagine, PDF, file di
+# /lib o /assets). Vale per ogni file, anche quelli che non sono HTML; robots.txt la lascia leggere
+# apposta (vedi web/robots.txt).
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
+    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "same-origin"
     Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
