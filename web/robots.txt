@@ -1,0 +1,6 @@
+# CronoService è un'app interna di VRS: niente motori di ricerca.
+# Il blocco vero è l'intestazione «X-Robots-Tag: noindex» su ogni file (netlify.toml) e il <meta
+# name="robots"> nelle pagine. Qui NON si scrive «Disallow: /»: un motore a cui è vietato leggere
+# le pagine non vede nemmeno il noindex, e un indirizzo già noto potrebbe restare nei risultati.
+User-agent: *
+Disallow:
