@@ -68,7 +68,12 @@ export const eSitoVrs = (h) => SITI_VRS.test(h) || SOTTODOMINI_VRS.test(h);
 export const eAltraAppVrs = (u) => u.origin !== location.origin && u.protocol === 'https:' && eSitoVrs(u.hostname);
 /** La Suite: dall'anteprima quella d'anteprima (come stessoAmbiente in famiglia.js) */
 const urlSuite = () => (/^anteprima--/i.test(location.hostname) ? 'https://anteprima--vrs-suite.netlify.app/' : 'https://vrs-suite.netlify.app/');
-const accessoInRete = () => attiva() && location.protocol === 'https:' && eSitoVrs(location.hostname);
+/* La Suite di produzione e' aperta a tutti? Il 25/09/2026 su Netlify era ancora protetta
+   dall'accesso del team anche in produzione: finche' e' cosi' l'accesso unico vale solo sulle
+   anteprime (come SUITE_PRODUZIONE_APERTA in lib/accessoUnico.ts del Planning). */
+const SUITE_PRODUZIONE_APERTA = false;
+const accessoInRete = () => attiva() && location.protocol === 'https:' && eSitoVrs(location.hostname)
+  && (SUITE_PRODUZIONE_APERTA || /^anteprima--/i.test(location.hostname));
 const K_TENTATIVI = 'vrs.accesso-unico.tentativi';
 const tentativi = () => {
   try {
